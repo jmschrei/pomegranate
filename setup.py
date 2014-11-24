@@ -13,23 +13,33 @@ cmdclass = { }
 
 if use_cython:
     ext_modules = [
-        Extension("yahmm.yahmm", [ "yahmm/yahmm.pyx" ], include_dirs=[np.get_include()]),
+        Extension("pomegranate.pomegranate", [ "pomegranate/base.pyx",
+                                               "pomegranate/base.pxd",
+                                               "pomegranate/bayesnet.pyx",
+                                               "pomegranate/distributions.pxd",
+                                               "pomegranate/fsm.pyx",
+                                               "pomegranate/hmm.pyx",
+                                               "pomegranate/utils.pxd" ], include_dirs=[np.get_include()]),
     ]
     cmdclass.update({ 'build_ext': build_ext })
 else:
     ext_modules = [
-        Extension("yahmm.yahmm", [ "yahmm/yahmm.c" ], include_dirs=[np.get_include()]),
+        Extension("pomegranate.pomegranate", [ "pomegranate/base.c",
+                                               "pomegranate/bayesnet.c",
+                                               "pomegranate/distributions.c",
+                                               "pomegranate/fsm.c",
+                                               "pomegranate/hmm.c" ], include_dirs=[np.get_include()]),
     ]
 
 setup(
-    name='prometheus',
+    name='pomegranate',
     version='0.0.1',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
-    packages=['prometheus'],
-    url='http://pypi.python.org/pypi/yahmm/',
+    packages=['pomegranate'],
+    url='http://pypi.python.org/pypi/pomegranate/',
     license='LICENSE.txt',
-    description='Prometheus is a graphical models library for Python, implemented in Cython for speed.',
+    description='Pomegranate is a graphical models library for Python, implemented in Cython for speed.',
     cmdclass=cmdclass,
     ext_modules=ext_modules,
     install_requires=[
