@@ -40,5 +40,6 @@ from hmm import *
 from bayesnet import *
 from fsm import *
 from distributions import *
+from base import *
 
 __version__ = '1.0.0'

@@ -56,108 +56,7 @@ def exp(value):
 	
 	return numpy.exp(value)
 
-cdef class State( object ):
-	"""
-	Represents a state in an HMM. Holds emission distribution, but not
-	transition distribution, because that's stored in the graph edges.
-	"""
-	
-	cdef public Distribution distribution
-	cdef public str name
-	cdef public str identity
-	cdef public double weight
-
-	def __init__( self, distribution, name=None, weight=None, identity=None ):
-		"""
-		Make a new State emitting from the given distribution. If distribution 
-		is None, this state does not emit anything. A name, if specified, will 
-		be the state's name when presented in output. Name may not contain 
-		spaces or newlines, and must be unique within an HMM. Identity is a
-		store of the id property, to allow for multiple states to have the same
-		name but be uniquely identifiable. 
-		"""
-		
-		# Save the distribution
-		self.distribution = distribution
-		
-		# Save the name
-		self.name = name or str(id(str))
-
-		# Save the id
-		if identity is not None:
-			self.identity = str(identity)
-		else:
-			self.identity = str(id(self))
-
-		self.weight = weight or 1.
-
-	def __str__(self):
-		"""
-		Represent this state with it's name, weight, and identity.
-		"""
-		
-		return "State( {}, name={}, weight={}, identity={} )".format(
-			str(self.distribution), self.name, self.weight, self.identity )
-
-	def is_silent(self):
-		"""
-		Return True if this state is silent (distribution is None) and False 
-		otherwise.
-		"""
-		
-		return self.distribution is None
-
-	def tied_copy( self ):
-		"""
-		Return a copy of this state where the distribution is tied to the
-		distribution of this state.
-		"""
-
-		return State( distribution=self.distribution, name=self.name )
-		
-	def copy( self ):
-		"""
-		Return a hard copy of this state.
-		"""
-
-		return State( **self.__dict__ )
-		
-	def write(self, stream):
-		"""
-		Write this State (and its Distribution) to the given stream.
-		
-		Format: name, followed by "*" if the state is silent.
-		If not followed by "*", the next line contains the emission
-		distribution.
-		"""
-		
-		name = self.name.replace( " ", "_" ) 
-		stream.write( "{} {} {} {}\n".format( 
-			self.identity, name, self.weight, str( self.distribution ) ) )
-		
-	@classmethod
-	def read(cls, stream):
-		"""
-		Read a State from the given stream, in the format output by write().
-		"""
-		
-		# Read a line
-		line = stream.readline()
-		
-		if line == "":
-			raise EOFError("End of file while reading state.")
-			
-		# Spilt the line up
-		parts = line.strip().split()
-		
-		# parts[0] holds the state's name, and parts[1] holds the rest of the
-		# state information, so we can just evaluate it.
-		identity, name, weight, distribution = \
-			parts[0], parts[1], parts[2], ' '.join( parts[3:] )
-		return eval( "State( {}, name='{}', weight={}, identity='{}' )".format( 
-			distribution, name, weight, identity ) )
-
-cdef class HMM( Model ):
+cdef class HiddenMarkovModel( StructuredModel ):
 	"""
 	Represents a Hidden Markov Model.
 	"""
@@ -200,13 +99,6 @@ cdef class HMM( Model ):
 		# Put start and end in the graph
 		self.graph.add_node(self.start)
 		self.graph.add_node(self.end)
-	
-	def __str__(self):
-		"""
-		Represent this HMM with it's name and states.
-		"""
-		
-		return "{}:\n\t{}".format(self.name, "\n\t".join(map(str, self.states)))
 
 	def is_infinite( self ):
 		"""
@@ -218,88 +110,6 @@ cdef class HMM( Model ):
 		"""
 
 		return self.finite == 0
-		
-	def add_transition( self, a, b, probability, pseudocount=None, group=None ):
-		"""
-		Add a transition from state a to state b with the given (non-log)
-		probability. Both states must be in the HMM already. self.start and
-		self.end are valid arguments here. Probabilities will be normalized
-		such that every node has edges summing to 1. leaving that node, but
-		only when the model is baked. 
-
-		By specifying a group as a string, you can tie edges together by giving
-		them the same group. This means that a transition across one edge in the
-		group counts as a transition across all edges in terms of training.
-		"""
-		
-		# If a pseudocount is specified, use it, otherwise use the probability.
-		# The pseudocounts come up during training, when you want to specify
-		# custom pseudocount weighting schemes per edge, in order to make the
-		# model converge to that scheme given no observations. 
-		pseudocount = pseudocount or probability
-
-		# Add the transition
-		self.graph.add_edge(a, b, weight=log(probability), 
-			pseudocount=pseudocount, group=group )
-
-	def add_transitions( self, a, b, probabilities=None, pseudocounts=None,
-		groups=None ):
-		"""
-		Add many transitions at the same time, in one of two forms. 
-
-		(1) If both a and b are lists, then create transitions from the i-th 
-		element of a to the i-th element of b with a probability equal to the
-		i-th element of probabilities.
-
-		Example: 
-		model.add_transitions([model.start, s1], [s1, model.end], [1., 1.])
-
-		(2) If either a or b are a state, and the other is a list, create a
-		transition from all states in the list to the single state object with
-		probabilities and pseudocounts specified appropriately.
-
-		Example:
-		model.add_transitions([model.start, s1, s2, s3], s4, [0.2, 0.4, 0.3, 0.9])
-		model.add_transitions(model.start, [s1, s2, s3], [0.6, 0.2, 0.05])
-
-		If a single group is given, it's assumed all edges should belong to that
-		group. Otherwise, either groups can be a list of group identities, or
-		simply None if no group is meant.
-		"""
-
-		# If a pseudocount is specified, use it, otherwise use the probability.
-		# The pseudocounts come up during training, when you want to specify
-		# custom pseudocount weighting schemes per edge, in order to make the
-		# model converge to that scheme given no observations. 
-		pseudocounts = pseudocounts or probabilities
-
-		n = len(a) if isinstance( a, list ) else len(b)
-		if groups is None or isinstance( groups, str ):
-			groups = [ groups ] * n
-
-		# Allow addition of many transitions from many states
-		if isinstance( a, list ) and isinstance( b, list ):
-			# Set up an iterator across all edges
-			edges = izip( a, b, probabilities, pseudocounts, groups )
-			
-			for start, end, probability, pseudocount, group in edges:
-				self.add_transition( start, end, probability, pseudocount, group )
-
-		# Allow for multiple transitions to a specific state 
-		elif isinstance( a, list ) and isinstance( b, State ):
-			# Set up an iterator across all edges to b
-			edges = izip( a, probabilities, pseudocounts, groups )
-
-			for start, probability, pseudocount, group in edges:
-				self.add_transition( start, b, probability, pseudocount, group )
-
-		# Allow for multiple transitions from a specific state
-		elif isinstance( a, State ) and isinstance( b, list ):
-			# Set up an iterator across all edges from a
-			edges = izip( b, probabilities, pseudocounts, groups )
-
-			for end, probability, pseudocount, group in edges:
-				self.add_transition( a, end, probability, pseudocount, group )
 
 	def add_model( self, other ):
 		"""
@@ -343,25 +153,6 @@ cdef class HMM( Model ):
 		
 		networkx.draw(self.graph, **kwargs)
 		pyplot.show()
-
-	def freeze_distributions( self ):
-		"""
-		Freeze all the distributions in model. This means that upon training,
-		only edges will be updated. The parameters of distributions will not
-		be affected.
-		"""
-
-		for state in self.states:
-			state.distribution.freeze()
-
-	def thaw_distributions( self ):
-		"""
-		Thaw all distributions in the model. This means that upon training,
-		distributions will be updated again.
-		"""
-
-		for state in self.states:
-			state.distribution.thaw()
 
 	def bake( self, verbose=False, merge="all" ): 
 		"""

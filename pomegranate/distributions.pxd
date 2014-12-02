@@ -22,6 +22,12 @@ cdef class ExtremeValueDistribution( Distribution ):
 cdef class ExponentialDistribution( Distribution ):
 	pass
 
+cdef class GammaDistribution( Distribution ):
+	pass
+
+cdef class InverseGammaDistribution( GammaDistribution ):
+	pass
+
 cdef class DiscreteDistribution( Distribution ):
 	pass
 
@@ -41,4 +47,7 @@ cdef class MixtureDistribution( Distribution ):
 	pass
 
 cdef class MultivariateDistribution( Distribution ):
+	pass
+
+cdef class ConditionalDiscreteDistribution( Distribution ):
 	pass

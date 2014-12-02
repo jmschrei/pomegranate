@@ -53,18 +53,6 @@ def exp(value):
 	
 	return numpy.exp(value)
 
-cdef class State( object ):
-	'''
-	A State, which takes in an emission distribution and a name.
-	'''
-
-	cdef public NormalDistribution distribution
-	cdef public str name
-
-	def __init__( self, distribution, name ):
-		self.distribution = distribution
-		self.name = name
-
 cdef class BayesianNetwork( Model ):
 	"""
 	Represents a Bayesian Network
