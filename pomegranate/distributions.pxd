@@ -49,5 +49,8 @@ cdef class MixtureDistribution( Distribution ):
 cdef class MultivariateDistribution( Distribution ):
 	pass
 
-cdef class ConditionalDiscreteDistribution( Distribution ):
+cdef class ConditionalDistribution( Distribution ):
+	pass
+
+cdef class ConditionalDiscreteDistribution( ConditionalDistribution ):
 	pass

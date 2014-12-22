@@ -102,36 +102,153 @@ cdef class BayesianNetwork( Model ):
 			for end, weight in izip( b, weights ):
 				self.add_transition( a, end, weight )
 
-	def sample( self ):
+	def log_probability( self, data ):
 		'''
-		Generate a random sample from this model.
+		Determine the log probability of the data given the model. The data is
+		expected to come in as a dictionary, with the indexes being the names
+		of the states, and the keys being the value the data takes at that state.
 		'''
 
-		n = len( self.States )
-		samples = [-1]*n
-		visited = 0
+		names = { state.name: state.distribution for state in self.states }
+		data = { names[state]: value for state, value in data.items() }
+		log_probability = 0
+ 
+		for state in self.states:
+			d = state.distribution
+
+			# If the distribution is conditional on other distributions, then
+			# pass the full dictionary of values in
+			if isinstance( d, ConditionalDistribution ):
+				log_probability += d.log_probability( data[d], data )
+
+			# Otherwise calculate the log probability of this value
+			# independently of the other values.
+			else:
+				log_probability += d.log_probability( data[d] )
+
+		return log_probability
+
+	def forward( self, data={} ):
+		'''
+		Calculate the posterior probabilities of each hidden variable, which
+		are the variables not observed in the data.
+		'''
+
+		names = { state.name: state.distribution for state in self.states }
+		data = { names[state]: value for state, value in data.items() }
+
+		factors = [ data[ s.distribution ] if s.distribution in data else None for s in self.states ]
+
+		in_edges = numpy.array( self.in_edge_count )
+		out_edges = numpy.array( self.out_edge_count )
+
+		roots = numpy.where( in_edges[1:] - in_edges[:-1] == 0 )[0]
+		visited = numpy.zeros( len( self.states ) )
+		for i, state in enumerate( self.states ):
+			if state.distribution in data.keys():
+				visited[i] = 1
+
+		for root in roots:
+			visited[ root ] = 1
+			if factors[ root ] is not None:
+				continue
+
+			state = self.states[ root ]
+			d = state.distribution
+
+			if state.name in data:
+				factors[ root ] = data[ d ]
+			else:
+				factors[ root ] = d
 
 		while True:
-			for i in xrange( n ):
-				if samples[i] != -1:
+			for i, state in enumerate( self.states ):
+				if visited[ i ] == 1:
 					continue
 
-				sample = 0
+				state = self.states[ i ]
+				d = state.distribution
 
-				for k in xrange( self.in_edge_count[i], self.in_edge_count[i+1] ):
+				for k in xrange( in_edges[i], in_edges[i+1] ):
 					ki = self.in_transitions[k]
 
-					if samples[ki] == -1:
-						sample = -1
+					if visited[ki] == 0:
 						break
-					else:
-						sample += samples[ki]*self.in_transition_weights[k]  
+				else:
+					parents = {}
+					for k in xrange( in_edges[i], in_edges[i+1] ):
+						ki = self.in_transitions[k]
+						d = self.states[ki].distribution
 
-				if sample >= 0:
-					samples[i] = sample + self.States[i].distribution.sample()
-					visited += 1
+						parents[d] = factors[ki]
 
-			if visited == n:
+					factors[i] = state.distribution.marginal( parents )
+					visited[i] = 1
+
+			if visited.sum() == visited.shape[0]:
 				break
 
-		return samples
+		return factors
+
+	def backward( self, data={} ):
+		'''
+		'''
+
+		names = { state.name: state.distribution for state in self.states }
+		data = { names[state]: value for state, value in data.items() }
+
+		factors = [ data[ s.distribution ] if s.distribution in data else None for s in self.states ]
+
+		in_edges = numpy.array( self.in_edge_count )
+		out_edges = numpy.array( self.out_edge_count )
+
+		leaves = numpy.where( out_edges[1:] - out_edges[:-1] == 0 )[0]
+		visited = numpy.zeros( len( self.states ) )
+		visited[leaves] = 1
+		for i, factor in enumerate( factors ):
+			if factor is not None and not isinstance( factor, Distribution ): 
+				visited[i] = 1 
+
+		while True:
+			for i, state in enumerate( self.states ):
+				if visited[ i ] == 1:
+					continue
+
+				state = self.states[ i ]
+				d = state.distribution
+
+				for k in xrange( out_edges[i], out_edges[i+1] ):
+					ki = self.out_transitions[k]
+					if visited[ki] == 0:
+						break
+				else:
+					parents = {}
+					for k in xrange( in_edges[i], in_edges[i+1] ):
+						ki = self.in_transitions[k]
+						parents[ self.states[ki].distribution ] = factors[ki]
+
+					for k in xrange( out_edges[i], out_edges[i+1] ):
+						ki = self.out_transitions[k]
+
+						if not isinstance( factors[i], Distribution ): 
+							factors[i] = self.states[ki].distribution.marginal( parents, wrt=d, value=factors[ki] )
+						else:
+							factors[i] = self.states[ki].distribution.marginal( parents, wrt=factors[i], value=factors[ki] )
+
+					visited[i] = 1
+
+			if visited.sum() == visited.shape[0]:
+				break
+
+		return factors 
+
+
+	def forward_backward( self, data={} ):
+		'''
+		...
+		'''
+
+		factors = self.forward( data )
+		print factors
+		data = { self.states[i].name: factors[i] for i in xrange( len(factors) ) }
+		return self.backward( data )

@@ -84,7 +84,15 @@ cdef class Distribution:
 		"""
 
 		return self.__str__()
-		
+
+	def marginal( self, *args, **kwargs ):
+		'''
+		The marginal of a non-conditional distribution is just the actual
+		distribution, so return that.
+		'''
+
+		return self
+
 	def copy( self ):
 		"""
 		Return a copy of this distribution, untied. 
@@ -1109,7 +1117,7 @@ cdef class DiscreteDistribution(Distribution):
 	assuming that these probabilities will sum to 1.0. 
 	"""
 	
-	def __init__(self, characters, frozen=False ):
+	def __init__( self, characters, frozen=False ):
 		"""
 		Make a new discrete distribution with a dictionary of discrete
 		characters and their probabilities, checking to see that these
@@ -1124,7 +1132,8 @@ cdef class DiscreteDistribution(Distribution):
 		self.frozen = frozen
 
 
-	def log_probability(self, symbol ):
+
+	def log_probability( self, symbol ):
 		"""
 		What's the probability of the given symbol under this distribution?
 		Simply the log probability value given at initiation. If the symbol
@@ -1739,25 +1748,118 @@ cdef class MultivariateDistribution( Distribution ):
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
 
-cdef class ConditionalDiscreteDistribution( object ):
+def recursive_discrete_log_probability( symbol, distributions, parent_values={}, 
+	parent_distributions=[] ):
+	'''
+	Recursively go through a nested dictionary representing conditional
+	dependencies, and marginalize where parents are not observed.
+	'''
+
+	# If this distribution has no parents, then simply get the value of the
+	# symbol under the distribution.
+	if parent_distributions == []:
+		return distributions.log_probability( symbol )
+
+	# If a value is observed for the parent, then condition on that by moving
+	# down the distribution list by one.
+	if parent_distributions[0] in parent_values.keys():
+		# Unpack the parent value
+		parent_value = parent_values[ parent_distributions[0] ]
+
+		if not isinstance( parent_value, Distribution ):
+			return recursive_discrete_log_probability( symbol, distributions[ parent_value ],
+				parent_values, parent_distributions[1:] )
+		else:
+			log_probability = NEGINF
+			for sym, weight in parent_value.parameters[0].items():
+				lp = recursive_discrete_log_probability( symbol, distributions[ sym ],
+					parent_values, parent_distributions[1:] )
+
+				log_probability = pair_lse( log_probability, lp + _log( weight ) )
+
+			return log_probability 
+
+	# If we're marginalizing, then we need to branch and do a sum over
+	# all branches at the end
+	else:
+		log_probability = NEGINF
+		distribution = parent_distributions[0].marginal( parent_values )
+		for sym, weight in distribution.parameters[0].items():
+			lp = recursive_discrete_log_probability( symbol, distributions[ sym ], 
+					parent_values, parent_distributions[1:] )
+			log_probability = pair_lse( log_probability, lp + _log( weight ) )
+
+		return log_probability
+
+cdef class ConditionalDistribution( Distribution ):
+	'''
+	A conditional distribution. These differ from other distributions in that
+	you pass in a list of parents when initializing them, and get get on those
+	parents. If you don't get values of those parents, you have to marginalize
+	on that distribution.
+	'''
+
+	pass
+
+cdef class ConditionalDiscreteDistribution( ConditionalDistribution ):
 	'''
 	This is a conditional distribution along the discrete axis.
 	'''
 
-	def __init__( self, distribution, parents ):
+	def __init__( self, distribution, parent_distributions ):
 		'''
 		Save the distributions.
 		'''
 
-		self.parameters = [ distribution, parents ]
+		self.name = "ConditionalDiscreteDistribution"
 
-	def log_probability( self, symbol, parents ):
+		d = distribution
+		while not isinstance( d, DiscreteDistribution ):
+			d = d[ d.keys()[0] ]
+		keys = d.parameters[0].keys()
+
+		self.parameters = [ distribution, parent_distributions, keys ]
+
+	def marginal( self, parent_values={}, wrt=None, value=None ):
 		'''
-		Calculate the log probability of stuff.
+		Sum over all parent distributions to return the marginal distribution.
 		'''
 
-		distributions = self.parameters[0]
-		for parent in self.parameters[1]:
-			distributions = distributions[ parents[parent] ]
+		d, pd, keys = self.parameters
+		
+		if not wrt:
+			return DiscreteDistribution({ key: math.e ** recursive_discrete_log_probability( key, d, parent_values, pd ) 
+				for key in keys })
+		else:
+			if isinstance( wrt, ConditionalDistribution ):
+				keys = wrt.parameters[2]
+			else:
+				keys = wrt.parameters[0].keys()
 
-		return distributions.log_probability( symbol )
+			probabilities = {}
+			for key in keys:
+				pv = parent_values
+				pv[ wrt ] = key
+
+				if not isinstance( value, Distribution ):
+					probabilities[ key ] = math.e ** recursive_discrete_log_probability(
+						value, d, pv, pd )
+				else:
+					vprobabilities = {}
+					for vkey in value.parameters[0].keys():
+						vprobabilities[ vkey ] = math.e ** ( recursive_discrete_log_probability(
+							vkey, d, pv, pd ) + value.log_probability( vkey ) )
+					probabilities[ key ] = sum( vprobabilities.values() )
+
+			return DiscreteDistribution( probabilities )
+
+	def log_probability( self, symbol, parent_values ):
+		'''
+		Calculate the log probability of the symbol given the parents. If the
+		parent is not observed, marginalize over that distribution. This is
+		simple for a discrete distribution, by just calculating the probabilities
+		down each path and doing a weighted sum. 
+		'''
+
+		d, pd, keys = self.parameters 
+		return recursive_discrete_log_probability( symbol, d, parent_values, pd )

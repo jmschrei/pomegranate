@@ -250,13 +250,13 @@ cdef class Model( object ):
 			dtype=numpy.int32 )
 
 
-		self.nodes = self.graph.nodes()
-		n, m = len(self.nodes), len(self.graph.edges())
+		self.states = self.graph.nodes()
+		n, m = len(self.states), len(self.graph.edges())
 
 		# We need a good way to get transition probabilities by state index that
 		# isn't N^2 to build or store. So we will need a reverse of the above
 		# mapping. It's awkward but asymptotically fine.
-		indices = { self.nodes[i]: i for i in xrange(n) }
+		indices = { self.states[i]: i for i in xrange(n) }
 
 		# This holds numpy array indexed [a, b] to transition log probabilities 
 		# from a to b, where a and b are state indices. It starts out saying all
@@ -265,8 +265,6 @@ cdef class Model( object ):
 		self.in_edge_count = numpy.zeros( n+1, dtype=numpy.int32 ) 
 		self.out_transitions = numpy.zeros( m, dtype=numpy.int32 ) - 1
 		self.out_edge_count = numpy.zeros( n+1, dtype=numpy.int32 )
-		self.in_transition_weights = numpy.zeros( m )
-		self.out_transition_weights = numpy.zeros( m )
 
 		# Now we need to find a way of storing in-edges for a state in a manner
 		# that can be called in the cythonized methods below. This is basically
@@ -306,7 +304,6 @@ cdef class Model( object ):
 					break
 				start += 1
 
-			self.in_transition_weights[ start ] = data['weight']
 
 			# Store transition info in an array where the in_edge_count shows
 			# the mapping stuff.
@@ -320,7 +317,6 @@ cdef class Model( object ):
 					break
 				start += 1
 
-			self.out_transition_weights[ start ] = data['weight']
 			self.out_transitions[ start ] = indices[b]  
 
 cdef class StructuredModel( Model ):
