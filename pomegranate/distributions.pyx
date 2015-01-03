@@ -1826,7 +1826,7 @@ cdef class ConditionalDiscreteDistribution( ConditionalDistribution ):
 		'''
 
 		d, pd, keys = self.parameters
-		
+
 		if not wrt:
 			return DiscreteDistribution({ key: math.e ** recursive_discrete_log_probability( key, d, parent_values, pd ) 
 				for key in keys })
@@ -1851,9 +1851,13 @@ cdef class ConditionalDiscreteDistribution( ConditionalDistribution ):
 							vkey, d, pv, pd ) + value.log_probability( vkey ) )
 					probabilities[ key ] = sum( vprobabilities.values() )
 
+			total = sum( probabilities.values() )
+			for key, value in probabilities.items():
+				probabilities[ key ] = value / total
+
 			return DiscreteDistribution( probabilities )
 
-	def log_probability( self, symbol, parent_values ):
+	def log_probability( self, symbol, parent_values={} ):
 		'''
 		Calculate the log probability of the symbol given the parents. If the
 		parent is not observed, marginalize over that distribution. This is

@@ -1,36 +1,10 @@
 import math
 from pomegranate import *
+
+#######################
+# MODIFIED MONTY HALL #
+#######################
 '''
-a = DiscreteDistribution( { 'T': 0.90, 'H': 0.10 } )
-b = DiscreteDistribution( { 'T': 0.40, 'H': 0.60 } )
-
-c = ConditionalDiscreteDistribution(
-	{ 'T' : { 'T' : DiscreteDistribution( { 'T' : 0.99, 'H' : 0.01 } ),
-			  'H' : DiscreteDistribution( { 'T' : 0.20, 'H' : 0.80 } ) },
-	  'H' : { 'T' : DiscreteDistribution( { 'T' : 0.67, 'H' : 0.33 } ),
-	  		  'H' : DiscreteDistribution( { 'T' : 0.37, 'H' : 0.63 } ) } 
-	}, [ a, b ], [ 'T', 'H' ] )
-
-s1 = State( a, name="s1" )
-s2 = State( b, name="s2" )
-s3 = State( c, name="s3" )
-
-network = BayesianNetwork( "test" )
-network.add_states( [s1, s2, s3] )
-network.add_transition( s1, s3, 1.0 )
-network.add_transition( s2, s3, 1.0 )
-network.bake()
-
-print "RANDOM EXAMPLE"
-print
-print math.e ** c.log_probability( 'T', { a : 'T', b : 'H', c : 'T' } )
-print
-print math.e ** network.log_probability( { "s1" : 'T', "s2" : 'H', "s3" : 'T' } )
-print
-print network.belief_propogation( { "s1": 'T', "s2": 'H' } )
-'''
-
-
 friend = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 
 guest = ConditionalDiscreteDistribution( {
@@ -67,9 +41,71 @@ network.add_transition( s2, s3, 1.0 )
 network.bake()
 
 print "\t".join([ state.name for state in network.states ])
+print "\n".join( map( str, network.forward_backward( { 'friend' : 'A', 'monty' : 'B' } ) ) )
+'''
+################
+# ASIA EXAMPLE #
+################
 
+asia = DiscreteDistribution({ 'True' : 0.5, 'False' : 0.5 })
+tuberculosis = ConditionalDiscreteDistribution({
+	'True' : DiscreteDistribution({ 'True' : 0.2, 'False' : 0.80 }),
+	'False' : DiscreteDistribution({ 'True' : 0.01, 'False' : 0.99 })
+	}, [asia])
 
-#print monty.marginal( wrt=guest, value='A' )
+smoking = DiscreteDistribution({ 'True' : 0.5, 'False' : 0.5 })
+lung = ConditionalDiscreteDistribution({
+	'True' : DiscreteDistribution({ 'True' : 0.75, 'False' : 0.25 }),
+	'False' : DiscreteDistribution({ 'True' : 0.02, 'False' : 0.98 })
+	}, [smoking] )
+bronchitis = ConditionalDiscreteDistribution({
+	'True' : DiscreteDistribution({ 'True' : 0.92, 'False' : 0.08 }),
+	'False' : DiscreteDistribution({ 'True' : 0.03, 'False' : 0.97})
+	}, [smoking] )
 
-print "\n".join( map( str, network.forward_backward( { 'monty' : 'A', 'friend' : 'B' } ) ) )
+tuberculosis_or_cancer = ConditionalDiscreteDistribution({
+	'True' : { 'True' : DiscreteDistribution({ 'True' : 1.0, 'False' : 0.0 }),
+			   'False' : DiscreteDistribution({ 'True' : 1.0, 'False' : 0.0 }),
+			 },
+	'False' : { 'True' : DiscreteDistribution({ 'True' : 1.0, 'False' : 0.0 }),
+				'False' : DiscreteDistribution({ 'True' : 0.0, 'False' : 1.0 })
+			  }
+	}, [tuberculosis, lung] )
 
+xray = ConditionalDiscreteDistribution({
+	'True' : DiscreteDistribution({ 'True' : .885, 'False' : .115 }),
+	'False' : DiscreteDistribution({ 'True' : 0.04, 'False' : 0.96 })
+	}, [tuberculosis_or_cancer] )
+
+dyspnea = ConditionalDiscreteDistribution({
+	'True' : { 'True' : DiscreteDistribution({ 'True' : 0.96, 'False' : 0.04 }),
+			   'False' : DiscreteDistribution({ 'True' : 0.89, 'False' : 0.11 })
+			 },
+	'False' : { 'True' : DiscreteDistribution({ 'True' : 0.82, 'False' : 0.18 }),
+	            'False' : DiscreteDistribution({ 'True' : 0.4, 'False' : 0.6 })
+	          }
+	}, [tuberculosis_or_cancer, bronchitis])
+
+s0 = State( asia, name="asia" )
+s1 = State( tuberculosis, name="tuberculosis" )
+s2 = State( smoking, name="smoker" )
+s3 = State( lung, name="cancer" )
+s4 = State( bronchitis, name="bronchitis" )
+s5 = State( tuberculosis_or_cancer, name="TvC" )
+s6 = State( xray, name="xray" )
+s7 = State( dyspnea, name='dyspnea' )
+
+network = BayesianNetwork( "asia" )
+network.add_states([ s0, s1, s2, s3, s4, s5, s6, s7 ])
+network.add_transition( s0, s1, 1.0 )
+network.add_transition( s1, s5, 1.0 )
+network.add_transition( s2, s3, 1.0 )
+network.add_transition( s2, s4, 1.0 )
+network.add_transition( s3, s5, 1.0 )
+network.add_transition( s5, s6, 1.0 )
+network.add_transition( s5, s7, 1.0 )
+network.add_transition( s4, s7, 1.0 )
+network.bake()
+
+print "\t".join([ state.name for state in network.states ])
+print "\n".join( map( str, network.forward_backward({ 'tuberculosis' : 'True', 'smoker' : 'False', 'bronchitis' : DiscreteDistribution({ 'True' : 0.8, 'False' : 0.2 }) }) ) )

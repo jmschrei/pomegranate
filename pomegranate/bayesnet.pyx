@@ -53,6 +53,27 @@ def exp(value):
 	
 	return numpy.exp(value)
 
+def merge_marginals( marginals ):
+	'''
+	Merge multiple marginals of the same distribution to form a more informed
+	distribution.
+	'''
+
+	probabilities = { key: _log( value ) for key, value in marginals[0].parameters[0].items() }
+
+	for marginal in marginals[1:]:
+		for key, value in marginal.parameters[0].items():
+			probabilities[key] += _log( value )
+
+	total = NEGINF
+	for key, value in probabilities.items():
+		total = pair_lse( total, probabilities[key] )
+
+	for key, value in probabilities.items():
+		probabilities[key] = cexp( value - total )
+
+	return DiscreteDistribution( probabilities )
+
 cdef class BayesianNetwork( Model ):
 	"""
 	Represents a Bayesian Network
@@ -197,24 +218,27 @@ cdef class BayesianNetwork( Model ):
 		names = { state.name: state.distribution for state in self.states }
 		data = { names[state]: value for state, value in data.items() }
 
-		factors = [ data[ s.distribution ] if s.distribution in data else None for s in self.states ]
+		factors = [ data[ s.distribution ] if s.distribution in data else s.distribution.marginal() for s in self.states ]
+		new_factors = [ i for i in factors ]
 
 		in_edges = numpy.array( self.in_edge_count )
 		out_edges = numpy.array( self.out_edge_count )
 
+		messages = [ None for i in in_edges ]
+
 		leaves = numpy.where( out_edges[1:] - out_edges[:-1] == 0 )[0]
 		visited = numpy.zeros( len( self.states ) )
 		visited[leaves] = 1
-		for i, factor in enumerate( factors ):
-			if factor is not None and not isinstance( factor, Distribution ): 
+		for i, s in enumerate( self.states ):
+			if s.distribution in data and not isinstance( data[ s.distribution ], Distribution ): 
 				visited[i] = 1 
 
 		while True:
 			for i, state in enumerate( self.states ):
-				if visited[ i ] == 1:
+				if visited[i] == 1:
 					continue
 
-				state = self.states[ i ]
+				state = self.states[i]
 				d = state.distribution
 
 				for k in xrange( out_edges[i], out_edges[i+1] ):
@@ -222,25 +246,25 @@ cdef class BayesianNetwork( Model ):
 					if visited[ki] == 0:
 						break
 				else:
-					parents = {}
-					for k in xrange( in_edges[i], in_edges[i+1] ):
-						ki = self.in_transitions[k]
-						parents[ self.states[ki].distribution ] = factors[ki]
-
 					for k in xrange( out_edges[i], out_edges[i+1] ):
 						ki = self.out_transitions[k]
 
-						if not isinstance( factors[i], Distribution ): 
-							factors[i] = self.states[ki].distribution.marginal( parents, wrt=d, value=factors[ki] )
-						else:
-							factors[i] = self.states[ki].distribution.marginal( parents, wrt=factors[i], value=factors[ki] )
+						parents = {}
+						for l in xrange( in_edges[ki], in_edges[ki+1] ):
+							li = self.in_transitions[l]
+							parents[ self.states[li].distribution ] = factors[li]
+
+						messages[k] = self.states[ki].distribution.marginal( parents, wrt=d, value=new_factors[ki] )
+					else:
+						local_messages = [ factors[i] ] + [ messages[k] for k in xrange( out_edges[i], out_edges[i+1] ) ]
+						new_factors[i] = merge_marginals( local_messages )
 
 					visited[i] = 1
 
 			if visited.sum() == visited.shape[0]:
 				break
 
-		return factors 
+		return new_factors 
 
 
 	def forward_backward( self, data={} ):
@@ -248,7 +272,11 @@ cdef class BayesianNetwork( Model ):
 		...
 		'''
 
+		print "FORWARD LOGS"
 		factors = self.forward( data )
-		print factors
 		data = { self.states[i].name: factors[i] for i in xrange( len(factors) ) }
+
+		print "\n".join( map( str, factors ) )
+		print
+		print "BACKWARD LOGS"
 		return self.backward( data )
