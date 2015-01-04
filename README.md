@@ -1,20 +1,18 @@
 pomegranate
 ==========
 
-pomegranate is a package for graphical models and Bayesian statistics for Python, implemented in cython. It currently supports:
+pomegranate is a package for graphical models and Bayesian statistics for Python, implemented in cython. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components used could be rearranged to do other cool things. It currently supports:
 
 * Probability Distributions
 * Finite State Machines
 * Hidden Markov Models
 * Discrete Bayesian Networks
 
-The hidden Markov model implementation is from the [YAHMM](https://github.com/jmschrei/yahmm). While developing it (with the help of other talented contributors), I noticed it may be useful to break it into components and build other cool graphical models with it, and so I'm presently working on that!
-
 ## Installation
 
 I am currently having issues getting pomgranate to be pip installable, stemming from the use of multiple cython files. If anyone knows the fix, please submit a working pull request and I will send you a picture of a pomegranate and other assorted fruit of varying deliciousness.
 
-However, cloning the repo or downloading the zip and manually moving the files into your site-packages folder does appear to work! 
+However, cloning the repo or downloading the zip and manually moving the files into your site-packages folder does work.
 
 ## Contributing
 
@@ -28,7 +26,7 @@ Let us know what you want to do just in case we're already working on an impleme
 
 # Probability Distributions
 
-pomegranate has an extensible library of univariate distributions and kernel densities along with a multivariate distribution natively built in. Here are a few examples:
+There have been many times when I've had to simply calculate the probability of some data points given a distribution, or had to fit a distribution to some given data. pomegranate offers a simple solution, which is an extensible library of univariate distributions and kernel densities, and a multivariate distribution natively built in.
 
 ```
 from pomegranate import *
@@ -42,7 +40,7 @@ print b.log_probability( 8 )
 print c.log_probability( 8 )
 ```
 
-This should produce -2.737, -inf, -3.44 respectively.  We can also update these distributions! Kernel densities simply add the points, or discard previous points and replace them with the new points if training is done without inertia. MixtureDistributions will perform expectation-maximization to perform training.
+This should return -2.737, -inf, and -3.44 respectively.  We can also update these distributions using Maximum Likelihood Estimates for the new values. Kernel densities will discard previous points and add in the new points, while MixtureDistributions will perform expectation-maximization.
 
 ```
 c.from_sample([1, 5, 7, 3, 2, 4, 3, 5, 7, 8, 2, 4, 6, 7, 2, 4, 5, 1, 3, 2, 1])
@@ -59,45 +57,52 @@ c.summarize([2, 4, 6, 7, 2, 4, 5, 1, 3, 2, 1])
 c.from_summaries()
 ```
 
-This is useful if you need to quickly determine the probability of a float given a distribution or fit a univariate distribution to some data.
+In addition, training can be done on weighted samples by passing an array of weights in along with the data for any of the training functions, such as `c.summarize([5,7,8], weights=[1,2,3])`. Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `c.from_sample([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
 
 # Finite State Machines
 
-Finite state machines are memoryless graphical models which means that intead of feeding it a sequence of observations, it is fed a single observation at a time, and its current state can be queried. Here is an example of a three state FSM which is not fully connected, showing its greedy behavior.
+[Finite state machines](http://en.wikipedia.org/wiki/Finite-state_machine) are 'machines' which can be in one of many 'states'. These states are defined as a graphical model, and as the machine receives data, the state which it is changes in a greedy fashion. Since the machine can be in only one state at a time and is memoryless, it is extremely useful for some computations. A classic example is a vending machine, which takes in coins and when it reaches the specified amount, will reset and dispense an item.
 
 ```
 from pomegranate import *
 
-# Create the states in the FSM, comprised of their emission
-# distribution and a name
-a = State( NormalDistribution( 5, 1 ), "a" )
-b = State( NormalDistribution( 23, 1 ), "b" )
-c = State( NormalDistribution( 100, 1 ), "c" )
+# Create the states in the same way as you would an HMM
+a = State( DiscreteDistribution({  0 : 1.0 }), name="0" )
+b = State( DiscreteDistribution({  5 : 1.0 }), name="5" )
+c = State( DiscreteDistribution({  5 : 1.0 }), name="10a" )
+d = State( DiscreteDistribution({  5 : 1.0 }), name="15a" )
+e = State( DiscreteDistribution({ 10 : 1.0 }), name="10b" )
+f = State( DiscreteDistribution({ 10 : 1.0 }), name="15b" )
 
 # Create a FiniteStateMachine object 
-model = FiniteStateMachine( "test" )
+model = FiniteStateMachine( "Vending Machine", start=a )
 
-# Add the states to the model
-model.add_states( [a, b, c] )
+# Add the states to the machine
+model.add_states( [a, b, c, d, e, f] )
 
-# Add the transitions and their associated probabilities.
-model.add_transition( model.start, a, 1.0 )
-model.add_transition( a, a, 0.33 )
+# Connect the states according to possible transitions
 model.add_transition( a, b, 0.33 )
-model.add_transition( b, b, 0.5 )
-model.add_transition( b, a, 0.5 )
-model.add_transition( a, c, 0.33 )
-model.add_transition( c, a, 0.5 )
-model.add_transition( c, c, 0.5 )
+model.add_transition( a, a, 0.33 )
+model.add_transition( a, e, 0.33 )
+model.add_transition( b, c, 0.5 )
+model.add_transition( b, f, 0.5 )
+model.add_transition( c, e, 1.0 )
+model.add_transition( d, a, 1.0 )
+model.add_transition( e, d, 0.5 )
+model.add_transition( e, f, 0.5 )
+model.add_transition( f, a, 1.0 )
 
-# Bake the model to finalize the internal structure
-model.bake( verbose=True )
+# Bake the model in the same way
+model.bake( merge=False )
+```
 
-# Take a sequence of observations
-seq = [ 5, 5, 5, 5, 23, 23, 5, 23, 23, 100, 23, 23, 23, 23, 5, 5, 100, 5, 23 ]
+In the above example, the 'states' we model are the value of the new coin added. We can either add three nickles, or a nickle and a dime, or a dime and a nickle. Each states name is the cumulative amount, and emission is the value of the new coin. When it reaches 15, it will reset by seeing a 0 value coin. For example:
+```
+# Take a sequence of coins to add to the model
+seq = [ 5, 5, 5 ]
 
 # Print out where you start in the model
-print model.current_state.name
+print "Start", model.current_state.name
 
 # Print out where the model is for each step
 for symbol in seq:
@@ -105,7 +110,60 @@ for symbol in seq:
 	print symbol, model.current_state.name
 ```
 
-In the above example, we have a list of items we go iterate through. However, since FSMs are memoryless, they can be 'online' very easily, with data being fed in as actions are taken and the underlying state being used to prompt a response.
+yields
+
+```
+Start 0
+5 5
+5 10a
+5 15a
+```
+
+As we add nickles, we the machine progresses to new states until it reaches 15, which is what we want in this example. We can return to the beginning of the machine from there by appending a 0 to the list, as follows:
+```
+# Take a sequence of coins to add to the model
+seq = [ 5, 5, 5 ]
+
+# Print out where you start in the model
+print "Start", model.current_state.name
+
+# Print out where the model is for each step
+for symbol in seq:
+	model.step( symbol )
+	print symbol, model.current_state.name
+```
+yields
+```
+Start 0
+5 5
+5 10a
+5 15a
+0 0
+```
+
+We could also have a dime in there.
+
+```
+# Take a sequence of coins to add to the model
+seq = [ 10, 5, 0 ]
+
+# Print out where you start in the model
+print "Start", model.current_state.name
+
+# Print out where the model is for each step
+for symbol in seq:
+	model.step( symbol )
+	print symbol, model.current_state.name
+```
+yields
+```
+Start 0
+10 10a
+5 15b
+0 0
+```
+
+Presumably the action of dispensing the drink would accompany the machine being in state 15a or 15b, but that's up to the application on top of the state machine.
 
 # Hidden Markov Models
 
