@@ -26,7 +26,7 @@ Let us know what you want to do just in case we're already working on an impleme
 
 ### Probability Distributions
 
-There have been many times when I've had to simply calculate the probability of some data points given a distribution, or had to fit a distribution to some given data. pomegranate offers a simple solution, which is an extensible library of univariate distributions and kernel densities, and a multivariate distribution natively built in.
+The emission distributions used later on for the other models can be used independently. This is useful if you want to calculate the probability of some data given a distribution, or had to fit a distribution to some given data. pomegranate offers a simple solution, which is an extensible library of distributions and kernel densities natively built in.
 
 ```
 from pomegranate import *
@@ -40,11 +40,13 @@ print b.log_probability( 8 )
 print c.log_probability( 8 )
 ```
 
-This should return -2.737, -inf, and -3.44 respectively.  We can also update these distributions using Maximum Likelihood Estimates for the new values. Kernel densities will discard previous points and add in the new points, while MixtureDistributions will perform expectation-maximization.
+This should return -2.737, -inf, and -3.44 respectively.  
+
+We can also update these distributions using Maximum Likelihood Estimates for the new values. Kernel densities will discard previous points and add in the new points, while MixtureDistributions will perform expectation-maximization to update the mixture of distributions.
 
 ```
 c.from_sample([1, 5, 7, 3, 2, 4, 3, 5, 7, 8, 2, 4, 6, 7, 2, 4, 5, 1, 3, 2, 1])
-c
+print c
 ```
 
 This should result in `MixtureDistribution( [NormalDistribution(3.916, 2.132), ExponentialDistribution(0.99955)], [0.9961, 0.00386] )`. All distributions can be trained either as a batch using `from_sample`, or using summary statistics using `summarize` on lists of numbers until all numbers have been fed in, and then `from_summaries` like in the following example which produces the same result:
@@ -61,7 +63,7 @@ In addition, training can be done on weighted samples by passing an array of wei
 
 ### Finite State Machines
 
-[Finite state machines](http://en.wikipedia.org/wiki/Finite-state_machine) are 'machines' which can be in one of many 'states'. These states are defined as a graphical model, and as the machine receives data, the state which it is changes in a greedy fashion. Since the machine can be in only one state at a time and is memoryless, it is extremely useful for some computations. A classic example is a vending machine, which takes in coins and when it reaches the specified amount, will reset and dispense an item.
+[Finite state machines](http://en.wikipedia.org/wiki/Finite-state_machine) are computational machines which can be in one of many states. The machine can be defined as a graphical model where the states are the states of the machine, and the edges define the transitions from each state to the other states in the machine. As the machine receives data, the state which it is in changes in a greedy fashion. Since the machine can be in only one state at a time and is memoryless, it is extremely useful. A classic example is a vending machine, which takes in coins and when it reaches the specified amount, will reset and dispense an item.
 
 ```
 from pomegranate import *
@@ -95,8 +97,7 @@ model.add_transition( f, a, 1.0 )
 # Bake the model in the same way
 model.bake( merge=False )
 ```
-
-In the above example, the 'states' we model are the value of the new coin added. We can either add three nickles, or a nickle and a dime, or a dime and a nickle. Each states name is the cumulative amount, and emission is the value of the new coin. When it reaches 15, it will reset by seeing a 0 value coin. For example:
+In the above example, the states are the value of the new coin added. We can either add three nickles, or a nickle and a dime, or a dime and a nickle. Each states name is the cumulative amount, and emission is the value of the new coin. When it reaches 15, it will reset by seeing a 0 value coin. For example:
 ```
 # Take a sequence of coins to add to the model
 seq = [ 5, 5, 5 ]
@@ -109,16 +110,13 @@ for symbol in seq:
 	model.step( symbol )
 	print symbol, model.current_state.name
 ```
-
 yields
-
 ```
 Start 0
 5 5
 5 10a
 5 15a
 ```
-
 As we add nickles, we the machine progresses to new states until it reaches 15, which is what we want in this example. We can return to the beginning of the machine from there by appending a 0 to the list, as follows:
 ```
 # Take a sequence of coins to add to the model
@@ -140,9 +138,7 @@ Start 0
 5 15a
 0 0
 ```
-
 We could also have a dime in there.
-
 ```
 # Take a sequence of coins to add to the model
 seq = [ 10, 5, 0 ]
