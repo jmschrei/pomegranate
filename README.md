@@ -209,30 +209,23 @@ Everything is exactly the same as in YAHMM, except the `Model` class is now `Hid
 
 # Bayesian Networks
 
-Currently, only discrete Bayesian networks are supported. The forward, backward, and forward-backward (often called sum-product) algorithms are implemented using a factor-graph representation. Given the conditional nature of the distributions in Bayesian networks, the code is slightly less clean.
+Currently, only discrete Bayesian networks are supported. The forward, backward, and forward-backward (often called sum-product) algorithms are implemented using a factor-graph representation. 
 
-Lets test out the Bayesian Network framework to produce the Monty Hall problem, but modified a little. The Monty Hall problem is basically a game show where a guest chooses one of three doors to open, with an unknown one having a prize behind it. Monty then opens another non-chosen door without a prize behind it, and asks the guest if they would like to change their answer. Many people were surprised to find that if the guest changed their answer, there was a 66% chance of success as opposed to a 50% as might be expected if there were two doors.
+Lets test out the Bayesian Network framework on the [Monty Hall problem](http://en.wikipedia.org/wiki/Monty_Hall_problem). The Monty Hall problem arose from the gameshow <i>Let's Make a Deal</i>, where a guest had to choose which one of three doors had a prize behind it. The twist was that after the guest chose, the host, originally Monty Hall, would then open one of the doors the guest did not pick and ask if the guest wanted to switch which door they had picked. Initial inspection may lead you to believe that if there are only two doors left, there is a 50-50 chance of you picking the right one, and so there is no advantage one way or the other. However, it has been proven both through simulations and analytically that there is in fact a 66% chance of getting the prize if the guest switches their door, regardless of the door they initially went with. 
 
-This can be modelled as a Bayesian network with three nodes-- guest, prize, and Monty, each over the domain of door 'A', 'B', 'C'. Monty is dependent on both guest and prize, in that it can't be either of them. Lets extend this a little bit to say the guest has an untrustworthy friend whose answer he will not go with.
+We can reproduce this result using Bayesian networks with three nodes, one for the guest, one for the prize, and one for the door Monty chooses to open. The door the guest initially chooses and the door the prize is behind are completely random processes across the three doors, but the door which Monty opens is dependent on both the door the guest chooses (it cannot be the door the guest chooses), and the door the prize is behind (it cannot be the door with the prize behind it). 
 
 ```
 import math
 from pomegranate import *
 
-# Friends emisisons are completely random
-friend = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
+# The guests initial door selection is completely random
+guest = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 
-# The guest is conditioned on the friend, basically go against the friend
-guest = ConditionalDiscreteDistribution( {
-	'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.5, 'C' : 0.5 }),
-	'B' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.0, 'C' : 0.5 }),
-	'C' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.5, 'C' : 0.0 })
-	}, [friend])
-
-# The actual prize is independent of the other distributions
+# The door the prize is behind is also completely random
 prize = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 
-# Monty is dependent on both the guest and the prize. 
+# However, the door Monty opens is dependent on both of the previous distributions
 monty = ConditionalDiscreteDistribution( {
 	'A' : { 'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.5, 'C' : 0.5 }),
 			'B' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.0, 'C' : 1.0 }),
@@ -245,29 +238,31 @@ monty = ConditionalDiscreteDistribution( {
 			'C' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.5, 'C' : 0.0 }) } 
 	}, [guest, prize] )
 
-# Make the states
-s0 = State( friend, name="friend" )
+# State objects hold both the distribution, and a high level name.
 s1 = State( guest, name="guest" )
 s2 = State( prize, name="prize" )
 s3 = State( monty, name="monty" )
 
-# Make the bayes net, add the states, and the conditional dependencies.
-network = BayesianNetwork( "test" )
-network.add_states( [ s0, s1, s2, s3 ] )
-network.add_transition( s0, s1 )
+# Create the Bayesian network object with a useful name
+network = BayesianNetwork( "Monty Hall Problem" )
+
+# Add the three states to the network 
+network.add_states( [ s1, s2, s3 ] )
+
+# Add transitions which represent conditional dependencies, where the second node is conditionally dependent on the first node (Monty is dependent on both guest and prize)
 network.add_transition( s1, s3 )
 network.add_transition( s2, s3 )
 network.bake()
 ```
 
-The ConditionalDiscreteDistribution takes in (1) a dictionary, where each nested layer refers to the values one of the distributions it is dependant on takes and (2) a list of the other distribution objects it is dependant on. The `guest` distribution is a good example, where the keys of the dictionary passed in are the values the `friend` distribution can take, and the inner values are the distributions assuming the `friend` took that value. If the friend says 'A', then the guest will not say 'A' but has a 50-50 chance of saying 'B', or 'C'. The `monty` distribution is the same, except two layers of nesting because it is dependant on both the guest and the prize distributions.
+Bayesian Networks introduc a new distribution, the ConditionalDiscreteDistribution. This distribution takes in (1) a dictionary where each nested layer refers to the values one of the distributions it is dependent on takes and (2) a list of the  distribution objects it is dependent on in the order of the nesting in the dictionary. In the Monty Hall example, the monty distribution is dependent on both the guest and the prize distributions in that order. The first layer of nesting accounts for what happens when the guest chooses various doors, and the second layer indicates what happens when the prize is actually behind a certain door, for each of the 9 possibilities. 
 
-Unlike a FSM or a HMM, we do not need to feed in perfect information. We can add in some information, and see how the distributions along the other values change. This is done by feeding in a dictionary of state names and their associated values, and running `forward_backward`. 
+In order to reproduce the final result, we need to take advantage of the forward-backward/sum-product algorithm. This algorithm allows the network to calculate posterior probabilities for each distribution in the network when as distributions get clamped to certain values. This means we do not need perfect information to do inference with Bayesian networks. This is done in pomegranate by feeding in a dictionary of state names and their associated values, and running `forward_backward`. 
 
 ```
 observations = { 'guest' : 'A' }
 
-# Beliefs will be an array of the beliefs for each state, indexed corresponding to the order
+# beliefs will be an array of posterior distributions or clamped values for each state, indexed corresponding to the order
 # in self.states. 
 beliefs = network.forward_backward( observations )
 
@@ -277,18 +272,17 @@ beliefs = map( str, beliefs )
 # Print out the state name and belief for each state on individual lines
 print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip( network.states, beliefs ) )
 ```
-
 This will yield: 
 ```
-friend	DiscreteDistribution({'A': 0.0, 'C': 0.49999999999999994, 'B': 0.49999999999999994})
 prize	DiscreteDistribution({'A': 0.3333333333333335, 'C': 0.3333333333333333, 'B': 0.3333333333333333})
 guest	A
 monty	DiscreteDistribution({'A': 0.0, 'C': 0.5, 'B': 0.5})
 ```
 
-Since guest is clamped to 'A', it is forced to stay that way. Note that the prize distribution is unaffected, but that the monty distribution now puts a 0 probability on him saying A, since he will not open the same door the guest chose. Lastly, this inference goes backwards and says that the friend could not have said 'A', because the guest intentionally does not do what the friend said.
+Since we have clamped the guest distribution to 'A', it returns just that value. The prize distribution is unaffected. 
+Since guest is clamped to 'A', it is forced to stay that way. Note that the prize distribution is unaffected, but that the monty distribution now puts a 0 probability on him saying A, since he will not open the same door the guest chose. 
 
-Now lets see what the posterior probabilities are after Monty opens door 'B'.
+In order to reproduce the final result, we need to see what happens when Monty opens a door. Lets clamp the Monty distribution to 'B' to indicate he has opened that door. 
 
 ```
 observations = { 'guest' : 'A', 'monty' : 'B' }
@@ -297,27 +291,26 @@ print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip(
 ```
 yields
 ```
-friend	DiscreteDistribution({'A': 0.0, 'C': 0.49999999999999994, 'B': 0.49999999999999994})
-prize	DiscreteDistribution({'A': 0.3333333333333333, 'C': 0.6666666666666666, 'B': 0.0})
 guest	A
 monty	B
+prize	DiscreteDistribution({'A': 0.3333333333333333, 'C': 0.6666666666666666, 'B': 0.0})
 ```
-Both guest and monty have been clamped to values. However, we see that probability of 'C' is now 0.667, mimicking the mystery behind the Monty hall problem!
+Both guest and monty have been clamped to values. However, we see that probability of prize being 'C' is 66% mimicking the mystery behind the Monty hall problem!
 
-Lastly, the values which are clamped do not need to be a single character, but rather can be a distribution! Lets see what happens if the friend has a 50% chance of saying 'B' and a 50% chance of saying 'A', but we don't know which.
-
+This has predominately leveraged forward propogation of messages. If we want to see backward propogation of messages, lets see what happens if we tuned in late and only saw which door Monty opened.
 ```
-observations = { 'friend' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.5, 'C' : 0.0 }) }
+observations = { 'monty' : 'B' }
 beliefs = map( str, network.forward_backward( observations ) )
 print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip( network.states, beliefs ) )
 ```
 yields
 ```
-friend	DiscreteDistribution({'A': 0.5, 'C': 0.0, 'B': 0.5})
-prize	DiscreteDistribution({'A': 0.3181818181818182, 'C': 0.36363636363636365, 'B': 0.3181818181818182})
-guest	DiscreteDistribution({'A': 0.22727272727272732, 'C': 0.5454545454545452, 'B': 0.22727272727272732})
-monty	DiscreteDistribution({'A': 0.37500000000000006, 'C': 0.2500000000000001, 'B': 0.37500000000000006})
+guest	DiscreteDistribution({'A': 0.49999999999999994, 'C': 0.49999999999999994, 'B': 0.0})
+monty	B
+prize	DiscreteDistribution({'A': 0.49999999999999994, 'C': 0.49999999999999994, 'B': 0.0})
 ```
+
+We know that if Monty opened door 'B', that the prize cannot be behind 'B' and that the guest could not have opened 'B'. The posterior guest and prize probabilities show this. 
 
 Useful stuff.
 
