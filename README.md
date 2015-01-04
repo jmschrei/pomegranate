@@ -236,7 +236,7 @@ yields
 
 ```
 HMM Path
-HT-start	fair	fair	fair	fair	fair	fair	fair	fair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair
+fair	fair	fair	fair	fair	fair	fair	fair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair
 
 FSM Path
 unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair
