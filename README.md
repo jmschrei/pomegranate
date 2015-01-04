@@ -264,11 +264,17 @@ The ConditionalDiscreteDistribution takes in (1) a dictionary, where each nested
 
 Unlike a FSM or a HMM, we do not need to feed in perfect information. We can add in some information, and see how the distributions along the other values change. This is done by feeding in a dictionary of state names and their associated values, and running `forward_backward`. 
 
-Lets see what happens when we clamp the guest to 'A'. 
-
 ```
 observations = { 'guest' : 'A' }
-beliefs = map( str, network.forward_backward( observations ) )
+
+# Beliefs will be an array of the beliefs for each state, indexed corresponding to the order
+# in self.states. 
+beliefs = network.forward_backward( observations )
+
+# Convert the beliefs into a more readable format
+beliefs = map( str, beliefs )
+
+# Print out the state name and belief for each state on individual lines
 print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip( network.states, beliefs ) )
 ```
 
