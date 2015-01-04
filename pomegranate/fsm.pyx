@@ -73,11 +73,11 @@ cdef class FiniteStateMachine( Model ):
 
 	def __init__( self, name=None, start=None ):
 		"""
-		Make a new Hidden Markov Model. Name is an optional string used to name
+		Make a new Finite State Machine. Name is an optional string used to name
 		the model when output. Name may not contain spaces or newlines.
 		
-		If start and end are specified, they are used as start and end states 
-		and new start and end states are not generated.
+		If start is specified, the machine will start in that state and not generate
+		a new state for it.
 		"""
 		
 		# Save the name or make up a name.

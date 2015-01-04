@@ -33,6 +33,7 @@ model.add_transition(state2, model.end, 0.2)
 
 model.bake()
 sequence = model.sample()
+
 print sequence
 print
 print model.forward(sequence)[ len(sequence), model.end_index ]
