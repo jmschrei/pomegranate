@@ -227,10 +227,14 @@ cdef class UniformDistribution( Distribution ):
 		if self.frozen == True:
 			return
 
-		if weights is not None:
-			# Throw out items with weight 0
-			items = [item for (item, weight) in izip(items, weights) 
-				if weight > 0]
+		# Calculate weights. If none are provided, give uniform weights
+		if weights is None:
+			weights = numpy.ones_like( items )
+		else:
+			weights = numpy.asarray( weights )
+
+		if weights.sum() == 0:
+			return
 		
 		if len(items) == 0:
 			# No sample, so just ignore it and keep our old parameters.
@@ -251,10 +255,13 @@ cdef class UniformDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		if weights is not None:
-			# Throw out items with weight 0
-			items = [ item for item, weight in izip( items, weights )
-				if weight > 0 ]
+		if weights is None:
+			weights = numpy.ones_like( items )
+		else:
+			weights = numpy.asarray( weights )
+
+		if weights.sum() == 0:
+			return
 
 		if len( items ) == 0:
 			# No sample, so just ignore it and keep our own parameters.
@@ -417,6 +424,9 @@ cdef class NormalDistribution( Distribution ):
 		else:
 			weights = numpy.asarray( weights )
 
+		if weights.sum() == 0:
+			return
+
 		# Save the mean and variance, the summary statistics for a normal
 		# distribution.
 		mean = numpy.average( items, weights=weights )
@@ -573,6 +583,9 @@ cdef class LogNormalDistribution( Distribution ):
 			weights = numpy.ones_like( items )
 		else:
 			weights = numpy.asarray( weights )
+
+		if weights.sum() == 0:
+			return
 
 		# Calculate the mean and variance, which are the summary statistics
 		# for a log-normal distribution.
@@ -737,6 +750,9 @@ cdef class ExponentialDistribution( Distribution ):
 			weights = numpy.ones_like( items )
 		else:
 			weights = numpy.asarray( weights )
+
+		if weights.sum() == 0:
+			return
 
 		# Calculate the summary statistic, which in this case is the mean.
 		mean = numpy.average( items, weights=weights )
@@ -1131,8 +1147,6 @@ cdef class DiscreteDistribution(Distribution):
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
 
-
-
 	def log_probability( self, symbol ):
 		"""
 		What's the probability of the given symbol under this distribution?
@@ -1208,6 +1222,9 @@ cdef class DiscreteDistribution(Distribution):
 			weights = numpy.ones( n )
 		else:
 			weights = numpy.asarray( weights )
+
+		if weights.sum() == 0:
+			return
 
 		characters = self.summaries[0]
 		for character, weight in izip( items, weights ):
@@ -1650,7 +1667,107 @@ cdef class MixtureDistribution( Distribution ):
 		of distribution.
 		"""
 
-		raise NotImplementedError
+		"""
+		Perform EM to estimate the parameters of each distribution
+		which is a part of this mixture.
+		"""
+
+		if weights is None:
+			weights = numpy.ones( len(items) )
+		else:
+			weights = numpy.asarray( weights )
+
+		if weights.sum() == 0:
+			return
+
+		distributions, w = self.parameters
+		n, k = len(items), len(distributions)
+
+		# The responsibility matrix
+		r = numpy.zeros( (n, k) )
+
+		# Calculate the log probabilities of each p
+		for i, distribution in enumerate( distributions ):
+			for j, item in enumerate( items ):
+				r[j, i] = distribution.log_probability( item )
+
+		r = numpy.exp( r )
+
+		# Turn these log probabilities into responsibilities by
+		# normalizing on a row-by-row manner.
+		for i in xrange( n ):
+			r[i] = r[i] / r[i].sum()
+
+		# Weight the responsibilities by the given weights
+		for i in xrange( k ):
+			r[:,i] = r[:,i]*weights
+
+		# Update the emissions of each distribution
+		for i, distribution in enumerate( distributions ):
+			distribution.from_sample( items, weights=r[:,i] )
+
+		# Update the weight of each distribution
+		self.parameters[1] = r.sum( axis=0 ) / r.sum()
+
+	def summarize( self, items, weights=None ):
+		"""
+		Performs the summary step of the EM algorithm to estimate
+		parameters of each distribution which is a part of this mixture.
+		"""
+
+		if weights is None:
+			weights = numpy.ones( len(items) )
+		else:
+			weights = numpy.asarray( weights )
+
+		if weights.sum() == 0:
+			return
+
+		distributions, w = self.parameters
+		n, k = len(items), len(distributions)
+
+		# The responsibility matrix
+		r = numpy.zeros( (n, k) )
+
+		# Calculate the log probabilities of each p
+		for i, distribution in enumerate( distributions ):
+			for j, item in enumerate( items ):
+				r[j, i] = distribution.log_probability( item )
+
+		r = numpy.exp( r )
+
+		# Turn these log probabilities into responsibilities by
+		# normalizing on a row-by-row manner.
+		for i in xrange( n ):
+			r[i] = r[i] / r[i].sum()
+
+		# Weight the responsibilities by the given weights
+		for i in xrange( k ):
+			r[:,i] = r[:,i]*weights
+
+		# Save summary statistics on the emission distributions
+		for i, distribution in enumerate( distributions ):
+			distribution.summarize( items, weights=r[:,i]*weights )
+
+		# Save summary statistics for weight updates
+		self.summaries.append( r.sum( axis=0 ) / r.sum() )
+
+	def from_summaries( self, inertia=0.0 ):
+		"""
+		Performs the actual update step for the EM algorithm.
+		"""
+
+		# If this distribution is frozen, don't do anything.
+		if self.frozen == True:
+			return
+
+		# Update the emission distributions
+		for d in self.parameters[0]:
+			d.from_summaries( inertia=inertia )
+
+		# Update the weights
+		weights = numpy.array( self.summaries )
+		self.parameters[1] = weights.sum( axis=0 ) / weights.sum()
 
 cdef class MultivariateDistribution( Distribution ):
 	"""
@@ -1823,6 +1940,8 @@ cdef class ConditionalDiscreteDistribution( ConditionalDistribution ):
 	def marginal( self, parent_values={}, wrt=None, value=None ):
 		'''
 		Sum over all parent distributions to return the marginal distribution.
+		If given a distribution to marginalize with respect to (wrt), then
+		return the marginal wrt that distribution.  
 		'''
 
 		d, pd, keys = self.parameters

@@ -1,0 +1,595 @@
+Downloading/unpacking pomegranate
+  Downloading pomegranate-0.0.2.zip
+  Running setup.py (path:c:\users\jacob\appdata\local\temp\pip_build_Jacob\pomegranate\setup.py) egg_info for package pomegranate
+    
+Requirement already satisfied (use --upgrade to upgrade): cython>=0.20.1 in c:\anaconda\lib\site-packages (from pomegranate)
+Requirement already satisfied (use --upgrade to upgrade): numpy>=1.8.0 in c:\anaconda\lib\site-packages (from pomegranate)
+Requirement already satisfied (use --upgrade to upgrade): scipy>=0.13.3 in c:\anaconda\lib\site-packages (from pomegranate)
+Requirement already satisfied (use --upgrade to upgrade): networkx>=1.8.1 in c:\anaconda\lib\site-packages (from pomegranate)
+Requirement already satisfied (use --upgrade to upgrade): matplotlib>=1.3.1 in c:\anaconda\lib\site-packages (from pomegranate)
+Installing collected packages: pomegranate
+  Running setup.py install for pomegranate
+    cythoning pomegranate/base.pyx to pomegranate\base.c
+    cythoning pomegranate/bayesnet.pyx to pomegranate\bayesnet.c
+    cythoning pomegranate/fsm.pyx to pomegranate\fsm.c
+    cythoning pomegranate/hmm.pyx to pomegranate\hmm.c
+    building 'pomegranate.pomegranate' extension
+    C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\base.c -o build\temp.win-amd64-2.7\Release\pomegranate\base.o
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\base.c:347:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    pomegranate\base.c: In function '__Pyx_RaiseArgtupleInvalid':
+    pomegranate\base.c:9786:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\base.c:9786:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\base.c:9786:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\base.c:9786:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\base.c: In function '__Pyx_RaiseTooManyValuesError':
+    pomegranate\base.c:10290:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\base.c:10290:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\base.c: In function '__Pyx_RaiseNeedMoreValuesError':
+    pomegranate\base.c:10296:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\base.c:10296:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\base.c:10296:18: warning: too many arguments for format [-Wformat-extra-args]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\base.c:347:
+    pomegranate\base.c: At top level:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+                     from pomegranate\base.c:348:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+    C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\bayesnet.c -o build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\bayesnet.c:347:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    pomegranate\bayesnet.c: In function '__Pyx_RaiseTooManyValuesError':
+    pomegranate\bayesnet.c:21722:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:21722:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\bayesnet.c: In function '__Pyx_RaiseNeedMoreValuesError':
+    pomegranate\bayesnet.c:21728:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:21728:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\bayesnet.c:21728:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\bayesnet.c: In function '__Pyx_RaiseArgtupleInvalid':
+    pomegranate\bayesnet.c:21902:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:21902:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\bayesnet.c:21902:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:21902:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\bayesnet.c: In function '__Pyx_BufFmt_ProcessTypeChunk':
+    pomegranate\bayesnet.c:23452:26: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:23452:26: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:23452:26: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\bayesnet.c:23504:20: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:23504:20: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:23504:20: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\bayesnet.c: In function '__pyx_buffmt_parse_array':
+    pomegranate\bayesnet.c:23566:25: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:23566:25: warning: format '%d' expects argument of type 'int', but argument 3 has type 'size_t' [-Wformat]
+    pomegranate\bayesnet.c:23566:25: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\bayesnet.c: In function '__Pyx_GetBufferAndValidate':
+    pomegranate\bayesnet.c:23747:7: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:23747:7: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\bayesnet.c:23747:7: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\bayesnet.c:23747:7: warning: too many arguments for format [-Wformat-extra-args]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\bayesnet.c:347:
+    pomegranate\bayesnet.c: At top level:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+                     from pomegranate\bayesnet.c:348:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+    C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\fsm.c -o build\temp.win-amd64-2.7\Release\pomegranate\fsm.o
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\fsm.c:347:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    pomegranate\fsm.c: In function '__Pyx_RaiseArgtupleInvalid':
+    pomegranate\fsm.c:26885:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:26885:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\fsm.c:26885:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:26885:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\fsm.c: In function '__Pyx_RaiseTooManyValuesError':
+    pomegranate\fsm.c:26902:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:26902:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\fsm.c: In function '__Pyx_RaiseNeedMoreValuesError':
+    pomegranate\fsm.c:26908:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:26908:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\fsm.c:26908:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\fsm.c: In function '__Pyx_BufFmt_ProcessTypeChunk':
+    pomegranate\fsm.c:27195:26: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:27195:26: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:27195:26: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\fsm.c:27247:20: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:27247:20: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:27247:20: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\fsm.c: In function '__pyx_buffmt_parse_array':
+    pomegranate\fsm.c:27309:25: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:27309:25: warning: format '%d' expects argument of type 'int', but argument 3 has type 'size_t' [-Wformat]
+    pomegranate\fsm.c:27309:25: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\fsm.c: In function '__Pyx_GetBufferAndValidate':
+    pomegranate\fsm.c:27490:7: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:27490:7: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\fsm.c:27490:7: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:27490:7: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\fsm.c: In function '__Pyx_ValidateAndInit_memviewslice':
+    pomegranate\fsm.c:30229:22: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:30229:22: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\fsm.c:30229:22: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\fsm.c:30229:22: warning: too many arguments for format [-Wformat-extra-args]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\fsm.c:347:
+    pomegranate\fsm.c: At top level:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+                     from pomegranate\fsm.c:348:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+    C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\hmm.c -o build\temp.win-amd64-2.7\Release\pomegranate\hmm.o
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\hmm.c:347:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    pomegranate\hmm.c: In function '__Pyx_RaiseArgtupleInvalid':
+    pomegranate\hmm.c:49566:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:49566:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\hmm.c:49566:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:49566:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\hmm.c: In function '__Pyx_BufFmt_ProcessTypeChunk':
+    pomegranate\hmm.c:49847:26: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:49847:26: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:49847:26: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\hmm.c:49899:20: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:49899:20: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:49899:20: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\hmm.c: In function '__pyx_buffmt_parse_array':
+    pomegranate\hmm.c:49961:25: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:49961:25: warning: format '%d' expects argument of type 'int', but argument 3 has type 'size_t' [-Wformat]
+    pomegranate\hmm.c:49961:25: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\hmm.c: In function '__Pyx_GetBufferAndValidate':
+    pomegranate\hmm.c:50142:7: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:50142:7: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\hmm.c:50142:7: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:50142:7: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\hmm.c: In function '__Pyx_RaiseTooManyValuesError':
+    pomegranate\hmm.c:50416:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:50416:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\hmm.c: In function '__Pyx_RaiseNeedMoreValuesError':
+    pomegranate\hmm.c:50422:18: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:50422:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\hmm.c:50422:18: warning: too many arguments for format [-Wformat-extra-args]
+    pomegranate\hmm.c: In function '__Pyx_ValidateAndInit_memviewslice':
+    pomegranate\hmm.c:53734:22: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:53734:22: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+    pomegranate\hmm.c:53734:22: warning: unknown conversion type character 'z' in format [-Wformat]
+    pomegranate\hmm.c:53734:22: warning: too many arguments for format [-Wformat-extra-args]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+                     from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+                     from pomegranate\hmm.c:347:
+    pomegranate\hmm.c: At top level:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+    In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+                     from pomegranate\hmm.c:348:
+    C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+    pomegranate\hmm.c: In function '__pyx_f_11pomegranate_11pomegranate_17HiddenMarkovModel__sample':
+    pomegranate\hmm.c:10433:18: warning: '__pyx_v_k' may be used uninitialized in this function [-Wmaybe-uninitialized]
+    C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -shared -s build\temp.win-amd64-2.7\Release\pomegranate\base.o build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o build\temp.win-amd64-2.7\Release\pomegranate\fsm.o build\temp.win-amd64-2.7\Release\pomegranate\hmm.o build\temp.win-amd64-2.7\Release\pomegranate\pomegranate.def -LC:\Anaconda\libs -LC:\Anaconda\PCbuild\amd64 -lpython27 -lmsvcr90 -o build\lib.win-amd64-2.7\pomegranate\pomegranate.pyd
+    build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o:bayesnet.c:(.text+0x29b84): multiple definition of `initpomegranate'
+    build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.text+0x1292e): first defined here
+    build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o:bayesnet.c:(.bss+0x0): multiple definition of `__pyx_module_is_main_pomegranate__pomegranate'
+    build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.bss+0x0): first defined here
+    build\temp.win-amd64-2.7\Release\pomegranate\fsm.o:fsm.c:(.text+0x519e5): multiple definition of `initpomegranate'
+    build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.text+0x1292e): first defined here
+    build\temp.win-amd64-2.7\Release\pomegranate\fsm.o:fsm.c:(.bss+0x0): multiple definition of `__pyx_module_is_main_pomegranate__pomegranate'
+    build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.bss+0x0): first defined here
+    build\temp.win-amd64-2.7\Release\pomegranate\hmm.o:hmm.c:(.text+0xd80c9): multiple definition of `initpomegranate'
+    build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.text+0x1292e): first defined here
+    build\temp.win-amd64-2.7\Release\pomegranate\hmm.o:hmm.c:(.bss+0x0): multiple definition of `__pyx_module_is_main_pomegranate__pomegranate'
+    build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.bss+0x0): first defined here
+    collect2.exe: error: ld returned 1 exit status
+    warning: pomegranate\bayesnet.pyx:192:31: Index should be typed for more efficient access
+    error: command 'gcc' failed with exit status 1
+    Complete output from command C:\Anaconda\python.exe -c "import setuptools, tokenize;__file__='c:\\users\\jacob\\appdata\\local\\temp\\pip_build_Jacob\\pomegranate\\setup.py';exec(compile(getattr(tokenize, 'open', open)(__file__).read().replace('\r\n', '\n'), __file__, 'exec'))" install --record c:\users\jacob\appdata\local\temp\pip-6w7uwt-record\install-record.txt --single-version-externally-managed --compile:
+    running install
+
+running build
+
+running build_py
+
+creating build
+
+creating build\lib.win-amd64-2.7
+
+creating build\lib.win-amd64-2.7\pomegranate
+
+copying pomegranate\__init__.py -> build\lib.win-amd64-2.7\pomegranate
+
+running build_ext
+
+cythoning pomegranate/base.pyx to pomegranate\base.c
+
+cythoning pomegranate/bayesnet.pyx to pomegranate\bayesnet.c
+
+cythoning pomegranate/fsm.pyx to pomegranate\fsm.c
+
+cythoning pomegranate/hmm.pyx to pomegranate\hmm.c
+
+building 'pomegranate.pomegranate' extension
+
+creating build\temp.win-amd64-2.7
+
+creating build\temp.win-amd64-2.7\Release
+
+creating build\temp.win-amd64-2.7\Release\pomegranate
+
+C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\base.c -o build\temp.win-amd64-2.7\Release\pomegranate\base.o
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\base.c:347:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
+pomegranate\base.c: In function '__Pyx_RaiseArgtupleInvalid':
+
+pomegranate\base.c:9786:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\base.c:9786:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\base.c:9786:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\base.c:9786:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\base.c: In function '__Pyx_RaiseTooManyValuesError':
+
+pomegranate\base.c:10290:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\base.c:10290:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\base.c: In function '__Pyx_RaiseNeedMoreValuesError':
+
+pomegranate\base.c:10296:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\base.c:10296:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\base.c:10296:18: warning: too many arguments for format [-Wformat-extra-args]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\base.c:347:
+
+pomegranate\base.c: At top level:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+
+                 from pomegranate\base.c:348:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+
+C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\bayesnet.c -o build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\bayesnet.c:347:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
+pomegranate\bayesnet.c: In function '__Pyx_RaiseTooManyValuesError':
+
+pomegranate\bayesnet.c:21722:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:21722:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\bayesnet.c: In function '__Pyx_RaiseNeedMoreValuesError':
+
+pomegranate\bayesnet.c:21728:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:21728:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\bayesnet.c:21728:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\bayesnet.c: In function '__Pyx_RaiseArgtupleInvalid':
+
+pomegranate\bayesnet.c:21902:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:21902:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\bayesnet.c:21902:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:21902:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\bayesnet.c: In function '__Pyx_BufFmt_ProcessTypeChunk':
+
+pomegranate\bayesnet.c:23452:26: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:23452:26: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:23452:26: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\bayesnet.c:23504:20: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:23504:20: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:23504:20: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\bayesnet.c: In function '__pyx_buffmt_parse_array':
+
+pomegranate\bayesnet.c:23566:25: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:23566:25: warning: format '%d' expects argument of type 'int', but argument 3 has type 'size_t' [-Wformat]
+
+pomegranate\bayesnet.c:23566:25: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\bayesnet.c: In function '__Pyx_GetBufferAndValidate':
+
+pomegranate\bayesnet.c:23747:7: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:23747:7: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\bayesnet.c:23747:7: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\bayesnet.c:23747:7: warning: too many arguments for format [-Wformat-extra-args]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\bayesnet.c:347:
+
+pomegranate\bayesnet.c: At top level:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+
+                 from pomegranate\bayesnet.c:348:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+
+C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\fsm.c -o build\temp.win-amd64-2.7\Release\pomegranate\fsm.o
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\fsm.c:347:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
+pomegranate\fsm.c: In function '__Pyx_RaiseArgtupleInvalid':
+
+pomegranate\fsm.c:26885:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:26885:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\fsm.c:26885:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:26885:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\fsm.c: In function '__Pyx_RaiseTooManyValuesError':
+
+pomegranate\fsm.c:26902:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:26902:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\fsm.c: In function '__Pyx_RaiseNeedMoreValuesError':
+
+pomegranate\fsm.c:26908:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:26908:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\fsm.c:26908:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\fsm.c: In function '__Pyx_BufFmt_ProcessTypeChunk':
+
+pomegranate\fsm.c:27195:26: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:27195:26: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:27195:26: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\fsm.c:27247:20: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:27247:20: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:27247:20: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\fsm.c: In function '__pyx_buffmt_parse_array':
+
+pomegranate\fsm.c:27309:25: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:27309:25: warning: format '%d' expects argument of type 'int', but argument 3 has type 'size_t' [-Wformat]
+
+pomegranate\fsm.c:27309:25: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\fsm.c: In function '__Pyx_GetBufferAndValidate':
+
+pomegranate\fsm.c:27490:7: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:27490:7: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\fsm.c:27490:7: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:27490:7: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\fsm.c: In function '__Pyx_ValidateAndInit_memviewslice':
+
+pomegranate\fsm.c:30229:22: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:30229:22: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\fsm.c:30229:22: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\fsm.c:30229:22: warning: too many arguments for format [-Wformat-extra-args]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\fsm.c:347:
+
+pomegranate\fsm.c: At top level:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+
+                 from pomegranate\fsm.c:348:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+
+C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -mdll -O -Wall -IC:\Anaconda\lib\site-packages\numpy\core\include -IC:\Anaconda\include -IC:\Anaconda\PC -c pomegranate\hmm.c -o build\temp.win-amd64-2.7\Release\pomegranate\hmm.o
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarraytypes.h:1761:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:17,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\hmm.c:347:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h:12:9: note: #pragma message: C:\Anaconda\lib\site-packages\numpy\core\include/numpy/npy_1_7_deprecated_api.h(12) : Warning Msg: Using deprecated NumPy API, disable it by #defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
+pomegranate\hmm.c: In function '__Pyx_RaiseArgtupleInvalid':
+
+pomegranate\hmm.c:49566:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:49566:18: warning: format '%s' expects argument of type 'char *', but argument 5 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\hmm.c:49566:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:49566:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\hmm.c: In function '__Pyx_BufFmt_ProcessTypeChunk':
+
+pomegranate\hmm.c:49847:26: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:49847:26: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:49847:26: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\hmm.c:49899:20: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:49899:20: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:49899:20: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\hmm.c: In function '__pyx_buffmt_parse_array':
+
+pomegranate\hmm.c:49961:25: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:49961:25: warning: format '%d' expects argument of type 'int', but argument 3 has type 'size_t' [-Wformat]
+
+pomegranate\hmm.c:49961:25: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\hmm.c: In function '__Pyx_GetBufferAndValidate':
+
+pomegranate\hmm.c:50142:7: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:50142:7: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\hmm.c:50142:7: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:50142:7: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\hmm.c: In function '__Pyx_RaiseTooManyValuesError':
+
+pomegranate\hmm.c:50416:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:50416:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\hmm.c: In function '__Pyx_RaiseNeedMoreValuesError':
+
+pomegranate\hmm.c:50422:18: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:50422:18: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\hmm.c:50422:18: warning: too many arguments for format [-Wformat-extra-args]
+
+pomegranate\hmm.c: In function '__Pyx_ValidateAndInit_memviewslice':
+
+pomegranate\hmm.c:53734:22: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:53734:22: warning: format '%s' expects argument of type 'char *', but argument 3 has type 'Py_ssize_t' [-Wformat]
+
+pomegranate\hmm.c:53734:22: warning: unknown conversion type character 'z' in format [-Wformat]
+
+pomegranate\hmm.c:53734:22: warning: too many arguments for format [-Wformat-extra-args]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ndarrayobject.h:26:0,
+
+                 from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/arrayobject.h:4,
+
+                 from pomegranate\hmm.c:347:
+
+pomegranate\hmm.c: At top level:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__multiarray_api.h:1629:1: warning: '_import_array' defined but not used [-Wunused-function]
+
+In file included from C:\Anaconda\lib\site-packages\numpy\core\include/numpy/ufuncobject.h:327:0,
+
+                 from pomegranate\hmm.c:348:
+
+C:\Anaconda\lib\site-packages\numpy\core\include/numpy/__ufunc_api.h:241:1: warning: '_import_umath' defined but not used [-Wunused-function]
+
+pomegranate\hmm.c: In function '__pyx_f_11pomegranate_11pomegranate_17HiddenMarkovModel__sample':
+
+pomegranate\hmm.c:10433:18: warning: '__pyx_v_k' may be used uninitialized in this function [-Wmaybe-uninitialized]
+
+writing build\temp.win-amd64-2.7\Release\pomegranate\pomegranate.def
+
+C:\Anaconda\Scripts\gcc.bat -DMS_WIN64 -shared -s build\temp.win-amd64-2.7\Release\pomegranate\base.o build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o build\temp.win-amd64-2.7\Release\pomegranate\fsm.o build\temp.win-amd64-2.7\Release\pomegranate\hmm.o build\temp.win-amd64-2.7\Release\pomegranate\pomegranate.def -LC:\Anaconda\libs -LC:\Anaconda\PCbuild\amd64 -lpython27 -lmsvcr90 -o build\lib.win-amd64-2.7\pomegranate\pomegranate.pyd
+
+build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o:bayesnet.c:(.text+0x29b84): multiple definition of `initpomegranate'
+
+build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.text+0x1292e): first defined here
+
+build\temp.win-amd64-2.7\Release\pomegranate\bayesnet.o:bayesnet.c:(.bss+0x0): multiple definition of `__pyx_module_is_main_pomegranate__pomegranate'
+
+build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.bss+0x0): first defined here
+
+build\temp.win-amd64-2.7\Release\pomegranate\fsm.o:fsm.c:(.text+0x519e5): multiple definition of `initpomegranate'
+
+build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.text+0x1292e): first defined here
+
+build\temp.win-amd64-2.7\Release\pomegranate\fsm.o:fsm.c:(.bss+0x0): multiple definition of `__pyx_module_is_main_pomegranate__pomegranate'
+
+build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.bss+0x0): first defined here
+
+build\temp.win-amd64-2.7\Release\pomegranate\hmm.o:hmm.c:(.text+0xd80c9): multiple definition of `initpomegranate'
+
+build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.text+0x1292e): first defined here
+
+build\temp.win-amd64-2.7\Release\pomegranate\hmm.o:hmm.c:(.bss+0x0): multiple definition of `__pyx_module_is_main_pomegranate__pomegranate'
+
+build\temp.win-amd64-2.7\Release\pomegranate\base.o:base.c:(.bss+0x0): first defined here
+
+collect2.exe: error: ld returned 1 exit status
+
+warning: pomegranate\bayesnet.pyx:192:31: Index should be typed for more efficient access
+
+error: command 'gcc' failed with exit status 1
+
+----------------------------------------
+Cleaning up...
+Command C:\Anaconda\python.exe -c "import setuptools, tokenize;__file__='c:\\users\\jacob\\appdata\\local\\temp\\pip_build_Jacob\\pomegranate\\setup.py';exec(compile(getattr(tokenize, 'open', open)(__file__).read().replace('\r\n', '\n'), __file__, 'exec'))" install --record c:\users\jacob\appdata\local\temp\pip-6w7uwt-record\install-record.txt --single-version-externally-managed --compile failed with error code 1 in c:\users\jacob\appdata\local\temp\pip_build_Jacob\pomegranate
+Storing debug log for failure in C:\Users\Jacob\pip\pip.log

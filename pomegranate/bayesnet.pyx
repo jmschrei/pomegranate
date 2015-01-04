@@ -79,28 +79,18 @@ cdef class BayesianNetwork( Model ):
 	Represents a Bayesian Network
 	"""
 
-	def add_edges( self, a, b, weights ):
+	def add_transition( self, a, b ):
 		"""
-		Add many transitions at the same time, in one of two forms. 
+		Add a transition from state a to state b which indicates that B is
+		dependent on A in ways specified by the distribution. 
+		"""
 
-		(1) If both a and b are lists, then create transitions from the i-th 
-		element of a to the i-th element of b with a probability equal to the
-		i-th element of probabilities.
+		# Add the transition
+		self.graph.add_edge(a, b )
 
-		Example: 
-		model.add_transitions([model.start, s1], [s1, model.end], [1., 1.])
-
-		(2) If either a or b are a state, and the other is a list, create a
-		transition from all states in the list to the single state object with
-		probabilities and pseudocounts specified appropriately.
-
-		Example:
-		model.add_transitions([model.start, s1, s2, s3], s4, [0.2, 0.4, 0.3, 0.9])
-		model.add_transitions(model.start, [s1, s2, s3], [0.6, 0.2, 0.05])
-
-		If a single group is given, it's assumed all edges should belong to that
-		group. Otherwise, either groups can be a list of group identities, or
-		simply None if no group is meant.
+	def add_transitions( self, a, b ):
+		"""
+		Add multiple conditional dependencies at the same time.
 		"""
 
 		n = len(a) if isinstance( a, list ) else len(b)
@@ -108,20 +98,20 @@ cdef class BayesianNetwork( Model ):
 		# Allow addition of many transitions from many states
 		if isinstance( a, list ) and isinstance( b, list ):
 			# Set up an iterator across all edges
-			for start, end, weight in izip( a, b, weights ):
-				self.add_transition( start, end, weight )
+			for start, end in izip( a, b ):
+				self.add_transition( start, end )
 
 		# Allow for multiple transitions to a specific state 
 		elif isinstance( a, list ) and isinstance( b, State ):
 			# Set up an iterator across all edges to b
-			for start, weight in izip( a, weights ):
-				self.add_transition( start, b, weight )
+			for start in a:
+				self.add_transition( start, b )
 
 		# Allow for multiple transitions from a specific state
 		elif isinstance( a, State ) and isinstance( b, list ):
 			# Set up an iterator across all edges from a
-			for end, weight in izip( b, weights ):
-				self.add_transition( a, end, weight )
+			for end in b:
+				self.add_transition( a, end )
 
 	def log_probability( self, data ):
 		'''
@@ -151,24 +141,31 @@ cdef class BayesianNetwork( Model ):
 
 	def forward( self, data={} ):
 		'''
-		Calculate the posterior probabilities of each hidden variable, which
-		are the variables not observed in the data.
+		Propogate messages forward through the network from observed data to
+		distributions which depend on that data. This is not the full belief
+		propogation algorithm.
 		'''
 
+		# Go from state names:data to distribution object:data
 		names = { state.name: state.distribution for state in self.states }
 		data = { names[state]: value for state, value in data.items() }
 
+		# List of factors
 		factors = [ data[ s.distribution ] if s.distribution in data else None for s in self.states ]
 
+		# Unpack the edges
 		in_edges = numpy.array( self.in_edge_count )
 		out_edges = numpy.array( self.out_edge_count )
 
+		# Figure out the roots of the graph, meaning they're independent of the
+		# remainder of the graph and have been visited
 		roots = numpy.where( in_edges[1:] - in_edges[:-1] == 0 )[0]
 		visited = numpy.zeros( len( self.states ) )
 		for i, state in enumerate( self.states ):
 			if state.distribution in data.keys():
 				visited[i] = 1
 
+		# For each of your roots, unpack observed data or use the prior
 		for root in roots:
 			visited[ root ] = 1
 			if factors[ root ] is not None:
@@ -182,6 +179,7 @@ cdef class BayesianNetwork( Model ):
 			else:
 				factors[ root ] = d
 
+		# Go through all of the states and 
 		while True:
 			for i, state in enumerate( self.states ):
 				if visited[ i ] == 1:
@@ -213,19 +211,28 @@ cdef class BayesianNetwork( Model ):
 
 	def backward( self, data={} ):
 		'''
+		Propogate messages backwards through the network from observed data to
+		distributions which that data depends on. This is not the full belief
+		propogation algorithm.
 		'''
 
+		# Go from state names:data to distribution object:data
 		names = { state.name: state.distribution for state in self.states }
 		data = { names[state]: value for state, value in data.items() }
 
+		# List of factors
 		factors = [ data[ s.distribution ] if s.distribution in data else s.distribution.marginal() for s in self.states ]
 		new_factors = [ i for i in factors ]
 
+		# Unpack the edges
 		in_edges = numpy.array( self.in_edge_count )
 		out_edges = numpy.array( self.out_edge_count )
 
+		# Record the message passed along each edge
 		messages = [ None for i in in_edges ]
 
+		# Figure out the leaves of the graph, which are independent of the other
+		# nodes using the backwards algorithm, and say we've visited them.
 		leaves = numpy.where( out_edges[1:] - out_edges[:-1] == 0 )[0]
 		visited = numpy.zeros( len( self.states ) )
 		visited[leaves] = 1
@@ -233,14 +240,21 @@ cdef class BayesianNetwork( Model ):
 			if s.distribution in data and not isinstance( data[ s.distribution ], Distribution ): 
 				visited[i] = 1 
 
+		# Go through the nodes we haven't yet visited and update their beliefs
+		# iteratively if we've seen all the data which depends on it. 
 		while True:
 			for i, state in enumerate( self.states ):
+				# If we've already visited the state, then don't visit
+				# it again.
 				if visited[i] == 1:
 					continue
 
+				# Unpack the state and the distribution
 				state = self.states[i]
 				d = state.distribution
 
+				# Make sure we've seen all the distributions which depend on
+				# this one, otherwise break.
 				for k in xrange( out_edges[i], out_edges[i+1] ):
 					ki = self.out_transitions[k]
 					if visited[ki] == 0:
@@ -249,18 +263,25 @@ cdef class BayesianNetwork( Model ):
 					for k in xrange( out_edges[i], out_edges[i+1] ):
 						ki = self.out_transitions[k]
 
+						# Update the parent information
 						parents = {}
 						for l in xrange( in_edges[ki], in_edges[ki+1] ):
 							li = self.in_transitions[l]
 							parents[ self.states[li].distribution ] = factors[li]
 
+						# Get the messages for each of those states
 						messages[k] = self.states[ki].distribution.marginal( parents, wrt=d, value=new_factors[ki] )
 					else:
+						# Find the local messages which influence these
 						local_messages = [ factors[i] ] + [ messages[k] for k in xrange( out_edges[i], out_edges[i+1] ) ]
+						
+						# Merge marginals of each of these, and the prior information
 						new_factors[i] = merge_marginals( local_messages )
 
+					# Mark that we've visited this state.
 					visited[i] = 1
 
+			# If we've visited all states, we're done
 			if visited.sum() == visited.shape[0]:
 				break
 
@@ -269,14 +290,11 @@ cdef class BayesianNetwork( Model ):
 
 	def forward_backward( self, data={} ):
 		'''
-		...
+		Propogate messages forward through the network to update beliefs in
+		each state, then backwards from those beliefs to the remainder of
+		the network. This is the sum-product belief propogation algorithm.
 		'''
 
-		print "FORWARD LOGS"
 		factors = self.forward( data )
 		data = { self.states[i].name: factors[i] for i in xrange( len(factors) ) }
-
-		print "\n".join( map( str, factors ) )
-		print
-		print "BACKWARD LOGS"
 		return self.backward( data )

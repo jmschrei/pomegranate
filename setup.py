@@ -9,7 +9,7 @@ except ImportError:
 else:
     use_cython = True
 
-cmdclass = { }
+cmdclass = {}
 
 if use_cython:
     ext_modules = [
@@ -33,7 +33,7 @@ else:
 
 setup(
     name='pomegranate',
-    version='0.0.1',
+    version='0.0.2',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=['pomegranate'],

@@ -1,6 +1,6 @@
-# __init__.py: Yet Another Hidden Markov Model library
+# __init__.py: pomegranate
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
-#          Adam Novak ( anovak1@ucsc.edu )
+
 
 """
 For detailed documentation and examples, see the README.
@@ -42,4 +42,4 @@ from fsm import *
 from distributions import *
 from base import *
 
-__version__ = '1.0.0'
+__version__ = '0.0.2'
