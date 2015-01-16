@@ -8,6 +8,10 @@ pomegranate is a package for graphical models and Bayesian statistics for Python
 * Hidden Markov Models
 * Discrete Bayesian Networks
 
+See the wiki (currently under construction) for more documentation!
+
+No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM, and all the current contributors to pomegranate, including the graduate students who share my office I annoy on a regular basis by bouncing ideas off of.
+
 ## Installation
 
 I am currently having issues getting pomgranate to be pip installable, stemming from the use of multiple cython files. If anyone knows the fix, please submit a working pull request and I will send you a picture of a pomegranate and other assorted fruit of varying deliciousness.
