@@ -19,7 +19,7 @@ else:
 import numpy
 cimport numpy
 
-from matplotlib import pyplot
+import matplotlib.pyplot as plt
 
 cimport utils
 from utils cimport *
@@ -177,6 +177,16 @@ cdef class Distribution:
 
 		self.from_sample( *self.summaries )
 		self.summaries = []
+
+	def plot( self, n=1000, **kwargs ):
+		"""
+		Plot the distribution by sampling from it n times and plotting
+		either a histogram or a kernel density. 
+		"""
+
+		samples = [ self.sample() for i in xrange( n ) ]
+		plt.hist( samples, **kwargs )
+
 
 cdef class UniformDistribution( Distribution ):
 	"""
@@ -785,6 +795,121 @@ cdef class ExponentialDistribution( Distribution ):
 		self.parameters[0] = prior_rate*inertia + rate*(1-inertia)
 		self.summaries = []
 
+cdef class BetaDistribution( Distribution ):
+	"""
+	This distribution represents a beta distribution, parameterized using
+	alpha/beta, which are both shape parameters. ML estimation is done
+	"""
+
+	def __init__( self, alpha, beta, frozen=False ):
+		"""
+		Make a new beta distribution. Both alpha and beta are both shape
+		parameters.
+		"""
+
+		self.parameters = [alpha, beta]
+		self.summaries = []
+		self.name = "BetaDistribution"
+		self.frozen = frozen
+
+	def log_probability( self, symbol ):
+		"""
+		What is the probability of the given float under this distribution?
+		"""
+
+		a, b = self.parameters
+		return ( _log(math.lgamma(a+b)) - _log(math.lgamma(a)) - 
+			_log(math.lgamma(b)) + (a-1)*_log(symbol) +
+			(b-1)*_log(1.-symbol) ) 
+
+	def sample( self ):
+		"""
+		Return a random sample from the beta distribution.
+		"""
+
+		return random.betavariate( self.parameters[0], self.parameters[1] )
+
+	def from_sample( self, items, weights=None, inertia=0.0 ):
+		"""
+		Take in a series of binary data and update the parameters. Simply put,
+		the posteriors are:
+
+		alpha = alpha + new_successes
+		beta = beta + new_failures
+		"""
+
+		# If the distribution is frozen, don't bother with any calculation
+		if len(items) == 0 or self.frozen == True:
+			# No sample, so just ignore it and keep our old parameters.
+			return
+		
+		# Make it be a numpy array
+		items = numpy.asarray(items)
+		
+		if weights is None:
+			# Weight everything 1 if no weights specified
+			weights = numpy.ones_like(items)
+		else:
+			# Force whatever we have to be a Numpy array
+			weights = numpy.asarray(weights)
+		
+		if weights.sum() == 0:
+			# Since negative weights are banned, we must have no data.
+			# Don't change the parameters at all.
+			return
+
+		successes = items.dot( weights )
+		failures = (1-items).dot( weights )
+
+		alpha = self.parameters[0]*inertia + successes*(1-inertia)
+		beta = self.parameters[1]*inertia + failures*(1-inertia)
+
+		self.parameters = [ alpha, beta ]
+
+	def summarize( self, items, weights=None ):
+		"""
+		Summarize some new data and store it to summaries.
+		"""
+
+		# If the distribution is frozen, don't bother with any calculation
+		if len(items) == 0 or self.frozen == True:
+			# No sample, so just ignore it and keep our old parameters.
+			return
+		
+		# Make it be a numpy array
+		items = numpy.asarray(items)
+		
+		if weights is None:
+			# Weight everything 1 if no weights specified
+			weights = numpy.ones_like(items)
+		else:
+			# Force whatever we have to be a Numpy array
+			weights = numpy.asarray(weights)
+		
+		if weights.sum() == 0:
+			# Since negative weights are banned, we must have no data.
+			# Don't change the parameters at all.
+			return
+
+		successes = items.dot( weights )
+		failures = (1-items).dot( weights )
+
+		self.summaries.append( [ successes, failures ] )
+
+	def from_summaries( self, inertia=0.0 ):
+		"""
+		Use the summaries in order to update the distribution.
+		"""
+
+		summaries = numpy.array( self.summaries )
+
+		alpha = self.parameters[0]*inertia + summaries[:,0].sum( axis=0 )*(1-inertia)
+		beta = self.parameters[1]*inertia + summaries[:,1].sum( axis=0 )*(1-inertia)
+
+		self.parameters = [ alpha, beta ]
+		self.summaries = []
+
+
 cdef class GammaDistribution( Distribution ):
 	"""
 	This distribution represents a gamma distribution, parameterized in the 
@@ -828,7 +953,7 @@ cdef class GammaDistribution( Distribution ):
 		return random.gammavariate(self.parameters[0], 1.0 / self.parameters[1])
 		
 	def from_sample( self, items, weights=None, inertia=0.0, epsilon=1E-9, 
-		iteration_limit = 1000 ):
+		iteration_limit=1000 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -1864,6 +1989,87 @@ cdef class MultivariateDistribution( Distribution ):
 
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
+
+cdef class MultivariateGaussianDistribution( Distribution ):
+	"""
+	A multivariate gaussian distribution, with a mean vector and a covariance
+	matrix. This is mostly a wrapper for scipy.stats.multivariate_gaussian.
+	"""
+
+	def __init__( self, means, covariance, frozen=False ):
+		"""
+		Take in the mean vector and the covariance matrix. 
+		"""
+
+		self.parameters = [ numpy.array(means), numpy.array(covariance) ]
+		self.name = "MultivariateGaussianDistribution"
+		self.frozen = frozen
+
+	def log_probability( self, symbol ):
+		"""
+		What's the probability of a given tuple under this mixture? It's the
+		product of the probabilities of each symbol in the tuple under their
+		respective distribution, which is the sum of the log probabilities.
+		"""
+
+		return scipy.stats.multivariate_normal.logpdf( symbol,
+			self.parameters[0], self.parameters[1] )
+
+	def sample( self ):
+		"""
+		Sample from the mixture. First, choose a distribution to sample from
+		according to the weights, then sample from that distribution. 
+		"""
+
+		return scipy.stats.multivariate_normal.rvs(
+			self.parameters[0], self.parameters[1] )
+
+	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
+		"""
+		Set the parameters of this Distribution to maximize the likelihood of 
+		the given sample. Items holds some sort of sequence. If weights is 
+		specified, it holds a sequence of value to weight each item by.
+		
+		min_std specifieds a lower limit on the learned standard deviation.
+		"""
+
+		# If the distribution is frozen, don't bother with any calculation
+		if len(items) == 0 or self.frozen == True:
+			# No sample, so just ignore it and keep our old parameters.
+			return
+
+		# Make it be a numpy array
+		items = numpy.asarray(items)
+		
+		if weights is None:
+			# Weight everything 1 if no weights specified
+			weights = numpy.ones_like(items) / len( items )
+		else:
+			# Force whatever we have to be a Numpy array
+			weights = numpy.asarray(weights) / weights.sum()
+		
+		if weights.sum() == 0:
+			# Since negative weights are banned, we must have no data.
+			# Don't change the parameters at all.
+			return
+
+		# Take the mean
+		mean = numpy.average( items, weights=weights, axis=0 )
+
+		# Calculate the biased weight sample since we don't know the scaling
+		# of the weights
+		n = len(items)
+		diff = items - mean
+		weighted_diff = numpy.matrix( diff * weights ) 
+		cov = 1. / ( 1. - (weights**2.).sum() ) * weighted_diff.dot( numpy.matrix( diff ).T )
+		
+		# Calculate the new parameters, respecting inertia, with an inertia
+		# of 0 being completely replacing the parameters, and an inertia of
+		# 1 being to ignore new training data.
+		prior_means, prior_covs = self.parameters
+
+		self.parameters = [ prior_means*inertia + mean*(1-inertia), 
+							prior_covs*inertia + cov*(1-inertia) ]
 
 def recursive_discrete_log_probability( symbol, distributions, parent_values={}, 
 	parent_distributions=[] ):

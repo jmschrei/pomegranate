@@ -113,6 +113,147 @@ cdef class BayesianNetwork( Model ):
 			for end in b:
 				self.add_transition( a, end )
 
+	def bake( self, verbose=False ): 
+		"""
+		Finalize the topology of the model, and assign a numerical index to
+		every node. This method must be called before any of the probability-
+		calculating or sampling methods.
+		
+		This fills in self.states (a list of all states in order), the sparse
+		matrices of transitions and their weights, and also will merge silent
+		states.
+		"""
+
+		# Go through the model and delete any nodes which have no edges leading
+		# to it, or edges leading out of it. This gets rid of any states with
+		# no edges in or out, as well as recursively removing any chains which
+		# are impossible for the viterbi path to touch.
+		self.in_edge_count = numpy.zeros( len( self.graph.nodes() ), 
+			dtype=numpy.int32 ) 
+		self.out_edge_count = numpy.zeros( len( self.graph.nodes() ), 
+			dtype=numpy.int32 )
+
+		# Go through all edges which exist looking for silent states to merge
+		while True:
+			# Set the number of merged states to 0
+			merged = 0
+
+			for a, b in self.graph.edges():
+
+				# If the receiver is a silent state, then it is a placeholder 
+				if b.is_silent():
+
+					# Go through all edges again looking for edges which begin with
+					# this silent placeholder
+					for c, d in self.graph.edges():
+
+						# If we find two pairs where the middle node is both
+						# the same, and silent, then we need to merge the
+						# leftmost and rightmost nodes and remove the middle,
+						# silent one.
+						# A -> B/C -> D becomes A -> D.
+						# If A is silent as well, it will be merged out next
+						# iteration.
+						if b is c:
+							pd = d.distribution.parameters[1]
+							
+							# Go through all parent distributions for this CD
+							# to find the 'None' which we are replacing
+							for i, parent in enumerate( pd ):
+								if parent is None:
+									pd[i] = a.distribution
+
+									if verbose:
+										print( "{} and {} merged, removing state {}"\
+											.format( a.name, d.name, c.name ) )
+									break
+
+							# If no 'Nones' are in the conditional distribution
+							# then we don't know which to replace
+							else:
+								raise SyntaxError( "Uncertainty in which parent {}\
+									should replace for {}".format( a.name, d.name ))
+
+							# Add an edge directly from A to D, removing the
+							# middle silent state
+							self.graph.add_edge( a, d )
+							self.graph.remove_node( b )
+							merged += 1
+
+			if merged == 0:
+				break
+
+		self.states = self.graph.nodes()
+		n, m = len(self.states), len(self.graph.edges())
+
+		# We need a good way to get transition probabilities by state index that
+		# isn't N^2 to build or store. So we will need a reverse of the above
+		# mapping. It's awkward but asymptotically fine.
+		indices = { self.states[i]: i for i in xrange(n) }
+
+		# This holds numpy array indexed [a, b] to transition log probabilities 
+		# from a to b, where a and b are state indices. It starts out saying all
+		# transitions are impossible.
+		self.in_transitions = numpy.zeros( m, dtype=numpy.int32 ) - 1
+		self.in_edge_count = numpy.zeros( n+1, dtype=numpy.int32 ) 
+		self.out_transitions = numpy.zeros( m, dtype=numpy.int32 ) - 1
+		self.out_edge_count = numpy.zeros( n+1, dtype=numpy.int32 )
+
+		# Now we need to find a way of storing in-edges for a state in a manner
+		# that can be called in the cythonized methods below. This is basically
+		# an inversion of the graph. We will do this by having two lists, one
+		# list size number of nodes + 1, and one list size number of edges.
+		# The node size list will store the beginning and end values in the
+		# edge list that point to that node. The edge list will be ordered in
+		# such a manner that all edges pointing to the same node are grouped
+		# together. This will allow us to run the algorithms in time
+		# nodes*edges instead of nodes*nodes.
+
+		for a, b in self.graph.edges_iter():
+			# Increment the total number of edges going to node b.
+			self.in_edge_count[ indices[b]+1 ] += 1
+			# Increment the total number of edges leaving node a.
+			self.out_edge_count[ indices[a]+1 ] += 1
+
+		# Take the cumulative sum so that we can associate array indices with
+		# in or out transitions
+		self.in_edge_count = numpy.cumsum(self.in_edge_count, 
+			dtype=numpy.int32)
+		self.out_edge_count = numpy.cumsum(self.out_edge_count, 
+			dtype=numpy.int32 )
+
+		# Now we go through the edges again in order to both fill in the
+		# transition probability matrix, and also to store the indices sorted
+		# by the end-node.
+		for a, b, data in self.graph.edges_iter( data=True ):
+			# Put the edge in the dict. Its weight is log-probability
+			start = self.in_edge_count[ indices[b] ]
+
+			# Start at the beginning of the section marked off for node b.
+			# If another node is already there, keep walking down the list
+			# until you find a -1 meaning a node hasn't been put there yet.
+			while self.in_transitions[ start ] != -1:
+				if start == self.in_edge_count[ indices[b]+1 ]:
+					break
+				start += 1
+
+
+			# Store transition info in an array where the in_edge_count shows
+			# the mapping stuff.
+			self.in_transitions[ start ] = indices[a]
+
+			# Now do the same for out edges
+			start = self.out_edge_count[ indices[a] ]
+
+			while self.out_transitions[ start ] != -1:
+				if start == self.out_edge_count[ indices[a]+1 ]:
+					break
+				start += 1
+
+			self.out_transitions[ start ] = indices[b]
+
+
+
 	def log_probability( self, data ):
 		'''
 		Determine the log probability of the data given the model. The data is

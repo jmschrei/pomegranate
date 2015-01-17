@@ -19,6 +19,18 @@ def teardown():
 
 	pass
 
+def discrete_equality( x, y, z=8 ):
+	'''
+	Test to see if two discrete distributions are equal to each other to
+	z decimal points.
+	'''
+
+	xd, yd = x.parameters[0], y.parameters[0]
+	for key, value in xd.items():
+		if round( yd[key], z ) != round( value, z ):
+			return False
+	return True
+
 @with_setup( setup, teardown )
 def test_normal():
 	'''
@@ -442,3 +454,17 @@ def test_multivariate():
 
 	assert d.parameters[0][1].parameters[0] == -2.5
 	assert d.parameters[0][1].parameters[1] == 15
+
+def test_conditional():
+	'''
+	Test a conditional discrete distribution.
+	'''
+
+	phditis = DiscreteDistribution({ True : 0.01, False : 0.99 })
+	test_result = ConditionalDiscreteDistribution({
+		True : DiscreteDistribution({ True : 0.95, False : 0.05 }),
+		False : DiscreteDistribution({ True : 0.05, False : 0.95 })
+		}, [phditis] )
+
+	assert discrete_equality( test_result.marginal(),
+		DiscreteDistribution({False : 0.941, True : 0.059}) )
