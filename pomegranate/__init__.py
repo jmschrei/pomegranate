@@ -41,5 +41,6 @@ from bayesnet import *
 from fsm import *
 from distributions import *
 from base import *
+from gmm import *
 
 __version__ = '0.0.2'

@@ -2024,13 +2024,11 @@ cdef class MultivariateGaussianDistribution( Distribution ):
 		return scipy.stats.multivariate_normal.rvs(
 			self.parameters[0], self.parameters[1] )
 
-	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def from_sample( self, items, weights=None, inertia=0.0, diagonal=False ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
 		specified, it holds a sequence of value to weight each item by.
-		
-		min_std specifieds a lower limit on the learned standard deviation.
 		"""
 
 		# If the distribution is frozen, don't bother with any calculation
@@ -2040,35 +2038,36 @@ cdef class MultivariateGaussianDistribution( Distribution ):
 
 		# Make it be a numpy array
 		items = numpy.asarray(items)
-		
+
 		if weights is None:
 			# Weight everything 1 if no weights specified
-			weights = numpy.ones_like(items) / len( items )
+			weights = numpy.ones( items.shape[0], dtype=float ) / len( items )
+		elif weights.sum() == 0:
+			# Since negative weights are banned, we must have no data.
+			# Don't change parameters at all.
+			return
 		else:
 			# Force whatever we have to be a Numpy array
 			weights = numpy.asarray(weights) / weights.sum()
-		
-		if weights.sum() == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change the parameters at all.
-			return
 
 		# Take the mean
-		mean = numpy.average( items, weights=weights, axis=0 )
+		means = numpy.average( items, weights=weights, axis=0 )
 
 		# Calculate the biased weight sample since we don't know the scaling
 		# of the weights
-		n = len(items)
-		diff = items - mean
-		weighted_diff = numpy.matrix( diff * weights ) 
-		cov = 1. / ( 1. - (weights**2.).sum() ) * weighted_diff.dot( numpy.matrix( diff ).T )
+		n, m = len(items), self.parameters[0].shape[0]
+
+		cov = numpy.zeros( (m, m) )
+		for i in xrange(m):
+			diff = items[:,i] ** 2 - means[i] ** 2
+			cov[i, i] = diff.dot( weights ) / weights.sum()
 		
 		# Calculate the new parameters, respecting inertia, with an inertia
 		# of 0 being completely replacing the parameters, and an inertia of
 		# 1 being to ignore new training data.
 		prior_means, prior_covs = self.parameters
 
-		self.parameters = [ prior_means*inertia + mean*(1-inertia), 
+		self.parameters = [ prior_means*inertia + means*(1-inertia), 
 							prior_covs*inertia + cov*(1-inertia) ]
 
 def recursive_discrete_log_probability( symbol, distributions, parent_values={}, 

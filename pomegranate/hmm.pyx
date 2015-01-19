@@ -56,6 +56,14 @@ def exp(value):
 	
 	return numpy.exp(value)
 
+def log_probability( model, samples ):
+	'''
+	Return the log probability of samples given a model.
+	'''
+
+	return reduce( lambda x, y: pair_lse( x, y ),
+				map( model.log_probability, samples ) )
+
 cdef class HiddenMarkovModel( StructuredModel ):
 	"""
 	Represents a Hidden Markov Model.
@@ -1860,8 +1868,7 @@ cdef class HiddenMarkovModel( StructuredModel ):
 			# probabilities of all members of the sequence. In this case,
 			# sequences is made up of ( sequence, path ) tuples, instead of
 			# just sequences.
-			log_probability_sum = reduce( lambda x, y: pair_lse( x, y ),
-				[self.log_probability( seq, path ) for seq, path in sequences])
+			log_probability_sum = log_probability( self, sequences )
 		
 			self._train_labelled( sequences, transition_pseudocount, 
 				use_pseudocount, edge_inertia, distribution_inertia )
@@ -1869,8 +1876,7 @@ cdef class HiddenMarkovModel( StructuredModel ):
 			# Take the logsumexp of the log probabilities of the sequences.
 			# Since sequences is just a list of sequences now, we can map
 			# the log probability function directly onto it.
-			log_probability_sum = reduce( lambda x, y: pair_lse( x, y ),
-				map( self.log_probability, sequences ) )
+			log_probability_sum = log_probability( self, sequences )
 
 		# Cast everything as a numpy array for input into the other possible
 		# training algorithms.
@@ -1894,13 +1900,11 @@ cdef class HiddenMarkovModel( StructuredModel ):
 		if algorithm.lower() == 'labelled' or algorithm.lower() == 'labeled':
 			# Since there are labels for this training, make sure to calculate
 			# the log probability given the path. 
-			trained_log_probability_sum = reduce( lambda x, y: pair_lse( x, y ),
-				[self.log_probability( seq, path ) for seq, path in sequences])
+			trained_log_probability_sum = log_probability( self, sequences )
 		else:
 			# Given that there are no labels, calculate the logsumexp by
 			# mapping the log probability function directly onto the sequences.
-			trained_log_probability_sum = reduce( lambda x, y: pair_lse( x, y ),
-				map( self.log_probability, sequences ) )
+			trained_log_probability_sum = log_probability( self, sequences )
 
 		# Calculate the difference between the two measurements.
 		improvement = trained_log_probability_sum - log_probability_sum
@@ -1925,8 +1929,7 @@ cdef class HiddenMarkovModel( StructuredModel ):
 
 		# How many iterations of training have we done (counting the first)
 		iteration, improvement = 0, float("+inf")
-		last_log_probability_sum = reduce( lambda x, y: pair_lse( x, y ),
-			map( self.log_probability, sequences ) )
+		last_log_probability_sum = log_probability( self, sequences )
 
 		while improvement > stop_threshold or iteration < min_iterations:
 			if max_iterations and iteration >= max_iterations:
@@ -1943,8 +1946,7 @@ cdef class HiddenMarkovModel( StructuredModel ):
 			# Baum-Welch. First, we must calculate probability of sequences
 			# after training, which is just the logsumexp of the log
 			# probabilities of the sequence.
-			trained_log_probability_sum = reduce( lambda x, y: pair_lse( x, y ),
-				map( self.log_probability, sequences ) )
+			trained_log_probability_sum = log_probability( self, sequences )
 
 			# The improvement is the difference between the log probability of
 			# all the sequences after training, and the log probability before
