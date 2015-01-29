@@ -2024,7 +2024,7 @@ cdef class MultivariateGaussianDistribution( Distribution ):
 		return scipy.stats.multivariate_normal.rvs(
 			self.parameters[0], self.parameters[1] )
 
-	def from_sample( self, items, weights=None, inertia=0.0, diagonal=False ):
+	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01, diagonal=False ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -2060,7 +2060,8 @@ cdef class MultivariateGaussianDistribution( Distribution ):
 		cov = numpy.zeros( (m, m) )
 		for i in xrange(m):
 			diff = items[:,i] ** 2 - means[i] ** 2
-			cov[i, i] = diff.dot( weights ) / weights.sum()
+			var = diff.dot( weights ) / weights.sum()
+			cov[i, i] = var if var > min_std ** 2 else min_std ** 2
 		
 		# Calculate the new parameters, respecting inertia, with an inertia
 		# of 0 being completely replacing the parameters, and an inertia of

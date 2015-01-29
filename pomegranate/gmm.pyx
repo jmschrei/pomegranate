@@ -58,8 +58,7 @@ def log_probability( model, samples ):
 	Return the log probability of samples given a model.
 	'''
 
-	return reduce( lambda x, y: pair_lse( x, y ),
-				map( model.log_probability, samples ) )
+	return sum( map( model.log_probability, samples ) )
 
 cdef class GaussianMixtureModel( object ):
 	"""
@@ -132,7 +131,6 @@ cdef class GaussianMixtureModel( object ):
 			# Update the distribution based on the responsibility matrix
 			for i, distribution in enumerate( self.distributions ):
 				distribution.from_sample( items, weights=r[:,i], diagonal=diagonal )
-				print r[:,i].sum(), r.sum()
 				priors[i] = r[:,i].sum() / r.sum()
 
 			trained_log_probability_sum = log_probability( self, items )
@@ -164,7 +162,7 @@ cdef class GaussianMixtureModel( object ):
 				# Calculate the log probability of the item under the distribution
 				r[i, j] = distribution.log_probability( item )
 
-				# Weight it by the priors
+				# Add the weights of the model
 				r[i, j] += priors[j]
 
 				# Add to the summation
@@ -175,3 +173,12 @@ cdef class GaussianMixtureModel( object ):
 				r[i, j] = cexp( r[i, j] - r_sum )
 
 		return r
+
+	def maximum_a_posteriori( self, items ):
+		"""
+		Return the most likely distribution given the posterior
+		matrix. 
+		"""
+
+		posterior = self.a_posteriori( items )
+		return numpy.argmax( axis=1 )

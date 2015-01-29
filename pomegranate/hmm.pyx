@@ -61,8 +61,7 @@ def log_probability( model, samples ):
 	Return the log probability of samples given a model.
 	'''
 
-	return reduce( lambda x, y: pair_lse( x, y ),
-				map( model.log_probability, samples ) )
+	return sum( map( model.log_probability, samples ) )
 
 cdef class HiddenMarkovModel( StructuredModel ):
 	"""
@@ -884,7 +883,7 @@ cdef class HiddenMarkovModel( StructuredModel ):
 			b[n, self.end_index] = 0
 		else:
 			for i in xrange(self.silent_start):
-				b[n, i] = e[n-1, i]
+				b[n, i] = 0.
 			for i in xrange(self.silent_start, m):
 				b[n, i] = NEGINF
 
