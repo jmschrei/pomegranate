@@ -14,9 +14,7 @@ No good project is done alone, and so I'd like to thank all the previous contrib
 
 ## Installation
 
-I am currently having issues getting pomgranate to be pip installable, stemming from the use of multiple cython files. If anyone knows the fix, please submit a working pull request and I will send you a picture of a pomegranate and other assorted fruit of varying deliciousness.
-
-However, cloning the repo or downloading the zip and manually moving the files into your site-packages folder does work.
+pomegranate is now pip installable! Install using `pip install pomegranate`. You can also clone the repo or download the zip and manually move the files into your site-packages folder.
 
 ## Contributing
 
