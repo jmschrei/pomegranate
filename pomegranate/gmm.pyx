@@ -109,6 +109,45 @@ cdef class GeneralMixtureModel( object ):
 
 		return log_probability_sum
 
+	def posterior( self, items ):
+		"""
+		Return the posterior probability of each distribution given the data.
+		"""
+
+		n, m = len( items ), len( self.distributions )
+		priors = self.weights
+		r = numpy.zeros( (n, m) ) 
+
+		for i, item in enumerate( items ):
+			# Counter for summation over the row
+			r_sum = NEGINF
+
+			# Calculate the log probability of the point over each distribution
+			for j, distribution in enumerate( self.distributions ):
+				# Calculate the log probability of the item under the distribution
+				r[i, j] = distribution.log_probability( item )
+
+				# Add the weights of the model
+				r[i, j] += priors[j]
+
+				# Add to the summation
+				r_sum = pair_lse( r_sum, r[i, j] )
+
+			# Normalize the row
+			for j in xrange( m ):
+				r[i, j] = r[i, j] - r_sum
+
+		return r
+
+	def maximum_a_posteriori( self, items ):
+		"""
+		Return the most likely distribution given the posterior
+		matrix. 
+		"""
+
+		posterior = self.a_posteriori( items )
+		return numpy.argmax( axis=1 )
+
 	def train( self, items, stop_threshold=0.1, max_iterations=1e8,
 		diagonal=False, verbose=False ):
 		"""
@@ -144,42 +183,3 @@ cdef class GeneralMixtureModel( object ):
 			iteration += 1
 
 		self.weights = priors
-
-	def posterior( self, items ):
-		"""
-		Return the posterior probability of each distribution given the data.
-		"""
-
-		n, m = len( items ), len( self.distributions )
-		priors = self.weights
-		r = numpy.zeros( (n, m) ) 
-
-		for i, item in enumerate( items ):
-			# Counter for summation over the row
-			r_sum = NEGINF
-
-			# Calculate the log probability of the point over each distribution
-			for j, distribution in enumerate( self.distributions ):
-				# Calculate the log probability of the item under the distribution
-				r[i, j] = distribution.log_probability( item )
-
-				# Add the weights of the model
-				r[i, j] += priors[j]
-
-				# Add to the summation
-				r_sum = pair_lse( r_sum, r[i, j] )
-
-			# Normalize the row
-			for j in xrange( m ):
-				r[i, j] = cexp( r[i, j] - r_sum )
-
-		return r
-
-	def maximum_a_posteriori( self, items ):
-		"""
-		Return the most likely distribution given the posterior
-		matrix. 
-		"""
-
-		posterior = self.a_posteriori( items )
-		return numpy.argmax( axis=1 )
