@@ -7,6 +7,7 @@ pomegranate is a package for graphical models and Bayesian statistics for Python
 * Finite State Machines
 * Hidden Markov Models
 * Discrete Bayesian Networks
+* General Mixture Models
 
 See the wiki (currently under construction) for more documentation!
 
@@ -406,7 +407,7 @@ instead of
 from yahmm import *
 ```
 
-# Bayesian Networks
+### Bayesian Networks
 
 [Bayesian networks](http://en.wikipedia.org/wiki/Bayesian_network) are a powerful inference tool, in which states represent some random variable we care about and edges represent conditional dependencies between them. These are useful in that while a model like a hidden Markov model represents joint probabilities across all variables, a Bayesian network represents conditional probabilities, giving a more nuanced view of the data. A powerful algorithm called the sum-product or forward-backward algorithm allows for inference to be done on this network, calculating posteriors on unobserved ("hidden") variables when limited information is given. The more information is known, the better the inference will be, but there is no requirement on the amount of data passed in. The hidden and observed variables do not need to be partitioned when the network is made, they simply exist based on what information is given. 
 
@@ -608,3 +609,7 @@ cancer		DiscreteDistribution({'False': 0.98, 'True': 0.02000000000000001})
 bronchitis		DiscreteDistribution({'True': 0.811127248750323, 'False': 0.188872751249677})
 TvC		DiscreteDistribution({'False': 0.0, 'True': 1.0})
 ```
+
+### General Mixture Models
+
+<more to come>
