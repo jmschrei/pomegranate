@@ -3,9 +3,8 @@
 
 cimport cython
 from cython.view cimport array as cvarray
-from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
-import math, random, itertools as it, sys, bisect
-import networkx
+from libc.math cimport log as clog, exp as cexp
+import itertools as it, sys
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -60,9 +59,11 @@ def log_probability( model, samples ):
 
 	return sum( map( model.log_probability, samples ) )
 
-cdef class GaussianMixtureModel( object ):
+cdef class GeneralMixtureModel( object ):
 	"""
-	A Gaussian Mixture Model. Currently assumes a diagonal covariance matrix.
+	A General Mixture Model. Can be a mixture of any distributions, as long
+	as they are all the same dimensionality, have a log_probability method,
+	and a from_sample method.
 	"""
 
 	cdef public list distributions
@@ -144,7 +145,7 @@ cdef class GaussianMixtureModel( object ):
 
 		self.weights = priors
 
-	def a_posteriori( self, items ):
+	def posterior( self, items ):
 		"""
 		Return the posterior probability of each distribution given the data.
 		"""

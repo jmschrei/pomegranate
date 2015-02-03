@@ -1535,33 +1535,25 @@ cdef class HiddenMarkovModel( StructuredModel ):
 		# Return the log-likelihood and the right-way-arounded path
 		return ( log_likelihood, path )
 
-	def maximum_a_posteriori( self, sequence ):
+	def posterior( self, sequence ):
 		"""
-		MAP decoding is an alternative to viterbi decoding, which returns the
-		most likely state for each observation, based on the forward-backward
-		algorithm. This is also called posterior decoding. This method is
-		described on p. 14 of http://ai.stanford.edu/~serafim/CS262_2007/
-		notes/lecture5.pdf
-
-		WARNING: This may produce impossible sequences.
+		Calculate the posterior of each state given each observation. This
+		is the emission matrix from the forward-backward algorithm. Maximum
+		a posterior, or posterior decoding, will decode this matrix.
 		"""
 
-		return self._maximum_a_posteriori( numpy.array( sequence ) )
+		return numpy.array( self._posterior( numpy.array( sequence ) ) )
 
-	
-	cdef tuple _maximum_a_posteriori( self, numpy.ndarray sequence ):
+	cdef double [:,:] _posterior( self, numpy.ndarray sequence ):
 		"""
-		Actually perform the math here. Instead of calling forward-backward
-		to get the emission weights, it's calculated here so that time isn't
-		wasted calculating the transition counts. 
+		Fill out the responsibility/posterior/emission matrix. There are a lot
+		of names for this.
 		"""
 
 		cdef int i, k, l, li
 		cdef int m=len(self.states), n=len(sequence)
 		cdef double [:,:] f, b
 		cdef double [:,:] emission_weights = numpy.zeros((n, self.silent_start))
-		cdef int [:] tied_states = self.tied_state_count
-
 		cdef double log_sequence_probability
 
 
@@ -1599,7 +1591,34 @@ cdef class HiddenMarkovModel( StructuredModel ):
 					emission_weights[i,k] = f[i+1, k] + b[i+1, k] - \
 						log_sequence_probability
 
-		cdef list path = [ ( self.start_index, self.start ) ]
+		return emission_weights
+
+	def maximum_a_posteriori( self, sequence ):
+		"""
+		MAP decoding is an alternative to viterbi decoding, which returns the
+		most likely state for each observation, based on the forward-backward
+		algorithm. This is also called posterior decoding. This method is
+		described on p. 14 of http://ai.stanford.edu/~serafim/CS262_2007/
+		notes/lecture5.pdf
+
+		WARNING: This may produce impossible sequences.
+		"""
+
+		return self._maximum_a_posteriori( numpy.array( sequence ) )
+
+	
+	cdef tuple _maximum_a_posteriori( self, numpy.ndarray sequence ):
+		"""
+		Actually perform the math here. Instead of calling forward-backward
+		to get the emission weights, it's calculated here so that time isn't
+		wasted calculating the transition counts. 
+		"""
+
+		cdef int i, k, l, li
+		cdef int m=len(self.states), n=len(sequence)
+		cdef double [:,:] emission_weights = self._posterior( sequence )
+
+		cdef list path = []
 		cdef double maximum_emission_weight
 		cdef double log_probability_sum = 0
 		cdef int maximum_index
@@ -1620,8 +1639,6 @@ cdef class HiddenMarkovModel( StructuredModel ):
 
 			path.append( ( maximum_index, self.states[maximum_index] ) )
 			log_probability_sum += maximum_emission_weight 
-
-		path.append( ( self.end_index, self.end ) )
 
 		return log_probability_sum, path
 

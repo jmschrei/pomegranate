@@ -1,1 +1,3 @@
 v0.0.2 -- Initial commit
+
+v0.1.0 -- Fix to Hidden Markov Models, now pip installable.
