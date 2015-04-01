@@ -59,7 +59,7 @@ def log_probability( model, samples ):
 
 	return sum( map( model.log_probability, samples ) )
 
-cdef class GeneralMixtureModel( object ):
+cdef class GeneralMixtureModel( Distribution ):
 	"""
 	A General Mixture Model. Can be a mixture of any distributions, as long
 	as they are all the same dimensionality, have a log_probability method,
@@ -83,6 +83,7 @@ cdef class GeneralMixtureModel( object ):
 
 		self.weights = weights
 		self.distributions = distributions
+		self.summaries = []
 
 	def log_probability( self, point ):
 		"""
@@ -145,11 +146,11 @@ cdef class GeneralMixtureModel( object ):
 		matrix. 
 		"""
 
-		posterior = self.a_posteriori( items )
+		posterior = self.posterior( items )
 		return numpy.argmax( axis=1 )
 
-	def train( self, items, stop_threshold=0.1, max_iterations=1e8,
-		diagonal=False, verbose=False ):
+	def train( self, items, weights=None, stop_threshold=0.1, max_iterations=1e8,
+		diagonal=False, verbose=False, inertia=None ):
 		"""
 		Take in a list of data points and their respective weights. These are
 		most likely uniformly weighted, but the option exists if you want to
@@ -157,6 +158,7 @@ cdef class GeneralMixtureModel( object ):
 		expectation step.
 		"""
 
+		weights = numpy.array( weights ) or numpy.ones_like( items )
 		n = len( items )
 		m = len( self.distributions )
 		last_log_probability_sum = log_probability( self, items )
@@ -166,11 +168,11 @@ cdef class GeneralMixtureModel( object ):
 
 		while improvement > stop_threshold and iteration < max_iterations:
 			# The responsibility matrix
-			r = self.a_posteriori( items )
+			r = self.posterior( items )
 
 			# Update the distribution based on the responsibility matrix
 			for i, distribution in enumerate( self.distributions ):
-				distribution.train( items, weights=r[:,i], diagonal=diagonal )
+				distribution.train( items, weights=r[:,i]*weights )
 				priors[i] = r[:,i].sum() / r.sum()
 
 			trained_log_probability_sum = log_probability( self, items )

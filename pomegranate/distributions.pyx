@@ -129,14 +129,14 @@ cdef class Distribution:
 		
 		raise NotImplementedError
 	
-	def train( self, items, weights=None ):
+	def train( self, items, weights=None, inertia=0.0 ):
 		"""
 		A wrapper for from_sample in order to homogenize calls more.
 		"""
 
-		self.from_sample( items, weights )
+		self.from_sample( items, weights, inertia )
 
-	def from_sample( self, items, weights=None ):
+	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -171,7 +171,7 @@ cdef class Distribution:
 
 			self.summaries = [ items, weights ]
 
-	def from_summaries( self ):
+	def from_summaries( self, inertia=0.0 ):
 		"""
 		Update the parameters of the distribution based on the summaries stored
 		previously. 
@@ -181,7 +181,7 @@ cdef class Distribution:
 		if self.frozen == True:
 			return
 
-		self.from_sample( *self.summaries )
+		self.train( *self.summaries, inertia=inertia )
 		self.summaries = []
 
 	def plot( self, n=1000, **kwargs ):

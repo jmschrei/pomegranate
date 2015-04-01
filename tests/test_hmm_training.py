@@ -213,7 +213,7 @@ def test_viterbi_train_w_pseudocount_inertia():
 									 verbose=False, 
 									 edge_inertia=0.23,
 									 use_pseudocount=True ) 
-	
+
 	assert round( total_improvement, 4 ) == 77.0155
 
 @with_setup( setup, teardown )

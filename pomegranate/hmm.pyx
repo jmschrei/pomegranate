@@ -1801,7 +1801,7 @@ cdef class HiddenMarkovModel( StructuredModel ):
 	def train( self, sequences, stop_threshold=1E-9, min_iterations=0,
 		max_iterations=None, algorithm='baum-welch', verbose=True,
 		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
-		distribution_inertia=0.0 ):
+		distribution_inertia=0.0, inertia=None ):
 		"""
 		Given a list of sequences, performs re-estimation on the model
 		parameters. The two supported algorithms are "baum-welch" and
