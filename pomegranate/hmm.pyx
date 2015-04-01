@@ -5,7 +5,7 @@
 cimport cython
 from cython.view cimport array as cvarray
 from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
-import math, random, itertools as it, sys, bisect
+import math, random, itertools as it, sys, bisect, json
 import networkx
 
 if sys.version_info[0] > 2:
@@ -80,7 +80,7 @@ cdef class HiddenMarkovModel( StructuredModel ):
 	cdef int [:] tied_edges_ends
 	cdef int finite
 
-	def __init__(self, name=None, start=None, end=None):
+	def __init__( self, name=None, start=None, end=None ):
 		"""
 		Make a new Hidden Markov Model. Name is an optional string used to name
 		the model when output. Name may not contain spaces or newlines.
@@ -1642,140 +1642,102 @@ cdef class HiddenMarkovModel( StructuredModel ):
 
 		return log_probability_sum, path
 
-	def write(self, stream):
+	def to_json( self ):
 		"""
-		Write out the HMM to the given stream in a format more sane than pickle.
-		
-		HMM must have been baked.
-		
-		HMM is written as  "<identity> <name> <weight> <Distribution>" tuples 
-		which can be directly evaluated by the eval method. This makes them 
-		both human readable, and keeps the code for it super simple.
-		
-		The start state is the one named "<hmm name>-start" and the end state is
-		the one named "<hmm name>-end". Start and end states are always silent.
-		
-		Having the number of states on the first line makes the format harder 
-		for humans to write, but saves us from having to write a real 
-		backtracking parser.
+		Write out the HMM to JSON format, recursively including state and
+		distribution information.
 		"""
 		
-		print("Warning: Writing currently only writes out the model structure,\
-			and not any information about tied edges or distributions.")
-		
-		# Change our name to remove all whitespace, as this causes issues
-		# with the parsing later on.
-		self.name = self.name.replace( " ", "_" )
+		model = { 
+					'class' : 'HiddenMarkovModel',
+					'name'  : self.name,
+					'start' : str(self.start),
+					'end'   : str(self.end),
+					'states' : map( str, self.states ),
+					'end_index' : self.end_index,
+					'start_index' : self.start_index,
+					'silent_index' : self.silent_start
+				}
 
-		# Write our name.
-		stream.write("{} {}\n".format(self.name, len(self.states)))
-		
-		for state in sorted(self.states, key=lambda s: s.name):
-			# Write each state in order by name
-			state.write(stream)
-			
-		# Get transitions.
-		# Each is a tuple (from index, to index, log probability, pseudocount)
-		transitions = []
-		
-		for k in xrange( len(self.states) ):
-			for l in xrange( self.out_edge_count[k], self.out_edge_count[k+1] ):
-				li = self.out_transitions[l]
-				log_probability = self.out_transition_log_probabilities[l]
-				pseudocount = self.out_transition_pseudocounts[l]
+		indices = { state: i for i, state in enumerate( self.states )}
 
-				transitions.append( (k, li, log_probability, pseudocount) )
-			
-		for (from_index, to_index, log_probability, pseudocount) in transitions:
-			
-			# Write each transition, using state names instead of indices.
-			# This requires lookups and makes state names need to be unique, but
-			# it's more human-readable and human-writeable.
-			
-			# Get the name of the state we're leaving
-			from_name = self.states[from_index].name.replace( " ", "_" )
-			from_id = self.states[from_index].identity
-			
-			# And the one we're going to
-			to_name = self.states[to_index].name.replace( " ", "_" )
-			to_id = self.states[to_index].identity
+		# Get the number of groups of edges which are tied
+		groups = []
+		n = len( self.tied_edge_group_size )-1
+		
+		# Go through each group one at a time
+		for i in xrange(n):
+			# Create an empty list for that group
+			groups.append( [] )
 
-			# And the probability
-			probability = exp(log_probability)
-			
-			# Write it out
-			stream.write("{} {} {} {} {} {}\n".format(
-				from_name, to_name, probability, pseudocount, from_id, to_id))
+			# Go through each edge in that group
+			start, end = self.tied_edge_group_size[i], self.tied_edge_group_size[i+1]
+
+			# Add each edge as a tuple of indices
+			for j in xrange( start, end ):
+				groups[i].append( ( self.tied_edges_starts[j], self.tied_edges_ends[j] ) )
+
+		# Now reverse this into a dictionary, such that each pair of edges points
+		# to a label (a number in this case)
+		d = { tup : i for i in xrange(n) for tup in groups[i] }
+
+		# Get all the edges from the graph
+		edges = []
+		for start, end, data in self.graph.edges_iter( data=True ):
+			# If this edge is part of a group of tied edges, annotate this group
+			# it is a part of
+			s, e = indices[start], indices[end]
+			prob, pseudocount = math.e**data['weight'], data['pseudocount']
+			edge = (s, e)
+			edges.append( ( s, e, prob, pseudocount, d.get( edge, None ) ) )
+
+		model['edges'] = edges
+
+		# Get distribution tie information
+		ties = []
+		for i in xrange( self.silent_start ):
+			start, end = self.tied_state_count[i], self.tied_state_count[i+1]
+
+			for j in xrange( start, end ):
+				ties.append( ( i, self.tied[j] ) )
+
+		model['distribution ties'] = ties
+		return json.dumps( model, separators=(',', ' : '), indent=4 )
+
 			
 	@classmethod
-	def read(cls, stream, verbose=False):
+	def from_json( cls, s, verbose=False ):
 		"""
-		Read a HMM from the given stream, in the format used by write(). The 
-		stream must end at the end of the data defining the HMM.
+		Read a HMM from the given JSON, build the model, and bake it.
 		"""
-		
-		# Read the name and state count (first line)
-		header = stream.readline()
-		
-		if header == "":
-			raise EOFError("EOF reading HMM header")
-		
-		# Spilt out the parts of the headr
-		parts = header.strip().split()
-		
-		# Get the HMM name
-		name = parts[0]
-		
-		# Get the number of states to read
-		num_states = int(parts[-1])
-		
-		# Read and make the states.
-		# Keep a dict of states by id
-		states = {}
-		
-		for i in xrange(num_states):
-			# Read in a state
-			state = State.read(stream)
-			
-			# Store it in the state dict
-			states[state.identity] = state
 
-			# We need to find the start and end states before we can make the HMM.
-			# Luckily, we know their names.
-			if state.name == "{}-start".format( name ):
-				start_state = state
-			if state.name == "{}-end".format( name ):
-				end_state = state
-			
-		# Make the HMM object to populate
-		hmm = cls(name=name, start=start_state, end=end_state)
-		
-		for state in states.itervalues():
-			if state != start_state and state != end_state:
-				# This state isn't already in the HMM, so add it.
-				hmm.add_state(state)
+		# Load a dictionary from a JSON formatted string
+		d = json.loads( s )
 
-		# Now do the transitions (all the rest of the lines)
-		for line in stream:
-			# Pull out the from state name, to state name, and probability 
-			# string
-			( from_name, to_name, probability_string, pseudocount_string,
-				from_id, to_id ) = line.strip().split()
-			
-			# Make the probability as a float
-			probability = float(probability_string)
-			
-			# Make the pseudocount a float too
-			pseudocount = float(pseudocount_string)
+		# Make a new generic HMM
+		model = HiddenMarkovModel( str(d['name']) )
 
-			# Look up the states and add the transition
-			hmm.add_transition(
-				states[from_id], states[to_id], probability, pseudocount )
+		# Load all the states from JSON formatted strings
+		states = [ State.from_json( j ) for j in d['states'] ]
+		for i, j in d['distribution ties']:
+			# Tie appropriate states together
+			states[i].tie( states[j] )
 
-		# Now our HMM is done.
-		# Bake and return it.
-		hmm.bake( merge=None )
-		return hmm
+		# Add all the states to the model
+		model.add_states( states )
+
+		# Indicate appropriate start and end states
+		model.start = states[ d['start_index'] ]
+		model.end = states[ d['end_index'] ]
+
+		# Add all the edges to the model
+		for start, end, probability, pseudocount, group in d['edges']:
+			model.add_transition( states[start], states[end], probability, 
+				pseudocount, group )
+
+		# Bake the model
+		model.bake( verbose=verbose )
+		return model
 	
 	@classmethod
 	def from_matrix( cls, transition_probabilities, distributions, starts, ends,
@@ -2396,5 +2358,5 @@ cdef class HiddenMarkovModel( StructuredModel ):
 			# Now train this distribution on the symbols collected. If there
 			# are tied states, this will be done once per set of tied states
 			# in order to save time.
-			self.states[k].distribution.from_sample( symbols[k], 
+			self.states[k].distribution.train( symbols[k], 
 				inertia=distribution_inertia )

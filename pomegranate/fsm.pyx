@@ -4,7 +4,7 @@
 cimport cython
 from cython.view cimport array as cvarray
 from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
-import math, random, itertools as it, sys, bisect
+import math, random, itertools as it, sys, bisect, json
 import networkx
 
 if sys.version_info[0] > 2:
@@ -95,87 +95,52 @@ cdef class FiniteStateMachine( Model ):
 		# Put start and end in the graph
 		self.graph.add_node(self.start)
 
-	def add_transition( self, a, b, probability, pseudocount=None, group=None ):
+	def add_transition( self, a, b ):
 		"""
-		Add a transition from state a to state b with the given (non-log)
-		probability. Both states must be in the HMM already. self.start and
-		self.end are valid arguments here. Probabilities will be normalized
-		such that every node has edges summing to 1. leaving that node, but
-		only when the model is baked. 
-
-		By specifying a group as a string, you can tie edges together by giving
-		them the same group. This means that a transition across one edge in the
-		group counts as a transition across all edges in terms of training.
+		Add a transition from state a to state b. Since this is a FSM,
+		there aren't any probabilities.
 		"""
-		
-		# If a pseudocount is specified, use it, otherwise use the probability.
-		# The pseudocounts come up during training, when you want to specify
-		# custom pseudocount weighting schemes per edge, in order to make the
-		# model converge to that scheme given no observations. 
-		pseudocount = pseudocount or probability
 
 		# Add the transition
-		self.graph.add_edge(a, b, weight=log(probability), 
-			pseudocount=pseudocount, group=group )
+		self.graph.add_edge( a, b, weight=0 )
 
-	def add_transitions( self, a, b, probabilities=None, pseudocounts=None,
-		groups=None ):
+	def add_transitions( self, a, b ):
 		"""
 		Add many transitions at the same time, in one of two forms. 
 
 		(1) If both a and b are lists, then create transitions from the i-th 
-		element of a to the i-th element of b with a probability equal to the
-		i-th element of probabilities.
+		element of a to the i-th element of b
 
 		Example: 
-		model.add_transitions([model.start, s1], [s1, model.end], [1., 1.])
+		model.add_transitions([model.start, s1], [s1, model.end] )
 
 		(2) If either a or b are a state, and the other is a list, create a
-		transition from all states in the list to the single state object with
-		probabilities and pseudocounts specified appropriately.
+		transition from all states in the list to the single state object
 
 		Example:
-		model.add_transitions([model.start, s1, s2, s3], s4, [0.2, 0.4, 0.3, 0.9])
-		model.add_transitions(model.start, [s1, s2, s3], [0.6, 0.2, 0.05])
-
-		If a single group is given, it's assumed all edges should belong to that
-		group. Otherwise, either groups can be a list of group identities, or
-		simply None if no group is meant.
+		model.add_transitions([model.start, s1, s2, s3], s4)
+		model.add_transitions(model.start, [s1, s2, s3] )
 		"""
 
-		# If a pseudocount is specified, use it, otherwise use the probability.
-		# The pseudocounts come up during training, when you want to specify
-		# custom pseudocount weighting schemes per edge, in order to make the
-		# model converge to that scheme given no observations. 
-		pseudocounts = pseudocounts or probabilities
-
 		n = len(a) if isinstance( a, list ) else len(b)
-		if groups is None or isinstance( groups, str ):
-			groups = [ groups ] * n
 
 		# Allow addition of many transitions from many states
 		if isinstance( a, list ) and isinstance( b, list ):
 			# Set up an iterator across all edges
-			edges = izip( a, b, probabilities, pseudocounts, groups )
+			edges = izip( a, b )
 			
 			for start, end, probability, pseudocount, group in edges:
-				self.add_transition( start, end, probability, pseudocount, group )
+				self.add_transition( start, end, 1 )
 
 		# Allow for multiple transitions to a specific state 
 		elif isinstance( a, list ) and isinstance( b, State ):
-			# Set up an iterator across all edges to b
-			edges = izip( a, probabilities, pseudocounts, groups )
-
-			for start, probability, pseudocount, group in edges:
-				self.add_transition( start, b, probability, pseudocount, group )
+			for start in a:
+				self.add_transition( start, b, 1 )
 
 		# Allow for multiple transitions from a specific state
 		elif isinstance( a, State ) and isinstance( b, list ):
-			# Set up an iterator across all edges from a
-			edges = izip( b, probabilities, pseudocounts, groups )
-
-			for end, probability, pseudocount, group in edges:
-				self.add_transition( a, end, probability, pseudocount, group )
+			for end in b:
+				self.add_transition( a, end, 1 )
 
 	def bake( self, verbose=False, merge="all" ): 
 		"""
@@ -375,49 +340,6 @@ cdef class FiniteStateMachine( Model ):
 		indices = { self.states[i]: i for i in xrange(n) }
 		self.indices = indices
 
-		# Create a sparse representation of the tied states in the model. This
-		# is done in the same way of the transition, by having a vector of
-		# counts, and a vector of the IDs that the state is tied to.
-		self.tied_state_count = numpy.zeros( self.silent_start+1, 
-			dtype=numpy.int32 )
-
-		for i in xrange( self.silent_start ):
-			for j in xrange( self.silent_start ):
-				if i == j:
-					continue
-				if self.states[i].distribution is self.states[j].distribution:
-					self.tied_state_count[i+1] += 1
-
-		# Take the cumulative sum in order to get indexes instead of counts,
-		# with the last index being the total number of ties.
-		self.tied_state_count = numpy.cumsum( self.tied_state_count,
-			dtype=numpy.int32 )
-
-		self.tied = numpy.zeros( self.tied_state_count[-1], 
-			dtype=numpy.int32 ) - 1
-
-		for i in xrange( self.silent_start ):
-			for j in xrange( self.silent_start ):
-				if i == j:
-					continue
-					
-				if self.states[i].distribution is self.states[j].distribution:
-					# Begin at the first index which belongs to state i...
-					start = self.tied_state_count[i]
-
-					# Find the first non -1 entry in order to put our index.
-					while self.tied[start] != -1:
-						start += 1
-
-					# Now that we've found a non -1 entry, put the index of the
-					# state which this state is tied to in!
-					self.tied[start] = j
-
-		# Unpack the state weights
-		self.state_weights = numpy.zeros( self.silent_start )
-		for i in xrange( self.silent_start ):
-			self.state_weights[i] = clog( self.states[i].weight )
-
 		# This holds numpy array indexed [a, b] to transition log probabilities 
 		# from a to b, where a and b are state indices. It starts out saying all
 		# transitions are impossible.
@@ -461,9 +383,6 @@ cdef class FiniteStateMachine( Model ):
 		self.out_edge_count = numpy.cumsum(self.out_edge_count, 
 			dtype=numpy.int32 )
 
-		# We need to store the edge groups as name : set pairs.
-		edge_groups = {}
-
 		# Now we go through the edges again in order to both fill in the
 		# transition probability matrix, and also to store the indices sorted
 		# by the end-node.
@@ -498,43 +417,6 @@ cdef class FiniteStateMachine( Model ):
 			self.out_transition_pseudocounts[ start ] = data['pseudocount']
 			self.out_transitions[ start ] = indices[b]  
 
-			# If this edge belongs to a group, we need to add it to the
-			# dictionary. We only care about forward representations of
-			# the edges. 
-			group = data['group']
-			if group != None:
-				if group in edge_groups:
-					edge_groups[ group ].append( ( indices[a], indices[b] ) )
-				else:
-					edge_groups[ group ] = [ ( indices[a], indices[b] ) ]
-
-		# We will organize the tied edges using three arrays. The first will be
-		# the cumulative number of members in each group, to slice the later
-		# arrays in the same manner as the transition arrays. The second will
-		# be the index of the state the edge starts in. The third will be the
-		# index of the state the edge ends in. This way, iterating across the
-		# second and third lists in the slices indicated by the first list will
-		# give all the edges in a group.
-		total_grouped_edges = sum( map( len, edge_groups.values() ) )
-
-		self.tied_edge_group_size = numpy.zeros( len( edge_groups.keys() )+1,
-			dtype=numpy.int32 )
-		self.tied_edges_starts = numpy.zeros( total_grouped_edges,
-			dtype=numpy.int32 )
-		self.tied_edges_ends = numpy.zeros( total_grouped_edges,
-			dtype=numpy.int32 )
-
-		# Iterate across all the grouped edges and bin them appropriately.
-		for i, (name, edges) in enumerate( edge_groups.items() ):
-			# Store the cumulative number of edges so far, which requires
-			# adding the current number of edges (m) to the previous
-			# number of edges (n)
-			n = self.tied_edge_group_size[i]
-			self.tied_edge_group_size[i+1] = n + len(edges)
-
-			for j, (start, end) in enumerate( edges ):
-				self.tied_edges_starts[n+j] = start
-				self.tied_edges_ends[n+j] = end
 
 		# This holds the index of the start state
 		try:
@@ -546,6 +428,64 @@ cdef class FiniteStateMachine( Model ):
 		except KeyError:
 			raise SyntaxError( "Model.start has been deleted, leaving the \
 				model with no start. Please ensure it has a start." )
+
+	def to_json( self ):
+		"""
+		Write out the HMM to JSON format, recursively including state and
+		distribution information.
+		"""
+		
+		model = { 
+					'class' : 'FiniteStateMachine',
+					'name'  : self.name,
+					'start' : str(self.start),
+					'states' : map( str, self.states ),
+					'start_index' : self.start_index,
+					'silent_index' : self.silent_start
+				}
+
+		indices = { state: i for i, state in enumerate( self.states )}
+		# Get all the edges from the graph
+		edges = []
+		for start, end, data in self.graph.edges_iter( data=True ):
+			s, e = indices[start], indices[end]
+			prob, pseudocount = math.e**data['weight'], data['pseudocount']
+			edge = (s, e)
+			edges.append( ( s, e, prob, pseudocount ) )
+
+		model['edges'] = edges
+
+		return json.dumps( model, separators=(',', ' : '), indent=4 )
+			
+	@classmethod
+	def from_json( cls, s, verbose=False ):
+		"""
+		Read a HMM from the given JSON, build the model, and bake it.
+		"""
+
+		# Load a dictionary from a JSON formatted string
+		d = json.loads( s )
+
+		# Make a new generic HMM
+		model = FiniteStateMachine( str(d['name']) )
+
+		# Load all the states from JSON formatted strings
+		states = [ State.from_json( j ) for j in d['states'] ]
+
+		# Add all the states to the model
+		model.add_states( states )
+
+		# Indicate appropriate start and end states
+		model.start = states[ d['start_index'] ]
+
+		# Add all the edges to the model
+		for start, end, probability, pseudocount, group in d['edges']:
+			model.add_transition( states[start], states[end], probability, 
+				pseudocount, group )
+
+		# Bake the model
+		model.bake( verbose=verbose )
+		return model
 
 	def step( self, symbol ):
 		'''

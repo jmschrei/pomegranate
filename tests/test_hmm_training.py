@@ -109,7 +109,8 @@ def test_viterbi_train():
 									 verbose=False, 
 									 use_pseudocount=True )
 
-	assert round( total_improvement, 4 ) == 0.4654
+
+	assert round( total_improvement, 4 ) == 83.2834
 
 @with_setup( setup, teardown )
 def test_viterbi_train_no_pseudocount():
@@ -126,7 +127,7 @@ def test_viterbi_train_no_pseudocount():
 									 verbose=False, 
 									 use_pseudocount=False )
 
-	assert round( total_improvement, 4 ) == 0.577
+	assert round( total_improvement, 4 ) == 84.9318
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount():
@@ -143,7 +144,7 @@ def test_viterbi_train_w_pseudocount():
 									 verbose=False, 
 									 transition_pseudocount=1. )
 
-	assert round( total_improvement, 4 ) == 0.2124
+	assert round( total_improvement, 4 ) == 79.4713
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount_priors():
@@ -161,7 +162,7 @@ def test_viterbi_train_w_pseudocount_priors():
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True )
 
-	assert round( total_improvement, 4 ) == 0.3635
+	assert round( total_improvement, 4 ) == 81.7439
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_inertia():
@@ -178,7 +179,7 @@ def test_viterbi_train_w_inertia():
 									 verbose=False, 
 									 edge_inertia=0.193 )
 
-	assert round( total_improvement, 4 ) == 0.2808
+	assert round( total_improvement, 4 ) == 80.6241
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_inertia2():
@@ -195,7 +196,7 @@ def test_viterbi_train_w_inertia2():
 									 verbose=False, 
 									 edge_inertia=0.82 )
 
-	assert round( total_improvement, 4 ) == -0.1789
+	assert round( total_improvement, 4 ) == 48.0067
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount_inertia():
@@ -211,9 +212,9 @@ def test_viterbi_train_w_pseudocount_inertia():
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.23,
-									 use_pseudocount=True )
-	print( round( total_improvement, 4 ) )
-	assert round( total_improvement, 4 ) == 0.1573
+									 use_pseudocount=True ) 
+	
+	assert round( total_improvement, 4 ) == 77.0155
 
 @with_setup( setup, teardown )
 def test_bw_train():
@@ -230,8 +231,8 @@ def test_bw_train():
 									 verbose=False, 
 									 use_pseudocount=True,
 									 max_iterations=5 )
-	
-	assert round( total_improvement, 4 ) == 0.4398
+
+	assert round( total_improvement, 4 ) == 83.1132
 
 @with_setup( setup, teardown )
 def test_bw_train_no_pseudocount():
@@ -242,14 +243,14 @@ def test_bw_train_no_pseudocount():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
-
+	
 	total_improvement = model.train( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=False,
 									 max_iterations=5 )
-	
-	assert round( total_improvement, 4 ) == 0.5718
+ 
+	assert round( total_improvement, 4 ) == 85.681
 
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount():
@@ -267,7 +268,7 @@ def test_bw_train_w_pseudocount():
 									 transition_pseudocount=0.123,
 									 max_iterations=5 )
 	
-	assert round( total_improvement, 4 ) == 0.521
+	assert round( total_improvement, 4 ) == 84.9408
 
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount_priors():
@@ -285,8 +286,8 @@ def test_bw_train_w_pseudocount_priors():
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True,
 									 max_iterations=5 )
-	
-	assert round( total_improvement, 4 ) == 0.3277
+	 
+	assert round( total_improvement, 4 ) == 81.2265
 
 @with_setup( setup, teardown )
 def test_bw_train_w_inertia():
@@ -303,8 +304,8 @@ def test_bw_train_w_inertia():
 									 verbose=False, 
 									 edge_inertia=0.193,
 									 max_iterations=5 )
-	
-	assert round( total_improvement, 4 ) == 0.5398
+	 
+	assert round( total_improvement, 4 ) == 85.0528
 
 @with_setup( setup, teardown )
 def test_bw_train_w_inertia2():
@@ -321,8 +322,8 @@ def test_bw_train_w_inertia2():
 									 verbose=False, 
 									 edge_inertia=0.82,
 									 max_iterations=5 )
-	
-	assert round( total_improvement, 4 ) == -0.3285
+  
+	assert round( total_improvement, 4 ) == 72.5134
 
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount_inertia():
@@ -340,8 +341,8 @@ def test_bw_train_w_pseudocount_inertia():
 									 edge_inertia=0.02,
 									 use_pseudocount=True,
 									 max_iterations=5 )
-	
-	assert round( total_improvement, 4 ) == 0.4363
+ 
+	assert round( total_improvement, 4 ) == 83.0764
 
 @with_setup( setup, teardown )
 def test_bw_train_w_frozen_distributions():
@@ -358,8 +359,8 @@ def test_bw_train_w_frozen_distributions():
 									 verbose=False, 
 									 distribution_inertia=1.00,
 									 max_iterations=5 )
-
-	assert round( total_improvement, 4 ) == -0.1698
+  
+	assert round( total_improvement, 4 ) == 64.474
 
 @with_setup( setup, teardown )
 def test_bw_train_w_frozen_edges():
@@ -377,7 +378,7 @@ def test_bw_train_w_frozen_edges():
 									 edge_inertia=1.00,
 									 max_iterations=5 )
 
-	assert round( total_improvement, 4 ) == -0.3488
+	assert round( total_improvement, 4 ) == 44.0208
 
 @with_setup( setup, teardown )
 def test_bw_train_w_edge_a_distribution_inertia():
@@ -395,5 +396,5 @@ def test_bw_train_w_edge_a_distribution_inertia():
 									 edge_inertia=0.5,
 									 distribution_inertia=0.5,
 									 max_iterations=5 )
-
-	assert round( total_improvement, 4 ) == -0.1702
+ 
+	assert round( total_improvement, 4 ) == 81.5447

@@ -4,7 +4,7 @@
 cimport cython
 from cython.view cimport array as cvarray
 from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
-import math, random, itertools as it, sys, bisect
+import math, random, itertools as it, sys, bisect, json
 import networkx
 import scipy.stats, scipy.sparse, scipy.special
 
@@ -72,18 +72,17 @@ cdef class Distribution:
 
 	def __str__( self ):
 		"""
-		Represent this distribution in a human-readable form.
+		Represent this distribution in JSON.
 		"""
-		parameters = [ list(p) if isinstance(p, numpy.ndarray) else p
-			for p in self.parameters ]
-		return "{}({})".format(self.name, ", ".join(map(str, parameters)))
+		
+		return self.to_json()
 
 	def __repr__( self ):
 		"""
 		Represent this distribution in the same format as string.
 		"""
 
-		return self.__str__()
+		return self.to_json()
 
 	def marginal( self, *args, **kwargs ):
 		'''
@@ -129,7 +128,14 @@ cdef class Distribution:
 		"""
 		
 		raise NotImplementedError
-		
+	
+	def train( self, items, weights=None ):
+		"""
+		A wrapper for from_sample in order to homogenize calls more.
+		"""
+
+		self.from_sample( items, weights )
+
 	def from_sample( self, items, weights=None ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
@@ -187,6 +193,35 @@ cdef class Distribution:
 		samples = [ self.sample() for i in xrange( n ) ]
 		plt.hist( samples, **kwargs )
 
+	def to_json( self ):
+		"""
+		Convert the distribution to JSON format.
+		"""
+
+		return json.dumps( {
+								'class' : 'Distribution',
+								'name'  : self.name,
+								'parameters' : self.parameters,
+								'frozen' : self.frozen
+						   }, separators=(',', ' : ' ), indent=4 )
+
+	@classmethod
+	def from_json( cls, s ):
+		"""
+		Read in a JSON and produce an appropriate distribution.
+		"""
+
+		d = json.loads( s )
+
+		# Put in some simple checking before we evaluate the distribution
+		# component to ensure arbitrary malicious code isn't being evaluated.
+		if ' ' in d['class'] or 'Distribution' not in d['class']:
+			raise SyntaxError( "Distribution object attempting to read invalid object." )
+
+		dist = eval( "{}( [0], 0 )".format( d['name'] ) )
+		dist.parameters = d['parameters']
+		dist.frozen = d['frozen']
+		return dist
 
 cdef class UniformDistribution( Distribution ):
 	"""
@@ -2152,28 +2187,63 @@ cdef class ConditionalDiscreteDistribution( ConditionalDistribution ):
 
 		d, pd, keys = self.parameters
 
+		# If we're not marginalizing with respect to (wrt) a specific
+		# distribution then marginalize with respect to this distribution.
+		# This can be thought of as having a joint distribution table
+		# and summing up with respect to the column for this distribution,
+		# or for one of the parents if we want to send messages backwards.
 		if not wrt:
 			return DiscreteDistribution({ key: math.e ** recursive_discrete_log_probability( key, d, parent_values, pd ) 
 				for key in keys })
+
+		# If we are marginalizing with respect to a parent distribution then we
+		# are trying to send a message backwards.
 		else:
+			n = len( self.parameters[2] )
+			if value is None:
+				value = DiscreteDistribution({ k : 1./n for k in self.parameters[2] })
+
+			# Pull out the keys of this distributions we're marginalizing
+			# with respect to.
 			if isinstance( wrt, ConditionalDistribution ):
 				keys = wrt.parameters[2]
 			else:
 				keys = wrt.parameters[0].keys()
 
+			# Create the probability dictionary we'll use later
 			probabilities = {}
+
+			# Calculate the probability for each key in this dictionary
+			# one at a time using math.
 			for key in keys:
-				pv = parent_values
+				# Unpack the parent values
+				pv = parent_values.copy()
+
+				# Set the parent we're marginalizing with respect to to that
+				# key to figure out the probability of that key
 				pv[ wrt ] = key
 
+				# If we don't have a value for this distribution, assume a uniform
+				# distribution across all keys.
+
+				# If we're setting a value for this distribution (say we know
+				# this distribution is true), the computation is far more
+				# straightforward.
 				if not isinstance( value, Distribution ):
 					probabilities[ key ] = math.e ** recursive_discrete_log_probability(
 						value, d, pv, pd )
+
+
+				# If we know a distribution for this distribution then we can
+				# use that. 
 				else:
+					# Figure out the probability for each value in the distribution
 					vprobabilities = {}
+
 					for vkey in value.parameters[0].keys():
 						vprobabilities[ vkey ] = math.e ** ( recursive_discrete_log_probability(
 							vkey, d, pv, pd ) + value.log_probability( vkey ) )
+
 					probabilities[ key ] = sum( vprobabilities.values() )
 
 			total = sum( probabilities.values() )

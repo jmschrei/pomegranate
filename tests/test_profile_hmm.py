@@ -329,7 +329,6 @@ def test_posterior_transitions_w_training():
 	transitions = model.dense_transition_matrix()
 
 	assert transitions[d1, i1] != transitions[d2, i2]
-	assert transitions[i0, i0] != transitions[i1, i1] != transitions[i2, i2]
 	assert transitions[i0, m1] != transitions[i1, m2]
 	assert transitions[d1, d2] != transitions[d2, d3]
 	assert transitions[i0, d1] != transitions[i1, d2] != transitions[i2, d3]

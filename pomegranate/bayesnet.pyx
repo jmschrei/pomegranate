@@ -53,17 +53,28 @@ def exp(value):
 	
 	return numpy.exp(value)
 
-def merge_marginals( marginals ):
+def merge_marginals( multiply, divide=[] ):
 	'''
 	Merge multiple marginals of the same distribution to form a more informed
 	distribution.
 	'''
 
-	probabilities = { key: _log( value ) for key, value in marginals[0].parameters[0].items() }
+	if len(multiply) == 1:
+		return multiply[0]
 
-	for marginal in marginals[1:]:
+	probabilities = { key: _log( value ) for key, value in multiply[0].parameters[0].items() }
+
+	for marginal in multiply[1:]:
+		if marginal == 1:
+			continue
 		for key, value in marginal.parameters[0].items():
 			probabilities[key] += _log( value )
+
+	for marginal in divide:
+		if marginal == 1:
+			continue
+		for key, value in marginal.parameters[0].items():
+			probabilities[key] -= _log( value )
 
 	total = NEGINF
 	for key, value in probabilities.items():
@@ -79,7 +90,7 @@ cdef class BayesianNetwork( Model ):
 	Represents a Bayesian Network
 	"""
 
-	def add_transition( self, a, b ):
+	def add_dependency( self, a, b ):
 		"""
 		Add a transition from state a to state b which indicates that B is
 		dependent on A in ways specified by the distribution. 
@@ -88,7 +99,7 @@ cdef class BayesianNetwork( Model ):
 		# Add the transition
 		self.graph.add_edge(a, b )
 
-	def add_transitions( self, a, b ):
+	def add_dependencies( self, a, b ):
 		"""
 		Add multiple conditional dependencies at the same time.
 		"""
@@ -112,6 +123,15 @@ cdef class BayesianNetwork( Model ):
 			# Set up an iterator across all edges from a
 			for end in b:
 				self.add_transition( a, end )
+
+	def marginal( self ):
+		"""
+		Return the marginal of the graph. This is equivilant to a pass of
+		belief propogation given that no data is given; or a single forward
+		pass of the sum-product algorithm.
+		"""
+
+		return self.forward()
 
 	def bake( self, verbose=False ): 
 		"""
@@ -252,8 +272,6 @@ cdef class BayesianNetwork( Model ):
 
 			self.out_transitions[ start ] = indices[b]
 
-
-
 	def log_probability( self, data ):
 		'''
 		Determine the log probability of the data given the model. The data is
@@ -283,8 +301,8 @@ cdef class BayesianNetwork( Model ):
 	def forward( self, data={} ):
 		'''
 		Propogate messages forward through the network from observed data to
-		distributions which depend on that data. This is not the full belief
-		propogation algorithm.
+		distributions which depend on that data. This is not the full sum
+		product algorithm.
 		'''
 
 		# Go from state names:data to distribution object:data
@@ -302,23 +320,10 @@ cdef class BayesianNetwork( Model ):
 		# remainder of the graph and have been visited
 		roots = numpy.where( in_edges[1:] - in_edges[:-1] == 0 )[0]
 		visited = numpy.zeros( len( self.states ) )
-		for i, state in enumerate( self.states ):
-			if state.distribution in data.keys():
-				visited[i] = 1
-
-		# For each of your roots, unpack observed data or use the prior
-		for root in roots:
-			visited[ root ] = 1
-			if factors[ root ] is not None:
-				continue
-
-			state = self.states[ root ]
-			d = state.distribution
-
-			if state.name in data:
-				factors[ root ] = data[ d ]
-			else:
-				factors[ root ] = d
+		for i, s in enumerate( self.states ):
+			d = s.distribution
+			if d in data and not isinstance( data[ d ], Distribution ): 
+				visited[i] = 1 
 
 		# Go through all of the states and 
 		while True:
@@ -326,8 +331,7 @@ cdef class BayesianNetwork( Model ):
 				if visited[ i ] == 1:
 					continue
 
-				state = self.states[ i ]
-				d = state.distribution
+				state = self.states[i]
 
 				for k in xrange( in_edges[i], in_edges[i+1] ):
 					ki = self.in_transitions[k]
@@ -362,23 +366,22 @@ cdef class BayesianNetwork( Model ):
 		data = { names[state]: value for state, value in data.items() }
 
 		# List of factors
-		factors = [ data[ s.distribution ] if s.distribution in data else s.distribution.marginal() for s in self.states ]
+		factors = [ data[ s.distribution ] if s.distribution in data else None for s in self.states ]
 		new_factors = [ i for i in factors ]
 
 		# Unpack the edges
 		in_edges = numpy.array( self.in_edge_count )
 		out_edges = numpy.array( self.out_edge_count )
 
-		# Record the message passed along each edge
-		messages = [ None for i in in_edges ]
-
 		# Figure out the leaves of the graph, which are independent of the other
 		# nodes using the backwards algorithm, and say we've visited them.
 		leaves = numpy.where( out_edges[1:] - out_edges[:-1] == 0 )[0]
+
 		visited = numpy.zeros( len( self.states ) )
 		visited[leaves] = 1
 		for i, s in enumerate( self.states ):
-			if s.distribution in data and not isinstance( data[ s.distribution ], Distribution ): 
+			d = s.distribution
+			if d in data and not isinstance( data[ d ], Distribution ): 
 				visited[i] = 1 
 
 		# Go through the nodes we haven't yet visited and update their beliefs
@@ -401,21 +404,30 @@ cdef class BayesianNetwork( Model ):
 					if visited[ki] == 0:
 						break
 				else:
+					local_messages = [ factors[i] ]
 					for k in xrange( out_edges[i], out_edges[i+1] ):
 						ki = self.out_transitions[k]
+						# The message being passed back from this state needs
+						# to be weighted by all other parents of this child
+						# according to the sum-product algorithm.
+						if self.states[ki].distribution in data:
+							parents = {}
+							for l in xrange( in_edges[ki], in_edges[ki+1] ):
+								li = self.in_transitions[l]
 
-						# Update the parent information
-						parents = {}
-						for l in xrange( in_edges[ki], in_edges[ki+1] ):
-							li = self.in_transitions[l]
-							parents[ self.states[li].distribution ] = factors[li]
+								dli = self.states[li].distribution
+								parents[dli] = factors[li]
 
-						# Get the messages for each of those states
-						messages[k] = self.states[ki].distribution.marginal( parents, wrt=d, value=new_factors[ki] )
-					else:
-						# Find the local messages which influence these
-						local_messages = [ factors[i] ] + [ messages[k] for k in xrange( out_edges[i], out_edges[i+1] ) ]
+							# Get the weighted message from the state, which is the
+							# marginal with respect to state we're trying to update
+							# weighted by the marginal of the other parent
+							# distributions.
+							factor = self.states[ki].distribution.marginal( parents, wrt=d, value=new_factors[ki] )
+							local_messages.append( factor )
+						else:
+							local_messages.append( 1 )
 						
+					else:
 						# Merge marginals of each of these, and the prior information
 						new_factors[i] = merge_marginals( local_messages )
 
@@ -428,7 +440,6 @@ cdef class BayesianNetwork( Model ):
 
 		return new_factors 
 
-
 	def forward_backward( self, data={} ):
 		'''
 		Propogate messages forward through the network to update beliefs in
@@ -436,6 +447,308 @@ cdef class BayesianNetwork( Model ):
 		the network. This is the sum-product belief propogation algorithm.
 		'''
 
-		factors = self.forward( data )
-		data = { self.states[i].name: factors[i] for i in xrange( len(factors) ) }
-		return self.backward( data )
+		for i in xrange( 3 ):
+			factors = self.forward( data )
+			data = { self.states[i].name: factors[i] for i in xrange( len(factors) ) }
+			factors = self.backward( data )	
+			data = { self.states[i].name: factors[i] for i in xrange( len(factors) ) }
+
+		return factors
+
+	def loopy_belief_propogation( self, data={} ):
+		'''
+		Propogate messages through the network using a flooding schedule, where
+		messages are sent from nodes who get updates.
+		'''
+
+		# Go from state names:data to distribution object:data
+		names = { state.name: state.distribution for state in self.states }
+		data = { names[state]: value for state, value in data.items() }
+
+		# List of factors after each pass
+		backward_factors = [ data[ s.distribution ] if s.distribution in data else None for s in self.states ]
+		forward_factors  = [ data[ s.distribution ] if s.distribution in data else None for s in self.states ] 
+
+		# Unpack the edges
+		in_edges = numpy.array( self.in_edge_count )
+		out_edges = numpy.array( self.out_edge_count )
+
+		# Figure out the roots of the graph, meaning they're independent of the
+		# remainder of the graph and have been visited
+		roots = numpy.where( in_edges[1:] - in_edges[:-1] == 0 )[0]
+
+		# Figure out the leaves of the graph, which are independent of the other
+		# nodes using the backwards algorithm, and say we've visited them.
+		leaves = numpy.where( out_edges[1:] - out_edges[:-1] == 0 )[0]
+
+		for i in roots:
+			forward_factors[i] = self.states[i].distribution.marginal()
+
+		for i in xrange( 10 ):
+			# First do a forward pass, where all nodes which are highlighted to
+			# send messages to their children
+			visited = numpy.zeros( len( self.states ) )
+			visited[roots] = 1
+			for i, s in enumerate( self.states ):
+				d = s.distribution
+				if d in data and not isinstance( data[ d ], Distribution ): 
+					visited[i] = 1 
+
+			while visited.sum() != visited.shape[0]:
+				for i, state in enumerate( self.states ):
+					if visited[ i ] == 1:
+						continue
+
+					state = self.states[i]
+
+					for k in xrange( in_edges[i], in_edges[i+1] ):
+						ki = self.in_transitions[k]
+
+						if visited[ki] == 0:
+							break
+					else:
+						parents = {}
+						for k in xrange( in_edges[i], in_edges[i+1] ):
+							ki = self.in_transitions[k]
+							d = self.states[ki].distribution
+
+							parents[d] = forward_factors[ki]
+
+						forward_factors[i] = state.distribution.marginal( parents )
+						visited[i] = 1
+
+
+			print
+			print forward_factors
+			print backward_factors
+			print
+
+			# Now do a backward pass, where nodes are highlighted to send
+			# messages to their children
+			visited = numpy.zeros( len( self.states ) )
+			visited[leaves] = 1
+			for i, s in enumerate( self.states ):
+				d = s.distribution
+				if d in data and not isinstance( data[ d ], Distribution ): 
+					visited[i] = 1 
+
+			# Go through the nodes we haven't yet visited and update their beliefs
+			# iteratively if we've seen all the data which depends on it. 
+			while visited.sum() != visited.shape[0]:
+				for i, state in enumerate( self.states ):
+					# If we've already visited the state, then don't visit
+					# it again.
+					if visited[i] == 1:
+						continue
+
+					# Unpack the state and the distribution
+					state = self.states[i]
+					d = state.distribution
+
+					# Make sure we've seen all the distributions which depend on
+					# this one, otherwise break.
+					for k in xrange( out_edges[i], out_edges[i+1] ):
+						ki = self.out_transitions[k]
+						if visited[ki] == 0:
+							break
+					else:
+						local_messages = [ forward_factors[i] ]
+						for k in xrange( out_edges[i], out_edges[i+1] ):
+							ki = self.out_transitions[k]
+							# The message being passed back from this state needs
+							# to be weighted by all other parents of this child
+							# according to the sum-product algorithm.
+							parents = {}
+							for l in xrange( in_edges[ki], in_edges[ki+1] ):
+								li = self.in_transitions[l]
+
+								dli = self.states[li].distribution
+								parents[dli] = forward_factors[li]
+
+							# Get the weighted message from the state, which is the
+							# marginal with respect to state we're trying to update
+							# weighted by the marginal of the other parent
+							# distributions.
+							factor = self.states[ki].distribution.marginal( parents, wrt=d, value=backward_factors[ki] )
+							local_messages.append( factor )
+							
+						else:
+							backward_factors[i] = merge_marginals( local_messages )
+
+						# Mark that we've visited this state.
+						visited[i] = 1
+
+			print "derp"
+			print backward_factors
+			print "hello"
+			print 
+
+			forward_factors = backward_factors[:]
+
+		return forward_factors 
+
+
+
+	@classmethod
+	def from_bif( self, filename ):
+		'''
+		Create a Bayesian network from a BIF file.
+		'''
+
+		# Initialize some useful variables
+		distributions, states, model = {}, {}, None
+		d_objects = {}
+		v_read, p_read = False, False
+
+		with open( filename, 'r' ) as infile: 
+			for line in infile:
+				# Get the name of the model
+				if line.startswith( 'network' ):
+					model_name = line.split()[1]
+					model = BayesianNetwork( model_name )
+
+				# Get the name of a variable, which is a distribution
+				elif line.startswith( 'variable' ):
+					# Indicate we are currently reading a variable
+					v_read = True
+					
+					# Read in the name of the state
+					d_name = line.split()[1].strip()
+
+					# Initialize the distribution
+					distribution = []
+					distributions[d_name] = distribution
+
+				# Read the domain of a variable
+				elif line.strip().startswith('type') and v_read:
+					# Read the domain from the file
+					domain = line.split("{")[1][:-2].strip().split(',')
+
+					# Encode it in the distribution dictionary
+					for value in domain:
+						distributions[ d_name ].append( value.replace('}', '').strip() )
+
+					# Stop reading the variable
+					v_read = False
+					d_name = None
+
+				# Begin reading a probability table
+				elif line.startswith( 'probability' ):
+					# Indicate that we're reading a probability table now
+					p_read = True
+
+					joint = line.split('(')[1].split(')')[0]
+					cpt = None
+
+					# If this is a marginal it is easy to create the distribution
+					if '|' not in joint:
+						d_name = joint.strip()
+						c_deps = None
+					else:
+						d_name = joint.split('|')[0].strip()
+						c_deps = [ c.strip() for c in joint.split('|')[1].split(',') ]
+
+						if len(c_deps) == 1:
+							cpt = { i : {} for i in distributions[c_deps[0].strip()] }
+						else:
+							cpt = {}
+							for vals in it.product( *[ distributions[dep] for dep in c_deps ] ):
+								d = cpt
+								for val in vals:
+									if val not in d:
+										d[val] = {}
+									d = d[val]
+
+				# If we're reading a marginal table for a root variable, this
+				# case is easy
+				elif line.strip().startswith( 'table' ):
+					# Strip out the non-probability elements
+					probs = line.replace(';', '').replace('table ', '' )
+
+					# Encode the distribution and add it to the network
+					probs = map( float, probs.split(',') )
+
+					d = { name: prob for name, prob in zip( distributions[d_name], probs ) }
+					d = DiscreteDistribution( d )
+					d_objects[d_name] = d 
+
+					# Add this to the states in the model
+					s = State( d, name=d_name )
+					model.add_state( s )
+					states[d] = s
+					
+					# End this variable reading
+					p_read, d_name, c_deps = None, None, None 
+
+				# Now the hard case; reading in a full CPT
+				elif line.strip().startswith('(') and p_read:
+					# Strip out the parenthesis
+					values, probs = line.replace('(', '').replace(';', '').split(')')
+					values = [ v.strip() for v in values.split(',') ]
+					probs = map( float, probs.split(',') )
+
+					# Initialize a new CPT or use a growing CPT if not in the
+					# first line of the growing CPT 
+					d = cpt
+					for dep, value in zip( c_deps, values ):
+						d = d[value]
+
+						if dep == c_deps[-1]:
+							for val, prob in zip( distributions[d_name], probs ):
+								d[val] = prob
+
+				# If we're done reading a probability
+				elif line.startswith( '}' ) and p_read:
+					# Stop reading
+					p_read = False
+
+					# Make the final nested dictionary into DiscreteDistributions
+					d = cpt
+					if len(c_deps) == 1:
+						for key, value in d.items():
+							d[key] = DiscreteDistribution( value )
+					else:
+						product = it.product( *[distributions[dep] for dep in c_deps[:-1] ] )
+						for values in product:
+							d = cpt
+							for value in values:
+								d = d[value]
+							for key, value in d.items():
+								d[key] = DiscreteDistribution( value )
+
+					# Make the conditional object 
+					dependencies = [ d_objects[dep] if dep in d_objects.keys() else dep for dep in c_deps ]
+					dist = ConditionalDiscreteDistribution( cpt, dependencies )
+					d_objects[d_name] = dist
+					
+					# Make the state object and add it to the graph
+					s = State( dist, d_name )
+					model.add_state( s )
+					states[dist] = s 
+
+					p_read, d_name, c_dep = None, None, None
+
+		# Go through each distribution and fill in parents which were undetermined
+		# at the first pass, and also add the dependencies.
+		for name, distribution in d_objects.items():
+
+			# If this distribution is dependent on others, make sure we fill in
+			# the parents properly and add the directed edges on the graph
+			if isinstance( distribution, ConditionalDiscreteDistribution ):
+				# Pull out the parents
+				parents = distribution.parameters[1]
+				s = states[distribution]
+
+				# Go through the parents and correct them and add the edges
+				for i, parent in enumerate( parents ):
+					# If we have a string, we need to correct them
+					if isinstance( parent, str ):
+						distribution.parameters[1][i] = d_objects[parent]
+						ps = states[ d_objects[parent] ]
+					else:
+						ps = states[ parent ]
+					
+					model.add_dependency( ps, s )
+
+		model.bake()
+		return model

@@ -12,6 +12,7 @@ cimport numpy
 
 import networkx, sys
 import itertools as it
+import json
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -45,39 +46,46 @@ cdef class State( object ):
 	transition distribution, because that's stored in the graph edges.
 	"""
 
-	def __init__( self, distribution, name=None, weight=None, identity=None ):
+	def __init__( self, distribution, name=None, weight=None ):
 		"""
 		Make a new State emitting from the given distribution. If distribution 
 		is None, this state does not emit anything. A name, if specified, will 
 		be the state's name when presented in output. Name may not contain 
-		spaces or newlines, and must be unique within an HMM. Identity is a
-		store of the id property, to allow for multiple states to have the same
-		name but be uniquely identifiable. 
+		spaces or newlines, and must be unique within a model.
 		"""
 		
 		# Save the distribution
 		self.distribution = distribution
 		
 		# Save the name
-		self.name = name or str(id(str))
+		self.name = name or str(id(name))
 
-		# Save the id
-		if identity is not None:
-			self.identity = str(identity)
-		else:
-			self.identity = str(id(self))
-
+		# Save the weight, or default to the unit weight
 		self.weight = weight or 1.
 
-	def __str__(self):
+	def __str__( self ):
 		"""
-		Represent this state with it's name, weight, and identity.
+		The string representation of a state is the json, so call that format.
 		"""
-		
-		return "State( {}, name={}, weight={}, identity={} )".format(
-			str(self.distribution), self.name, self.weight, self.identity )
 
-	def is_silent(self):
+		return self.to_json()
+
+	def __repr__( self ):
+		"""
+		The string representation of a state is the json, so call that format.
+		"""
+
+		return self.__str__()
+
+	def tie( self, state ):
+		"""
+		Tie this state to another state by just setting the distribution of the
+		other state to point to this states distribution.
+		"""
+
+		state.distribution = self.distribution
+
+	def is_silent( self ):
 		"""
 		Return True if this state is silent (distribution is None) and False 
 		otherwise.
@@ -91,7 +99,7 @@ cdef class State( object ):
 		distribution of this state.
 		"""
 
-		return State( distribution=self.distribution, name=self.name )
+		return State( distribution=self.distribution, name=self.name+'-tied' )
 		
 	def copy( self ):
 		"""
@@ -99,41 +107,40 @@ cdef class State( object ):
 		"""
 
 		return State( **self.__dict__ )
-		
-	def write(self, stream):
+	
+	def to_json( self ):
 		"""
-		Write this State (and its Distribution) to the given stream.
-		
-		Format: name, followed by "*" if the state is silent.
-		If not followed by "*", the next line contains the emission
-		distribution.
+		Convert this state to JSON format.
 		"""
-		
-		name = self.name.replace( " ", "_" ) 
-		stream.write( "{} {} {} {}\n".format( 
-			self.identity, name, self.weight, str( self.distribution ) ) )
-		
+
+		return json.dumps( { 
+							    'class' : 'State',
+								'distribution' : None if self.is_silent() else str( self.distribution ),
+								'name' : self.name,
+								'weight' : self.weight  
+							}, separators=(',', ' : ' ), indent=4 )
+
 	@classmethod
-	def read(cls, stream):
+	def from_json( cls, s ):
 		"""
-		Read a State from the given stream, in the format output by write().
+		Read a State from a given string formatted in JSON.
 		"""
 		
-		# Read a line
-		line = stream.readline()
-		
-		if line == "":
-			raise EOFError("End of file while reading state.")
-			
-		# Spilt the line up
-		parts = line.strip().split()
-		
-		# parts[0] holds the state's name, and parts[1] holds the rest of the
-		# state information, so we can just evaluate it.
-		identity, name, weight, distribution = \
-			parts[0], parts[1], parts[2], ' '.join( parts[3:] )
-		return eval( "State( {}, name='{}', weight={}, identity='{}' )".format( 
-			distribution, name, weight, identity ) )
+		# Load a dictionary from a JSON formatted string
+		d = json.loads( s )
+
+		# If we're not decoding a state, we're decoding the wrong thing
+		if d['class'] != 'State':
+			raise IOError( "State object attempting to decode {} object".format( d['class'] ) )
+
+		# If this is a silent state, don't decode the distribution
+		if d['distribution'] is None:
+			return cls( None, str(d['name']), d['weight'] )
+
+		# Otherwise it has a distribution, so decode that
+		return cls( Distribution.from_json( d['distribution'] ),
+					name=str(d['name']), weight=d['weight'] )
+
 
 cdef class Model( object ):
 	"""
@@ -212,7 +219,7 @@ cdef class Model( object ):
 		for state in states:
 			self.add_state( state )
 		
-	def add_transition( self, a, b, probability ):
+	def add_transition( self, a, b, probability=1. ):
 		"""
 		Add a transition from state a to state b with the given (non-log)
 		probability. Both states must be in the HMM already. self.start and
@@ -226,7 +233,7 @@ cdef class Model( object ):
 		"""
 
 		# Add the transition
-		self.graph.add_edge(a, b, weight=probability )
+		self.graph.add_edge(a, b, weight=log(probability) )
 
 	def bake( self ): 
 		"""

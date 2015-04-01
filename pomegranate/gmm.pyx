@@ -4,7 +4,7 @@
 cimport cython
 from cython.view cimport array as cvarray
 from libc.math cimport log as clog, exp as cexp
-import itertools as it, sys
+import itertools as it, sys, json
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -170,7 +170,7 @@ cdef class GeneralMixtureModel( object ):
 
 			# Update the distribution based on the responsibility matrix
 			for i, distribution in enumerate( self.distributions ):
-				distribution.from_sample( items, weights=r[:,i], diagonal=diagonal )
+				distribution.train( items, weights=r[:,i], diagonal=diagonal )
 				priors[i] = r[:,i].sum() / r.sum()
 
 			trained_log_probability_sum = log_probability( self, items )
@@ -183,3 +183,31 @@ cdef class GeneralMixtureModel( object ):
 			iteration += 1
 
 		self.weights = priors
+
+	def to_json( self ):
+		"""
+		Write out the HMM to JSON format, recursively including state and
+		distribution information.
+		"""
+		
+		model = { 
+					'class' : 'GeneralMixtureModel',
+					'distributions'  : map( str, self.distributions ),
+					'weights' : list( self.weights )
+				}
+
+		return json.dumps( model, separators=(',', ' : '), indent=4 )
+
+	@classmethod
+	def from_json( cls, s, verbose=False ):
+		"""
+		Read a HMM from the given JSON, build the model, and bake it.
+		"""
+
+		# Load a dictionary from a JSON formatted string
+		d = json.loads( s )
+
+		distributions = [ Distribution.from_json( j ) for j in d['distributions'] ] 
+		# Make a new generic HMM
+		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
+		return model
