@@ -37,7 +37,8 @@ elif os.name == 'posix':
 
 #from distributions import *
 from hmm import *
-from bayesnet import *
+from BayesianNetwork import *
+from FactorGraph import *
 from fsm import *
 from distributions import *
 from base import *

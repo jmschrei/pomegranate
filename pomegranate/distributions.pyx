@@ -1307,6 +1307,89 @@ cdef class DiscreteDistribution(Distribution):
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
 
+	def __len__( self ):
+		"""
+		Return the length of the underlying dictionary
+		"""
+
+		return len( self.parameters[0] )
+
+	def __mul__( self, other ):
+		"""
+		Multiply this by another discrete distribution sharing the same keys.
+		This returns the probability of a key being the product of the probability
+		of the key under both distributions normalized by the sum over all keys
+		of the product that key given the distributions.
+		"""
+
+		assert set( self.keys() ) == set( other.keys() )
+
+		# Create the new dictionary
+		p, total = {}, NEGINF
+
+		# Go through each key and multiply them
+		for key in self.keys():
+			p[key] = self.log_probability( key ) + other.log_probability( key )
+			total = pair_lse( total, p[key] )
+
+		for key in self.keys():
+			p[key] -= total 
+			p[key] = math.exp( p[key] )
+
+		return DiscreteDistribution( p )
+
+	def equals( self, other ):
+		"""
+		Determine if this distribution is equal to another discrete distribution
+		to 4 digits.
+		"""
+
+		# If we're not even comparing to a discrete distribution, then it cannot
+		# be the same.
+		if not isinstance( other, DiscreteDistribution ):
+			return False
+
+		# If the key sets aren't the same, it cannot be the same and will cause
+		# crashing in the next step.
+		if set( self.keys() ) != set( other.keys() ):
+			return False
+
+		# Go through and make sure the log probabilities for each key are the same.
+		for key in self.keys():
+			if round( self.log_probability( key ), 12 ) != round( other.log_probability( key ), 12 ):
+				return False
+
+		return True
+
+	def clamp( self, key ):
+		"""
+		Return a distribution clamped to a particular value.
+		"""
+
+		d = { k : 0. if k != key else 1. for k in self.keys() }
+		return DiscreteDistribution( d )
+
+	def keys( self ):
+		"""
+		Return the keys of the underlying dictionary.
+		"""
+
+		return self.parameters[0].keys()
+
+	def items( self ):
+		"""
+		Return items of the underlying dictionary,
+		"""
+
+		return self.parameters[0].items()
+
+	def values( self ):
+		"""
+		Return values of the underlying dictionary.
+		"""
+
+		return self.parameters[0].values()
+
 	def log_probability( self, symbol ):
 		"""
 		What's the probability of the given symbol under this distribution?
@@ -1931,6 +2014,13 @@ cdef class MixtureDistribution( Distribution ):
 
 cdef class MultivariateDistribution( Distribution ):
 	"""
+	An object to easily identify multivariate distributions such as tables.
+	"""
+
+	pass
+
+cdef class IndependentComponentsDistribution( MultivariateDistribution ):
+	"""
 	Allows you to create a multivariate distribution, where each distribution
 	is independent of the others. Distributions can be any type, such as
 	having an exponential represent the duration of an event, and a normal
@@ -2025,7 +2115,7 @@ cdef class MultivariateDistribution( Distribution ):
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
 
-cdef class MultivariateGaussianDistribution( Distribution ):
+cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	"""
 	A multivariate gaussian distribution, with a mean vector and a covariance
 	matrix. This is mostly a wrapper for scipy.stats.multivariate_gaussian.
@@ -2106,159 +2196,268 @@ cdef class MultivariateGaussianDistribution( Distribution ):
 		self.parameters = [ prior_means*inertia + means*(1-inertia), 
 							prior_covs*inertia + cov*(1-inertia) ]
 
-def recursive_discrete_log_probability( symbol, distributions, parent_values={}, 
-	parent_distributions=[] ):
-	'''
-	Recursively go through a nested dictionary representing conditional
-	dependencies, and marginalize where parents are not observed.
-	'''
+cdef class ConditionalProbabilityTable( MultivariateDistribution ):
+	"""
+	A conditional probability table, which is dependent on values from at
+	least one previous distribution but up to as many as you want to
+	encode for.
+	"""
 
-	# If this distribution has no parents, then simply get the value of the
-	# symbol under the distribution.
-	if parent_distributions == []:
-		return distributions.log_probability( symbol )
+	def __init__( self, distribution, parents, hashes=None, n=None ):
+		"""
+		Take in the distribution represented as a list of lists, where each
+		inner list represents a row.
+		"""
 
-	# If a value is observed for the parent, then condition on that by moving
-	# down the distribution list by one.
-	if parent_distributions[0] in parent_values.keys():
-		# Unpack the parent value
-		parent_value = parent_values[ parent_distributions[0] ]
-
-		if not isinstance( parent_value, Distribution ):
-			return recursive_discrete_log_probability( symbol, distributions[ parent_value ],
-				parent_values, parent_distributions[1:] )
+		# If we're passed a formed distribution already, just store it. Otherwise
+		# generate it from a table.
+		if isinstance( distribution, numpy.ndarray ) and hashes and n:
+			self.parameters = [ distribution, parents, hashes, n ]
 		else:
-			log_probability = NEGINF
-			for sym, weight in parent_value.parameters[0].items():
-				lp = recursive_discrete_log_probability( symbol, distributions[ sym ],
-					parent_values, parent_distributions[1:] )
+			# Take the list of lists and invert it so that a numpy array represents
+			# each column, since each column is a homogenous data type and we are
+			# unsure if the distribution is over integers or strings.
+			table = zip( *distribution )
 
-				log_probability = pair_lse( log_probability, lp + _log( weight ) )
+			d_keys = list( set( table[-2] ) )
+			d_map = { key: i for i, key in enumerate( d_keys )}
 
-			return log_probability 
+			# Create a mapping from values in the table to integers to be stored
+			# in a compressed array
+			hashes = hashes or [{ key: i for i, key in enumerate( parent.keys() ) } for parent in parents ] + [ d_map ]
+			n = n or map( len, parents+[d_keys] )
+			m = numpy.cumprod( [1] + n )
 
-	# If we're marginalizing, then we need to branch and do a sum over
-	# all branches at the end
-	else:
-		log_probability = NEGINF
-		distribution = parent_distributions[0].marginal( parent_values )
-		for sym, weight in distribution.parameters[0].items():
-			lp = recursive_discrete_log_probability( symbol, distributions[ sym ], 
-					parent_values, parent_distributions[1:] )
-			log_probability = pair_lse( log_probability, lp + _log( weight ) )
+			values = numpy.zeros( len( distribution ) )
 
-		return log_probability
+			# Go through each row and put it into the compressed array
+			for row in distribution:
+				i = sum( hashes[j][val]*m[j] for j, val in enumerate( row[:-1] ) )
+				values[i] = _log( row[-1] )
 
-cdef class ConditionalDistribution( Distribution ):
-	'''
-	A conditional distribution. These differ from other distributions in that
-	you pass in a list of parents when initializing them, and get get on those
-	parents. If you don't get values of those parents, you have to marginalize
-	on that distribution.
-	'''
+			# Store all the information
+			self.parameters = [ values, parents, hashes, n ]
 
-	pass
+	def __len__( self ):
+		"""
+		The length of the distribution is the number of keys.
+		"""
 
-cdef class ConditionalDiscreteDistribution( ConditionalDistribution ):
-	'''
-	This is a conditional distribution along the discrete axis.
-	'''
+		return len( self.keys() )
 
-	def __init__( self, distribution, parent_distributions ):
-		'''
-		Save the distributions.
-		'''
+	def keys( self ):
+		"""
+		Return the keys of the probability distribution which has parents,
+		the child variable.
+		"""
 
-		self.name = "ConditionalDiscreteDistribution"
+		return self.parameters[1][-1].keys()
 
-		d = distribution
-		while not isinstance( d, DiscreteDistribution ):
-			d = d[ d.keys()[0] ]
-		keys = d.parameters[0].keys()
+	def log_probability( self, value, parent_values ):
+		"""
+		Return the log probability of a value given some number of parent
+		values, which can be a subset of the full number of parents. If this
+		is the case, then marginalize over unknown values.
+		"""
 
-		self.parameters = [ distribution, parent_distributions, keys ]
+		# Unpack the parameters
+		values, parents, hashes, n = self.parameters
+		m = numpy.cumprod( [1]+n )
 
-	def marginal( self, parent_values={}, wrt=None, value=None ):
-		'''
-		Sum over all parent distributions to return the marginal distribution.
-		If given a distribution to marginalize with respect to (wrt), then
-		return the marginal wrt that distribution.  
-		'''
+		# Assume parent values are given in the same order that parents
+		# were specified
+		i = sum( hashes[j][val]*m[j] for j, val in enumerate( parent_values ) )
 
-		d, pd, keys = self.parameters
+		# Return the array element with that identity
+		return values[i]
+		
+	def joint( self, neighbor_values=None ):
+		"""
+		This will turn a conditional probability table into a joint
+		probability table. If the data is already a joint, it will likely
+		mess up the data. It does so by scaling the parameters the probabilities
+		by the parent distributions.
+		"""
 
-		# If we're not marginalizing with respect to (wrt) a specific
-		# distribution then marginalize with respect to this distribution.
-		# This can be thought of as having a joint distribution table
-		# and summing up with respect to the column for this distribution,
-		# or for one of the parents if we want to send messages backwards.
-		if not wrt:
-			return DiscreteDistribution({ key: math.e ** recursive_discrete_log_probability( key, d, parent_values, pd ) 
-				for key in keys })
+		# Unpack the parameters
+		values, parents, hashes, n = self.parameters
+		r_hashes = [{ value: key for key, value in d.items() } for d in hashes ]
+		m = numpy.cumprod( [1]+n )
 
-		# If we are marginalizing with respect to a parent distribution then we
-		# are trying to send a message backwards.
-		else:
-			n = len( self.parameters[2] )
-			if value is None:
-				value = DiscreteDistribution({ k : 1./n for k in self.parameters[2] })
+		neighbor_values = neighbor_values or parents+[None]
+		
+		# If given a dictionary, then decode it
+		if isinstance( neighbor_values, dict ):
+			nv = [ None for i in xrange( len( neighbor_values)+1 ) ]
 
-			# Pull out the keys of this distributions we're marginalizing
-			# with respect to.
-			if isinstance( wrt, ConditionalDistribution ):
-				keys = wrt.parameters[2]
+			# Go through each parent and find the appropriate value
+			for i, parent in enumerate( parents ):
+				nv[i] = neighbor_values.get( parent, None )
+
+			if len(neighbor_values) == len(parents):
+				# We've already gotten the value for this marginal, because it
+				# was encoded as a separate factor.
+				pass
 			else:
-				keys = wrt.parameters[0].keys()
+				# Get values for this marginal
+				nv[-1] = neighbor_values.get( self, None )
 
-			# Create the probability dictionary we'll use later
-			probabilities = {}
+			neighbor_values = nv
 
-			# Calculate the probability for each key in this dictionary
-			# one at a time using math.
-			for key in keys:
-				# Unpack the parent values
-				pv = parent_values.copy()
+		# The growing table
+		table = []
 
-				# Set the parent we're marginalizing with respect to to that
-				# key to figure out the probability of that key
-				pv[ wrt ] = key
+		# Create the table row by row
+		for keys in it.product( *[ xrange(i) for i in n ] ):
+			i = sum( key*k for key, k in it.izip( keys, m ) )
 
-				# If we don't have a value for this distribution, assume a uniform
-				# distribution across all keys.
+			# Scale the probability by the weights on the marginals
+			scaled_val = values[i]
+			for j, k in enumerate( keys ):
+				if neighbor_values[j] == None:
+					continue
+				scaled_val += neighbor_values[j].log_probability( r_hashes[j][k] )
 
-				# If we're setting a value for this distribution (say we know
-				# this distribution is true), the computation is far more
-				# straightforward.
-				if not isinstance( value, Distribution ):
-					probabilities[ key ] = math.e ** recursive_discrete_log_probability(
-						value, d, pv, pd )
+			table.append( [ r_hashes[i][key] for i, key in enumerate( keys ) ] + [ cexp(scaled_val) ] )
+
+		# Normalize the values
+		total = sum( row[-1] for row in table )
+		for i, row in enumerate( table ):
+			table[i][-1] = row[-1] / total
+
+		return JointProbabilityTable( table, parents, hashes )
+
+	def marginal( self, neighbor_values=None ):
+		"""
+		Calculate the marginal of the CPT. This involves normalizing to turn it
+		into a joint probability table, and then summing over the desired
+		value. 
+		"""
+
+		# Convert from a dictionary to a list if necessary
+		if isinstance( neighbor_values, dict ):
+			neighbor_values = [ neighbor_values.get( d, None ) for d in self.parameters[1] ]
+
+		# Get the index we're marginalizing over
+		i = -1 if neighbor_values == None else neighbor_values.index( None )
+		return self.joint( neighbor_values ).marginal( i )
+
+cdef class JointProbabilityTable( MultivariateDistribution ):
+	"""
+	A joint probability table. The primary difference between this and the
+	conditional table is that the final column sums to one here. The joint
+	table can be thought of as the conditional probability table normalized
+	by the marginals of each parent.
+	"""
+
+	def __init__( self, distribution, neighbors, hashes=None, n=None ):
+		"""
+		Take in the distribution represented as a list of lists, where each
+		inner list represents a row.
+		"""
+
+		# If passed all the information, just store it, otherwise we need to
+		# process it a little.
+		if isinstance( distribution, numpy.ndarray ) and hashes and n:
+			self.parameters = [ distribution, neighbors, hashes, n ]
+		else:
+			# Take the list of lists and invert it so that a numpy array represents
+			# each column, since each column is a homogenous data type and we are
+			# unsure if the distribution is over integers or strings.
+			table = zip( *distribution )
+
+			infer = len( neighbors ) == len( distribution[0] ) - 2
+			if infer:
+				d_keys = list( set( table[-2] ) )
+				d_map = { key: i for i, key in enumerate( d_keys )}
+
+			if hashes is None:
+				hashes = [{ key: i for i, key in enumerate( neighbor.keys() ) } for neighbor in neighbors ]
+
+				if infer:
+					hashes += [ d_map ]
+
+			if n is None and infer:
+				n = map( len, neighbors + [d_keys] )
+			elif n is None and not infer:
+				n = map( len, neighbors )
+				
+			m = numpy.cumprod( [1] + n )
+
+			values = numpy.zeros( len( distribution ) )
+
+			# Go through each row and put it into the compressed array
+			for row in distribution:
+				i = sum( hashes[j][val]*m[j] for j, val in enumerate( row[:-1] ) )
+				values[i] = _log( row[-1] )
+
+			# Store all the information
+			self.parameters = [ values, neighbors, hashes, n ]
+
+	def log_probability( self, neighbor_values ):
+		"""
+		Return the log probability of a value given some number of parent
+		values, which can be a subset of the full number of parents. If this
+		is the case, then marginalize over unknown values.
+		"""
+
+		# Unpack the parameters
+		values, neighbors, hashes, n = self.parameters
+		m = numpy.cumprod( [1]+n )
+
+		# Assume parent values are given in the same order that parents
+		# were specified
+		i = sum( hashes[j][val]*m[j] for j, val in enumerate( neighbor_values ) )
+
+		# Return the array element with that identity
+		return values[i]
+
+	def marginal( self, wrt=-1, neighbor_values=None ):
+		"""
+		Determine the marginal of this table with respect to the index of one
+		variable. The parents are index 0..n-1 for n parents, and the final
+		variable is either the appropriate value or -1. For example:
+
+		table = 
+		A    B    C    p(C)
+		... data ...
 
 
-				# If we know a distribution for this distribution then we can
-				# use that. 
-				else:
-					# Figure out the probability for each value in the distribution
-					vprobabilities = {}
+		table.marginal(0) gives the marginal wrt A
+		table.marginal(1) gives the marginal wrt B
+		table.marginal(2) gives the marginal wrt C
+		table.marginal(-1) gives the marginal wrt C
+		"""
 
-					for vkey in value.parameters[0].keys():
-						vprobabilities[ vkey ] = math.e ** ( recursive_discrete_log_probability(
-							vkey, d, pv, pd ) + value.log_probability( vkey ) )
+		# Unpack the parameters
+		values, neighbors, hashes, n = self.parameters
 
-					probabilities[ key ] = sum( vprobabilities.values() )
+		# If given a dictionary, convert to a list
+		if isinstance( neighbor_values, dict ):
+			neighbor_values = [ neighbor_values.get( d, None ) for d in neighbors ]
+		if isinstance( neighbor_values, list ):
+			wrt = neighbor_values.index( None )
 
-			total = sum( probabilities.values() )
-			for key, value in probabilities.items():
-				probabilities[ key ] = value / total
+		r_hashes = [{ value: key for key, value in d.items() } for d in hashes ]
+		m = numpy.cumprod( [1]+n )
 
-			return DiscreteDistribution( probabilities )
+		# Determine the keys for the respective parent distribution
+		d = { k: 0 for k in hashes[wrt].keys() }
 
-	def log_probability( self, symbol, parent_values={} ):
-		'''
-		Calculate the log probability of the symbol given the parents. If the
-		parent is not observed, marginalize over that distribution. This is
-		simple for a discrete distribution, by just calculating the probabilities
-		down each path and doing a weighted sum. 
-		'''
+		for ki, keys in enumerate( it.product( *[ xrange(i) for i in n[:len(hashes)] ] ) ):
+			i = sum( key*k for key, k in it.izip( keys, m ) )
+			p = values[i]
 
-		d, pd, keys = self.parameters 
-		return recursive_discrete_log_probability( symbol, d, parent_values, pd )
+			if neighbor_values is not None:
+				for j, k in enumerate( keys ):
+					if j == wrt:
+						continue
+					p += neighbor_values[j].log_probability( r_hashes[j][k] )
+
+			d[ r_hashes[wrt][ keys[wrt] ] ] += cexp( p )
+
+		total = sum( d.values() )
+		for key, value in d.items():
+			d[key] = value / total
+		
+		return DiscreteDistribution( d )

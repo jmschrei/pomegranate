@@ -12,7 +12,8 @@ else:
     ext = 'pyx'
 
 filenames = [ "base",
-              "bayesnet",
+              "BayesianNetwork",
+              "FactorGraph",
               "distributions",
               "fsm",
               "hmm",
@@ -21,21 +22,22 @@ filenames = [ "base",
 
 if not use_cython:
     extensions = [
-        Extension( "pomegranate.pomegranate", 
+        Extension( "pomegranate.{}".format( name ), 
                    [ "pomegranate/{}.{}".format( name, ext ) ], 
                    include_dirs=[np.get_include()] ) for name in filenames
     ]
 else:
     extensions = [
-            Extension( "*", 
+            Extension( "pomegranate.*", 
                        [ "pomegranate/*.pyx" ], 
                        include_dirs=[np.get_include()] )
     ]
+
     extensions = cythonize( extensions )
 
 setup(
     name='pomegranate',
-    version='0.1.1',
+    version='0.2.0',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=['pomegranate'],

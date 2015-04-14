@@ -390,17 +390,17 @@ def test_mixture():
 	assert round( d.log_probability( 4.5 ), 4 ) == -2.0356
 
 @with_setup( setup, teardown )
-def test_multivariate():
+def test_independent():
 	'''
 	Test that the Multivariate Distribution implementation is correct.
 	'''
 
-	d = MultivariateDistribution( [ NormalDistribution( 5, 2 ), ExponentialDistribution( 2 ) ] )
+	d = IndependentComponentsDistribution( [ NormalDistribution( 5, 2 ), ExponentialDistribution( 2 ) ] )
 
 	assert round( d.log_probability( (4,1) ), 4 ) == -3.0439
 	assert round( d.log_probability( ( 100, 0.001 ) ), 4 ) == -1129.0459
 
-	d = MultivariateDistribution( [ NormalDistribution( 5, 2 ), ExponentialDistribution( 2 ) ],
+	d = IndependentComponentsDistribution( [ NormalDistribution( 5, 2 ), ExponentialDistribution( 2 ) ],
 								  weights=[18., 1.] )
 
 	assert round( d.log_probability( (4,1) ), 4 ) == -32.5744
@@ -412,7 +412,7 @@ def test_multivariate():
 	assert round( d.parameters[0][0].parameters[1], 4 ) == 0.2417
 	assert round( d.parameters[0][1].parameters[0], 4 ) == 0.6098
 
-	d = MultivariateDistribution( [ NormalDistribution( 5, 2 ),
+	d = IndependentComponentsDistribution( [ NormalDistribution( 5, 2 ),
 									UniformDistribution( 0, 10 ) ] )
 	d.from_sample( [ ( 0, 0 ), ( 5, 0 ), ( 3, 0 ), ( 5, -5 ), ( 7, 0 ),
 				     ( 3, 0 ), ( 4, 0 ), ( 5, 0 ), ( 2, 20) ], inertia=0.5 )
@@ -432,7 +432,7 @@ def test_multivariate():
 	assert d.parameters[0][1].parameters[0] != -2.5
 	assert d.parameters[0][1].parameters[1] != 15
 
-	d = MultivariateDistribution([ NormalDistribution( 5, 2 ),
+	d = IndependentComponentsDistribution([ NormalDistribution( 5, 2 ),
 								   UniformDistribution( 0, 10 ) ])
 
 	d.summarize([ ( 0, 0 ), ( 5, 0 ), ( 3, 0 ) ])
@@ -461,10 +461,11 @@ def test_conditional():
 	'''
 
 	phditis = DiscreteDistribution({ True : 0.01, False : 0.99 })
-	test_result = ConditionalDiscreteDistribution({
-		True : DiscreteDistribution({ True : 0.95, False : 0.05 }),
-		False : DiscreteDistribution({ True : 0.05, False : 0.95 })
-		}, [phditis] )
+	test_result = ConditionalProbabilityTable(
+		[[True,  True,  0.95 ],
+		 [True,  False, 0.05 ],
+		 [False, True,  0.05 ],
+		 [False, False, 0.95 ]], [phditis])
 
 	assert discrete_equality( test_result.marginal(),
 		DiscreteDistribution({False : 0.941, True : 0.059}) )

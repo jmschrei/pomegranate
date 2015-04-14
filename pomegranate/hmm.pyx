@@ -63,7 +63,7 @@ def log_probability( model, samples ):
 
 	return sum( map( model.log_probability, samples ) )
 
-cdef class HiddenMarkovModel( StructuredModel ):
+cdef class HiddenMarkovModel( Model ):
 	"""
 	Represents a Hidden Markov Model.
 	"""
@@ -106,6 +106,126 @@ cdef class HiddenMarkovModel( StructuredModel ):
 		# Put start and end in the graph
 		self.graph.add_node(self.start)
 		self.graph.add_node(self.end)
+
+	def add_state(self, state):
+		"""
+		Adds the given State to the model. It must not already be in the model,
+		nor may it be part of any other model that will eventually be combined
+		with this one.
+		"""
+		
+		# Put it in the graph
+		self.graph.add_node(state)
+
+	def add_states( self, states ):
+		"""
+		Adds multiple states to the model at the same time. Basically just a
+		helper function for the add_state method.
+		"""
+
+		for state in states:
+			self.add_state( state )
+
+	def add_transition( self, a, b, probability, pseudocount=None, group=None ):
+		"""
+		Add a transition from state a to state b with the given (non-log)
+		probability. Both states must be in the HMM already. self.start and
+		self.end are valid arguments here. Probabilities will be normalized
+		such that every node has edges summing to 1. leaving that node, but
+		only when the model is baked. 
+
+		By specifying a group as a string, you can tie edges together by giving
+		them the same group. This means that a transition across one edge in the
+		group counts as a transition across all edges in terms of training.
+		"""
+		
+		# If a pseudocount is specified, use it, otherwise use the probability.
+		# The pseudocounts come up during training, when you want to specify
+		# custom pseudocount weighting schemes per edge, in order to make the
+		# model converge to that scheme given no observations. 
+		pseudocount = pseudocount or probability
+
+		# Add the transition
+		self.graph.add_edge(a, b, weight=log(probability), 
+			pseudocount=pseudocount, group=group )
+
+	def add_transitions( self, a, b, probabilities=None, pseudocounts=None,
+		groups=None ):
+		"""
+		Add many transitions at the same time, in one of two forms. 
+
+		(1) If both a and b are lists, then create transitions from the i-th 
+		element of a to the i-th element of b with a probability equal to the
+		i-th element of probabilities.
+
+		Example: 
+		model.add_transitions([model.start, s1], [s1, model.end], [1., 1.])
+
+		(2) If either a or b are a state, and the other is a list, create a
+		transition from all states in the list to the single state object with
+		probabilities and pseudocounts specified appropriately.
+
+		Example:
+		model.add_transitions([model.start, s1, s2, s3], s4, [0.2, 0.4, 0.3, 0.9])
+		model.add_transitions(model.start, [s1, s2, s3], [0.6, 0.2, 0.05])
+
+		If a single group is given, it's assumed all edges should belong to that
+		group. Otherwise, either groups can be a list of group identities, or
+		simply None if no group is meant.
+		"""
+
+		# If a pseudocount is specified, use it, otherwise use the probability.
+		# The pseudocounts come up during training, when you want to specify
+		# custom pseudocount weighting schemes per edge, in order to make the
+		# model converge to that scheme given no observations. 
+		pseudocounts = pseudocounts or probabilities
+
+		n = len(a) if isinstance( a, list ) else len(b)
+		if groups is None or isinstance( groups, str ):
+			groups = [ groups ] * n
+
+		# Allow addition of many transitions from many states
+		if isinstance( a, list ) and isinstance( b, list ):
+			# Set up an iterator across all edges
+			edges = izip( a, b, probabilities, pseudocounts, groups )
+			
+			for start, end, probability, pseudocount, group in edges:
+				self.add_transition( start, end, probability, pseudocount, group )
+
+		# Allow for multiple transitions to a specific state 
+		elif isinstance( a, list ) and isinstance( b, State ):
+			# Set up an iterator across all edges to b
+			edges = izip( a, probabilities, pseudocounts, groups )
+
+			for start, probability, pseudocount, group in edges:
+				self.add_transition( start, b, probability, pseudocount, group )
+
+		# Allow for multiple transitions from a specific state
+		elif isinstance( a, State ) and isinstance( b, list ):
+			# Set up an iterator across all edges from a
+			edges = izip( b, probabilities, pseudocounts, groups )
+
+			for end, probability, pseudocount, group in edges:
+				self.add_transition( a, end, probability, pseudocount, group )
+
+	def freeze_distributions( self ):
+		"""
+		Freeze all the distributions in model. This means that upon training,
+		only edges will be updated. The parameters of distributions will not
+		be affected.
+		"""
+
+		for state in self.states:
+			state.distribution.freeze()
+
+	def thaw_distributions( self ):
+		"""
+		Thaw all distributions in the model. This means that upon training,
+		distributions will be updated again.
+		"""
+
+		for state in self.states:
+			state.distribution.thaw()
 
 	def is_infinite( self ):
 		"""

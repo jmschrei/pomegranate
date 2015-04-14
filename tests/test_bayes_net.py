@@ -16,12 +16,11 @@ import time
 
 def setup():
 	'''
-	Build the model which corresponds to the Monty Hall Problem. This is the
-	same as in the example.
+	Build the model which corresponds to the Cold network.
 	'''
 
-	global network
-	global monty_index, prize_index, guest_index
+	global network, monty_index, prize_index, guest_index
+
 	random.seed(0)
 
 	# Friends emisisons are completely random
@@ -31,30 +30,46 @@ def setup():
 	prize = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 
 	# Monty is dependent on both the guest and the prize. 
-	monty = ConditionalDiscreteDistribution( {
-		'A' : { 'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.5, 'C' : 0.5 }),
-				'B' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.0, 'C' : 1.0 }),
-				'C' : DiscreteDistribution({ 'A' : 0.0, 'B' : 1.0, 'C' : 0.0 }) },
-		'B' : { 'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.0, 'C' : 1.0 }), 
-				'B' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.0, 'C' : 0.5 }),
-				'C' : DiscreteDistribution({ 'A' : 1.0, 'B' : 0.0, 'C' : 0.0 }) },
-		'C' : { 'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 1.0, 'C' : 0.0 }),
-				'B' : DiscreteDistribution({ 'A' : 1.0, 'B' : 0.0, 'C' : 0.0 }),
-				'C' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.5, 'C' : 0.0 }) } 
-		}, [None, prize] )
+	monty = ConditionalProbabilityTable(
+		[[ 'A', 'A', 'A', 0.0 ],
+		 [ 'A', 'A', 'B', 0.5 ],
+		 [ 'A', 'A', 'C', 0.5 ],
+		 [ 'A', 'B', 'A', 0.0 ],
+		 [ 'A', 'B', 'B', 0.0 ],
+		 [ 'A', 'B', 'C', 1.0 ],
+		 [ 'A', 'C', 'A', 0.0 ],
+		 [ 'A', 'C', 'B', 1.0 ],
+		 [ 'A', 'C', 'C', 0.0 ],
+		 [ 'B', 'A', 'A', 0.0 ],
+		 [ 'B', 'A', 'B', 0.0 ],
+		 [ 'B', 'A', 'C', 1.0 ],
+		 [ 'B', 'B', 'A', 0.5 ],
+		 [ 'B', 'B', 'B', 0.0 ],
+		 [ 'B', 'B', 'C', 0.5 ],
+		 [ 'B', 'C', 'A', 1.0 ],
+		 [ 'B', 'C', 'B', 0.0 ],
+		 [ 'B', 'C', 'C', 0.0 ],
+		 [ 'C', 'A', 'A', 0.0 ],
+		 [ 'C', 'A', 'B', 1.0 ],
+		 [ 'C', 'A', 'C', 0.0 ],
+		 [ 'C', 'B', 'A', 1.0 ],
+		 [ 'C', 'B', 'B', 0.0 ],
+		 [ 'C', 'B', 'C', 0.0 ],
+		 [ 'C', 'C', 'A', 0.5 ],
+		 [ 'C', 'C', 'B', 0.5 ],
+		 [ 'C', 'C', 'C', 0.0 ]], [guest, prize] )  
+
 
 	# Make the states
 	s1 = State( guest, name="guest" )
 	s2 = State( prize, name="prize" )
 	s3 = State( monty, name="monty" )
-	s4 = State( None, name="silence" )
 
 	# Make the bayes net, add the states, and the conditional dependencies.
 	network = BayesianNetwork( "test" )
-	network.add_states( [ s1, s2, s3, s4 ] )
-	network.add_transition( s1, s4 )
-	network.add_transition( s4, s3 )
-	network.add_transition( s2, s3 )
+	network.add_nodes([ s1, s2, s3 ])
+	network.add_edge( s1, s3 )
+	network.add_edge( s2, s3 )
 	network.bake()
 
 	monty_index = network.states.index( s3 )
@@ -89,8 +104,6 @@ def test_guest():
 
 	prize_correct = DiscreteDistribution({'A' : 1./3, 'B' : 1./3, 'C' : 1./3 })
 
-	print( a[prize_index], b[prize_index], c[prize_index], prize_correct )
-
 	assert discrete_equality( a[prize_index], b[prize_index] )
 	assert discrete_equality( a[prize_index], c[prize_index] )
 	assert discrete_equality( a[prize_index], prize_correct )
@@ -107,10 +120,12 @@ def test_guest_monty():
 	b = network.forward_backward( { 'guest' : 'A', 'monty' : 'B' } )
 	c = network.forward_backward( { 'guest' : 'A', 'monty' : 'C' } )
 
-	assert b[guest_index] == 'A' and b[monty_index] == 'B'
-	assert discrete_equality( b[prize_index], DiscreteDistribution({'A' : 1./3, 'B' : 0.0, 'C' : 2./3 }) )
-	assert c[guest_index] == 'A' and c[monty_index] == 'C'
-	assert discrete_equality( c[prize_index], DiscreteDistribution({'A' : 1./3, 'B' : 2./3, 'C' : 0.0 }) )
+	assert discrete_equality( b[guest_index], DiscreteDistribution({'A': 1., 'B': 0., 'C': 0. }) )
+	assert discrete_equality( b[monty_index], DiscreteDistribution({'A': 0., 'B': 1., 'C': 0. }) )
+	assert discrete_equality( b[prize_index], DiscreteDistribution({'A': 1./3, 'B': 0.0, 'C': 2./3 }) )
+	assert discrete_equality( c[guest_index], DiscreteDistribution({'A': 1., 'B': 0., 'C': 0. }) )
+	assert discrete_equality( c[monty_index], DiscreteDistribution({'A': 0., 'B': 0., 'C': 1. }) )
+	assert discrete_equality( c[prize_index], DiscreteDistribution({'A': 1./3, 'B': 2./3, 'C': 0.0 }) )
 
 def test_monty():
 	'''
@@ -119,6 +134,6 @@ def test_monty():
 
 	a = network.forward_backward({ 'monty' : 'A' })
 
-	assert a[monty_index] == 'A'
+	assert discrete_equality( a[monty_index], DiscreteDistribution({'A': 1.0, 'B': 0.0, 'C': 0.0}) )
 	assert discrete_equality( a[guest_index], a[prize_index] )
 	assert discrete_equality( a[guest_index], DiscreteDistribution({'A' : 0.0, 'B' : 1./2, 'C' : 1./2}) )

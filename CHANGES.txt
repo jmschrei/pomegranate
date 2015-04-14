@@ -23,3 +23,12 @@ does not remember summaries saved to states.
 
 (5) BayesianNetwork is still under development. But now that I'm back, I'll be actively
 working on it.
+
+v0.2.0 --
+(1) Bayesian Networks now work properly! Loopy belief propogation has been implemented,
+stopping after either max_iterations, or until convergance determined by no distribution
+changing by more than 0.001. KL divergence would be more appropriate, but more time
+intensive as well.
+
+(2) Factor Graphs have been explicitly added, as a part of this. You can use factor
+graphs explicitly, documentation to come.
