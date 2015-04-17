@@ -86,16 +86,16 @@ model = FiniteStateMachine( "Vending Machine", start=a )
 model.add_states( [a, b, c, d, e, f] )
 
 # Connect the states according to possible transitions
-model.add_transition( a, b, 0.33 )
-model.add_transition( a, a, 0.33 )
-model.add_transition( a, e, 0.33 )
-model.add_transition( b, c, 0.5 )
-model.add_transition( b, f, 0.5 )
-model.add_transition( c, e, 1.0 )
-model.add_transition( d, a, 1.0 )
-model.add_transition( e, d, 0.5 )
-model.add_transition( e, f, 0.5 )
-model.add_transition( f, a, 1.0 )
+model.add_transition( a, b )
+model.add_transition( a, a )
+model.add_transition( a, e )
+model.add_transition( b, c )
+model.add_transition( b, f )
+model.add_transition( c, e )
+model.add_transition( d, a )
+model.add_transition( e, d )
+model.add_transition( e, f )
+model.add_transition( f, a )
 
 # Bake the model in the same way
 model.bake( merge=False )
@@ -409,7 +409,7 @@ from yahmm import *
 
 ### Bayesian Networks
 
-[Bayesian networks](http://en.wikipedia.org/wiki/Bayesian_network) are a powerful inference tool, in which states represent some random variable we care about and edges represent conditional dependencies between them. These are useful in that while a model like a hidden Markov model represents joint probabilities across all variables, a Bayesian network represents conditional probabilities, giving a more nuanced view of the data. A powerful algorithm called the sum-product or forward-backward algorithm allows for inference to be done on this network, calculating posteriors on unobserved ("hidden") variables when limited information is given. The more information is known, the better the inference will be, but there is no requirement on the amount of data passed in. The hidden and observed variables do not need to be partitioned when the network is made, they simply exist based on what information is given. 
+[Bayesian networks](http://en.wikipedia.org/wiki/Bayesian_network) are a powerful inference tool, in which nodes represent some random variable we care about, edges represent dependencies and a lack of an edge between two nodes represents a conditional independence. A powerful algorithm called the sum-product or forward-backward algorithm allows for inference to be done on this network, calculating posteriors on unobserved ("hidden") variables when limited information is given. The more information is known, the better the inference will be, but there is no requirement on the number of nodes which must be observed. If no information is given, the marginal of the graph is trivially calculated. The hidden and observed variables do not need to be explicitly defined when the network is set, they simply exist based on what information is given. 
 
 Lets test out the Bayesian Network framework on the [Monty Hall problem](http://en.wikipedia.org/wiki/Monty_Hall_problem). The Monty Hall problem arose from the gameshow <i>Let's Make a Deal</i>, where a guest had to choose which one of three doors had a prize behind it. The twist was that after the guest chose, the host, originally Monty Hall, would then open one of the doors the guest did not pick and ask if the guest wanted to switch which door they had picked. Initial inspection may lead you to believe that if there are only two doors left, there is a 50-50 chance of you picking the right one, and so there is no advantage one way or the other. However, it has been proven both through simulations and analytically that there is in fact a 66% chance of getting the prize if the guest switches their door, regardless of the door they initially went with. 
 
@@ -425,18 +425,35 @@ guest = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 # The door the prize is behind is also completely random
 prize = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 
-# However, the door Monty opens is dependent on both of the previous distributions
-monty = ConditionalDiscreteDistribution( {
-	'A' : { 'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.5, 'C' : 0.5 }),
-			'B' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.0, 'C' : 1.0 }),
-			'C' : DiscreteDistribution({ 'A' : 0.0, 'B' : 1.0, 'C' : 0.0 }) },
-	'B' : { 'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 0.0, 'C' : 1.0 }), 
-			'B' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.0, 'C' : 0.5 }),
-			'C' : DiscreteDistribution({ 'A' : 1.0, 'B' : 0.0, 'C' : 0.0 }) },
-	'C' : { 'A' : DiscreteDistribution({ 'A' : 0.0, 'B' : 1.0, 'C' : 0.0 }),
-			'B' : DiscreteDistribution({ 'A' : 1.0, 'B' : 0.0, 'C' : 0.0 }),
-			'C' : DiscreteDistribution({ 'A' : 0.5, 'B' : 0.5, 'C' : 0.0 }) } 
-	}, [guest, prize] )
+	# Monty is dependent on both the guest and the prize. 
+	monty = ConditionalProbabilityTable(
+		[[ 'A', 'A', 'A', 0.0 ],
+		 [ 'A', 'A', 'B', 0.5 ],
+		 [ 'A', 'A', 'C', 0.5 ],
+		 [ 'A', 'B', 'A', 0.0 ],
+		 [ 'A', 'B', 'B', 0.0 ],
+		 [ 'A', 'B', 'C', 1.0 ],
+		 [ 'A', 'C', 'A', 0.0 ],
+		 [ 'A', 'C', 'B', 1.0 ],
+		 [ 'A', 'C', 'C', 0.0 ],
+		 [ 'B', 'A', 'A', 0.0 ],
+		 [ 'B', 'A', 'B', 0.0 ],
+		 [ 'B', 'A', 'C', 1.0 ],
+		 [ 'B', 'B', 'A', 0.5 ],
+		 [ 'B', 'B', 'B', 0.0 ],
+		 [ 'B', 'B', 'C', 0.5 ],
+		 [ 'B', 'C', 'A', 1.0 ],
+		 [ 'B', 'C', 'B', 0.0 ],
+		 [ 'B', 'C', 'C', 0.0 ],
+		 [ 'C', 'A', 'A', 0.0 ],
+		 [ 'C', 'A', 'B', 1.0 ],
+		 [ 'C', 'A', 'C', 0.0 ],
+		 [ 'C', 'B', 'A', 1.0 ],
+		 [ 'C', 'B', 'B', 0.0 ],
+		 [ 'C', 'B', 'C', 0.0 ],
+		 [ 'C', 'C', 'A', 0.5 ],
+		 [ 'C', 'C', 'B', 0.5 ],
+		 [ 'C', 'C', 'C', 0.0 ]], [guest, prize] )  
 
 # State objects hold both the distribution, and a high level name.
 s1 = State( guest, name="guest" )
@@ -516,100 +533,3 @@ prize	DiscreteDistribution({'A': 0.49999999999999994, 'C': 0.49999999999999994, 
 We know that if Monty opened door 'B', that the prize cannot be behind 'B' and that the guest could not have opened 'B'. The posterior guest and prize probabilities show this. 
 
 Useful stuff.
-
-Below is the [Asia example](http://www.norsys.com/tutorials/netica/secA/tut_A1.htm). It is more of the same, but seeing a more complicated network may help you get yours working!
-```
-from pomegranate import *
-
-# Create the distributions
-asia = DiscreteDistribution({ 'True' : 0.5, 'False' : 0.5 })
-tuberculosis = ConditionalDiscreteDistribution({
-	'True' : DiscreteDistribution({ 'True' : 0.2, 'False' : 0.80 }),
-	'False' : DiscreteDistribution({ 'True' : 0.01, 'False' : 0.99 })
-	}, [asia])
-
-smoking = DiscreteDistribution({ 'True' : 0.5, 'False' : 0.5 })
-lung = ConditionalDiscreteDistribution({
-	'True' : DiscreteDistribution({ 'True' : 0.75, 'False' : 0.25 }),
-	'False' : DiscreteDistribution({ 'True' : 0.02, 'False' : 0.98 })
-	}, [smoking] )
-bronchitis = ConditionalDiscreteDistribution({
-	'True' : DiscreteDistribution({ 'True' : 0.92, 'False' : 0.08 }),
-	'False' : DiscreteDistribution({ 'True' : 0.03, 'False' : 0.97})
-	}, [smoking] )
-
-tuberculosis_or_cancer = ConditionalDiscreteDistribution({
-	'True' : { 'True' : DiscreteDistribution({ 'True' : 1.0, 'False' : 0.0 }),
-			   'False' : DiscreteDistribution({ 'True' : 1.0, 'False' : 0.0 }),
-			 },
-	'False' : { 'True' : DiscreteDistribution({ 'True' : 1.0, 'False' : 0.0 }),
-				'False' : DiscreteDistribution({ 'True' : 0.0, 'False' : 1.0 })
-			  }
-	}, [tuberculosis, lung] )
-
-xray = ConditionalDiscreteDistribution({
-	'True' : DiscreteDistribution({ 'True' : .885, 'False' : .115 }),
-	'False' : DiscreteDistribution({ 'True' : 0.04, 'False' : 0.96 })
-	}, [tuberculosis_or_cancer] )
-
-dyspnea = ConditionalDiscreteDistribution({
-	'True' : { 'True' : DiscreteDistribution({ 'True' : 0.96, 'False' : 0.04 }),
-			   'False' : DiscreteDistribution({ 'True' : 0.89, 'False' : 0.11 })
-			 },
-	'False' : { 'True' : DiscreteDistribution({ 'True' : 0.82, 'False' : 0.18 }),
-	            'False' : DiscreteDistribution({ 'True' : 0.4, 'False' : 0.6 })
-	          }
-	}, [tuberculosis_or_cancer, bronchitis])
-
-# Make the states. Note the name can be different than the name of the state
-# can be different than the name of the distribution
-s0 = State( asia, name="asia" )
-s1 = State( tuberculosis, name="tuberculosis" )
-s2 = State( smoking, name="smoker" )
-s3 = State( lung, name="cancer" )
-s4 = State( bronchitis, name="bronchitis" )
-s5 = State( tuberculosis_or_cancer, name="TvC" )
-s6 = State( xray, name="xray" )
-s7 = State( dyspnea, name='dyspnea' )
-
-# Create the Bayesian network
-network = BayesianNetwork( "asia" )
-network.add_states([ s0, s1, s2, s3, s4, s5, s6, s7 ])
-network.add_transition( s0, s1 )
-network.add_transition( s1, s5 )
-network.add_transition( s2, s3 )
-network.add_transition( s2, s4 )
-network.add_transition( s3, s5 )
-network.add_transition( s5, s6 )
-network.add_transition( s5, s7 )
-network.add_transition( s4, s7 )
-network.bake()
-```
-
-Lets add in some information:
-
-```
-observations = { 'tuberculosis' : 'True', 
-                 'smoker' : 'False', 
-				         'bronchitis' : DiscreteDistribution({ 'True' : 0.8, 'False' : 0.2 }) 
-				       }
-beliefs = map( str, network.forward_backward( observations ) )
-print "\n".join( "{}\t\t{}".format( state.name, belief ) for state, belief in zip( network.states, beliefs ) )
-```
-
-yields
-
-```
-xray		DiscreteDistribution({'True': 0.885, 'False': 0.115})
-dyspnea		DiscreteDistribution({'True': 0.9460000000000002, 'False': 0.05400000000000003})
-asia		DiscreteDistribution({'True': 0.9523809523809523, 'False': 0.04761904761904764})
-tuberculosis		True
-smoker		False
-cancer		DiscreteDistribution({'False': 0.98, 'True': 0.02000000000000001})
-bronchitis		DiscreteDistribution({'True': 0.811127248750323, 'False': 0.188872751249677})
-TvC		DiscreteDistribution({'False': 0.0, 'True': 1.0})
-```
-
-### General Mixture Models
-
-<more to come>
