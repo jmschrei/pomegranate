@@ -494,7 +494,7 @@ print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip(
 This will yield: 
 ```
 prize	DiscreteDistribution({'A': 0.3333333333333335, 'C': 0.3333333333333333, 'B': 0.3333333333333333})
-guest	A
+guest	DiscreteDistribution({'A': 1.0, 'C': 0.0, 'B': 0.0})
 monty	DiscreteDistribution({'A': 0.0, 'C': 0.5, 'B': 0.5})
 ```
 
@@ -510,8 +510,8 @@ print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip(
 ```
 yields
 ```
-guest	A
-monty	B
+guest	DiscreteDistribution({'A': 1.0, 'C': 0.0, 'B': 0.0})
+monty	DiscreteDistribution({'A': 0.0, 'C': 0.0, 'B': 1.0})
 prize	DiscreteDistribution({'A': 0.3333333333333333, 'C': 0.6666666666666666, 'B': 0.0})
 ```
 Both guest and monty have been clamped to values. However, we see that probability of prize being 'C' is 66% mimicking the mystery behind the Monty hall problem!
@@ -526,7 +526,7 @@ print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip(
 yields
 ```
 guest	DiscreteDistribution({'A': 0.49999999999999994, 'C': 0.49999999999999994, 'B': 0.0})
-monty	B
+monty	DiscreteDistribution({'A': 0.0, 'C': 0.0, 'B': 1.0})
 prize	DiscreteDistribution({'A': 0.49999999999999994, 'C': 0.49999999999999994, 'B': 0.0})
 ```
 
