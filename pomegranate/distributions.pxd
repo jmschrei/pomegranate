@@ -52,7 +52,7 @@ cdef class IndependentComponentDistribution( MultivariateDistribution ):
 	pass
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
-	pass
+	cdef public int diagonal 
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	pass

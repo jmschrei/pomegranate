@@ -1,5 +1,6 @@
-# gmm.pyx: Yet Another Hidden Markov Model library
-# Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
+# gmm.pyx
+# Contact: Jacob Schreiber
+#          jmschr@cs.washington.edu
 
 cimport cython
 from cython.view cimport array as cvarray
@@ -104,7 +105,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		for i in xrange( n ):
 			d = self.distributions[i]
-			log_probability = d.log_probability( point )
+			log_probability = d.log_probability( point ) + clog( self.weights[i] )
 			log_probability_sum = pair_lse( log_probability_sum,
 											log_probability )
 

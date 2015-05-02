@@ -32,3 +32,8 @@ intensive as well.
 
 (2) Factor Graphs have been explicitly added, as a part of this. You can use factor
 graphs explicitly, documentation to come.
+
+v0.2.1 --
+(1) GMM log probability fixed to weight each distribution by its prior.
+
+(2) MultivariateGaussianDistribution will now calculate the full covariance matrix by default, can pass in diagonal=True to only use the diagonal.

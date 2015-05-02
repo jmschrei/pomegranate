@@ -129,12 +129,12 @@ cdef class Distribution:
 		
 		raise NotImplementedError
 	
-	def train( self, items, weights=None, inertia=0.0 ):
+	def train( self, *args, **kwargs ):
 		"""
 		A wrapper for from_sample in order to homogenize calls more.
 		"""
 
-		self.from_sample( items, weights, inertia )
+		self.from_sample( *args, **kwargs )
 
 	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
@@ -2121,7 +2121,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	matrix. This is mostly a wrapper for scipy.stats.multivariate_gaussian.
 	"""
 
-	def __init__( self, means, covariance, frozen=False ):
+	def __init__( self, means, covariance, frozen=False, diagonal=False ):
 		"""
 		Take in the mean vector and the covariance matrix. 
 		"""
@@ -2129,6 +2129,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.parameters = [ numpy.array(means), numpy.array(covariance) ]
 		self.name = "MultivariateGaussianDistribution"
 		self.frozen = frozen
+		self.diagonal = diagonal
 
 	def log_probability( self, symbol ):
 		"""
@@ -2149,7 +2150,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		return scipy.stats.multivariate_normal.rvs(
 			self.parameters[0], self.parameters[1] )
 
-	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01, diagonal=False ):
+	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01, diagonal=None, l=0. ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -2171,9 +2172,6 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 			# Since negative weights are banned, we must have no data.
 			# Don't change parameters at all.
 			return
-		else:
-			# Force whatever we have to be a Numpy array
-			weights = numpy.asarray(weights) / weights.sum()
 
 		# Take the mean
 		means = numpy.average( items, weights=weights, axis=0 )
@@ -2183,11 +2181,17 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		n, m = len(items), self.parameters[0].shape[0]
 
 		cov = numpy.zeros( (m, m) )
-		for i in xrange(m):
-			diff = items[:,i] ** 2 - means[i] ** 2
-			var = diff.dot( weights ) / weights.sum()
-			cov[i, i] = var if var > min_std ** 2 else min_std ** 2
-		
+		for i in xrange( n ):
+			diff = numpy.matrix( items[i] - means )
+			cov += weights[i] * numpy.array( diff.T.dot( diff ) )
+		cov /= weights.sum()
+
+        # We can shrink our estimates if needed to prevent getting a singular matrix
+		cov = ( 1.-l )*cov + l*numpy.eye( cov.shape[0] )
+
+		if diagonal == True or diagonal == None and self.diagonal == True:
+			cov = numpy.diag( numpy.diag( cov ) )
+
 		# Calculate the new parameters, respecting inertia, with an inertia
 		# of 0 being completely replacing the parameters, and an inertia of
 		# 1 being to ignore new training data.
