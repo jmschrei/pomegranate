@@ -2130,6 +2130,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.name = "MultivariateGaussianDistribution"
 		self.frozen = frozen
 		self.diagonal = diagonal
+		self.summaries = []
 
 	def log_probability( self, symbol ):
 		"""
@@ -2168,7 +2169,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		if weights is None:
 			# Weight everything 1 if no weights specified
 			weights = numpy.ones( items.shape[0], dtype=float ) / len( items )
-		elif weights.sum() == 0:
+		elif numpy.sum( weights ) == 0:
 			# Since negative weights are banned, we must have no data.
 			# Don't change parameters at all.
 			return
@@ -2184,7 +2185,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		for i in xrange( n ):
 			diff = numpy.matrix( items[i] - means )
 			cov += weights[i] * numpy.array( diff.T.dot( diff ) )
-		cov /= weights.sum()
+		cov /= numpy.sum( weights )
 
         # We can shrink our estimates if needed to prevent getting a singular matrix
 		cov = ( 1.-l )*cov + l*numpy.eye( cov.shape[0] )
