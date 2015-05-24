@@ -216,7 +216,7 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 
 		for state in self.states:
-			if not state.is_silent()
+			if not state.is_silent():
 				state.distribution.freeze()
 
 	def thaw_distributions( self ):
@@ -226,7 +226,7 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 
 		for state in self.states:
-			if not state.is_silent()
+			if not state.is_silent():
 				state.distribution.thaw()
 
 	def is_infinite( self ):
