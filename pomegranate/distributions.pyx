@@ -6,7 +6,7 @@ from cython.view cimport array as cvarray
 from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
 import math, random, itertools as it, sys, bisect, json
 import networkx
-import scipy.stats, scipy.sparse, scipy.special
+import scipy.stats, scipy.sparse, scipy.special, scipy.linalg
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -2132,15 +2132,31 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.diagonal = diagonal
 		self.summaries = []
 
-	def log_probability( self, symbol ):
+	def log_probability( self, symbol, min_std=0.01 ):
 		"""
 		What's the probability of a given tuple under this mixture? It's the
 		product of the probabilities of each symbol in the tuple under their
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		return scipy.stats.multivariate_normal.logpdf( symbol,
-			self.parameters[0], self.parameters[1] )
+		# Taken from sklearn.mixture.gmm._log_multivariate_normal_density_full
+		mean, covar = self.parameters
+		d = mean.shape[0]
+
+		try:
+			cv_chol = scipy.linalg.cholesky(covar, lower=True)
+		except scipy.linalg.LinAlgError:
+			# The model is most probably stuck in a component with too
+			# few observations, we need to reinitialize this components
+			try:
+				cv_chol = scipy.linalg.cholesky( covar + (min_std ** 2.) * numpy.eye(d), lower=True )
+			except scipy.linalg.LinAlgError:
+				raise ValueError("Covariance matrix must be symmetric positive-definite")
+
+		cv_log_det = 2 * numpy.sum( numpy.log( numpy.diagonal(cv_chol) ) )
+		cv_sol = scipy.linalg.solve_triangular( cv_chol, (symbol - mean).T, lower=True).T
+		logp = - .5 * (numpy.sum(cv_sol ** 2) + d * numpy.log(2 * numpy.pi) + cv_log_det)
+		return logp
 
 	def sample( self ):
 		"""

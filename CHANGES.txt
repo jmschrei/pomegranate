@@ -37,3 +37,7 @@ v0.2.1 --
 (1) GMM log probability fixed to weight each distribution by its prior.
 
 (2) MultivariateGaussianDistribution will now calculate the full covariance matrix by default, can pass in diagonal=True to only use the diagonal.
+
+v0.2.3
+(1) Changed GMM log probability to use sklearn.mixture's log probability for multivariate Gaussians with a full covariance matrix.
+(2) Fixed error where HMM calls to freeze and thaw distributions crashed on silent states.
