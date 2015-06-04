@@ -195,7 +195,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		
 		model = { 
 					'class' : 'GeneralMixtureModel',
-					'distributions'  : map( str, self.distributions ),
+					'distributions'  : [json.loads(d.to_json()) for d in self.distributions],
 					'weights' : list( self.weights )
 				}
 
@@ -211,7 +211,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		# Load a dictionary from a JSON formatted string
 		d = json.loads( s )
 
-		distributions = [ Distribution.from_json( j ) for j in d['distributions'] ] 
+		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ]
 		# Make a new generic HMM
 		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
 		return model

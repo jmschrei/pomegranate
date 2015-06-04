@@ -438,8 +438,8 @@ cdef class FiniteStateMachine( Model ):
 		model = { 
 					'class' : 'FiniteStateMachine',
 					'name'  : self.name,
-					'start' : str(self.start),
-					'states' : map( str, self.states ),
+					'start' : json.loads(self.start.to_json()),
+					'states' : [json.loads(s.to_json()) for s in self.states ],
 					'start_index' : self.start_index,
 					'silent_index' : self.silent_start
 				}
@@ -470,7 +470,7 @@ cdef class FiniteStateMachine( Model ):
 		model = FiniteStateMachine( str(d['name']) )
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( j ) for j in d['states'] ]
+		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
 
 		# Add all the states to the model
 		model.add_states( states )
