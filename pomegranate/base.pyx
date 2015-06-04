@@ -112,15 +112,13 @@ cdef class State( object ):
 		"""
 		Convert this state to JSON format.
 		"""
-
-		return json.dumps( { 
+		return json.dumps( {
 							    'class' : 'State',
 								'distribution' : None if self.is_silent() else json.loads(self.distribution.to_json()),
 								#'distribution' : None if self.is_silent() else str( self.distribution ),
 								'name' : self.name,
 								'weight' : self.weight
 							})
-#							}, separators=(',', ' : ' ), indent=4 )
 
 	@classmethod
 	def from_json( cls, s ):

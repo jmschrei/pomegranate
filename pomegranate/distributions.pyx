@@ -204,7 +204,6 @@ cdef class Distribution:
 								'parameters' : self.parameters,
 								'frozen' : self.frozen
 						   })
-#						   }, separators=(',', ' : ' ), indent=4 )
 
 	@classmethod
 	def from_json( cls, s ):
@@ -2123,7 +2122,6 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		"""
 		Convert the distribution to JSON format.
 		"""
-		print 'HERE !!!!!!'
 		return json.dumps( {
 								'class' : 'Distribution',
 								'name'  : self.name,
@@ -2156,7 +2154,6 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		# Taken from sklearn.mixture.gmm._log_multivariate_normal_density_full
 		mean, covar = numpy.array(self.parameters[0]),numpy.array(self.parameters[1])
-
 
 		d = mean.shape[0]
 
