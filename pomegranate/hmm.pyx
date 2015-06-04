@@ -1773,9 +1773,9 @@ cdef class HiddenMarkovModel( Model ):
 		model = { 
 					'class' : 'HiddenMarkovModel',
 					'name'  : self.name,
-					'start' : str(self.start),
-					'end'   : str(self.end),
-					'states' : map( str, self.states ),
+					'start' : json.loads(self.start.to_json()),
+					'end'   : json.loads(self.end.to_json()),
+					'states' : [json.loads(s.to_json()) for s in self.states],
 					'end_index' : self.end_index,
 					'start_index' : self.start_index,
 					'silent_index' : self.silent_start
@@ -1824,7 +1824,8 @@ cdef class HiddenMarkovModel( Model ):
 				ties.append( ( i, self.tied[j] ) )
 
 		model['distribution ties'] = ties
-		return json.dumps( model, separators=(',', ' : '), indent=4 )
+		return json.dumps( model )
+#		return json.dumps( model, separators=(',', ' : '), indent=4 )
 
 			
 	@classmethod
@@ -1840,7 +1841,7 @@ cdef class HiddenMarkovModel( Model ):
 		model = HiddenMarkovModel( str(d['name']) )
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( j ) for j in d['states'] ]
+		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
 		for i, j in d['distribution ties']:
 			# Tie appropriate states together
 			states[i].tie( states[j] )

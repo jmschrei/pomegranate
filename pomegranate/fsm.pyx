@@ -454,8 +454,8 @@ cdef class FiniteStateMachine( Model ):
 			edges.append( ( s, e, prob, pseudocount ) )
 
 		model['edges'] = edges
-
-		return json.dumps( model, separators=(',', ' : '), indent=4 )
+		return json.dumps( model)
+#		return json.dumps( model, separators=(',', ' : '), indent=4 )
 			
 	@classmethod
 	def from_json( cls, s, verbose=False ):
