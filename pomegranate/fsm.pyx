@@ -249,3 +249,11 @@ cdef class FiniteStateMachine( Model ):
 		else:
 			raise SyntaxError( "No edges leaving state {} with key {}"
 				.format( self.states[i].name, symbol ) )
+
+	def restart( self ):
+		"""
+		Restart the state machine, setting it back to the beginning.
+		"""
+
+		self.current_index = 0
+		self.current_state = self.start

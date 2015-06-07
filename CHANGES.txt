@@ -47,3 +47,6 @@ FactorGraphs were not working properly. This was due to the wrong keys being ret
 
 v0.2.5
 Finite state machines changes to add keys on transitions, instead of weird in distributions. Significant portions of the code removed as unneccesary.
+
+v0.2.6
+Added restarting of finite state machines.
