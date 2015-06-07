@@ -1904,13 +1904,6 @@ cdef class MixtureDistribution( Distribution ):
 
 	def from_sample( self, items, weights=None ):
 		"""
-		Currently not implemented, but should be some form of GMM estimation
-		on the data. The issue would be that the MixtureModel can be more
-		expressive than a GMM estimation, since GMM estimation is one type
-		of distribution.
-		"""
-
-		"""
 		Perform EM to estimate the parameters of each distribution
 		which is a part of this mixture.
 		"""
