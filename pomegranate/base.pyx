@@ -141,6 +141,7 @@ cdef class State( object ):
 		return cls( Distribution.from_json( d['distribution'] ),
 					name=str(d['name']), weight=d['weight'] )
 
+Node = State
 
 cdef class Model( object ):
 	"""
@@ -180,6 +181,21 @@ cdef class Model( object ):
 		for node in n:
 			self.add_node( node )
 
+	def add_state( self, s ):
+		"""
+		Another name for a node.
+		"""
+
+		self.states.append( s )
+
+	def add_states( self, s ):
+		"""
+		Another name for a node.
+		"""
+
+		for state in s:
+			self.add_state( state )
+
 	def add_edge( self, a, b ):
 		"""
 		Add a transition from state a to state b which indicates that B is
@@ -188,6 +204,13 @@ cdef class Model( object ):
 
 		# Add the transition
 		self.edges.append( ( a, b ) )
+
+	def node_count( self):
+		"""
+		Returns the number of nodes/states in the model
+		"""
+
+		return len( self.states )
 
 	def state_count( self ):
 		"""
