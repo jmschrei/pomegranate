@@ -6,6 +6,7 @@ pomegranate\BayesianNetwork.pyx
 pomegranate\FactorGraph.c
 pomegranate\FactorGraph.pyx
 pomegranate\__init__.py
+pomegranate\__init__.pyc
 pomegranate\base.c
 pomegranate\base.pxd
 pomegranate\base.pyx

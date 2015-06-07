@@ -113,7 +113,7 @@ cdef class FactorGraph( Model ):
 		for i, node in enumerate( self.states ):
 			if not isinstance( node.distribution, MultivariateDistribution ):
 				self.marginals[i] = 1
-			if node.name.endswith( '-factor' ):
+			if node.name.endswith( '-joint' ):
 				self.marginals[i] = 0 
 
 		# Now we need to find a way of storing edges for a state in a manner
@@ -279,6 +279,7 @@ cdef class FactorGraph( Model ):
 				# message from the marginal we are trying to send a message to.
 				for k in xrange( self.edge_count[i], self.edge_count[i+1] ):
 					ki = self.transitions[k]
+
 					# We can simply calculate this by turning the CPT into a
 					# joint probability table using the other messages, and
 					# then summing out those variables.
@@ -297,6 +298,7 @@ cdef class FactorGraph( Model ):
 
 						if li == i:
 							in_messages[l] = state.distribution.marginal( neighbor_values=d )
+							break
 
 			# Calculate the current estimates on the marginals to compare to the
 			# last iteration, so that we can stop if we reach convergence.

@@ -98,7 +98,7 @@ cdef class BayesianNetwork( Model ):
 			# Now we need to copy the distribution from the node into the
 			# factor node. This could be the conditional table, or the
 			# marginal.
-			f = State( state.distribution.copy(), state.name+'-factor' )
+			f = State( state.distribution.copy(), state.name+'-joint' )
 
 			if isinstance( state.distribution, MultivariateDistribution ):
 				f.distribution.parameters[1].append( m.distribution )
@@ -122,8 +122,12 @@ cdef class BayesianNetwork( Model ):
 		for state in self.graph.states:
 			d = state.distribution
 			if isinstance( d, MultivariateDistribution ):
-				d.parameters[1] = [ d_mapping[parent] for parent in d.parameters[1][:-1] ] + [d.parameters[1][-1]]
-				state.distribution = state.distribution.joint( d.parameters[1] )
+				dist = d.parameters[1][-1]
+				d.parameters[1] = [ d_mapping[parent] for parent in d.parameters[1][:-1] ]
+				state.distribution = d.joint()
+				state.distribution.parameters[1].append( dist )
+				state.distribution.parameters[2][-1] = { key: i for i, key in enumerate( dist.keys() ) }
+				state.distribution.parameters[3][-1] = len( dist )
 
 		# Finalize the factor graph structure
 		self.graph.bake()
