@@ -66,192 +66,102 @@ In addition, training can be done on weighted samples by passing an array of wei
 
 ### Finite State Machines
 
-[Finite state machines](http://en.wikipedia.org/wiki/Finite-state_machine) are computational machines which can be in one of many states. The machine can be defined as a graphical model where the states are the states of the machine, and the edges define the transitions from each state to the other states in the machine. As the machine receives data, the state which it is in changes in a greedy fashion. Since the machine can be in only one state at a time and is memoryless, it is extremely useful. A classic example is a vending machine, which takes in coins and when it reaches the specified amount, will reset and dispense an item.
+[Finite state machines](http://en.wikipedia.org/wiki/Finite-state_machine) are computational machines which can be in one of many states. The machine can be defined as a graphical model where the states are the states of the machine, and the edges define the transitions from each state to the other states in the machine. As the machine receives data, the state which it is in changes in a greedy fashion. Since the machine can be in only one state at a time and is memoryless, it is extremely useful. A classic example is a turnstile, which can take in nickels, dimes, and quarters, but only needs 25 cents to pass.
 
 ```
 from pomegranate import *
 
 # Create the states in the same way as you would an HMM
-a = State( DiscreteDistribution({  0 : 1.0 }), name="0" )
-b = State( DiscreteDistribution({  5 : 1.0 }), name="5" )
-c = State( DiscreteDistribution({  5 : 1.0 }), name="10a" )
-d = State( DiscreteDistribution({  5 : 1.0 }), name="15a" )
-e = State( DiscreteDistribution({ 10 : 1.0 }), name="10b" )
-f = State( DiscreteDistribution({ 10 : 1.0 }), name="15b" )
+a = State( None, "5"  )
+b = State( None, "10" )
+c = State( None, "15" )
+d = State( None, "20" )
+e = State( None, "25" )
 
 # Create a FiniteStateMachine object 
-model = FiniteStateMachine( "Vending Machine", start=a )
+model = FiniteStateMachine( "Turnstile" )
 
-# Add the states to the machine
-model.add_states( [a, b, c, d, e, f] )
+# Add the states in the same way
+model.add_states( [a, b, c, d, e] )
 
-# Connect the states according to possible transitions
-model.add_transition( a, b )
-model.add_transition( a, a )
-model.add_transition( a, e )
-model.add_transition( b, c )
-model.add_transition( b, f )
-model.add_transition( c, e )
-model.add_transition( d, a )
-model.add_transition( e, d )
-model.add_transition( e, f )
-model.add_transition( f, a )
+# Add in transitions by using nickels
+model.add_transition( model.start, a, 5 )
+model.add_transition( a, b, 5 )
+model.add_transition( b, c, 5 )
+model.add_transition( c, d, 5 )
+model.add_transition( d, e, 5 )
+
+# Add in transitions using dimes
+model.add_transition( model.start, b, 10 )
+model.add_transition( a, c, 10 )
+model.add_transition( b, d, 10 )
+model.add_transition( c, e, 10 )
+
+# Add in transitions using quarters
+model.add_transition( model.start, e, 25 )
 
 # Bake the model in the same way
-model.bake( merge=False )
+model.bake()
 ```
-In the above example, the states are the value of the new coin added. We can either add three nickles, or a nickle and a dime, or a dime and a nickle. Each states name is the cumulative amount, and emission is the value of the new coin. When it reaches 15, it will reset by seeing a 0 value coin. For example:
+
+In the above example, the name of the states encodes information about the state, and the edges each hold keys as to what cas pass along them. There are no distributions on these states, as this is not a probabilistic model, but distributions can be added without breaking the code if they are useful information to have on each state. 
+
 ```
-# Take a sequence of coins to add to the model
-seq = [ 5, 5, 5 ]
+# Take a sequence of observations
+seq = [ 5, 25, 10 ]
+
 
 # Print out where you start in the model
-print "Start", model.current_state.name
+print model.current_state.name
 
 # Print out where the model is for each step
 for symbol in seq:
+	i = model.current_state.name
 	model.step( symbol )
-	print symbol, model.current_state.name
+	print "Inserted {}: Moving from {} to {}.".format( symbol, i, model.current_state.name )
 ```
 yields
 ```
-Start 0
-5 5
-5 10a
-5 15a
+Turnstile-start
+Inserted 5: Moving from Turnstile-start to 5.
+Inserted 5: Moving from 5 to 10.
+Inserted 5: Moving from 10 to 15.
+Inserted 5: Moving from 15 to 20.
+Inserted 5: Moving from 20 to 25.
 ```
-As we add nickles, we the machine progresses to new states until it reaches 15, which is what we want in this example. We can return to the beginning of the machine from there by appending a 0 to the list, as follows:
+
+As we add nickles, we progress through the machine. But if we restarted and tried to do something invalid, we get the following, without progressing in the state machine:
+
 ```
 # Take a sequence of coins to add to the model
-seq = [ 5, 5, 5 ]
+seq = [ 5, 25, 10 ]
 
 # Print out where you start in the model
-print "Start", model.current_state.name
+print model.current_state.name
 
 # Print out where the model is for each step
 for symbol in seq:
+	i = model.current_state.name
 	model.step( symbol )
-	print symbol, model.current_state.name
+	print "Inserted {}: Moving from {} to {}.".format( symbol, i, model.current_state.name )
 ```
+
 yields
-```
-Start 0
-5 5
-5 10a
-5 15a
-0 0
-```
-We could also have a dime in there.
-```
-# Take a sequence of coins to add to the model
-seq = [ 10, 5, 0 ]
 
-# Print out where you start in the model
-print "Start", model.current_state.name
-
-# Print out where the model is for each step
-for symbol in seq:
-	model.step( symbol )
-	print symbol, model.current_state.name
 ```
-yields
-```
-Start 0
-10 10a
-5 15b
-0 0
+Turnstile-start
+Inserted 5: Moving from Turnstile-start to 5.
+Exception SyntaxError('No edges leaving state 5 with key 25') in 'pomegranate.fsm.FiniteStateMachine._step' ignored
+Inserted 10: Moving from 5 to 15.
 ```
 
-Presumably the action of dispensing the drink would accompany the machine being in state 15a or 15b, but that's up to the application on top of the state machine.
+Presumably there would be client code surrounding the state machine to see where it is at each position, and do something based on which state it is currently in.
 
 ### Hidden Markov Models
 
 [Hidden Markov models](http://en.wikipedia.org/wiki/Hidden_Markov_model) are a form of structured learning, in which a sequence of observations are labelled according to the hidden state they belong. HMMs can be thought of as non-greedy FSMs, in that the assignment of tags is done in a globally optimal way as opposed to being simply the best at the next step. HMMs have been used extensively in speech recognition and bioinformatics, where speech is a sequence of phonemes and DNA is a sequence of nucleotides. 
 
-Lets model the situation in which you are betting on the outcome of a person flipping a coin. You know that they have a fair coin, and a weighted coin which will usually land heads-up. You also know that it is difficult for them to swap the coins with you watching, and so you can't simply believe that every time the coin lands heads up, he has swapped it, especially with a 50% chance of landing heads up normally. Lets compare the FSM and HMM analysis of this situation
-
-
-```
-from pomegranate import *
-
-fair = State( DiscreteDistribution({ 'H' : 0.5, 'T' : 0.5 }), "fair" )
-unfair = State( DiscreteDistribution({ 'H' : 0.75, 'T' : 0.25 }), "unfair" )
-
-# Transition Probabilities
-stay_same = 0.75
-change = 1. - stay_same
-
-# Create the HiddenMarkovModel instance and add the states
-hmm = HiddenMarkovModel( "HT" )
-hmm.add_states([fair, unfair])
-
-# We don't know which coin he chose to start off with
-hmm.add_transition( hmm.start, fair, 0.5 )
-hmm.add_transition( hmm.start, unfair, 0.5 )
-
-# However, we do know it's hard for him to switch
-hmm.add_transition( fair, fair, stay_same )
-hmm.add_transition( fair, unfair, change )
-
-hmm.add_transition( unfair, unfair, stay_same )
-hmm.add_transition( unfair, fair, change )
-
-hmm.bake()
-
-
-# Create the FiniteStateMachine instance and add the states
-fsm = FiniteStateMachine( "HT" )
-fsm.add_states([fair, unfair])
-
-# We don't know which coin he chose to start off with
-fsm.add_transition( fsm.start, fair, 0.5 )
-fsm.add_transition( fsm.start, unfair, 0.5 )
-
-fsm.add_transition( fair, fair, stay_same )
-fsm.add_transition( fair, unfair, change )
-
-fsm.add_transition( unfair, unfair, stay_same )
-fsm.add_transition( unfair, fair, change )
-
-fsm.bake()
-```
-
-Now we can run a sequence of observations through each model.
-
-```
-sequence = [ 'H', 'H', 'T', 'T', 'H', 'T', 'H', 'T', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'H', 'T', 'T', 'H' ]
-
-print "HMM Path"
-print "\t".join( state.name for _, state in hmm.viterbi( sequence )[1] )
-print
-print "FSM Path"
-for flip in sequence:
-	fsm.step( flip )
-	print fsm.current_state.name,
-print
-```
-
-yields
-
-```
-HMM Path
-fair	fair	fair	fair	fair	fair	fair	fair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair
-
-FSM Path
-unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair unfair
-```
-
-As the probability of changing approaches 0.5, the FSM and the HMM begin to converge to each other. With change = stay_same = 0.5, we get identical results:
-
-```
-HMM Path
-unfair	unfair	fair	fair	unfair	fair	unfair	fair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	unfair	fair	fair	unfair
-
-FSM Path
-unfair unfair fair fair unfair fair unfair fair unfair unfair unfair unfair unfair unfair unfair unfair fair fair unfair
-```
-
-Another classic example of using a hidden Markov model is to do pairwise sequence alignment in bioinformatics. A full tutorial can be found [here](http://nbviewer.ipython.org/github/jmschrei/yahmm/blob/master/examples/Global%20Sequence%20Alignment.ipynb) The gist is that you have a graphical structure as follows:
+A full tutorial on sequence alignment in bioinformatics can be found [here](http://nbviewer.ipython.org/github/jmschrei/yahmm/blob/master/examples/Global%20Sequence%20Alignment.ipynb) The gist is that you have a graphical structure as follows:
 
 ![alt text](http://www.cs.tau.ac.il/~rshamir/algmb/00/scribe00/html/lec06/img106.gif "Three Character Profile HMM")
 

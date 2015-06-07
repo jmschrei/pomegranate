@@ -41,3 +41,12 @@ v0.2.1 --
 v0.2.3
 (1) Changed GMM log probability to use sklearn.mixture's log probability for multivariate Gaussians with a full covariance matrix.
 (2) Fixed error where HMM calls to freeze and thaw distributions crashed on silent states.
+
+v0.2.4
+FactorGraphs were not working properly. This was due to the wrong keys being returned by the ConditionalProbabilityTable.keys() function. What a lame error.
+
+v0.2.5
+Finite state machines changes to add keys on transitions, instead of weird in distributions. Significant portions of the code removed as unneccesary.
+
+v0.2.6
+Added restarting of finite state machines.

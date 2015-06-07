@@ -1907,13 +1907,6 @@ cdef class MixtureDistribution( Distribution ):
 
 	def from_sample( self, items, weights=None ):
 		"""
-		Currently not implemented, but should be some form of GMM estimation
-		on the data. The issue would be that the MixtureModel can be more
-		expressive than a GMM estimation, since GMM estimation is one type
-		of distribution.
-		"""
-
-		"""
 		Perform EM to estimate the parameters of each distribution
 		which is a part of this mixture.
 		"""
@@ -2288,7 +2281,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		the child variable.
 		"""
 
-		return self.parameters[1][-1].keys()
+		return self.parameters[2][-1].keys()
 
 	def log_probability( self, value, parent_values ):
 		"""
@@ -2318,7 +2311,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# Unpack the parameters
 		values, parents, hashes, n = self.parameters
-		r_hashes = [{ value: key for key, value in d.items() } for d in hashes ]
+		r_hashes = [ d.keys() for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 
 		neighbor_values = neighbor_values or parents+[None]
@@ -2454,12 +2447,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		Determine the marginal of this table with respect to the index of one
 		variable. The parents are index 0..n-1 for n parents, and the final
 		variable is either the appropriate value or -1. For example:
-
 		table = 
 		A    B    C    p(C)
 		... data ...
-
-
 		table.marginal(0) gives the marginal wrt A
 		table.marginal(1) gives the marginal wrt B
 		table.marginal(2) gives the marginal wrt C
@@ -2475,13 +2465,13 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		if isinstance( neighbor_values, list ):
 			wrt = neighbor_values.index( None )
 
-		r_hashes = [{ value: key for key, value in d.items() } for d in hashes ]
+		r_hashes = [ d.keys() for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 
 		# Determine the keys for the respective parent distribution
 		d = { k: 0 for k in hashes[wrt].keys() }
 
-		for ki, keys in enumerate( it.product( *[ xrange(i) for i in n[:len(hashes)] ] ) ):
+		for ki, keys in enumerate( it.product( *[ xrange(i) for i in n ] ) ):
 			i = sum( key*k for key, k in it.izip( keys, m ) )
 			p = values[i]
 
@@ -2489,6 +2479,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 				for j, k in enumerate( keys ):
 					if j == wrt:
 						continue
+
 					p += neighbor_values[j].log_probability( r_hashes[j][k] )
 
 			d[ r_hashes[wrt][ keys[wrt] ] ] += cexp( p )
