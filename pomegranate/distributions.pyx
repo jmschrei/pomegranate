@@ -1303,7 +1303,7 @@ cdef class DiscreteDistribution(Distribution):
 		
 		# Store the parameters
 		self.parameters = [ characters ]
-		self.summaries = [ {}, 0 ]
+		self.summaries = [ { key: 0 for key in characters.keys() } ]
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
 
@@ -1412,7 +1412,7 @@ cdef class DiscreteDistribution(Distribution):
 				return key
 			rand -= value
 	
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""
 		Takes in an iterable representing samples from a distribution and
 		turn it into a discrete distribution. If no weights are provided,
@@ -1428,29 +1428,27 @@ cdef class DiscreteDistribution(Distribution):
 
 		# Normalize weights, or assign uniform probabilities
 		if weights is None:
-			weights = numpy.ones( n ) / n
+			weights = numpy.ones( n )
 		else:
-			weights = numpy.array(weights) / numpy.sum(weights)
+			weights = numpy.asarray( weights )
 
-		# Sum the weights seen for each character
-		characters = {}
+		if weights.sum() == 0:
+			return
+
+		# Unpack the old dictionary and make a new count dictoonary
+		characters = { key: pseudocount for key in self.keys() }
+		prior_characters = self.parameters[0]
+
+		_sum = sum( characters.values() ) * 1.
+		# Sum the weighted count for each item
 		for character, weight in izip( items, weights ):
-			try:
-				characters[character] += weight
-			except KeyError:
-				characters[character] = weight
+			characters[character] += weight
+			_sum += weight
 
 		# Adjust the new weights by the inertia
 		for character, weight in characters.items():
-			characters[character] = weight * (1-inertia)
-
-		# Adjust the old weights by the inertia
-		prior_characters = self.parameters[0]
-		for character, weight in prior_characters.items():
-			try:
-				characters[character] += weight * inertia
-			except KeyError:
-				characters[character] = weight * inertia
+			characters[character] = ( weight / _sum ) * (1.-inertia) + \
+				prior_characters[character] * inertia
 
 		self.parameters = [ characters ]
 
@@ -1471,15 +1469,11 @@ cdef class DiscreteDistribution(Distribution):
 
 		characters = self.summaries[0]
 		for character, weight in izip( items, weights ):
-			try:
-				characters[character] += weight
-			except KeyError:
-				characters[character] = weight
+			characters[character] += weight
 
 		self.summaries[0] = characters
-		self.summaries[1] += weights.sum()
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
 		"""
 		Takes in a series of summaries and merge them.
 		"""
@@ -1490,24 +1484,21 @@ cdef class DiscreteDistribution(Distribution):
 
 		# Unpack the variables
 		prior_characters = self.parameters[0]
-		characters, total_weight = self.summaries 
+		characters = self.summaries[0]
+
+		_sum = 0.
+		for key, value in characters.items():
+			characters[key] = value + pseudocount
+			_sum += value + pseudocount
 
 		# Scale the characters by both the total number of weights and by
 		# the inertia.
-		for character, prob in characters.items():
-			characters[character] = ( prob / total_weight ) * (1-inertia)
-
-		# Adjust the old weights by the inertia
-		if inertia > 0.0:
-			for character, weight in prior_characters.items():
-				try:
-					characters[character] += weight * inertia
-				except KeyError:
-					characters[character] = weight * inertia
+		for character, weight in characters.items():
+			characters[character] = ( weight / _sum ) * (1.-inertia) + \
+				prior_characters[character] * inertia
 
 		self.parameters = [ characters ]
-		self.summaries = [ {}, 0 ]
-
+		self.summaries = [{ key: 0 for key in self.keys() }]
 
 cdef class LambdaDistribution(Distribution):
 	"""
@@ -2389,12 +2380,9 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			# No sample, so just ignore it and keep our old parameters.
 			return
 
-		# Make it be a numpy array
-		items = numpy.asarray(items)
-
 		if weights is None:
 			# Weight everything 1 if no weights specified
-			weights = numpy.ones( items.shape[0], dtype=float )
+			weights = numpy.ones( len(items), dtype=float )
 		elif numpy.sum( weights ) == 0:
 			# Since negative weights are banned, we must have no data.
 			# Don't change parameters at all.
@@ -2407,11 +2395,11 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		# data type so we can't cast it as a numpy array. There is a higher
 		# overhead of doing this in Python versus Cython, but easier to handle
 		# inconsistent datatypes.
-		int_items = numpy.zeros( items.shape, dtype=numpy.int )
+		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int )
 		hashes = self.parameters[2]
 		for j, h in enumerate( hashes ):
-			for i in xrange( items.shape[0] ):
-				int_items[i, j] = h[ items[i, j] ]
+			for i in xrange( len(items) ):
+				int_items[i, j] = h[ items[i][j] ]
 
 		# Get the table through the cythonized function
 		self.parameters[0] = numpy.array( 
@@ -2627,12 +2615,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			# No sample, so just ignore it and keep our old parameters.
 			return
 
-		# Make it be a numpy array
-		items = numpy.asarray(items)
-
 		if weights is None:
 			# Weight everything 1 if no weights specified
-			weights = numpy.ones( items.shape[0], dtype=float )
+			weights = numpy.ones( len(items), dtype=float )
 		elif numpy.sum( weights ) == 0:
 			# Since negative weights are banned, we must have no data.
 			# Don't change parameters at all.
@@ -2645,11 +2630,11 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		# data type so we can't cast it as a numpy array. There is a higher
 		# overhead of doing this in Python versus Cython, but easier to handle
 		# inconsistent datatypes.
-		int_items = numpy.zeros( items.shape, dtype=numpy.int )
+		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int )
 		hashes = self.parameters[2]
 		for j, h in enumerate( hashes ):
-			for i in xrange( items.shape[0] ):
-				int_items[i, j] = h[ items[i, j] ]
+			for i in xrange( len(items) ):
+				int_items[i, j] = h[ items[i][j] ]
 
 		# Get the table through the cythonized function
 		self.parameters[0] = numpy.array( 
