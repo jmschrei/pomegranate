@@ -1676,7 +1676,7 @@ cdef class UniformKernelDensity( Distribution ):
 
 		return self._log_probability( symbol )
 
-	cdef _log_probability( self, double symbol ):
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Actually do math here.
 		"""
@@ -2217,7 +2217,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	encode for.
 	"""
 
-	def __init__( self, distribution, parents, hashes=None, n=None ):
+	def __init__( self, distribution, parents, hashes=None, n=None, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2225,6 +2225,10 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# If we're passed a formed distribution already, just store it. Otherwise
 		# generate it from a table.
+		self.summaries = []
+		self.name = "ConditionalProbabilityTable"
+		self.frozen = False
+
 		if isinstance( distribution, numpy.ndarray ) and hashes and n:
 			self.parameters = [ distribution, parents, hashes, n ]
 		else:
@@ -2252,6 +2256,26 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			# Store all the information
 			self.parameters = [ values, parents, hashes, n ]
 
+	def __str__( self ):
+		"""
+		Regenerate the table.
+		"""
+
+		values, parents, hashes, n = self.parameters
+		r_hashes = [ d.keys() for d in hashes ]
+		m = numpy.cumprod( [1]+n )
+		table = []
+
+		# Add a row to the table to be printed
+		for key in it.product( *[xrange(i) for i in n ] ):
+			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
+			idx = sum( j*m[i] for i, j in enumerate( key ) )
+
+			table.append( "\t".join( keys ) + "\t{}".format( numpy.exp( values[idx] ) ) )
+
+		# Return the table in string format
+		return "\n".join( table )
+
 	def __len__( self ):
 		"""
 		The length of the distribution is the number of keys.
@@ -2267,11 +2291,10 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		return self.parameters[2][-1].keys()
 
-	def log_probability( self, value, parent_values ):
+	def log_probability( self, value ):
 		"""
-		Return the log probability of a value given some number of parent
-		values, which can be a subset of the full number of parents. If this
-		is the case, then marginalize over unknown values.
+		Return the log probability of a value, which is a tuple in proper
+		ordering, like the training data.
 		"""
 
 		# Unpack the parameters
@@ -2280,7 +2303,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# Assume parent values are given in the same order that parents
 		# were specified
-		i = sum( hashes[j][val]*m[j] for j, val in enumerate( parent_values ) )
+		i = sum( hashes[j][val]*m[j] for j, val in enumerate( value ) )
 
 		# Return the array element with that identity
 		return values[i]
@@ -2356,6 +2379,106 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		i = -1 if neighbor_values == None else neighbor_values.index( None )
 		return self.joint( neighbor_values ).marginal( i )
 
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0. ):
+		"""
+		Update the table based on the data. 
+		"""
+
+		# If the distribution is frozen, don't bother with any calculation
+		if len(items) == 0 or self.frozen == True:
+			# No sample, so just ignore it and keep our old parameters.
+			return
+
+		# Make it be a numpy array
+		items = numpy.asarray(items)
+
+		if weights is None:
+			# Weight everything 1 if no weights specified
+			weights = numpy.ones( items.shape[0], dtype=float )
+		elif numpy.sum( weights ) == 0:
+			# Since negative weights are banned, we must have no data.
+			# Don't change parameters at all.
+			return
+		else:
+			weights = numpy.asarray(weights, dtype=float)
+
+		# We need to convert the items from whatever form they are now into
+		# a matrix of integers for indexes. Each column may not be the same
+		# data type so we can't cast it as a numpy array. There is a higher
+		# overhead of doing this in Python versus Cython, but easier to handle
+		# inconsistent datatypes.
+		int_items = numpy.zeros( items.shape, dtype=numpy.int )
+		hashes = self.parameters[2]
+		for j, h in enumerate( hashes ):
+			for i in xrange( items.shape[0] ):
+				int_items[i, j] = h[ items[i, j] ]
+
+		# Get the table through the cythonized function
+		self.parameters[0] = numpy.array( 
+			self._from_sample( int_items, weights, inertia, pseudocount ) )
+
+	cdef double [:] _from_sample( self, int [:,:] items, double [:] weights, 
+		double inertia, double pseudocount ):
+		"""
+		Cython optimized counting function.
+		"""
+
+		# We're updating the table based on counts, which is an ordered array
+		cdef double [:] table = numpy.zeros( self.parameters[0].shape[0] ) + pseudocount
+		cdef double _sum
+		cdef int i, j, key, prefix
+		cdef int n = items.shape[0], d = items.shape[1]
+		cdef list k = self.parameters[3]
+		cdef tuple keys
+		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int )
+
+		# Go through each point and add it
+		for i in xrange( n ):
+			# Determine the bin to put this point in
+			key = 0
+			for j in xrange( d ):
+				key += items[i, j] * m[j]
+
+			# Add the weight of the point to the table to get weighted counts
+			table[key] += weights[i]
+
+		# Now we normalize conditionally on the parents.
+		for keys in it.product( *[ xrange(i) for i in k[:-1] ] ):
+			# Reset the sum of weighted counts for the same parent values
+			_sum = 0
+
+			# Calculate the prefix--the index stem excluding the
+			# values of the marginal
+			prefix = 0
+			for j in xrange( d-1 ):
+				prefix += keys[j] * m[j]
+			
+			# Add in the specific marginal value for an easy summation
+			for j in xrange( k[-1] ):
+				# Create the key for this value of the marginal
+				key = prefix + j * m[-2] 
+
+				# Add the weighted count to the summation
+				_sum += table[key]
+
+			# Normalize based on those parent values
+			for j in xrange( k[-1] ):
+				key = prefix + j * m[-2]
+				# If we've observed data, updated based on the weighted counts
+				if _sum > 0:
+					table[key] /= _sum
+
+				# If we haven't observed data, set to uniform distribution
+				else:
+					table[key] = 1. / k[-1]  
+
+		# Update the current table, taking into account inertia
+		for i in xrange( table.shape[0] ):
+			table[i] = _log( ( 1. - inertia ) * table[i] + \
+				inertia * cexp( self.parameters[0][i] ) )
+
+		return table
+
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	"""
 	A joint probability table. The primary difference between this and the
@@ -2407,6 +2530,26 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 			# Store all the information
 			self.parameters = [ values, neighbors, hashes, n ]
+
+	def __str__( self ):
+		"""
+		Regenerate the table.
+		"""
+
+		values, parents, hashes, n = self.parameters
+		r_hashes = [ d.keys() for d in hashes ]
+		m = numpy.cumprod( [1]+n )
+		table = []
+
+		# Add a row to the table to be printed
+		for key in it.product( *[xrange(i) for i in n ] ):
+			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
+			idx = sum( j*m[i] for i, j in enumerate( key ) )
+
+			table.append( "\t".join( keys ) + "\t{}".format( numpy.exp( values[idx] ) ) )
+
+		# Return the table in string format
+		return "\n".join( table )
 
 	def log_probability( self, neighbor_values ):
 		"""
@@ -2473,3 +2616,81 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			d[key] = value / total
 		
 		return DiscreteDistribution( d )
+
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0. ):
+		"""
+		Update the table based on the data. 
+		"""
+
+		# If the distribution is frozen, don't bother with any calculation
+		if len(items) == 0 or self.frozen == True:
+			# No sample, so just ignore it and keep our old parameters.
+			return
+
+		# Make it be a numpy array
+		items = numpy.asarray(items)
+
+		if weights is None:
+			# Weight everything 1 if no weights specified
+			weights = numpy.ones( items.shape[0], dtype=float )
+		elif numpy.sum( weights ) == 0:
+			# Since negative weights are banned, we must have no data.
+			# Don't change parameters at all.
+			return
+		else:
+			weights = numpy.asarray(weights, dtype=float)
+
+		# We need to convert the items from whatever form they are now into
+		# a matrix of integers for indexes. Each column may not be the same
+		# data type so we can't cast it as a numpy array. There is a higher
+		# overhead of doing this in Python versus Cython, but easier to handle
+		# inconsistent datatypes.
+		int_items = numpy.zeros( items.shape, dtype=numpy.int )
+		hashes = self.parameters[2]
+		for j, h in enumerate( hashes ):
+			for i in xrange( items.shape[0] ):
+				int_items[i, j] = h[ items[i, j] ]
+
+		# Get the table through the cythonized function
+		self.parameters[0] = numpy.array( 
+			self._from_sample( int_items, weights, inertia, pseudocount ) )
+
+	cdef double [:] _from_sample( self, int [:,:] items, double [:] weights, 
+		double inertia, double pseudocount ):
+		"""
+		Cython optimized counting function.
+		"""
+
+		# We're updating the table based on counts, which is an ordered array
+		cdef double [:] table = numpy.zeros( self.parameters[0].shape[0] ) + pseudocount
+		cdef double _sum
+		cdef int i, j, key
+		cdef int n = items.shape[0], d = items.shape[1]
+		cdef list k = self.parameters[3]
+		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int )
+
+		# Go through each point and add it
+		for i in xrange( n ):
+			# Determine the bin to put this point in
+			key = 0
+			for j in xrange( d ):
+				key += items[i, j] * m[j]
+
+			# Add the weight of the point to the table to get weighted counts
+			table[key] += weights[i]
+
+		# Calculate the sum of the counts across the table
+		_sum = 0
+		for i in xrange( table.shape[0] ):
+			_sum += table[i]
+
+		# Normalize the table
+		for i in xrange( table.shape[0] ):
+			table[i] /= _sum
+
+		# Update the current table, taking into account inertia
+		for i in xrange( table.shape[0] ):
+			table[i] = _log( ( 1. - inertia ) * table[i] + \
+				inertia * cexp( self.parameters[0][i] ) )
+
+		return table

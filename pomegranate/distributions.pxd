@@ -1,6 +1,8 @@
 # distributions.pxd
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
+cimport numpy
+
 cdef class Distribution( object ):
 	cdef public str name
 	cdef public list parameters, summaries
@@ -37,7 +39,7 @@ cdef class GaussianKernelDensity( Distribution ):
 	cdef double _log_probability( self, double symbol )
 
 cdef class UniformKernelDensity( Distribution ):
-	cdef _log_probability( self, double symbol )
+	cdef double _log_probability( self, double symbol )
 
 cdef class TriangleKernelDensity( Distribution ):
 	cdef double _log_probability( self, double symbol )
@@ -55,7 +57,9 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	cdef public int diagonal 
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
-	pass
+	cdef double [:] _from_sample( self, int [:,:] items, 
+		double [:] weights, double inertia, double pseudocount )
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
-	pass
+	cdef double [:] _from_sample( self, int [:,:] items, 
+		double [:] weights, double inertia, double pseudocount )

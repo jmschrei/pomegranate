@@ -50,3 +50,6 @@ Finite state machines changes to add keys on transitions, instead of weird in di
 
 v0.2.6
 Added restarting of finite state machines.
+
+v0.2.7
+Update functions added to ConditionalProbabilityTable and JointProbabilityTable. First step on updates for Bayesian networks and Factor Graphs.
