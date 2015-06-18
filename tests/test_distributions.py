@@ -159,7 +159,7 @@ def test_discrete():
 	seq = "ACGTACGTTGCATGCACGCGCTCTCGCGC"
 	d.from_sample( list( seq ) )
 
-	assert d.log_probability( 'C' ) == -0.9694005571881033
+	assert d.log_probability( 'C' ) == -0.9694005571881036
 	assert d.log_probability( 'A' ) == -1.9810014688665833
 	assert d.log_probability( 'T' ) == -1.575536360758419
 

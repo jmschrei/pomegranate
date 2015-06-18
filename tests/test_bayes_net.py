@@ -16,7 +16,7 @@ import time
 
 def setup():
 	'''
-	Build the model which corresponds to the Cold network.
+	Build the model which corresponds to the Monty hall network.
 	'''
 
 	global network, monty_index, prize_index, guest_index

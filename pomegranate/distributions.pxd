@@ -6,7 +6,7 @@ cimport numpy
 cdef class Distribution( object ):
 	cdef public str name
 	cdef public list parameters, summaries
-	cdef public bint frozen 
+	cdef public bint frozen
 
 cdef class UniformDistribution( Distribution ):
 	cdef double _log_probability( self, double a, double b, double symbol )

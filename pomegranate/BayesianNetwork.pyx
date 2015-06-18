@@ -80,6 +80,7 @@ cdef class BayesianNetwork( Model ):
 		# a conditional distribution now go to a marginal
 		f_mapping, m_mapping = {}, {}
 		d_mapping = {}
+		fa_mapping = {}
 
 		# Go through each state and add in the state if it is a marginal
 		# distribution, otherwise add in the appropriate marginal and
@@ -100,8 +101,8 @@ cdef class BayesianNetwork( Model ):
 			# marginal.
 			f = State( state.distribution.copy(), state.name+'-joint' )
 
-			if isinstance( state.distribution, MultivariateDistribution ):
-				f.distribution.parameters[1].append( m.distribution )
+			if isinstance( state.distribution, ConditionalProbabilityTable ):
+				fa_mapping[f.distribution] = m.distribution 
 
 			self.graph.add_node( f )
 			self.graph.add_edge( m, f )
@@ -116,14 +117,13 @@ cdef class BayesianNetwork( Model ):
 		for a, b in self.edges:
 			self.graph.add_edge( m_mapping[a], f_mapping[b] )
 
-
 		# Now go back and redirect parent pointers to the appropriate
 		# objects.
 		for state in self.graph.states:
 			d = state.distribution
-			if isinstance( d, MultivariateDistribution ):
-				dist = d.parameters[1][-1]
-				d.parameters[1] = [ d_mapping[parent] for parent in d.parameters[1][:-1] ]
+			if isinstance( d, ConditionalProbabilityTable ):
+				dist = fa_mapping[d]
+				d.parameters[1] = [ d_mapping[parent] for parent in d.parameters[1] ]
 				state.distribution = d.joint()
 				state.distribution.parameters[1].append( dist )
 				state.distribution.parameters[2][-1] = { key: i for i, key in enumerate( dist.keys() ) }
@@ -157,3 +157,32 @@ cdef class BayesianNetwork( Model ):
 		"""
 
 		return self.graph.log_probability( data )
+
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+		"""
+		Another name for the train method.
+		"""
+
+		self.train( items, weights, intertia, pseudocount )
+
+
+	def train( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+		"""
+		Take in data, with each column corresponding to observations of the
+		state, as ordered by self.states.
+		"""
+
+		indices = { state.name: i for i, state in enumerate( self.states ) }
+
+		# Go through each state and pass in the appropriate data for the
+		# update to the states
+		for i, state in enumerate( self.states ):
+			if isinstance( state.distribution, ConditionalProbabilityTable ):
+				idx = [ indices[ dist.name ] for dist in state.distribution.parameters[1] ] + [i]
+				data = [ [ item[i] for i in idx ] for item in items ]
+				state.distribution.from_sample( data, weights, inertia, pseudocount )
+			else:
+				state.distribution.from_sample( [ item[i] for item in items ], 
+					weights, inertia, pseudocount )
+
+		self.bake()

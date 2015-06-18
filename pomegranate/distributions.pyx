@@ -2262,7 +2262,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
 			idx = sum( j*m[i] for i, j in enumerate( key ) )
 
-			table.append( "\t".join( keys ) + "\t{}".format( numpy.exp( values[idx] ) ) )
+			table.append( "\t".join( map( str, keys ) ) + "\t{}".format( numpy.exp( values[idx] ) ) )
 
 		# Return the table in string format
 		return "\n".join( table )
@@ -2534,7 +2534,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
 			idx = sum( j*m[i] for i, j in enumerate( key ) )
 
-			table.append( "\t".join( keys ) + "\t{}".format( numpy.exp( values[idx] ) ) )
+			table.append( "\t".join( map( str, keys ) ) + "\t{}".format( numpy.exp( values[idx] ) ) )
 
 		# Return the table in string format
 		return "\n".join( table )

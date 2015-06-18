@@ -53,3 +53,6 @@ Added restarting of finite state machines.
 
 v0.2.7
 Update functions added to ConditionalProbabilityTable and JointProbabilityTable. First step on updates for Bayesian networks and Factor Graphs.
+
+v0.2.8
+Update function added to Bayesian networks. 
