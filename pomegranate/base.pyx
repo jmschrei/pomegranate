@@ -63,6 +63,9 @@ cdef class State( object ):
 		# Save the weight, or default to the unit weight
 		self.weight = weight or 1.
 
+		# Bind the distribution to this state
+		self.distribution.name = name
+
 	def __str__( self ):
 		"""
 		The string representation of a state is the json, so call that format.
@@ -186,15 +189,14 @@ cdef class Model( object ):
 		Another name for a node.
 		"""
 
-		self.states.append( s )
+		self.add_node( s )
 
 	def add_states( self, s ):
 		"""
 		Another name for a node.
 		"""
 
-		for state in s:
-			self.add_state( state )
+		self.add_nodes( s )
 
 	def add_edge( self, a, b ):
 		"""
@@ -204,6 +206,13 @@ cdef class Model( object ):
 
 		# Add the transition
 		self.edges.append( ( a, b ) )
+
+	def add_transition( self, a, b ):
+		"""
+		Transitions and edges are the same.
+		"""
+
+		self.add_edge( a, b )
 
 	def node_count( self):
 		"""
