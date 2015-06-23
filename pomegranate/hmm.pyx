@@ -1825,7 +1825,6 @@ cdef class HiddenMarkovModel( Model ):
 
 		model['distribution ties'] = ties
 		return json.dumps( model,separators=separators, indent=indent )
-#		return json.dumps( model, separators=(',', ' : '), indent=4 )
 
 			
 	@classmethod
