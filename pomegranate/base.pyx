@@ -108,7 +108,7 @@ cdef class State( object ):
 
 		return State( **self.__dict__ )
 	
-	def to_json( self ):
+	def to_json( self, separators = None, indent=None ):
 		"""
 		Convert this state to JSON format.
 		"""
@@ -118,7 +118,7 @@ cdef class State( object ):
 								#'distribution' : None if self.is_silent() else str( self.distribution ),
 								'name' : self.name,
 								'weight' : self.weight
-							})
+							},separators=separators, indent=indent)
 
 	@classmethod
 	def from_json( cls, s ):

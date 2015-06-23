@@ -193,7 +193,7 @@ cdef class Distribution:
 		samples = [ self.sample() for i in xrange( n ) ]
 		plt.hist( samples, **kwargs )
 
-	def to_json( self ):
+	def to_json( self ,  separators = None, indent=None):
 		"""
 		Convert the distribution to JSON format.
 		"""
@@ -203,7 +203,7 @@ cdef class Distribution:
 								'name'  : self.name,
 								'parameters' : self.parameters,
 								'frozen' : self.frozen
-						   })
+						   },separators=separators, indent=indent)
 
 	@classmethod
 	def from_json( cls, s ):
@@ -2111,7 +2111,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
 
-	def to_json( self ):
+	def to_json( self, separators = None, indent=None  ):
 		"""
 		Convert the distribution to JSON format.
 		"""
@@ -2120,7 +2120,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 								'name'  : self.name,
 								'parameters' : [[json.loads(p.to_json()) for p in self.parameters[0]], self.parameters[1].tolist()],
 								'frozen' : self.frozen
-						   })
+						   },separators=separators, indent=indent)
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	"""

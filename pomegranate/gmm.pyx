@@ -187,7 +187,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		self.weights = priors
 
-	def to_json( self ):
+	def to_json( self, separators = None, indent=None ):
 		"""
 		Write out the HMM to JSON format, recursively including state and
 		distribution information.
@@ -199,8 +199,7 @@ cdef class GeneralMixtureModel( Distribution ):
 					'weights' : list( self.weights )
 				}
 
-		return json.dumps( model)
-#		return json.dumps( model, separators=(',', ' : '), indent=4 )
+		return json.dumps( model, separators=separators, indent=indent)
 
 	@classmethod
 	def from_json( cls, s, verbose=False ):

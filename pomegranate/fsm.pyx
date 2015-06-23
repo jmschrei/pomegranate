@@ -166,7 +166,7 @@ cdef class FiniteStateMachine( Model ):
 			raise SyntaxError( "Model.start has been deleted, leaving the \
 				model with no start. Please ensure it has a start." )
 
-	def to_json( self ):
+	def to_json( self , separators = None, indent=None):
 		"""
 		Write out the HMM to JSON format, recursively including state and
 		distribution information.
@@ -190,9 +190,8 @@ cdef class FiniteStateMachine( Model ):
 			edges.append( ( s, e, key ) )
 
 		model['edges'] = edges
-		return json.dumps( model)
-#		return json.dumps( model, separators=(',', ' : '), indent=4 )
-			
+		return json.dumps( model,separators=separators, indent=indent)
+
 	@classmethod
 	def from_json( cls, s, verbose=False ):
 		"""

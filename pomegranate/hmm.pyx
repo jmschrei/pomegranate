@@ -1764,7 +1764,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		return log_probability_sum, path
 
-	def to_json( self ):
+	def to_json( self, separators = None, indent=None ):
 		"""
 		Write out the HMM to JSON format, recursively including state and
 		distribution information.
@@ -1824,7 +1824,7 @@ cdef class HiddenMarkovModel( Model ):
 				ties.append( ( i, self.tied[j] ) )
 
 		model['distribution ties'] = ties
-		return json.dumps( model )
+		return json.dumps( model,separators=separators, indent=indent )
 #		return json.dumps( model, separators=(',', ' : '), indent=4 )
 
 			
