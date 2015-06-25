@@ -63,9 +63,6 @@ cdef class State( object ):
 		# Save the weight, or default to the unit weight
 		self.weight = weight or 1.
 
-		# Bind the distribution to this state
-		self.distribution.name = name
-
 	def __str__( self ):
 		"""
 		The string representation of a state is the json, so call that format.
