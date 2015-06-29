@@ -2395,7 +2395,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		# data type so we can't cast it as a numpy array. There is a higher
 		# overhead of doing this in Python versus Cython, but easier to handle
 		# inconsistent datatypes.
-		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int )
+		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int32 )
 		hashes = self.parameters[2]
 		for j, h in enumerate( hashes ):
 			for i in xrange( len(items) ):
@@ -2418,7 +2418,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		cdef int n = items.shape[0], d = items.shape[1]
 		cdef list k = self.parameters[3]
 		cdef tuple keys
-		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int )
+		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int32 )
 
 		# Go through each point and add it
 		for i in xrange( n ):
