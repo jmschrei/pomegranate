@@ -35,13 +35,12 @@ elif os.name == 'posix':
 
     pyximport.install()
 
-#from distributions import *
-from hmm import *
-from BayesianNetwork import *
-from FactorGraph import *
-from fsm import *
-from distributions import *
-from base import *
-from gmm import *
+from .hmm import *
+from .BayesianNetwork import *
+from .FactorGraph import *
+from .fsm import *
+from .distributions import *
+from .base import *
+from .gmm import *
 
 __version__ = '0.0.2'
