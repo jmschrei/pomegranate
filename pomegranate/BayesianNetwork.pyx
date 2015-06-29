@@ -27,7 +27,6 @@ from distributions cimport *
 cimport base
 from base cimport Model, State
 
-from hmm import *
 from FactorGraph import *
 
 # Define some useful constants
