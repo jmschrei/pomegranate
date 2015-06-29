@@ -1888,7 +1888,7 @@ cdef class MixtureDistribution( Distribution ):
 		"""
 
 		i = random.random()
-		for d, w in zip( *self.parameters ):
+		for d, w in izip( *self.parameters ):
 			if w > i:
 				return d.sample()
 			i -= w 
@@ -2048,7 +2048,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		return sum( d.log_probability( obs )*w for d, obs, w in zip( 
+		return sum( d.log_probability( obs )*w for d, obs, w in izip( 
 			self.parameters[0], symbol, self.parameters[1] ) )
 
 	def sample( self ):
@@ -2226,7 +2226,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			# Take the list of lists and invert it so that a numpy array represents
 			# each column, since each column is a homogenous data type and we are
 			# unsure if the distribution is over integers or strings.
-			table = zip( *distribution )
+			table = list( izip( *distribution ) )
 
 			d_keys = list( set( table[-2] ) )
 			d_map = { key: i for i, key in enumerate( d_keys )}
@@ -2234,7 +2234,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			# Create a mapping from values in the table to integers to be stored
 			# in a compressed array
 			hashes = hashes or [{ key: i for i, key in enumerate( parent.keys() ) } for parent in parents ] + [ d_map ]
-			n = n or map( len, parents+[d_keys] )
+			n = n or list( map( len, parents+[d_keys] ) )
 			m = numpy.cumprod( [1] + n )
 
 			values = numpy.zeros( len( distribution ) )
@@ -2253,7 +2253,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 
 		values, parents, hashes, n = self.parameters
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 		table = []
 
@@ -2309,7 +2309,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# Unpack the parameters
 		values, parents, hashes, n = self.parameters
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 
 		neighbor_values = neighbor_values or parents+[None]
@@ -2337,7 +2337,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# Create the table row by row
 		for keys in it.product( *[ xrange(i) for i in n ] ):
-			i = sum( key*k for key, k in it.izip( keys, m ) )
+			i = sum( key*k for key, k in izip( keys, m ) )
 
 			# Scale the probability by the weights on the marginals
 			scaled_val = values[i]
@@ -2489,7 +2489,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			# Take the list of lists and invert it so that a numpy array represents
 			# each column, since each column is a homogenous data type and we are
 			# unsure if the distribution is over integers or strings.
-			table = zip( *distribution )
+			table = list( izip( *distribution ) )
 
 			infer = len( neighbors ) == len( distribution[0] ) - 2
 			if infer:
@@ -2503,9 +2503,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 					hashes += [ d_map ]
 
 			if n is None and infer:
-				n = map( len, neighbors + [d_keys] )
+				n = list( map( len, neighbors + [d_keys] ) )
 			elif n is None and not infer:
-				n = map( len, neighbors )
+				n = list( map( len, neighbors ) )
 				
 			m = numpy.cumprod( [1] + n )
 
@@ -2525,7 +2525,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		"""
 
 		values, parents, hashes, n = self.parameters
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 		table = []
 
@@ -2580,14 +2580,14 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		if isinstance( neighbor_values, list ):
 			wrt = neighbor_values.index( None )
 
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 
 		# Determine the keys for the respective parent distribution
 		d = { k: 0 for k in hashes[wrt].keys() }
 
 		for ki, keys in enumerate( it.product( *[ xrange(i) for i in n ] ) ):
-			i = sum( key*k for key, k in it.izip( keys, m ) )
+			i = sum( key*k for key, k in izip( keys, m ) )
 			p = values[i]
 
 			if neighbor_values is not None:
@@ -2652,7 +2652,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		cdef int i, j, key
 		cdef int n = items.shape[0], d = items.shape[1]
 		cdef list k = self.parameters[3]
-		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int )
+		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int32 )
 
 		# Go through each point and add it
 		for i in xrange( n ):
