@@ -11,7 +11,7 @@ import scipy.stats, scipy.sparse, scipy.special, scipy.linalg
 if sys.version_info[0] > 2:
 	# Set up for Python 3
 	from functools import reduce
-	range = range
+	xrange = range
 	izip = zip
 else:
 	izip = it.izip
@@ -190,7 +190,7 @@ cdef class Distribution:
 		either a histogram or a kernel density. 
 		"""
 
-		samples = [ self.sample() for i in range( n ) ]
+		samples = [ self.sample() for i in xrange( n ) ]
 		plt.hist( samples, **kwargs )
 
 	def to_json( self ):
@@ -1578,7 +1578,7 @@ cdef class GaussianKernelDensity( Distribution ):
 		cdef int i = 0, n = len(self.parameters[0])
 		cdef double distribution_prob = 0, point_prob
 
-		for i in range( n ):
+		for i in xrange( n ):
 			# Go through each point sequentially
 			mu = self.parameters[0][i]
 
@@ -1676,7 +1676,7 @@ cdef class UniformKernelDensity( Distribution ):
 		cdef double distribution_prob=0, point_prob
 		cdef int i = 0, n = len(self.parameters[0])
 
-		for i in range( n ):
+		for i in xrange( n ):
 			# Go through each point sequentially
 			mu = self.parameters[0][i]
 
@@ -1780,7 +1780,7 @@ cdef class TriangleKernelDensity( Distribution ):
 		cdef double distribution_prob=0, point_prob
 		cdef int i = 0, n = len(self.parameters[0])
 
-		for i in range( n ):
+		for i in xrange( n ):
 			# Go through each point sequentially
 			mu = self.parameters[0][i]
 
@@ -1879,7 +1879,7 @@ cdef class MixtureDistribution( Distribution ):
 
 		(d, w), n = self.parameters, len(self.parameters)
 		return _log( numpy.sum([ cexp( d[i].log_probability(symbol) ) \
-			* w[i] for i in range(n) ]) )
+			* w[i] for i in xrange(n) ]) )
 
 	def sample( self ):
 		"""
@@ -1922,11 +1922,11 @@ cdef class MixtureDistribution( Distribution ):
 
 		# Turn these log probabilities into responsibilities by
 		# normalizing on a row-by-row manner.
-		for i in range( n ):
+		for i in xrange( n ):
 			r[i] = r[i] / r[i].sum()
 
 		# Weight the responsibilities by the given weights
-		for i in range( k ):
+		for i in xrange( k ):
 			r[:,i] = r[:,i]*weights
 
 		# Update the emissions of each distribution
@@ -1965,11 +1965,11 @@ cdef class MixtureDistribution( Distribution ):
 
 		# Turn these log probabilities into responsibilities by
 		# normalizing on a row-by-row manner.
-		for i in range( n ):
+		for i in xrange( n ):
 			r[i] = r[i] / r[i].sum()
 
 		# Weight the responsibilities by the given weights
-		for i in range( k ):
+		for i in xrange( k ):
 			r[:,i] = r[:,i]*weights
 
 		# Save summary statistics on the emission distributions
@@ -2182,7 +2182,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		n, m = len(items), self.parameters[0].shape[0]
 
 		cov = numpy.zeros( (m, m) )
-		for i in range( n ):
+		for i in xrange( n ):
 			diff = numpy.matrix( items[i] - means )
 			cov += weights[i] * numpy.array( diff.T.dot( diff ) )
 		cov /= numpy.sum( weights )
@@ -2234,7 +2234,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			# Create a mapping from values in the table to integers to be stored
 			# in a compressed array
 			hashes = hashes or [{ key: i for i, key in enumerate( parent.keys() ) } for parent in parents ] + [ d_map ]
-			n = n or map( len, parents+[d_keys] )
+			n = n or list( map( len, parents+[d_keys] ) )
 			m = numpy.cumprod( [1] + n )
 
 			values = numpy.zeros( len( distribution ) )
@@ -2253,12 +2253,12 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 
 		values, parents, hashes, n = self.parameters
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 		table = []
 
 		# Add a row to the table to be printed
-		for key in it.product( *[range(i) for i in n ] ):
+		for key in it.product( *[xrange(i) for i in n ] ):
 			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
 			idx = sum( j*m[i] for i, j in enumerate( key ) )
 
@@ -2309,14 +2309,14 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# Unpack the parameters
 		values, parents, hashes, n = self.parameters
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 
 		neighbor_values = neighbor_values or parents+[None]
 		
 		# If given a dictionary, then decode it
 		if isinstance( neighbor_values, dict ):
-			nv = [ None for i in range( len( neighbor_values)+1 ) ]
+			nv = [ None for i in xrange( len( neighbor_values)+1 ) ]
 
 			# Go through each parent and find the appropriate value
 			for i, parent in enumerate( parents ):
@@ -2336,7 +2336,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		table = []
 
 		# Create the table row by row
-		for keys in it.product( *[ range(i) for i in n ] ):
+		for keys in it.product( *[ xrange(i) for i in n ] ):
 			i = sum( key*k for key, k in izip( keys, m ) )
 
 			# Scale the probability by the weights on the marginals
@@ -2398,7 +2398,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int32 )
 		hashes = self.parameters[2]
 		for j, h in enumerate( hashes ):
-			for i in range( len(items) ):
+			for i in xrange( len(items) ):
 				int_items[i, j] = h[ items[i][j] ]
 
 		# Get the table through the cythonized function
@@ -2421,28 +2421,28 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int32 )
 
 		# Go through each point and add it
-		for i in range( n ):
+		for i in xrange( n ):
 			# Determine the bin to put this point in
 			key = 0
-			for j in range( d ):
+			for j in xrange( d ):
 				key += items[i, j] * m[j]
 
 			# Add the weight of the point to the table to get weighted counts
 			table[key] += weights[i]
 
 		# Now we normalize conditionally on the parents.
-		for keys in it.product( *[ range(i) for i in k[:-1] ] ):
+		for keys in it.product( *[ xrange(i) for i in k[:-1] ] ):
 			# Reset the sum of weighted counts for the same parent values
 			_sum = 0
 
 			# Calculate the prefix--the index stem excluding the
 			# values of the marginal
 			prefix = 0
-			for j in range( d-1 ):
+			for j in xrange( d-1 ):
 				prefix += keys[j] * m[j]
 			
 			# Add in the specific marginal value for an easy summation
-			for j in range( k[-1] ):
+			for j in xrange( k[-1] ):
 				# Create the key for this value of the marginal
 				key = prefix + j * m[-2] 
 
@@ -2450,7 +2450,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 				_sum += table[key]
 
 			# Normalize based on those parent values
-			for j in range( k[-1] ):
+			for j in xrange( k[-1] ):
 				key = prefix + j * m[-2]
 				# If we've observed data, updated based on the weighted counts
 				if _sum > 0:
@@ -2461,7 +2461,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 					table[key] = 1. / k[-1]  
 
 		# Update the current table, taking into account inertia
-		for i in range( table.shape[0] ):
+		for i in xrange( table.shape[0] ):
 			table[i] = _log( ( 1. - inertia ) * table[i] + \
 				inertia * cexp( self.parameters[0][i] ) )
 
@@ -2503,9 +2503,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 					hashes += [ d_map ]
 
 			if n is None and infer:
-				n = map( len, neighbors + [d_keys] )
+				n = list( map( len, neighbors + [d_keys] ) )
 			elif n is None and not infer:
-				n = map( len, neighbors )
+				n = list( map( len, neighbors ) )
 				
 			m = numpy.cumprod( [1] + n )
 
@@ -2525,12 +2525,12 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		"""
 
 		values, parents, hashes, n = self.parameters
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 		table = []
 
 		# Add a row to the table to be printed
-		for key in it.product( *[range(i) for i in n ] ):
+		for key in it.product( *[xrange(i) for i in n ] ):
 			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
 			idx = sum( j*m[i] for i, j in enumerate( key ) )
 
@@ -2580,13 +2580,13 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		if isinstance( neighbor_values, list ):
 			wrt = neighbor_values.index( None )
 
-		r_hashes = [ d.keys() for d in hashes ]
+		r_hashes = [ list(d) for d in hashes ]
 		m = numpy.cumprod( [1]+n )
 
 		# Determine the keys for the respective parent distribution
 		d = { k: 0 for k in hashes[wrt].keys() }
 
-		for ki, keys in enumerate( it.product( *[ range(i) for i in n ] ) ):
+		for ki, keys in enumerate( it.product( *[ xrange(i) for i in n ] ) ):
 			i = sum( key*k for key, k in izip( keys, m ) )
 			p = values[i]
 
@@ -2633,7 +2633,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int )
 		hashes = self.parameters[2]
 		for j, h in enumerate( hashes ):
-			for i in range( len(items) ):
+			for i in xrange( len(items) ):
 				int_items[i, j] = h[ items[i][j] ]
 
 		# Get the table through the cythonized function
@@ -2652,13 +2652,13 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		cdef int i, j, key
 		cdef int n = items.shape[0], d = items.shape[1]
 		cdef list k = self.parameters[3]
-		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int )
+		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int32 )
 
 		# Go through each point and add it
-		for i in range( n ):
+		for i in xrange( n ):
 			# Determine the bin to put this point in
 			key = 0
-			for j in range( d ):
+			for j in xrange( d ):
 				key += items[i, j] * m[j]
 
 			# Add the weight of the point to the table to get weighted counts
@@ -2666,15 +2666,15 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		# Calculate the sum of the counts across the table
 		_sum = 0
-		for i in range( table.shape[0] ):
+		for i in xrange( table.shape[0] ):
 			_sum += table[i]
 
 		# Normalize the table
-		for i in range( table.shape[0] ):
+		for i in xrange( table.shape[0] ):
 			table[i] /= _sum
 
 		# Update the current table, taking into account inertia
-		for i in range( table.shape[0] ):
+		for i in xrange( table.shape[0] ):
 			table[i] = _log( ( 1. - inertia ) * table[i] + \
 				inertia * cexp( self.parameters[0][i] ) )
 
