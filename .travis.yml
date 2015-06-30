@@ -1,0 +1,18 @@
+# This is the .travis.yml file made by Tomas Nagy and Adam Novak for the
+# yahmm project. Adapted for pomegranate.
+language: python
+python:
+  - "2.7"
+  - "3.2"
+
+virtualenv:
+  system_site_packages: true
+before_install:
+# Travis gives us a numpy that is too new and broken on python3 with scipy. 
+# Remove it in favor of system numpy.
+ - pip uninstall -y numpy
+ - sudo apt-get install -qq python-numpy python-scipy python3-numpy python3-scipy
+# command to install dependencies
+install: "pip install -r requirements.txt"
+# command to run tests
+script: "nosetests -s -w tests/"

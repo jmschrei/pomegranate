@@ -49,7 +49,8 @@ def test_normal():
 
 	d.from_sample( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
 
-	assert d.parameters == [ 4.916666666666667, 0.75920279826202286 ]
+	assert round( d.parameters[0], 4 ) == 4.9167
+	assert round( d.parameters[1], 4 ) == 0.7592 
 	assert d.log_probability( 4 ) != e.log_probability( 4 )
 	assert d.log_probability( 4 ) == -1.3723678499651766
 	assert d.log_probability( 18 ) == -149.13140399454429
@@ -59,8 +60,9 @@ def test_normal():
 	assert d.log_probability( 1e100 ) == -4.9999999999999994e+219
 
 	d.from_sample( [ 0, 2, 3, 2, 100 ], weights=[ 0, 5, 2, 3, 200 ] )
-	assert d.parameters == [ 95.342857142857142, 20.827558927640887 ]
-	assert d.log_probability( 50 ) == -6.325011936564346
+	assert round( d.parameters[0], 4 ) == 95.3429
+	assert round( d.parameters[1], 4 ) == 20.8276
+	assert round( d.log_probability( 50 ), 8 ) == -6.32501194
 
 	d = NormalDistribution( 5, 2 )
 	d.from_sample( [ 0, 5, 3, 5, 7, 3, 4, 5, 2 ], inertia=0.5 )
@@ -83,7 +85,8 @@ def test_normal():
 
 	d.thaw()
 	d.from_sample( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
-	assert d.parameters == [ 4.916666666666667, 0.75920279826202286 ]
+	assert round( d.parameters[0], 4 ) == 4.9167 
+	assert round( d.parameters[1], 4 ) == 0.7592
 
 @with_setup( setup, teardown )
 def test_uniform():

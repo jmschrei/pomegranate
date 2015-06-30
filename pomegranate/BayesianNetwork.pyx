@@ -27,7 +27,6 @@ from distributions cimport *
 cimport base
 from base cimport Model, State
 
-from hmm import *
 from FactorGraph import *
 
 # Define some useful constants
@@ -172,13 +171,13 @@ cdef class BayesianNetwork( Model ):
 		state, as ordered by self.states.
 		"""
 
-		indices = { state.name: i for i, state in enumerate( self.states ) }
+		indices = { state.distribution: i for i, state in enumerate( self.states ) }
 
 		# Go through each state and pass in the appropriate data for the
 		# update to the states
 		for i, state in enumerate( self.states ):
 			if isinstance( state.distribution, ConditionalProbabilityTable ):
-				idx = [ indices[ dist.name ] for dist in state.distribution.parameters[1] ] + [i]
+				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
 				data = [ [ item[i] for i in idx ] for item in items ]
 				state.distribution.from_sample( data, weights, inertia, pseudocount )
 			else:
