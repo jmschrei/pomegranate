@@ -30,7 +30,7 @@ else:
     extensions = [
             Extension( "pomegranate.*", 
                        [ "pomegranate/*.pyx" ], 
-                       include_dirs=[np.get_include()] )
+                       include_dirs=[np.get_include(), "."] )
     ]
 
     extensions = cythonize( extensions )

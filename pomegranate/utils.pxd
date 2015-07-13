@@ -2,14 +2,15 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
+cimport numpy
 
 # Define some useful constants
-DEF NEGINF = float("-inf")
-DEF INF = float("inf")
-DEF SQRT_2_PI = 2.50662827463
+cdef double NEGINF = -numpy.inf
+cdef double INF = numpy.inf
+cdef double SQRT_2_PI = 2.50662827463
 
 # Useful speed optimized functions
-cdef inline double _log ( double x ):
+cdef inline double _log ( double x ) nogil:
 	'''
 	A wrapper for the c log function, by returning negative input if the
 	input is 0.
@@ -17,7 +18,7 @@ cdef inline double _log ( double x ):
 
 	return clog( x ) if x > 0 else NEGINF
 
-cdef inline int pair_int_max( int x, int y ):
+cdef inline int pair_int_max( int x, int y ) nogil:
 	'''
 	Calculate the maximum of a pair of two integers. This is
 	significantly faster than the Python function max().
@@ -25,7 +26,7 @@ cdef inline int pair_int_max( int x, int y ):
 
 	return x if x > y else y
 
-cdef inline double pair_lse( double x, double y ):
+cdef inline double pair_lse( double x, double y ) nogil:
 	'''
 	Perform log-sum-exp on a pair of numbers in log space..  This is calculated
 	as z = log( e**x + e**y ). However, this causes underflow sometimes
