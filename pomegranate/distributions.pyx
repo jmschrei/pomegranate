@@ -1373,7 +1373,7 @@ cdef class DiscreteDistribution(Distribution):
 		
 		# Store the parameters
 		self.parameters = [ characters ]
-		self.dist = characters
+		self.dist = { s: _log(c) for s, c in characters.items() }
 		self.summaries = [ { key: 0 for key in characters.keys() } ]
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
@@ -1469,8 +1469,19 @@ cdef class DiscreteDistribution(Distribution):
 		of NEGINF.
 		"""
 
-		return _log( self.parameters[0].get( symbol, 0 ) )
-			
+		return self._log_probability( symbol )
+		#return _log( self.parameters[0].get( symbol, 0 ) )
+
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, symbol ):
+		"""
+		Cython optimized lookup
+		"""
+
+		if self.dist.has_key( symbol ):
+			return self.dist[symbol]
+		return NEGINF  
+
 	def sample( self ):
 		"""
 		Sample randomly from the discrete distribution, returning the character
@@ -1522,6 +1533,7 @@ cdef class DiscreteDistribution(Distribution):
 				prior_characters[character] * inertia
 
 		self.parameters = [ characters ]
+		self.dist = { s: _log(c) for s, c in characters.items() }
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -1570,6 +1582,7 @@ cdef class DiscreteDistribution(Distribution):
 
 		self.parameters = [ characters ]
 		self.summaries = [{ key: 0 for key in self.keys() }]
+		self.dist = { s: _log(c) for s, c in characters.items() }
 
 cdef class LambdaDistribution(Distribution):
 	"""

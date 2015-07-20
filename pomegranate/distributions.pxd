@@ -41,6 +41,7 @@ cdef class InverseGammaDistribution( GammaDistribution ):
 
 cdef class DiscreteDistribution( Distribution ):
 	cdef dict dist
+	cdef public double _log_probability( self, key )
 
 cdef class LambdaDistribution( Distribution ):
 	pass
