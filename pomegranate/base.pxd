@@ -13,3 +13,4 @@ cdef class Model( object ):
 	cdef public str name
 	cdef public list states, edges
 	cdef public object graph
+	cdef int n_edges, n_states

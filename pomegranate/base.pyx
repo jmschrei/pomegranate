@@ -158,6 +158,8 @@ cdef class Model( object ):
 		self.name = name or str( id(self) )
 		self.states = []
 		self.edges = []
+		self.n_edges = 0
+		self.n_states = 0
 	
 	def __str__(self):
 		"""
@@ -172,6 +174,7 @@ cdef class Model( object ):
 		"""
 
 		self.states.append( n )
+		self.n_states += 1
 
 	def add_nodes( self, n ):
 		"""
@@ -203,6 +206,7 @@ cdef class Model( object ):
 
 		# Add the transition
 		self.edges.append( ( a, b ) )
+		self.n_edges += 1
 
 	def add_transition( self, a, b ):
 		"""
@@ -216,21 +220,21 @@ cdef class Model( object ):
 		Returns the number of nodes/states in the model
 		"""
 
-		return len( self.states )
+		return self.n_states
 
 	def state_count( self ):
 		"""
 		Returns the number of states present in the model.
 		"""
 
-		return len( self.states )
+		return self.n_states
 
 	def edge_count( self ):
 		"""
 		Returns the number of edges present in the model.
 		"""
 
-		return len( self.out_transition_log_probabilities )
+		return self.n_edges
 
 	def dense_transition_matrix( self ):
 		"""

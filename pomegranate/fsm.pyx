@@ -7,6 +7,9 @@ from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
 import math, random, itertools as it, sys, bisect, json
 import networkx
 
+from libc.stdlib cimport calloc, free, realloc
+from libc.string cimport memcpy, memset
+
 if sys.version_info[0] > 2:
 	# Set up for Python 3
 	from functools import reduce
@@ -27,31 +30,9 @@ from distributions cimport *
 cimport base
 from base cimport *
 
-# Define some useful constants
-DEF NEGINF = float("-inf")
-DEF INF = float("inf")
-DEF SQRT_2_PI = 2.50662827463
+ctypedef numpy.npy_float64 DOUBLE_t 
+ctypedef numpy.npy_intp SIZE_t  
 
-# Useful python-based array-intended operations
-def log(value):
-	"""
-	Return the natural log of the given value, or - infinity if the value is 0.
-	Can handle both scalar floats and numpy arrays.
-	"""
-
-	if isinstance( value, numpy.ndarray ):
-		to_return = numpy.zeros(( value.shape ))
-		to_return[ value > 0 ] = numpy.log( value[ value > 0 ] )
-		to_return[ value == 0 ] = NEGINF
-		return to_return
-	return _log( value )
-		
-def exp(value):
-	"""
-	Return e^value, or 0 if the value is - infinity.
-	"""
-	
-	return numpy.exp(value)
 
 cdef class FiniteStateMachine( Model ):
 	'''
@@ -63,6 +44,9 @@ cdef class FiniteStateMachine( Model ):
 	cdef public int start_index, silent_start, current_index
 	cdef object [:] edge_keys
 	cdef dict indices
+
+	cdef SIZE_t* out_edge_count
+	cdef int [:] out_transitions
 
 	def __init__( self, name=None, start=None ):
 		"""
@@ -84,6 +68,13 @@ cdef class FiniteStateMachine( Model ):
 		# Create the list of all states in this model
 		self.states = [ self.start ]
 		self.edges = []
+
+		self.out_edge_count = NULL
+
+	def __dealloc__( self ):
+		"""Destructor."""
+
+		free( self.out_edge_count )
 
 	def add_transition( self, a, b, key ):
 		"""
@@ -114,11 +105,12 @@ cdef class FiniteStateMachine( Model ):
 		indices = { self.states[i]: i for i in xrange(len(self.states)) }
 		self.indices = indices
 
+		n = len(self.states)
 		# This holds numpy array indexed [a, b] to transition log probabilities 
 		# from a to b, where a and b are state indices. It starts out saying all
 		# transitions are impossible.
-		self.out_edge_count = numpy.zeros( len(self.states)+1, 
-			dtype=numpy.int32 )
+		self.out_edge_count = <SIZE_t*> calloc( n+1, sizeof(SIZE_t) )
+		memset( self.out_edge_count, 0, (n+1)*sizeof(SIZE_t) )
 
 		# Now we need to find a way of storing in-edges for a state in a manner
 		# that can be called in the cythonized methods below. This is basically
@@ -136,8 +128,9 @@ cdef class FiniteStateMachine( Model ):
 
 		# Take the cumulative sum so that we can associate array indices with
 		# out transitions
-		self.out_edge_count = numpy.cumsum(self.out_edge_count, 
-			dtype=numpy.int32 )
+		for i in xrange(1, n+1):
+			self.out_edge_count[i] += self.out_edge_count[i-1]
+
 		self.out_transitions = numpy.zeros( len(self.edges), dtype=numpy.int32 ) - 1
 		self.edge_keys = numpy.empty( len(self.edges), dtype=object )
 
@@ -236,7 +229,7 @@ cdef class FiniteStateMachine( Model ):
 		'''
 
 		cdef int i, k, ki
-		cdef int [:] out_edges = self.out_edge_count 
+		cdef SIZE_t* out_edges = self.out_edge_count 
 
 
 		i = self.current_index
