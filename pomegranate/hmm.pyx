@@ -92,6 +92,7 @@ cdef class HiddenMarkovModel( Model ):
 	cdef SIZE_t* in_transitions
 	cdef SIZE_t* out_edge_count
 	cdef SIZE_t* out_transitions
+	cdef DOUBLE_t* e
 	cdef int finite, n_tied_edge_groups
 
 	def __cinit__( self, name=None, start=None, end=None ):
@@ -137,6 +138,8 @@ cdef class HiddenMarkovModel( Model ):
 		self.tied_edges_starts = NULL
 		self.tied_edges_ends = NULL
 
+		self.e = NULL
+
 	def __dealloc__( self ):
 		"""Destructor."""
 
@@ -154,6 +157,8 @@ cdef class HiddenMarkovModel( Model ):
 		free( self.tied_edge_group_size )
 		free( self.tied_edges_starts )
 		free( self.tied_edges_ends )
+
+		free( self.e )
 
 	def add_state(self, state):
 		"""
@@ -840,7 +845,23 @@ cdef class HiddenMarkovModel( Model ):
 			return [emissions, sequence_path]
 		return emissions
 
-	def forward( self, sequence ):
+	cdef void _emissions( self, numpy.ndarray sequence ):
+		"""
+		Calculate the emission table for the current sequene, and store it to
+		memory, so that it can be used by multiple functions if needed.
+		"""
+
+		m = self.n_states
+		n = len( sequence )
+
+		self.e = <DOUBLE_t*> realloc( self.e, n*self.silent_start*sizeof(DOUBLE_t) )
+
+		for i in range( n ):
+			for l in range( self.silent_start ):
+				d = self.states[l].distribution
+				self.e[i + l*n] = d.log_probability( sequence[i] ) + self.state_weights[l]
+
+	def forward( self, sequence, use_cache=0 ):
 		'''
 		Python wrapper for the forward algorithm, calculating probability by
 		going forward through a sequence. Returns the full forward DP matrix.
@@ -854,6 +875,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		input
 			sequence: a list (or numpy array) of observations
+			use_cache: Use the already calculated emissions matrix.
 
 		output
 			A n-by-m matrix of floats, where n = len( sequence ) and
@@ -868,9 +890,9 @@ cdef class HiddenMarkovModel( Model ):
 		http://www.cs.sjsu.edu/~stamp/RUA/HMM.pdf on p. 14.
 		'''
 
-		return numpy.array( self._forward( numpy.array( sequence ) ) )
+		return numpy.array( self._forward( numpy.array( sequence ), use_cache ) )
 
-	cdef double [:,:] _forward( self, numpy.ndarray sequence ):
+	cdef double [:,:] _forward( self, numpy.ndarray sequence, SIZE_t use_cache ):
 		"""
 		Run the forward algorithm, and return the matrix of log probabilities
 		of each segment being in each hidden state. 
@@ -885,17 +907,17 @@ cdef class HiddenMarkovModel( Model ):
 		cdef Distribution d
 		cdef SIZE_t* in_edges = self.in_edge_count
 
-		cdef DOUBLE_t* e = <DOUBLE_t*> calloc( n*self.silent_start, sizeof(DOUBLE_t) )
+		cdef DOUBLE_t* e
 		cdef numpy.ndarray f_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 		cdef DOUBLE_t* f = <DOUBLE_t*> f_ndarray.data
 
 		# Initialize the emission table, which contains the probability of
 		# each entry i, k holds the probability of symbol i being emitted
 		# by state k 
-		for i in range( n ):
-			for l in range( self.silent_start ):
-				d = self.states[l].distribution 
-				e[i + l*n] = d.log_probability( sequence[i] ) + self.state_weights[l]
+		if use_cache == 0:
+			self._emissions( sequence )
+		
+		e = self.e
 
 		with nogil:
 			# We must start in the start state, having emitted 0 symbols        
@@ -981,10 +1003,9 @@ cdef class HiddenMarkovModel( Model ):
 					# Add the previous partial result and update the table entry
 					f[(i+1)*m + l] = pair_lse( f[(i+1)*m + l], log_probability )
 
-		free(e)
 		return f_ndarray
 
-	def backward( self, sequence ):
+	def backward( self, sequence, use_cache=0 ):
 		'''
 		Python wrapper for the backward algorithm, calculating probability by
 		going backward through a sequence. Returns the full forward DP matrix.
@@ -1011,9 +1032,9 @@ cdef class HiddenMarkovModel( Model ):
 		http://www.cs.sjsu.edu/~stamp/RUA/HMM.pdf on p. 14.
 		'''
 
-		return numpy.array( self._backward( numpy.array( sequence ) ) )
+		return numpy.array( self._backward( numpy.array( sequence ), use_cache ) )
 
-	cdef double [:,:] _backward( self, numpy.ndarray sequence ):
+	cdef double [:,:] _backward( self, numpy.ndarray sequence, SIZE_t use_cache ):
 		"""
 		Run the backward algorithm, and return the log probability of the given 
 		sequence. Sequence is a container of symbols.
@@ -1028,15 +1049,15 @@ cdef class HiddenMarkovModel( Model ):
 		cdef Distribution d
 		cdef SIZE_t* out_edges = self.out_edge_count
 
-		cdef DOUBLE_t* e = <DOUBLE_t*> calloc( n*self.silent_start, sizeof(DOUBLE_t) )
+		cdef DOUBLE_t* e
 		cdef numpy.ndarray b_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 		cdef DOUBLE_t* b = <DOUBLE_t*> b_ndarray.data
 
 		# Calculate the emission table
-		for i in range( n ):
-			for l in range( self.silent_start ):
-				e[i + l*n] = self.states[l].distribution.log_probability(
-					sequence[i] ) + self.state_weights[l]
+		if use_cache == 0:
+			self._emissions( sequence )
+		
+		e = self.e
 
 		with nogil:
 			# We must end in the end state, having emitted len(sequence) symbols
@@ -2147,7 +2168,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef numpy.ndarray weights_ndarray
 		cdef DOUBLE_t* norm
 		cdef SIZE_t* visited = <SIZE_t*> calloc( self.silent_start, sizeof(SIZE_t) )
-
+		
 		# Find the expected number of transitions between each pair of states, 
 		# given our data and our current parameters, but allowing the paths 
 		# taken to vary. (Indexed: from, to)
@@ -2156,17 +2177,17 @@ cdef class HiddenMarkovModel( Model ):
 			weights_ndarray = numpy.zeros( n )
 			weights = <DOUBLE_t*> weights_ndarray.data
 
-			# Calculate the emission table
-			e = <DOUBLE_t*> realloc( e, n*self.silent_start*sizeof(DOUBLE_t) )
-			for i in range( n ):
-				for l in range( self.silent_start ):
-					e[i + l*n] = self.states[l].distribution.log_probability( 
-						sequence[i] ) + self.state_weights[l]
+			self._emissions( sequence )
+			e = self.e
 
 			# Get the overall log probability of the sequence, and fill in the
 			# the forward DP matrix.
-			f_ndarray = self.forward( sequence )
+			f_ndarray = self.forward(sequence, use_cache=1)
 			f = <DOUBLE_t*> f_ndarray.data
+
+			# Fill in the backward DP matrix.
+			b_ndarray = self.backward(sequence, use_cache=1)
+			b = <DOUBLE_t*> b_ndarray.data
 
 			if self.finite == 1:
 				log_sequence_probability = f[n*m + self.end_index]
@@ -2180,10 +2201,6 @@ cdef class HiddenMarkovModel( Model ):
 			# it
 			if log_sequence_probability == NEGINF:
 				continue
-
-			# Fill in the backward DP matrix.
-			b_ndarray = self.backward(sequence)
-			b = <DOUBLE_t*> b_ndarray.data
 
 			for k in range( m ):
 				# For each state we could have come from
@@ -2260,6 +2277,7 @@ cdef class HiddenMarkovModel( Model ):
 						visited[li] = 1
 
 					for i in range( n ):
+						tic = time.time()
 						# For each symbol that came out
 						# What's the weight of this symbol for that state?
 						# Probability that we emit index characters and then 
@@ -2372,7 +2390,6 @@ cdef class HiddenMarkovModel( Model ):
 			self.states[k].distribution.from_summaries( 
 				inertia=distribution_inertia )
 
-		free(e)
 		free(expected_transitions)
 		free(norm)
 		free(visited)
