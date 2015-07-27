@@ -3,7 +3,7 @@
 
 cimport cython
 from cython.view cimport array as cvarray
-from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
+from libc.math cimport log as clog, sqrt as csqrt, exp as cexp, lgamma, fabs
 import math, random, itertools as it, sys, bisect, json
 import networkx
 import scipy.stats, scipy.sparse, scipy.special, scipy.linalg
@@ -54,7 +54,7 @@ cdef class Distribution:
 	written by write().
 	"""
 
-	def __init__( self ):
+	def __cinit__( self ):
 		"""
 		Make a new Distribution with the given parameters. All parameters must 
 		be floats.
@@ -228,7 +228,7 @@ cdef class UniformDistribution( Distribution ):
 	A uniform distribution between two values.
 	"""
 
-	def __init__( self, start, end, frozen=False ):
+	def __cinit__( UniformDistribution self, double start, double end, bint frozen=False ):
 		"""
 		Make a new Uniform distribution over floats between start and end, 
 		inclusive. Start and end must not be equal.
@@ -236,6 +236,8 @@ cdef class UniformDistribution( Distribution ):
 		
 		# Store the parameters
 		self.parameters = [start, end]
+		self.start = start
+		self.end = end
 		self.summaries = []
 		self.name = "UniformDistribution"
 		self.frozen = frozen
@@ -245,13 +247,22 @@ cdef class UniformDistribution( Distribution ):
 		What's the probability of the given float under this distribution?
 		"""
 		
-		return self._log_probability( self.parameters[0], self.parameters[1], symbol )
+		return self._log_probability( symbol )
+		
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
+		"""
+		Cython optimized log probability calculation which does not require
+		the gil to be in place.
+		"""
 
-	cdef double _log_probability( self, double a, double b, double symbol ):
-		if symbol == a and symbol == b:
+		cdef double start = self.start
+		cdef double end = self.end
+
+		if symbol == start and symbol == end:
 			return 0
-		if symbol >= a and symbol <= b:
-			return _log( 1.0 / ( b - a ) )
+		if symbol >= start and symbol <= end:
+			return _log( 1.0 / ( end - start ) )
 		return NEGINF
 			
 	def sample( self ):
@@ -293,6 +304,8 @@ cdef class UniformDistribution( Distribution ):
 		prior_min, prior_max = self.parameters
 		self.parameters[0] = prior_min*inertia + numpy.min(items)*(1-inertia)
 		self.parameters[1] = prior_max*inertia + numpy.max(items)*(1-inertia)
+		self.start = self.parameters[0]
+		self.end = self.parameters[1]
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -338,6 +351,8 @@ cdef class UniformDistribution( Distribution ):
 		# 1 being to ignore new training data.
 		self.parameters = [ prior_min*inertia + summaries[:,0].min()*(1-inertia), 
 							prior_max*inertia + summaries[:,1].max()*(1-inertia) ]
+		self.start = self.parameters[0]
+		self.end = self.parameters[1]
 		self.summaries = []
 
 cdef class NormalDistribution( Distribution ):
@@ -345,7 +360,7 @@ cdef class NormalDistribution( Distribution ):
 	A normal distribution based on a mean and standard deviation.
 	"""
 
-	def __init__( self, mean, std, frozen=False ):
+	def __cinit__( self, double mean, double std, bint frozen=False ):
 		"""
 		Make a new Normal distribution with the given mean mean and standard 
 		deviation std.
@@ -353,31 +368,29 @@ cdef class NormalDistribution( Distribution ):
 		
 		# Store the parameters
 		self.parameters = [mean, std]
+		self.mu = mean
+		self.sigma = std
 		self.summaries = []
 		self.name = "NormalDistribution"
 		self.frozen = frozen
 
-	def log_probability( self, symbol, epsilon=1E-4 ):
+	def log_probability( self, symbol ):
 		"""
 		What's the probability of the given float under this distribution?
 		
-		For distributions with 0 std, epsilon is the distance within which to 
-		consider things equal to the mean.
+		Distributions with 0 std are equivalent to delta functions, and should
+		be encoded using either a discrete or lambda distribution. 
 		"""
 
-		return self._log_probability( symbol, epsilon )
+		return self._log_probability( symbol )
 
-	cdef double _log_probability( self, double symbol, double epsilon ):
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
 		"""
-		Do the actual math here.
+		Cython optimized function, with nogil enabled. 
 		"""
 
-		cdef double mu = self.parameters[0], sigma = self.parameters[1]
-		if sigma == 0.0:
-			if abs( symbol - mu ) < epsilon:
-				return 0
-			else:
-				return NEGINF
+		cdef double mu = self.mu, sigma = self.sigma
   
 		return _log( 1.0 / ( sigma * SQRT_2_PI ) ) - ((symbol - mu) ** 2) /\
 			(2 * sigma ** 2)
@@ -451,6 +464,8 @@ cdef class NormalDistribution( Distribution ):
 		prior_mean, prior_std = self.parameters
 		self.parameters = [ prior_mean*inertia + mean*(1-inertia), 
 							prior_std*inertia + std*(1-inertia) ]
+		self.mu = self.parameters[0]
+		self.sigma = self.parameters[1]
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -513,6 +528,8 @@ cdef class NormalDistribution( Distribution ):
 		# 1 being to ignore new training data.
 		self.parameters = [ prior_mean*inertia + mean*(1-inertia),
 							prior_std*inertia + std*(1-inertia) ]
+		self.mu = self.parameters[0]
+		self.sigma = self.parameters[1]
 		self.summaries = []
 
 cdef class LogNormalDistribution( Distribution ):
@@ -520,13 +537,15 @@ cdef class LogNormalDistribution( Distribution ):
 	Represents a lognormal distribution over non-negative floats.
 	"""
 
-	def __init__( self, mu, sigma, frozen=False ):
+	def __cinit__( self, double mu, double sigma, frozen=False ):
 		"""
 		Make a new lognormal distribution. The parameters are the mu and sigma
 		of the normal distribution, which is the the exponential of the log
 		normal distribution.
 		"""
 		self.parameters = [ mu, sigma ]
+		self.mu = mu
+		self.sigma = sigma
 		self.summaries = []
 		self.name = "LogNormalDistribution"
 		self.frozen = frozen
@@ -538,15 +557,17 @@ cdef class LogNormalDistribution( Distribution ):
 
 		return self._log_probability( symbol )
 
-	cdef double _log_probability( self, double symbol ):
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
 		"""
 		Actually perform the calculations here, in the Cython-optimized
 		function.
 		"""
 
-		mu, sigma = self.parameters
-		return -clog( symbol * sigma * SQRT_2_PI ) \
-			- 0.5 * ( ( clog( symbol ) - mu ) / sigma ) ** 2
+		cdef double mu = self.mu, sigma = self.sigma
+
+		return -_log( symbol * sigma * SQRT_2_PI ) \
+			- 0.5 * ( ( _log( symbol ) - mu ) / sigma ) ** 2
 
 	def sample( self ):
 		"""
@@ -616,6 +637,8 @@ cdef class LogNormalDistribution( Distribution ):
 		prior_mean, prior_std = self.parameters
 		self.parameters = [ prior_mean*inertia + mean*(1-inertia), 
 							prior_std*inertia + std*(1-inertia) ]
+		self.mu = self.parameters[0]
+		self.sigma = self.parameters[1]
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -674,6 +697,8 @@ cdef class LogNormalDistribution( Distribution ):
 		# 1 being to ignore new training data.
 		self.parameters = [ prior_mean*inertia + mean*(1-inertia), 
 							prior_std*inertia + std*(1-inertia) ]
+		self.mu = self.parameters[0]
+		self.sigma = self.parameters[1]
 		self.summaries = []
 
 cdef class ExtremeValueDistribution( Distribution ):
@@ -681,14 +706,17 @@ cdef class ExtremeValueDistribution( Distribution ):
 	Represent a generalized extreme value distribution over floats.
 	"""
 
-	def __init__( self, mu, sigma, epsilon, frozen=True ):
+	def __cinit__( self, double mu, double sigma, double epsilon, bint frozen=True ):
 		"""
 		Make a new extreme value distribution, where mu is the location
 		parameter, sigma is the scale parameter, and epsilon is the shape
 		parameter. 
 		"""
 
-		self.parameters = [ float(mu), float(sigma), float(epsilon) ]
+		self.parameters = [ mu, sigma, epsilon ]
+		self.mu = mu
+		self.sigma = sigma
+		self.epsilon = epsilon
 		self.name = "ExtremeValueDistribution"
 		self.frozen = frozen
 
@@ -699,17 +727,19 @@ cdef class ExtremeValueDistribution( Distribution ):
 
 		return self._log_probability( symbol )
 
-	cdef double _log_probability( self, double symbol ):
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
 		"""
 		Actually perform the calculations here, in the Cython-optimized
 		function.
 		"""
 
-		mu, sigma, epsilon = self.parameters
-		t = ( symbol - mu ) / sigma
+		cdef double mu = self.mu, sigma = self.sigma, epsilon = self.epsilon
+		cdef double t = ( symbol - mu ) / sigma 
+
 		if epsilon == 0:
-			return -clog( sigma ) - t - cexp( -t )
-		return -clog( sigma ) + clog( 1 + epsilon * t ) * (-1. / epsilon - 1) \
+			return -_log( sigma ) - t - cexp( -t )
+		return -_log( sigma ) + _log( 1 + epsilon * t ) * (-1. / epsilon - 1) \
 			- ( 1 + epsilon * t ) ** ( -1. / epsilon )
 
 cdef class ExponentialDistribution( Distribution ):
@@ -717,13 +747,14 @@ cdef class ExponentialDistribution( Distribution ):
 	Represents an exponential distribution on non-negative floats.
 	"""
 	
-	def __init__( self, rate, frozen=False ):
+	def __cinit__( self, double rate, bint frozen=False ):
 		"""
 		Make a new inverse gamma distribution. The parameter is called "rate" 
 		because lambda is taken.
 		"""
 
 		self.parameters = [rate]
+		self.rate = rate
 		self.summaries = []
 		self.name = "ExponentialDistribution"
 		self.frozen = frozen
@@ -732,8 +763,17 @@ cdef class ExponentialDistribution( Distribution ):
 		"""
 		What's the probability of the given float under this distribution?
 		"""
-		
-		return _log(self.parameters[0]) - self.parameters[0] * symbol
+
+		return self._log_probability( symbol )
+	
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
+		"""
+		Cython optimized function.
+		"""
+
+		cdef double rate = self.rate
+		return _log(rate) - rate * symbol
 		
 	def sample( self ):
 		"""
@@ -781,6 +821,7 @@ cdef class ExponentialDistribution( Distribution ):
 		rate = 1.0 / weighted_mean
 
 		self.parameters[0] = prior_rate*inertia + rate*(1-inertia)
+		self.rate = self.parameters[0]
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -828,6 +869,7 @@ cdef class ExponentialDistribution( Distribution ):
 		# of 0 being completely replacing the parameters, and an inertia of
 		# 1 being to ignore new training data.
 		self.parameters[0] = prior_rate*inertia + rate*(1-inertia)
+		self.rate = self.parameters[0]
 		self.summaries = []
 
 cdef class BetaDistribution( Distribution ):
@@ -843,6 +885,8 @@ cdef class BetaDistribution( Distribution ):
 		"""
 
 		self.parameters = [alpha, beta]
+		self.alpha = alpha
+		self.beta = beta
 		self.summaries = []
 		self.name = "BetaDistribution"
 		self.frozen = frozen
@@ -852,10 +896,19 @@ cdef class BetaDistribution( Distribution ):
 		What is the probability of the given float under this distribution?
 		"""
 
-		a, b = self.parameters
-		return ( _log(math.lgamma(a+b)) - _log(math.lgamma(a)) - 
-			_log(math.lgamma(b)) + (a-1)*_log(symbol) +
-			(b-1)*_log(1.-symbol) ) 
+		return self._log_probability( symbol )
+
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
+		"""
+		Cython optimized function.
+		"""
+
+		cdef double a = self.alpha, b = self.beta
+
+		return ( _log(lgamma(a+b)) - _log(lgamma(a)) - 
+			_log(lgamma(b)) + (a-1)*_log(symbol) +
+			(b-1)*_log(1.-symbol) )
 
 	def sample( self ):
 		"""
@@ -900,6 +953,8 @@ cdef class BetaDistribution( Distribution ):
 		beta = self.parameters[1]*inertia + failures*(1-inertia)
 
 		self.parameters = [ alpha, beta ]
+		self.alpha = alpha
+		self.beta = beta
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -942,6 +997,8 @@ cdef class BetaDistribution( Distribution ):
 		beta = self.parameters[1]*inertia + summaries[:,1].sum( axis=0 )*(1-inertia)
 
 		self.parameters = [ alpha, beta ]
+		self.alpha = alpha
+		self.beta = beta
 		self.summaries = []
 
 
@@ -954,13 +1011,15 @@ cdef class GammaDistribution( Distribution ):
 	cobbled together a solution here from less-reputable sources.
 	"""
 	
-	def __init__( self, alpha, beta, frozen=False ):
+	def __cinit__( self, double alpha, double beta, bint frozen=False ):
 		"""
 		Make a new gamma distribution. Alpha is the shape parameter and beta is 
 		the rate parameter.
 		"""
 		
 		self.parameters = [alpha, beta]
+		self.alpha = alpha
+		self.beta = beta
 		self.summaries = []
 		self.name = "GammaDistribution"
 		self.frozen = frozen
@@ -970,11 +1029,18 @@ cdef class GammaDistribution( Distribution ):
 		What's the probability of the given float under this distribution?
 		"""
 		
-		# Gamma pdf from Wikipedia (and stats class)
-		return (_log(self.parameters[1]) * self.parameters[0] - 
-			math.lgamma(self.parameters[0]) + 
-			_log(symbol) * (self.parameters[0] - 1) - 
-			self.parameters[1] * symbol)
+		return self._log_probability( symbol )
+
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
+		"""
+		Cython optimized calculation.
+		"""
+
+		cdef double alpha = self.alpha, beta = self.beta
+		
+		return (_log(beta) * alpha - lgamma(alpha) + _log(symbol) 
+			* (alpha - 1) - beta * symbol)
 		
 	def sample( self ):
 		"""
@@ -1092,7 +1158,9 @@ cdef class GammaDistribution( Distribution ):
 		# of 0 being completely replacing the parameters, and an inertia of
 		# 1 being to ignore new training data.
 		self.parameters = [ prior_shape*inertia + shape*(1-inertia), 
-							prior_rate*inertia + rate*(1-inertia) ]    
+							prior_rate*inertia + rate*(1-inertia) ]
+		self.alpha = self.parameters[0]
+		self.beta = self.parameters[1]  
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -1220,6 +1288,8 @@ cdef class GammaDistribution( Distribution ):
 		# 1 being to ignore new training data.
 		self.parameters = [ prior_shape*inertia + shape*(1-inertia), 
 							prior_rate*inertia + rate*(1-inertia) ]
+		self.alpha = self.parameters[0]
+		self.beta = self.parameters[1]
 		self.summaries = []  	
 
 cdef class InverseGammaDistribution( GammaDistribution ):
@@ -1231,7 +1301,7 @@ cdef class InverseGammaDistribution( GammaDistribution ):
 	GammaDistribution.
 	"""
 	
-	def __init__( self, alpha, beta, frozen=False ):
+	def __cinit__( self, alpha, beta, frozen=False ):
 		"""
 		Make a new inverse gamma distribution. Alpha is the shape parameter and 
 		beta is the scale parameter.
@@ -1293,7 +1363,7 @@ cdef class DiscreteDistribution(Distribution):
 	assuming that these probabilities will sum to 1.0. 
 	"""
 	
-	def __init__( self, characters, frozen=False ):
+	def __cinit__( self, dict characters, bint frozen=False ):
 		"""
 		Make a new discrete distribution with a dictionary of discrete
 		characters and their probabilities, checking to see that these
@@ -1303,6 +1373,7 @@ cdef class DiscreteDistribution(Distribution):
 		
 		# Store the parameters
 		self.parameters = [ characters ]
+		self.dist = { s: _log(c) for s, c in characters.items() }
 		self.summaries = [ { key: 0 for key in characters.keys() } ]
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
@@ -1398,8 +1469,19 @@ cdef class DiscreteDistribution(Distribution):
 		of NEGINF.
 		"""
 
-		return _log( self.parameters[0].get( symbol, 0 ) )
-			
+		return self._log_probability( symbol )
+		#return _log( self.parameters[0].get( symbol, 0 ) )
+
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, symbol ):
+		"""
+		Cython optimized lookup
+		"""
+
+		if self.dist.has_key( symbol ):
+			return self.dist[symbol]
+		return NEGINF  
+
 	def sample( self ):
 		"""
 		Sample randomly from the discrete distribution, returning the character
@@ -1451,6 +1533,7 @@ cdef class DiscreteDistribution(Distribution):
 				prior_characters[character] * inertia
 
 		self.parameters = [ characters ]
+		self.dist = { s: _log(c) for s, c in characters.items() }
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -1499,6 +1582,7 @@ cdef class DiscreteDistribution(Distribution):
 
 		self.parameters = [ characters ]
 		self.summaries = [{ key: 0 for key in self.keys() }]
+		self.dist = { s: _log(c) for s, c in characters.items() }
 
 cdef class LambdaDistribution(Distribution):
 	"""
@@ -1539,25 +1623,30 @@ cdef class GaussianKernelDensity( Distribution ):
 	the sum of the Gaussian distance of the new point from every other point.
 	"""
 
-	def __init__( self, points, bandwidth=1, weights=None, frozen=False ):
+	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
 		Weights are scaled so that they sum to 1. 
 		"""
 
-		points = numpy.asarray( points )
-		n = len(points)
+		points = numpy.asarray( points, dtype=numpy.float64 )
+		n = points.shape[0]
 		
 		if weights:
-			weights = numpy.array(weights) / numpy.sum(weights)
+			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
 
+		self.n = n
 		self.parameters = [ points, bandwidth, weights ]
+		self.points = points
+		self.weights = weights
+		self.bandwidth = bandwidth
 		self.summaries = []
 		self.name = "GaussianKernelDensity"
 		self.frozen = frozen
+
 
 	def log_probability( self, symbol ):
 		"""
@@ -1569,28 +1658,29 @@ cdef class GaussianKernelDensity( Distribution ):
 
 		return self._log_probability( symbol )
 
-	cdef double _log_probability( self, double symbol ):
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
 		"""
 		Actually calculate it here.
 		"""
-		cdef double bandwidth = self.parameters[1]
-		cdef double mu, scalar = 1.0 / SQRT_2_PI
-		cdef int i = 0, n = len(self.parameters[0])
-		cdef double distribution_prob = 0, point_prob
 
-		for i in xrange( n ):
+		cdef double bandwidth = self.bandwidth
+		cdef double mu, w
+
+		cdef double scalar = 1.0 / SQRT_2_PI
+		cdef int i, n = self.n
+		cdef double prob
+
+		for i in range( n ):
 			# Go through each point sequentially
-			mu = self.parameters[0][i]
+			mu = self.points[i]
+			w = self.weights[i]
 
 			# Calculate the probability under that point
-			point_prob = scalar * \
-				cexp( -0.5 * (( mu-symbol ) / bandwidth) ** 2 )
-
-			# Scale that point according to the weight 
-			distribution_prob += point_prob * self.parameters[2][i]
+			prob += w * scalar * cexp(-0.5 * ((mu-symbol) / bandwidth)**2)
 
 		# Return the log of the sum of the probabilities
-		return _log( distribution_prob )
+		return _log( prob )
 
 	def sample( self ):
 		"""
@@ -1611,19 +1701,22 @@ cdef class GaussianKernelDensity( Distribution ):
 		if self.frozen == True:
 			return
 
-		points = numpy.asarray( points )
-		n = len(points)
+		points = numpy.asarray( points, dtype=numpy.float64 )
+		n = points.shape[0]
 
 		# Get the weights, or assign uniform weights
 		if weights:
-			weights = numpy.array(weights) / numpy.sum(weights)
+			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
 
 		# If no inertia, get rid of the previous points
 		if inertia == 0.0:
 			self.parameters[0] = points
 			self.parameters[2] = weights
+			self.points = points
+			self.weights = weights
+			self.n = self.points.shape[0]
 
 		# Otherwise adjust weights appropriately
 		else: 
@@ -1631,6 +1724,9 @@ cdef class GaussianKernelDensity( Distribution ):
 													  points ) )
 			self.parameters[2] = numpy.concatenate( ( self.parameters[2]*inertia,
 													  weights*(1-inertia) ) )
+			self.points = self.parameters[0]
+			self.weights = self.parameters[0]
+			self.n = self.points.shape[0]
 
 cdef class UniformKernelDensity( Distribution ):
 	"""
@@ -1639,21 +1735,26 @@ cdef class UniformKernelDensity( Distribution ):
 	the sum of the Gaussian distances of the new point from every other point.
 	"""
 
-	def __init__( self, points, bandwidth=1, weights=None, frozen=False ):
+	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
 		Weights are scaled so that they sum to 1. 
 		"""
 
-		points = numpy.asarray( points )
-		n = len(points)
+		points = numpy.asarray( points, dtype=numpy.float64 )
+		n = points.shape[0]
+		
 		if weights:
-			weights = numpy.array(weights) / numpy.sum(weights)
+			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
 
+		self.n = n
 		self.parameters = [ points, bandwidth, weights ]
+		self.points = points
+		self.weights = weights
+		self.bandwidth = bandwidth
 		self.summaries = []
 		self.name = "UniformKernelDensity"
 		self.frozen = frozen
@@ -1667,32 +1768,31 @@ cdef class UniformKernelDensity( Distribution ):
 
 		return self._log_probability( symbol )
 
-	cdef double _log_probability( self, double symbol ):
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
 		"""
 		Actually do math here.
 		"""
 
-		cdef double mu
-		cdef double distribution_prob=0, point_prob
-		cdef int i = 0, n = len(self.parameters[0])
+		cdef double bandwidth = self.bandwidth
+		cdef double mu, w
 
-		for i in xrange( n ):
+		cdef int i, n = self.n
+		cdef double prob = 0.0 
+
+		for i in range( n ):
 			# Go through each point sequentially
-			mu = self.parameters[0][i]
+			mu = self.points[i]
+			w = self.weights[i]
 
 			# The good thing about uniform distributions if that
 			# you just need to check to make sure the point is within
 			# a bandwidth.
-			if abs( mu - symbol ) <= self.parameters[1]:
-				point_prob = 1
-			else:
-				point_prob = 0
-
-			# Properly weight the point before adding it to the sum
-			distribution_prob += point_prob * self.parameters[2][i]
+			if fabs( mu - symbol ) <= bandwidth:
+				prob += w
 
 		# Return the log of the sum of probabilities
-		return _log( distribution_prob )
+		return _log( prob )
 	
 	def sample( self ):
 		"""
@@ -1714,19 +1814,22 @@ cdef class UniformKernelDensity( Distribution ):
 		if self.frozen == True:
 			return
 
-		points = numpy.asarray( points )
-		n = len(points)
+		points = numpy.asarray( points, dtype=numpy.float64 )
+		n = points.shape[0]
 
 		# Get the weights, or assign uniform weights
 		if weights:
-			weights = numpy.array(weights) / numpy.sum(weights)
+			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
 
 		# If no inertia, get rid of the previous points
 		if inertia == 0.0:
 			self.parameters[0] = points
 			self.parameters[2] = weights
+			self.points = points
+			self.weights = weights
+			self.n = self.points.shape[0]
 
 		# Otherwise adjust weights appropriately
 		else: 
@@ -1734,6 +1837,9 @@ cdef class UniformKernelDensity( Distribution ):
 													  points ) )
 			self.parameters[2] = numpy.concatenate( ( self.parameters[2]*inertia,
 													  weights*(1-inertia) ) )
+			self.points = self.parameters[0]
+			self.weights = self.parameters[0]
+			self.n = self.points.shape[0]
 
 cdef class TriangleKernelDensity( Distribution ):
 	"""
@@ -1742,21 +1848,26 @@ cdef class TriangleKernelDensity( Distribution ):
 	the sum of the Gaussian distances of the new point from every other point.
 	"""
 
-	def __init__( self, points, bandwidth=1, weights=None, frozen=False ):
+	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
 		Weights are scaled so that they sum to 1. 
 		"""
 
-		points = numpy.asarray( points )
-		n = len(points)
+		points = numpy.asarray( points, dtype=numpy.float64 )
+		n = points.shape[0]
+		
 		if weights:
-			weights = numpy.array(weights) / numpy.sum(weights)
+			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
 
+		self.n = n
 		self.parameters = [ points, bandwidth, weights ]
+		self.points = points
+		self.weights = weights
+		self.bandwidth = bandwidth
 		self.summaries = []
 		self.name = "TriangleKernelDensity"
 		self.frozen = frozen
@@ -1770,30 +1881,30 @@ cdef class TriangleKernelDensity( Distribution ):
 
 		return self._log_probability( symbol )
 
-	cdef double _log_probability( self, double symbol ):
+	@cython.boundscheck(False)
+	cdef public double _log_probability( self, double symbol ) nogil:
 		"""
 		Actually do math here.
 		"""
 
-		cdef double bandwidth = self.parameters[1]
-		cdef double mu
-		cdef double distribution_prob=0, point_prob
-		cdef int i = 0, n = len(self.parameters[0])
+		cdef double bandwidth = self.bandwidth
+		cdef double mu, w
 
-		for i in xrange( n ):
+		cdef int i, n = self.n
+		cdef double prob = 0.0, hinge
+
+		for i in range( n ):
 			# Go through each point sequentially
-			mu = self.parameters[0][i]
+			mu = self.points[i]
+			w = self.weights[i]
 
 			# Calculate the probability for each point
-			point_prob = bandwidth - abs( mu - symbol ) 
-			if point_prob < 0:
-				point_prob = 0 
-
-			# Properly weight the point before adding to the sum
-			distribution_prob += point_prob * self.parameters[2][i]
+			hinge = bandwidth - fabs( mu - symbol ) 
+			if hinge > 0:
+				prob += hinge * w 
 
 		# Return the log of the sum of probabilities
-		return _log( distribution_prob )
+		return _log( prob )
 
 	def sample( self ):
 		"""
@@ -1815,19 +1926,22 @@ cdef class TriangleKernelDensity( Distribution ):
 		if self.frozen == True:
 			return
 
-		points = numpy.asarray( points )
-		n = len(points)
+		points = numpy.asarray( points, dtype=numpy.float64 )
+		n = points.shape[0]
 
 		# Get the weights, or assign uniform weights
 		if weights:
-			weights = numpy.array(weights) / numpy.sum(weights)
+			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
 
 		# If no inertia, get rid of the previous points
 		if inertia == 0.0:
 			self.parameters[0] = points
 			self.parameters[2] = weights
+			self.points = points
+			self.weights = weights
+			self.n = self.points.shape[0]
 
 		# Otherwise adjust weights appropriately
 		else: 
@@ -1835,6 +1949,9 @@ cdef class TriangleKernelDensity( Distribution ):
 													  points ) )
 			self.parameters[2] = numpy.concatenate( ( self.parameters[2]*inertia,
 													  weights*(1-inertia) ) )
+			self.points = self.parameters[0]
+			self.weights = self.parameters[0]
+			self.n = self.points.shape[0]
 
 cdef class MixtureDistribution( Distribution ):
 	"""
@@ -1843,19 +1960,26 @@ cdef class MixtureDistribution( Distribution ):
 	distributions. Can also specify weights for the distributions.
 	"""
 
-	def __init__( self, distributions, weights=None, frozen=False ):
+	def __cinit__( self, distributions, weights=None, frozen=False ):
 		"""
 		Take in the distributions and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
 		Weights are scaled so that they sum to 1. 
 		"""
-		n = len(distributions)
-		if weights:
-			weights = numpy.array( weights ) / numpy.sum( weights )
-		else:
-			weights = numpy.ones(n) / n
+		
+		distributions = numpy.asarray( distributions, dtype=numpy.object_ )
+		n = distributions.shape[0]
 
+		if weights:
+			weights = numpy.array( weights, dtype=numpy.float64 ) / numpy.sum( weights )
+		else:
+			weights = numpy.ones(n, dtype=numpy.float64 ) / n
+
+		self.n = n
 		self.parameters = [ distributions, weights ]
+		self.distributions = distributions
+		self.weights = weights
+		self.distributions = distributions
 		self.name = "MixtureDistribution"
 		self.frozen = frozen
 
@@ -1877,9 +2001,27 @@ cdef class MixtureDistribution( Distribution ):
 		of both numeric and not-necessarily-numeric distributions. 
 		"""
 
-		(d, w), n = self.parameters, len(self.parameters)
-		return _log( numpy.sum([ cexp( d[i].log_probability(symbol) ) \
-			* w[i] for i in xrange(n) ]) )
+		return self._log_probability( symbol )
+
+	cdef public double _log_probability( self, double symbol ):
+		"""
+		Cython optimized function for distributions involving floats.
+		"""
+
+		cdef int i, n = self.n
+		cdef double w, prob = 0.0
+		cdef Distribution d
+
+		for i in range( n ):
+			# Go through each point sequentially
+			w = self.weights[i]
+			d = <Distribution>self.distributions[i]
+
+			# Calculate the probability for each point
+			prob += cexp( d.log_probability( symbol ) ) * w
+
+		# Return the log of the sum of probabilities
+		return _log( prob )	
 
 	def sample( self ):
 		"""
@@ -2011,34 +2153,40 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	represent the mean of that event. Observations must now be tuples of
 	a length equal to the number of distributions passed in.
 
-	s1 = MultivariateDistribution([ ExponentialDistribution( 0.1 ), 
+	s1 = IndependentComponentsDistribution([ ExponentialDistribution( 0.1 ), 
 									NormalDistribution( 5, 2 ) ])
 	s1.log_probability( (5, 2 ) )
 	"""
 
-	def __init__( self, distributions, weights=None, frozen=False ):
+	def __cinit__( self, distributions, weights=None, frozen=False ):
 		"""
 		Take in the distributions and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
 		Weights are scaled so that they sum to 1. 
 		"""
-		n = len(distributions)
+
+		distributions = numpy.array( distributions, dtype=numpy.object_ )
+		n = distributions.shape[0]
+
 		if weights:
-			weights = numpy.array( weights )
+			weights = numpy.array( weights, dtype=numpy.float64 )
 		else:
-			weights = numpy.ones(n)
+			weights = numpy.ones( n, dtype=numpy.float64 )
 
 		self.parameters = [ distributions, weights ]
-		self.name = "MultivariateDistribution"
+		self.distributions = distributions
+		self.weights = weights
+		self.n = n
+		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
 
 	def __str__( self ):
 		"""
-		Return a string representation of the MultivariateDistribution.
+		Return a string representation of the IndependentComponentsDistribution.
 		"""
 
 		distributions = map( str, self.parameters[0] )
-		return "MultivariateDistribution({})".format(
+		return "IndependentComponentsDistribution({})".format(
 			distributions ).replace( "'", "" )
 
 	def log_probability( self, symbol ):
@@ -2048,8 +2196,23 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		return sum( d.log_probability( obs )*w for d, obs, w in izip( 
-			self.parameters[0], symbol, self.parameters[1] ) )
+		return self._log_probability( numpy.asarray(symbol) )
+
+	cdef public double _log_probability( self, numpy.ndarray symbol ):
+		"""
+		Cython optimized function.
+		"""
+
+		cdef int i, n = self.n
+		cdef double prob = 0.0
+
+		for i in range(n):
+			w = self.weights[i]
+			d = <Distribution>self.distributions[i]
+
+			prob += d.log_probability( symbol[i] ) + _log(w)
+
+		return prob
 
 	def sample( self ):
 		"""
@@ -2086,6 +2249,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		for i, d in enumerate( self.parameters[0] ):
 			d.summarize( items[:,i], weights=weights )
 
+		self.distributions = numpy.asarray( self.parameters[0], dtype=numpy.object_ )
+
 	def from_summaries( self, inertia=0.0 ):
 		"""
 		Use the collected summary statistics in order to update the
@@ -2098,6 +2263,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
+
+		self.distributions = numpy.asarray( self.parameters[0], dtype=numpy.object_ )
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	"""

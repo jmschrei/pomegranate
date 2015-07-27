@@ -406,8 +406,8 @@ def test_independent():
 	d = IndependentComponentsDistribution( [ NormalDistribution( 5, 2 ), ExponentialDistribution( 2 ) ],
 								  weights=[18., 1.] )
 
-	assert round( d.log_probability( (4,1) ), 4 ) == -32.5744
-	assert round( d.log_probability( (100, 0.001) ), 4 ) == -20334.5764
+	assert round( d.log_probability( (4,1) ), 4 ) == -0.1536
+	assert round( d.log_probability( (100, 0.001) ), 4 ) == -1126.1556
 
 	d.from_sample( [ (5, 1), (5.2, 1.7), (4.7, 1.9), (4.9, 2.4), (4.5, 1.2) ] )
 
