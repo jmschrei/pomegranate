@@ -10,6 +10,7 @@ from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
 import math, random, itertools as it, sys, bisect, json
 import networkx
 import tempfile
+import warnings
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -33,7 +34,10 @@ from base cimport *
 
 from matplotlib import pyplot
 import matplotlib.image
-import pygraphviz
+try:
+	import pygraphviz
+except ImportError:
+	pygraphviz = None
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -293,36 +297,40 @@ cdef class HiddenMarkovModel( Model ):
 		See networkx.draw_networkx() for the keywords you can pass in.
 		"""
 		
-		G = pygraphviz.AGraph(directed=True)
-		done_nodes = set()
-		add_nodes = set()
-		def add_node(node):
-			if node not in add_nodes:
-				if node.is_silent():
-					color = 'grey'
-				else:
-					if node.distribution.frozen:
-						color = 'blue'
+		if pygraphviz is not None:
+			G = pygraphviz.AGraph(directed=True)
+			done_nodes = set()
+			add_nodes = set()
+			def add_node(node):
+				if node not in add_nodes:
+					if node.is_silent():
+						color = 'grey'
 					else:
-						color = 'red'
-				G.add_node(node.name, color=color)
-				add_nodes.add(node)
-		def proc_node(n):
-			add_node(n)
-			done_nodes.add(n)
-			for node in self.graph.successors_iter(n):
-				add_node(node)
-				G.add_edge(n.name, node.name, label=str(math.e ** self.graph.get_edge_data(n, node)['weight']))
-				if node not in done_nodes:
+						if node.distribution.frozen:
+							color = 'blue'
+						else:
+							color = 'red'
+					G.add_node(node.name, color=color)
+					add_nodes.add(node)
+			def proc_node(n):
+				add_node(n)
+				done_nodes.add(n)
+				for node in self.graph.successors_iter(n):
+					add_node(node)
+					G.add_edge(n.name, node.name, label=str(math.e ** self.graph.get_edge_data(n, node)['weight']))
+					if node not in done_nodes:
+						proc_node(node)
+			for node in self.graph.nodes_iter():
+				if isinstance(node, State):
 					proc_node(node)
-		for node in self.graph.nodes_iter():
-			if isinstance(node, State):
-				proc_node(node)
-		with tempfile.NamedTemporaryFile() as tf:
-			G.draw(tf.name, format='png', prog='dot')
-			img = matplotlib.image.imread(tf.name)
-			pyplot.imshow(img)
-			pyplot.axis('off')
+			with tempfile.NamedTemporaryFile() as tf:
+				G.draw(tf.name, format='png', prog='dot')
+				img = matplotlib.image.imread(tf.name)
+				pyplot.imshow(img)
+				pyplot.axis('off')
+		else:
+			warnings.warn("Install pygraphviz for nicer visualizations")
+			networkx.draw()
 		pyplot.show()
 
 	def bake( self, verbose=False, merge="all" ): 
