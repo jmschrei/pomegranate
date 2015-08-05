@@ -317,7 +317,7 @@ cdef class HiddenMarkovModel( Model ):
 				done_nodes.add(n)
 				for node in self.graph.successors_iter(n):
 					add_node(node)
-					G.add_edge(n.name, node.name, label=str(math.e ** self.graph.get_edge_data(n, node)['weight']))
+					G.add_edge(n.name, node.name, label="%g" % (math.e ** self.graph.get_edge_data(n, node)['weight']))
 					if node not in done_nodes:
 						proc_node(node)
 			for node in self.graph.nodes_iter():
