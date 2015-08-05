@@ -88,7 +88,7 @@ cdef class HiddenMarkovModel( Model ):
 	cdef int [:] tied_edges_starts
 	cdef int [:] tied_edges_ends
 	cdef int finite
-	cdef public object in_transition_log_probabilities_edge_idx
+	cdef object in_transition_log_probabilities_edge_idx
 	cdef object state_names
 
 	def __init__( self, name=None, start=None, end=None ):
