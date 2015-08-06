@@ -100,7 +100,7 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 		
 		# Save the name or make up a name.
-		self.name = str(name) or str( id(self) )
+		self.name = (name and str(name)) or str( id(self) )
 
 		# This holds a directed graph between states. Nodes in that graph are
 		# State objects, so they're guaranteed never to conflict when composing
