@@ -2,11 +2,15 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 #          Adam Novak ( anovak1@ucsc.edu )
 
+from __future__ import print_function
+
 cimport cython
 from cython.view cimport array as cvarray
 from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
 import math, random, itertools as it, sys, bisect, json
 import networkx
+import tempfile
+import warnings
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -29,6 +33,11 @@ cimport base
 from base cimport *
 
 from matplotlib import pyplot
+import matplotlib.image
+try:
+	import pygraphviz
+except ImportError:
+	pygraphviz = None
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -79,6 +88,7 @@ cdef class HiddenMarkovModel( Model ):
 	cdef int [:] tied_edges_starts
 	cdef int [:] tied_edges_ends
 	cdef int finite
+	cdef object state_names
 
 	def __init__( self, name=None, start=None, end=None ):
 		"""
@@ -90,7 +100,7 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 		
 		# Save the name or make up a name.
-		self.name = name or str( id(self) )
+		self.name = (name and str(name)) or str( id(self) )
 
 		# This holds a directed graph between states. Nodes in that graph are
 		# State objects, so they're guaranteed never to conflict when composing
@@ -107,6 +117,8 @@ cdef class HiddenMarkovModel( Model ):
 		self.graph.add_node(self.start)
 		self.graph.add_node(self.end)
 
+		self.state_names = set()
+
 	def add_state(self, state):
 		"""
 		Adds the given State to the model. It must not already be in the model,
@@ -114,8 +126,12 @@ cdef class HiddenMarkovModel( Model ):
 		with this one.
 		"""
 		
+		state_name = state.name
+		if state_name in self.state_names:
+			raise ValueError("A state with name '%s' already exists" % state_name)
 		# Put it in the graph
 		self.graph.add_node(state)
+		self.state_names.add(state_name)
 
 	def add_states( self, states ):
 		"""
@@ -280,7 +296,40 @@ cdef class HiddenMarkovModel( Model ):
 		See networkx.draw_networkx() for the keywords you can pass in.
 		"""
 		
-		networkx.draw(self.graph, **kwargs)
+		if pygraphviz is not None:
+			G = pygraphviz.AGraph(directed=True)
+			done_nodes = set()
+			add_nodes = set()
+			def add_node(node):
+				if node not in add_nodes:
+					if node.is_silent():
+						color = 'grey'
+					else:
+						if node.distribution.frozen:
+							color = 'blue'
+						else:
+							color = 'red'
+					G.add_node(node.name, color=color)
+					add_nodes.add(node)
+			def proc_node(n):
+				add_node(n)
+				done_nodes.add(n)
+				for node in self.graph.successors_iter(n):
+					add_node(node)
+					G.add_edge(n.name, node.name, label="%g" % (math.e ** self.graph.get_edge_data(n, node)['weight']))
+					if node not in done_nodes:
+						proc_node(node)
+			for node in self.graph.nodes_iter():
+				if isinstance(node, State):
+					proc_node(node)
+			with tempfile.NamedTemporaryFile() as tf:
+				G.draw(tf.name, format='png', prog='dot')
+				img = matplotlib.image.imread(tf.name)
+				pyplot.imshow(img)
+				pyplot.axis('off')
+		else:
+			warnings.warn("Install pygraphviz for nicer visualizations")
+			networkx.draw()
 		pyplot.show()
 
 	def bake( self, verbose=False, merge="all" ): 
@@ -351,16 +400,16 @@ cdef class HiddenMarkovModel( Model ):
 					self.graph.remove_node( prestates[i] )
 
 					if verbose:
-						print "Orphan state {} removed due to no edges \
-							leading to it".format(prestates[i].name )
+						print("Orphan state {} removed due to no edges \
+							leading to it".format(prestates[i].name ))
 
 				elif self.out_edge_count[i] == 0:
 					merge_count += 1
 					self.graph.remove_node( prestates[i] )
 
 					if verbose:
-						print "Orphan state {} removed due to no edges \
-							leaving it".format(prestates[i].name )
+						print("Orphan state {} removed due to no edges \
+							leaving it".format(prestates[i].name ))
 
 			if merge_count == 0:
 				break
@@ -377,8 +426,8 @@ cdef class HiddenMarkovModel( Model ):
 			if out_edges != 1. and state != self.end:
 				# Issue a notice if verbose is activated
 				if verbose:
-					print "{} : {} summed to {}, normalized to 1.0"\
-						.format( self.name, state.name, out_edges )
+					print("{} : {} summed to {}, normalized to 1.0"\
+						.format( self.name, state.name, out_edges ))
 
 				# Reweight the edges so that the probability (not logp) sums
 				# to 1.
@@ -427,8 +476,8 @@ cdef class HiddenMarkovModel( Model ):
 
 								# Log the event
 								if verbose:
-									print "{} : {} - {} merged".format(
-										self.name, a, b)
+									print("{} : {} - {} merged".format(
+										self.name, a, b))
 
 						# Remove the state now that all edges are removed
 						self.graph.remove_node( a )
@@ -442,7 +491,7 @@ cdef class HiddenMarkovModel( Model ):
 		for a, b, e in self.graph.edges( data=True ):
 			for x, y, d in self.graph.edges( data=True ):
 				if a is y and b is x and a.is_silent() and b.is_silent():
-					print "Loop: {} - {}".format( a.name, b.name )
+					print("Loop: {} - {}".format( a.name, b.name ))
 
 		states = self.graph.nodes()
 		n, m = len(states), len(self.graph.edges())
@@ -2010,7 +2059,7 @@ cdef class HiddenMarkovModel( Model ):
 		improvement = trained_log_probability_sum - log_probability_sum
 
 		if verbose:
-			print "Total Training Improvement: ", improvement
+			print("Total Training Improvement: ", improvement)
 		return improvement
 
 	def _train_baum_welch(self, sequences, stop_threshold, min_iterations, 
@@ -2034,6 +2083,9 @@ cdef class HiddenMarkovModel( Model ):
 		while improvement > stop_threshold or iteration < min_iterations:
 			if max_iterations and iteration >= max_iterations:
 				break 
+
+			if verbose:
+				print("Baum-Welch Iteration %d" % (iteration + 1))
 
 			# Perform an iteration of Baum-Welch training.
 			self._train_once_baum_welch( sequences, transition_pseudocount, 
