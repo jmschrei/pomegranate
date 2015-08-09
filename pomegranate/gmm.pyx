@@ -187,7 +187,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		self.weights = priors
 
-	def to_json( self ):
+	def to_json( self, separators = None, indent=None ):
 		"""
 		Write out the HMM to JSON format, recursively including state and
 		distribution information.
@@ -195,11 +195,11 @@ cdef class GeneralMixtureModel( Distribution ):
 		
 		model = { 
 					'class' : 'GeneralMixtureModel',
-					'distributions'  : map( str, self.distributions ),
+					'distributions'  : [json.loads(d.to_json()) for d in self.distributions],
 					'weights' : list( self.weights )
 				}
 
-		return json.dumps( model, separators=(',', ' : '), indent=4 )
+		return json.dumps( model, separators=separators, indent=indent)
 
 	@classmethod
 	def from_json( cls, s, verbose=False ):
@@ -210,7 +210,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		# Load a dictionary from a JSON formatted string
 		d = json.loads( s )
 
-		distributions = [ Distribution.from_json( j ) for j in d['distributions'] ] 
+		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ]
 		# Make a new generic HMM
 		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
 		return model

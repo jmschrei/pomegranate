@@ -193,7 +193,7 @@ cdef class Distribution:
 		samples = [ self.sample() for i in xrange( n ) ]
 		plt.hist( samples, **kwargs )
 
-	def to_json( self ):
+	def to_json( self ,  separators = None, indent=None):
 		"""
 		Convert the distribution to JSON format.
 		"""
@@ -203,7 +203,7 @@ cdef class Distribution:
 								'name'  : self.name,
 								'parameters' : self.parameters,
 								'frozen' : self.frozen
-						   }, separators=(',', ' : ' ), indent=4 )
+						   },separators=separators, indent=indent)
 
 	@classmethod
 	def from_json( cls, s ):
@@ -219,7 +219,10 @@ cdef class Distribution:
 			raise SyntaxError( "Distribution object attempting to read invalid object." )
 
 		dist = eval( "{}( [0], 0 )".format( d['name'] ) )
-		dist.parameters = d['parameters']
+		if d['name'] == 'IndependentComponentsDistribution':
+			dist.parameters = [[cls.from_json(json.dumps(p)) for p in d['parameters'][0]],numpy.array(d['parameters'][1])]
+		else:
+			dist.parameters = d['parameters']
 		dist.frozen = d['frozen']
 		return dist
 
@@ -2029,7 +2032,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 			weights = numpy.ones(n)
 
 		self.parameters = [ distributions, weights ]
-		self.name = "MultivariateDistribution"
+		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
 
 	def __str__( self ):
@@ -2038,7 +2041,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		"""
 
 		distributions = map( str, self.parameters[0] )
-		return "MultivariateDistribution({})".format(
+		return "IndependentComponentsDistribution({})".format(
 			distributions ).replace( "'", "" )
 
 	def log_probability( self, symbol ):
@@ -2099,6 +2102,17 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
 
+	def to_json( self, separators = None, indent=None  ):
+		"""
+		Convert the distribution to JSON format.
+		"""
+		return json.dumps( {
+								'class' : 'Distribution',
+								'name'  : self.name,
+								'parameters' : [[json.loads(p.to_json()) for p in self.parameters[0]], self.parameters[1].tolist()],
+								'frozen' : self.frozen
+						   },separators=separators, indent=indent)
+
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	"""
 	A multivariate gaussian distribution, with a mean vector and a covariance
@@ -2109,8 +2123,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		"""
 		Take in the mean vector and the covariance matrix. 
 		"""
-
-		self.parameters = [ numpy.array(means), numpy.array(covariance) ]
+		self.parameters = [ numpy.array(means).to_list(), numpy.array(covariance).to_list() ]
 		self.name = "MultivariateGaussianDistribution"
 		self.frozen = frozen
 		self.diagonal = diagonal
@@ -2124,7 +2137,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		"""
 
 		# Taken from sklearn.mixture.gmm._log_multivariate_normal_density_full
-		mean, covar = self.parameters
+		mean, covar = numpy.array(self.parameters[0]),numpy.array(self.parameters[1])
+
 		d = mean.shape[0]
 
 		try:
@@ -2200,6 +2214,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		self.parameters = [ prior_means*inertia + means*(1-inertia), 
 							prior_covs*inertia + cov*(1-inertia) ]
+
+
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	"""

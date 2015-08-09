@@ -166,7 +166,7 @@ cdef class FiniteStateMachine( Model ):
 			raise SyntaxError( "Model.start has been deleted, leaving the \
 				model with no start. Please ensure it has a start." )
 
-	def to_json( self ):
+	def to_json( self , separators = None, indent=None):
 		"""
 		Write out the HMM to JSON format, recursively including state and
 		distribution information.
@@ -175,8 +175,8 @@ cdef class FiniteStateMachine( Model ):
 		model = { 
 					'class' : 'FiniteStateMachine',
 					'name'  : self.name,
-					'start' : str(self.start),
-					'states' : map( str, self.states ),
+					'start' : json.loads(self.start.to_json()),
+					'states' : [json.loads(s.to_json()) for s in self.states ],
 					'start_index' : self.start_index,
 					'silent_index' : self.silent_start
 				}
@@ -190,9 +190,8 @@ cdef class FiniteStateMachine( Model ):
 			edges.append( ( s, e, key ) )
 
 		model['edges'] = edges
+		return json.dumps( model,separators=separators, indent=indent)
 
-		return json.dumps( model, separators=(',', ' : '), indent=4 )
-			
 	@classmethod
 	def from_json( cls, s, verbose=False ):
 		"""
@@ -206,7 +205,7 @@ cdef class FiniteStateMachine( Model ):
 		model = FiniteStateMachine( str(d['name']) )
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( j ) for j in d['states'] ]
+		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
 
 		# Add all the states to the model
 		model.add_states( states )
