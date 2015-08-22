@@ -17,8 +17,7 @@ filenames = [ "base",
               "distributions",
               "fsm",
               "hmm",
-              "gmm",
-              "utils"
+              "gmm"
             ]
 
 if not use_cython:

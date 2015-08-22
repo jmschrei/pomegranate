@@ -10,6 +10,7 @@ import networkx
 
 from libc.stdlib cimport calloc, free, realloc
 from libc.string cimport memcpy, memset
+from cpython.string cimport PyString_AsString
 import time
 
 if sys.version_info[0] > 2:
@@ -40,9 +41,6 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 
-ctypedef numpy.npy_float64 DOUBLE_t 
-ctypedef numpy.npy_intp SIZE_t  
-
 # Useful python-based array-intended operations
 def log(value):
 	"""
@@ -69,7 +67,9 @@ def log_probability( model, samples, n_jobs=1 ):
 	Return the log probability of samples given a model.
 	'''
 
-	return sum( Parallel( n_jobs=n_jobs, backend='threading' )( delayed( model.log_probability, check_pickle=False )( samples[i] ) for i in xrange(len(samples)) ) )
+	return sum( Parallel( n_jobs=n_jobs, backend='threading' )( 
+		delayed( model.log_probability, check_pickle=False )( 
+			samples[i] ) for i in xrange(len(samples)) ) )
 
 cdef class HiddenMarkovModel( Model ):
 	"""
@@ -845,23 +845,26 @@ cdef class HiddenMarkovModel( Model ):
 			return [emissions, sequence_path]
 		return emissions
 
-	cdef void _emissions( self, numpy.ndarray sequence ):
+	cdef void _double_emissions( self, double [:] sequence, int m, int n ) nogil:
 		"""
 		Calculate the emission table for the current sequene, and store it to
 		memory, so that it can be used by multiple functions if needed.
 		"""
 
-		m = self.n_states
-		n = len( sequence )
+		cdef int i, l
+		#cdef Distribution d
 
-		self.e = <DOUBLE_t*> realloc( self.e, n*self.silent_start*sizeof(DOUBLE_t) )
+		self.e = <DOUBLE_t*> realloc( self.e, n*m*sizeof(DOUBLE_t) )
 
 		for i in range( n ):
-			for l in range( self.silent_start ):
-				d = self.states[l].distribution
-				self.e[i + l*n] = d.log_probability( sequence[i] ) + self.state_weights[l]
+			for l in range( m ):
+				#d = self.states[l].distribution
+				self.e[i + l*n] = -1 #d._log_probability( sequence[i] ) + self.state_weights[l]
 
-	def forward( self, sequence, use_cache=0 ):
+		with gil:
+			print "exit"
+
+	def forward( self, sequence ):
 		'''
 		Python wrapper for the forward algorithm, calculating probability by
 		going forward through a sequence. Returns the full forward DP matrix.
@@ -890,9 +893,10 @@ cdef class HiddenMarkovModel( Model ):
 		http://www.cs.sjsu.edu/~stamp/RUA/HMM.pdf on p. 14.
 		'''
 
-		return numpy.array( self._forward( numpy.array( sequence ), use_cache ) )
+		sequence = numpy.array( sequence )
+		return self._forward( sequence )
 
-	cdef double [:,:] _forward( self, numpy.ndarray sequence, SIZE_t use_cache ):
+	cdef double [:,:] _forward( self, numpy.ndarray sequence_ndarray ):
 		"""
 		Run the forward algorithm, and return the matrix of log probabilities
 		of each segment being in each hidden state. 
@@ -901,25 +905,50 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 
 		cdef unsigned int D_SIZE = sizeof( double )
-		cdef int i = 0, k, ki, l, n = len( sequence ), m = len( self.states ), j = 0
+		cdef int i, k, ki, l, n = sequence_ndarray.shape[0], m = len( self.states )
+		cdef int p = self.silent_start
 		cdef double log_probability
-		cdef State s
 		cdef Distribution d
 		cdef SIZE_t* in_edges = self.in_edge_count
 
-		cdef DOUBLE_t* e
+		cdef DOUBLE_t* e 
 		cdef numpy.ndarray f_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 		cdef DOUBLE_t* f = <DOUBLE_t*> f_ndarray.data
 
+		cdef bint is_numeric_type = self.states[0].distribution.is_numeric_type
+		cdef DOUBLE_t numeric_symbol
+		cdef char* char_symbol
+
+		cdef DOUBLE_t* numeric_sequence
+		cdef char** char_sequence
+
+		if is_numeric_type:
+			numeric_sequence = <DOUBLE_t*> sequence_ndarray.data
+		else:
+			char_sequence = <char**> calloc(n, sizeof(char*))
+			for i in xrange(n):
+				char_sequence[i] = PyString_AsString(str(sequence_ndarray[i]))
+
 		# Initialize the emission table, which contains the probability of
 		# each entry i, k holds the probability of symbol i being emitted
-		# by state k 
-		if use_cache == 0:
-			self._emissions( sequence )
-		
-		e = self.e
-
+		# by state k
 		with nogil:
+			e = <double*> calloc( n*m, sizeof(double) )
+
+			for l in range( p ):
+				with gil:
+					d = self.states[l].distribution
+
+				for i in range( n ):
+					if is_numeric_type:
+						numeric_symbol = numeric_sequence[i]
+						for l in range( p ):
+							e[i + l*n] = d._dlog_probability( numeric_symbol )
+					else:
+						char_symbol = char_sequence[i]
+						for l in range( p ):
+							e[i + l*n] = d._slog_probability( char_symbol )
+
 			# We must start in the start state, having emitted 0 symbols        
 			for i in range(m):
 				f[i] = NEGINF
@@ -1003,6 +1032,8 @@ cdef class HiddenMarkovModel( Model ):
 					# Add the previous partial result and update the table entry
 					f[(i+1)*m + l] = pair_lse( f[(i+1)*m + l], log_probability )
 
+		if not is_numeric_type:
+			free(char_sequence) 
 		return f_ndarray
 
 	def backward( self, sequence, use_cache=0 ):

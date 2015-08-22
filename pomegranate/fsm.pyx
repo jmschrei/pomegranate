@@ -30,10 +30,6 @@ from distributions cimport *
 cimport base
 from base cimport *
 
-ctypedef numpy.npy_float64 DOUBLE_t 
-ctypedef numpy.npy_intp SIZE_t  
-
-
 cdef class FiniteStateMachine( Model ):
 	'''
 	A finite state machine. 
