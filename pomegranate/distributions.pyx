@@ -11,7 +11,7 @@ from libc.string cimport memcpy, memset
 from libc.math cimport log as clog, sqrt as csqrt, exp as cexp, lgamma, fabs
 
 import math, random, itertools as it, sys, bisect, json
-import networkx
+import networkx, time
 import scipy.stats, scipy.sparse, scipy.special, scipy.linalg
 
 if sys.version_info[0] > 2:
@@ -54,13 +54,13 @@ def weight_set( items, weights ):
 	1's if nothing is passed in.
 	"""
 
-	items = numpy.asarray(items, dtype=numpy.float64)
+	items = numpy.array(items, dtype=numpy.float64)
 	if weights is None:
 		# Weight everything 1 if no weights specified
 		weights = numpy.ones_like(items, dtype=numpy.float64)
 	else:
 		# Force whatever we have to be a Numpy array
-		weights = numpy.asarray(weights, dtype=numpy.float64)
+		weights = numpy.array(weights, dtype=numpy.float64)
 	
 	return items, weights
 
@@ -142,27 +142,7 @@ cdef class Distribution:
 		Return the log probability of the given symbol under this distribution.
 		"""
 		
-		if self.is_numeric_type == True:
-			return self._dlog_probability( symbol )
-		return self._slog_probability( symbol )
-
-	cdef double _dlog_probability( self, double symbol ) nogil:
-		"""
-		Cythonized log probability calculation on doubles.
-		"""
-
-		with gil:
-			raise NotImplementedError
-		return 0
-
-	cdef double _slog_probability( self, char* symbol ) nogil:
-		"""
-		Cythonized log probability calculation on strings.
-		"""
-
-		with gil:
-			raise NotImplementedError
-		return 0
+		return NotImplementedError
 
 	def sample( self ):
 		"""
@@ -212,6 +192,11 @@ cdef class Distribution:
 				weights = numpy.concatenate( [prior_weights, weights] )
 
 			self.summaries = [ items, weights ]
+
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
+
+		pass
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
@@ -271,6 +256,10 @@ cdef class UniformDistribution( Distribution ):
 	A uniform distribution between two values.
 	"""
 
+	property parameters:
+		def __get__(self):
+			return [self.start, self.end]
+
 	def __cinit__( UniformDistribution self, double start, double end, bint frozen=False ):
 		"""
 		Make a new Uniform distribution over floats between start and end, 
@@ -278,15 +267,20 @@ cdef class UniformDistribution( Distribution ):
 		"""
 		
 		# Store the parameters
-		self.parameters = [start, end]
 		self.start = start
 		self.end = end
 		self.summaries = []
 		self.name = "UniformDistribution"
 		self.frozen = frozen
-		self.is_numeric_type = True
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Cython optimized log probability calculation which does not require
 		the gil to be in place.
@@ -306,7 +300,7 @@ cdef class UniformDistribution( Distribution ):
 		Sample from this uniform distribution and return the value sampled.
 		"""
 		
-		return random.uniform(self.parameters[0], self.parameters[1])
+		return random.uniform(self.start, self.end)
 		
 	def from_sample (self, items, weights=None, inertia=0.0 ):
 		"""
@@ -314,21 +308,18 @@ cdef class UniformDistribution( Distribution ):
 		the given sample. Items holds some sort of sequence. If weights is 
 		specified, it holds a sequence of value to weight each item by.
 		"""
-		
-		items, weights = weight_set( items, weights )
-		if weights.sum() == 0 or items.shape[0] == 0 or self.frozen == True:
+	
+		if self.frozen:
 			return
-				
-		self._from_sample( items, weights, inertia, len(items) )
-	
-	
-	cdef void _from_sample( self, double [:] items, double [:] weights, 
-		DOUBLE_t inertia, SIZE_t size ) nogil:
+
+		self.summarize( items, weights )
+		self.from_summaries( inertia )
+
+	cdef void _summarize( self, double* items, double* weights, 
+		SIZE_t size ) nogil:
 		"""Cython optimized training."""
 
-		cdef DOUBLE_t start = self.start
-		cdef DOUBLE_t end = self.end
-		cdef DOUBLE_t minimum = INF, maximum = NEGINF 
+		cdef double minimum = INF, maximum = NEGINF 
 		cdef int i
 
 		for i in range(size):
@@ -337,14 +328,8 @@ cdef class UniformDistribution( Distribution ):
 			if items[i] > maximum:
 				maximum = items[i]
 
-		minimum = minimum*(1-inertia) + start*inertia
-		maximum = maximum*(1-inertia) + end*inertia
-
-		self.start = minimum
-		self.end = maximum 
 		with gil:
-			self.parameters[0] = minimum
-			self.parameters[1] = maximum
+			self.summaries.append( (minimum, maximum) )
 	
 	def summarize( self, items, weights=None ):
 		"""
@@ -352,29 +337,12 @@ cdef class UniformDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set( items, weights )
-		if weights.sum() == 0 or items.shape[0] == 0:
-			return
+		items = numpy.array(items, dtype=numpy.float64)
 
-		self._summarize( items, weights, items.shape[0] )
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = NULL
 
-	cdef void _summarize( self, double [:] items, double [:] weights,
-		SIZE_t size ) nogil:
-		"""
-		Summarize it.
-		"""
-
-		cdef DOUBLE_t minimum = INF, maximum = NEGINF 
-		cdef int i
-
-		for i in range(size):
-			if items[i] < minimum:
-				minimum = items[i]
-			if items[i] > maximum:
-				maximum = items[i]
-
-		with gil:
-			self.summaries.extend([ minimum, maximum ])
+		self._summarize( items_p, weights_p, items.shape[0] )
 		
 	def from_summaries( self, inertia=0.0 ):
 		"""
@@ -386,30 +354,48 @@ cdef class UniformDistribution( Distribution ):
 		if self.frozen == True:
 			return
 
-		self.from_sample( self.summaries, inertia=inertia )
+		maximum, minimum = NEGINF, INF
+		for summary in self.summaries:
+			if summary[0] < minimum:
+				minimum = summary[0]
+			if summary[1] > maximum:
+				maximum = summary[1]
+
+		self.start = minimum*(1-inertia) + self.start*inertia
+		self.end = maximum*(1-inertia) + self.end*inertia
+
 		self.summaries = []
+
 
 cdef class NormalDistribution( Distribution ):
 	"""
 	A normal distribution based on a mean and standard deviation.
 	"""
 
+	property parameters:
+		def __get__(self):
+			return [self.mu, self.sigma]
+
 	def __cinit__( self, double mean, double std, bint frozen=False ):
 		"""
 		Make a new Normal distribution with the given mean mean and standard 
 		deviation std.
 		"""
-		
-		# Store the parameters
-		self.parameters = [mean, std]
+
 		self.mu = mean
 		self.sigma = std
 		self.summaries = []
 		self.name = "NormalDistribution"
 		self.frozen = frozen
-		self.is_numeric_type = True
+		
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Cython optimized function, with nogil enabled. 
 		"""
@@ -424,94 +410,59 @@ cdef class NormalDistribution( Distribution ):
 		Sample from this normal distribution and return the value sampled.
 		"""
 		
-		# This uses the same parameterization
-		return random.normalvariate(*self.parameters)
+		return random.normalvariate( self.mu, self.sigma )
 		
-	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def from_sample (self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
 		specified, it holds a sequence of value to weight each item by.
-		
-		min_std specifieds a lower limit on the learned standard deviation.
 		"""
-
-		items, weights = weight_set( items, weights )
-		if weights.sum() == 0 or items.shape[0] == 0 or self.frozen == True:
+	
+		if self.frozen:
 			return
 
-		self._from_sample( items, weights, inertia, min_std, items.shape[0] )
+		self.summarize( items, weights )
+		self.from_summaries( inertia, min_std )
 
-	cdef void _from_sample( self, numpy.ndarray items, numpy.ndarray weights,
-		DOUBLE_t inertia, DOUBLE_t min_std, SIZE_t size ) nogil:
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
-		cdef DOUBLE_t mu=0, mu_sq, var=0, w=0, sigma=0
-		cdef DOUBLE_t prior_mean = self.mu
-		cdef DOUBLE_t prior_std = self.sigma
+		cdef double mu=0, mu_sq, var=0, w=0
 		cdef SIZE_t i
-
-		cdef DOUBLE_t* items_p = <DOUBLE_t*>items.data
-		cdef DOUBLE_t* weights_p = <DOUBLE_t*>weights.data
 
 		# Calculate the average, which is the MLE mu estimate
 		for i in range(size):
-			mu += items_p[i] * weights_p[i]
-			w += weights_p[i]
-		mu = mu / size
+			mu += items[i] * weights[i]
+			w += weights[i]
+		mu = mu / w
 		mu_sq = mu * mu
 
 		# Calculate the variance
 		for i in range(size):
-			var += (items_p[i] * items_p[i] - mu_sq) * weights_p[i]
+			var += (items[i] * items[i] - mu_sq) * weights[i]
 		var = var / w
 
-		# Turn it into the standard deviation
-		if var >= 0:
-			sigma = csqrt(var)
-		else:
-			sigma = min_std
-
-		mu = prior_mean*inertia + mu*(1-inertia)
-		sigma = prior_std*inertia + sigma*(1-inertia)
-		
-		self.mu = mu
-		self.sigma = sigma
 		with gil:
-			self.parameters[0] = mu
-			self.parameters[1] = sigma
+			self.summaries.append( (mu, var, w) )
 		
-
 	def summarize( self, items, weights=None ):
 		"""
 		Take in a series of items and their weights and reduce it down to a
 		summary statistic to be used in training later.
 		"""
 
-		if numpy.sum( weights ) == 0:
+		items, weights = weight_set( items, weights )
+		if weights.sum() <= 0:
 			return
 
-		items = numpy.asarray( items )
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		# Calculate weights. If none are provided, give uniform weights
-		if weights is None:
-			weights = numpy.ones_like( items )
-		else:
-			weights = numpy.asarray( weights )
-
-		if weights.sum() == 0:
-			return
-
-		# Save the mean and variance, the summary statistics for a normal
-		# distribution.
-		mean = numpy.average( items, weights=weights )
-		variance = numpy.dot( items**2 - mean**2, weights ) / weights.sum()
-
-		# Append the mean, variance, and sum of the weights to give the weights
-		# of these statistics.
-		self.summaries.append( [ mean, variance, weights.sum() ] )
+		self._summarize( items_p, weights_p, items.shape[0] )
 		
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
 		Takes in a series of summaries, represented as a mean, a variance, and
 		a weight, and updates the underlying distribution. Notes on how to do
@@ -523,34 +474,33 @@ cdef class NormalDistribution( Distribution ):
 		if len( self.summaries ) == 0 or self.frozen == True:
 			return
 
-		summaries = numpy.asarray( self.summaries )
-
-		# Calculate the new mean and variance.
-		mean = numpy.average( summaries[:,0], weights=summaries[:,2] )
-		variance = numpy.sum( [(v+m**2)*w for m, v, w in summaries] ) \
-			/ summaries[:,2].sum() - mean**2
-
-		if variance >= 0:
-			std = csqrt(variance)
+		if len( self.summaries ) == 1:
+			self.mu = self.mu*inertia + self.summaries[0][0]*(1-inertia)
+			self.sigma = self.sigma*inertia + self.summaries[0][1]*(1-inertia)
+			self.summaries = []
 		else:
-			std = 0
+			summaries = numpy.asarray( self.summaries )
 
-		# Get the previous parameters.
-		prior_mean, prior_std = self.parameters
+			mean = numpy.average( summaries[:,0], weights=summaries[:,2] )
+			var = numpy.sum( [(v+m**2)*w for m, v, w in summaries] ) \
+				/ summaries[:,2].sum() - mean**2
 
-		# Calculate the new parameters, respecting inertia, with an inertia
-		# of 0 being completely replacing the parameters, and an inertia of
-		# 1 being to ignore new training data.
-		self.parameters = [ prior_mean*inertia + mean*(1-inertia),
-							prior_std*inertia + std*(1-inertia) ]
-		self.mu = self.parameters[0]
-		self.sigma = self.parameters[1]
-		self.summaries = []
+			std = csqrt(var)
+			if std < min_std:
+				std = min_std
+
+			self.mu = self.mu*inertia + mean*(1-inertia)
+			self.sigma = self.sigma*inertia + std*(1-inertia)
+			self.summaries = []
 
 cdef class LogNormalDistribution( Distribution ):
 	"""
 	Represents a lognormal distribution over non-negative floats.
 	"""
+
+	property parameters:
+		def __get__(self):
+			return [self.mu, self.sigma]
 
 	def __cinit__( self, double mu, double sigma, frozen=False ):
 		"""
@@ -558,15 +508,21 @@ cdef class LogNormalDistribution( Distribution ):
 		of the normal distribution, which is the the exponential of the log
 		normal distribution.
 		"""
-		self.parameters = [ mu, sigma ]
+
 		self.mu = mu
 		self.sigma = sigma
 		self.summaries = []
 		self.name = "LogNormalDistribution"
 		self.frozen = frozen
-		self.is_numeric_type = True
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Actually perform the calculations here, in the Cython-optimized
 		function.
@@ -582,71 +538,20 @@ cdef class LogNormalDistribution( Distribution ):
 		Return a sample from this distribution.
 		"""
 
-		return numpy.random.lognormal( *self.parameters )
+		return numpy.random.lognormal( self.mu, self.sigma )
 
-	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def from_sample (self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
-		Set the parameters of this distribution to maximize the likelihood of
-		the given samples. Items hold some sort of sequence over floats. If
-		weights is specified, hold a sequence of values to weight each item by.
+		Set the parameters of this Distribution to maximize the likelihood of 
+		the given sample. Items holds some sort of sequence. If weights is 
+		specified, it holds a sequence of value to weight each item by.
 		"""
-
-		# If the distribution is frozen, don't bother with any calculation
-		if len(items) == 0 or self.frozen == True:
-			# No sample, so just ignore it and keep our old parameters.
+	
+		if self.frozen:
 			return
 
-		# Make it be a numpy array
-		items = numpy.asarray(items)
-		
-		if weights is None:
-			# Weight everything 1 if no weights specified
-			weights = numpy.ones_like(items)
-		else:
-			# Force whatever we have to be a Numpy array
-			weights = numpy.asarray(weights)
-		
-		if weights.sum() == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change the parameters at all.
-			return
-
-		# The ML uniform distribution is just the mean of the log of the samples
-		# and sample std the variance of the log of the samples.
-		# But we have to weight them. average does weighted mean for us, but 
-		# weighted std requires a trick from Stack Overflow.
-		# http://stackoverflow.com/a/2415343/402891
-		# Take the mean
-		mean = numpy.average( numpy.log(items), weights=weights)
-
-		if len(weights[weights != 0]) > 1:
-			# We want to do the std too, but only if more than one thing has a 
-			# nonzero weight
-			# First find the variance
-			variance = ( numpy.dot( numpy.log(items) ** 2 - mean ** 2, weights) / 
-				weights.sum() )
-				
-			if variance >= 0:
-				std = csqrt(variance)
-			else:
-				# May have a small negative variance on accident. Ignore and set
-				# to 0.
-				std = 0
-		else:
-			# Only one data point, can't update std
-			std = self.parameters[1]    
-		
-		# Enforce min std
-		std = max( numpy.array([std, min_std]) )
-		
-		# Calculate the new parameters, respecting inertia, with an inertia
-		# of 0 being completely replacing the parameters, and an inertia of
-		# 1 being to ignore new training data.
-		prior_mean, prior_std = self.parameters
-		self.parameters = [ prior_mean*inertia + mean*(1-inertia), 
-							prior_std*inertia + std*(1-inertia) ]
-		self.mu = self.parameters[0]
-		self.sigma = self.parameters[1]
+		self.summarize( items, weights )
+		self.from_summaries( inertia, min_std )
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -654,25 +559,39 @@ cdef class LogNormalDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		# If no weights are specified, use uniform weights.
-		if weights is None:
-			weights = numpy.ones_like( items )
-		else:
-			weights = numpy.asarray( weights )
+		items, weights = weight_set( items, weights )
 
-		if weights.sum() == 0:
-			return
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		# Calculate the mean and variance, which are the summary statistics
-		# for a log-normal distribution.
-		mean = numpy.average( numpy.log(items), weights=weights )
-		variance = numpy.dot( numpy.log(items)**2 - mean**2, weights ) / weights.sum()
+		self._summarize( items_p, weights_p, items.shape[0] )
+
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
+		"""Cython function to get the MLE estimate for a Gaussian."""
 		
-		# Save the summary statistics and the weights.
-		self.summaries.append( [ mean, variance, weights.sum() ] )
-		
+		cdef double mu=0, mu_sq, var=0, w=0, sigma
+		cdef SIZE_t i
 
-	def from_summaries( self, inertia=0.0 ):
+		# Calculate the average, which is the MLE mu estimate
+		for i in range(size):
+			mu += _log( items[i] ) * weights[i]
+			w += weights[i]
+		mu = mu / size
+		mu_sq = mu * mu
+
+		# Calculate the variance
+		for i in range(size):
+			var += ( _log( items[i] ) * _log( items[i] ) - mu_sq ) * weights[i]
+		var = var / w
+
+		# Turn it into the standard deviation
+		sigma = csqrt(var)
+		
+		with gil:
+			self.summaries.append( (mu, sigma, w) )		
+
+	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
 		Takes in a series of summaries, represented as a mean, a variance, and
 		a weight, and updates the underlying distribution. Notes on how to do
@@ -680,88 +599,56 @@ cdef class LogNormalDistribution( Distribution ):
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
 
-		# If no summaries are provided or the distribution is frozen, 
-		# don't do anything.
 		if len( self.summaries ) == 0 or self.frozen == True:
 			return
 
-		summaries = numpy.asarray( self.summaries )
-
-		# Calculate the mean and variance from the summary statistics.
-		mean = numpy.average( summaries[:,0], weights=summaries[:,2] )
-		variance = numpy.sum( [(v+m**2)*w for m, v, w in summaries] ) \
-			/ summaries[:,2].sum() - mean**2
-
-		if variance >= 0:
-			std = csqrt(variance)
+		if len( self.summaries ) == 1:
+			self.mu = self.mu*inertia + self.summaries[0][0]*(1-inertia)
+			self.sigma = self.sigma*inertia + self.summaries[0][1]*(1-inertia)
+			self.summaries = []
 		else:
-			std = 0
+			summaries = numpy.asarray( self.summaries )
 
-		# Load the previous parameters
-		prior_mean, prior_std = self.parameters
+			mean = numpy.average( summaries[:,0], weights=summaries[:,2] )
+			variance = numpy.sum( [(v+m**2)*w for m, v, w in summaries] ) \
+				/ summaries[:,2].sum() - mean**2
 
-		# Calculate the new parameters, respecting inertia, with an inertia
-		# of 0 being completely replacing the parameters, and an inertia of
-		# 1 being to ignore new training data.
-		self.parameters = [ prior_mean*inertia + mean*(1-inertia), 
-							prior_std*inertia + std*(1-inertia) ]
-		self.mu = self.parameters[0]
-		self.sigma = self.parameters[1]
-		self.summaries = []
+			std = csqrt(variance)
+			if std < min_std:
+				std = min_std
 
-cdef class ExtremeValueDistribution( Distribution ):
-	"""
-	Represent a generalized extreme value distribution over floats.
-	"""
-
-	def __cinit__( self, double mu, double sigma, double epsilon, bint frozen=True ):
-		"""
-		Make a new extreme value distribution, where mu is the location
-		parameter, sigma is the scale parameter, and epsilon is the shape
-		parameter. 
-		"""
-
-		self.parameters = [ mu, sigma, epsilon ]
-		self.mu = mu
-		self.sigma = sigma
-		self.epsilon = epsilon
-		self.name = "ExtremeValueDistribution"
-		self.frozen = frozen
-		self.is_numeric_type = True
-
-	cdef double _dlog_probability( self, double symbol ) nogil:
-		"""
-		Actually perform the calculations here, in the Cython-optimized
-		function.
-		"""
-
-		cdef double mu = self.mu, sigma = self.sigma, epsilon = self.epsilon
-		cdef double t = ( symbol - mu ) / sigma 
-
-		if epsilon == 0:
-			return -_log( sigma ) - t - cexp( -t )
-		return -_log( sigma ) + _log( 1 + epsilon * t ) * (-1. / epsilon - 1) \
-			- ( 1 + epsilon * t ) ** ( -1. / epsilon )
+			self.mu = self.mu*inertia + mean*(1-inertia)
+			self.sigma = self.sigma*inertia + std*(1-inertia)
+			self.summaries = []
 
 cdef class ExponentialDistribution( Distribution ):
 	"""
 	Represents an exponential distribution on non-negative floats.
 	"""
 	
+	property parameters:
+		def __get__(self):
+			return [self.rate]
+
 	def __cinit__( self, double rate, bint frozen=False ):
 		"""
 		Make a new inverse gamma distribution. The parameter is called "rate" 
 		because lambda is taken.
 		"""
 
-		self.parameters = [rate]
 		self.rate = rate
 		self.summaries = []
 		self.name = "ExponentialDistribution"
 		self.frozen = frozen
-		self.is_numeric_type = True
 	
-	cdef double _dlog_probability( self, double symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Cython optimized function.
 		"""
@@ -777,45 +664,18 @@ cdef class ExponentialDistribution( Distribution ):
 		
 		return random.expovariate(*self.parameters)
 		
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def from_sample (self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
 		specified, it holds a sequence of value to weight each item by.
 		"""
-		
-		# If the distribution is frozen, don't bother with any calculation
-		if len(items) == 0 or self.frozen == True:
-			# No sample, so just ignore it and keep our old parameters.
+	
+		if self.frozen:
 			return
-		
-		# Make it be a numpy array
-		items = numpy.asarray(items)
-		
-		if weights is None:
-			# Weight everything 1 if no weights specified
-			weights = numpy.ones_like(items)
-		else:
-			# Force whatever we have to be a Numpy array
-			weights = numpy.asarray(weights)
-		
-		if weights.sum() == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change the parameters at all.
-			return
-		
-		# Parameter MLE = 1/sample mean, easy to weight
-		# Compute the weighted mean
-		weighted_mean = numpy.average(items, weights=weights)
-		
-		# Calculate the new parameters, respecting inertia, with an inertia
-		# of 0 being completely replacing the parameters, and an inertia of
-		# 1 being to ignore new training data.
-		prior_rate = self.parameters[0]
-		rate = 1.0 / weighted_mean
 
-		self.parameters[0] = prior_rate*inertia + rate*(1-inertia)
-		self.rate = self.parameters[0]
+		self.summarize( items, weights )
+		self.from_summaries( inertia )
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -823,20 +683,28 @@ cdef class ExponentialDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items = numpy.asarray( items )
+		items, weights = weight_set( items, weights )
 
-		# Either store the weights, or assign uniform weights to each item
-		if weights is None:
-			weights = numpy.ones_like( items )
-		else:
-			weights = numpy.asarray( weights )
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		if weights.sum() == 0:
-			return
+		self._summarize( items_p, weights_p, items.shape[0] )
 
-		# Calculate the summary statistic, which in this case is the mean.
-		mean = numpy.average( items, weights=weights )
-		self.summaries.append( [ mean, weights.sum() ] )
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
+		"""Cython function to get the MLE estimate for a Gaussian."""
+		
+		cdef double mu = 0, w = 0
+		cdef SIZE_t i
+
+		# Calculate the average, which is the MLE mu estimate
+		for i in range(size):
+			mu += items[i] * weights[i]
+			w += weights[i]
+		mu /= w
+		
+		with gil:
+			self.summaries.append( (1. / mu, w) )	
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
@@ -846,25 +714,17 @@ cdef class ExponentialDistribution( Distribution ):
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
 
-		# If no summaries or the distribution is frozen, do nothing.
 		if len( self.summaries ) == 0 or self.frozen == True:
 			return
 
-		summaries = numpy.asarray( self.summaries )
-
-		# Calculate the new parameter from the summary statistics.
-		mean = numpy.average( summaries[:,0], weights=summaries[:,1] )
-
-		# Get the parameters
-		prior_rate = self.parameters[0]
-		rate = 1.0 / mean
-
-		# Calculate the new parameters, respecting inertia, with an inertia
-		# of 0 being completely replacing the parameters, and an inertia of
-		# 1 being to ignore new training data.
-		self.parameters[0] = prior_rate*inertia + rate*(1-inertia)
-		self.rate = self.parameters[0]
-		self.summaries = []
+		if len( self.summaries ) == 1:
+			self.rate = self.rate*inertia + self.summaries[0][0]*(1-inertia)
+			self.summaries = []
+		else:
+			summaries = numpy.asarray( self.summaries )
+			mean = numpy.average( summaries[:,0], weights=summaries[:,1] )
+			self.rate = self.rate*inertia + self.summaries[0][0]*(1-inertia)
+			self.summaries = []
 
 cdef class BetaDistribution( Distribution ):
 	"""
@@ -872,21 +732,30 @@ cdef class BetaDistribution( Distribution ):
 	alpha/beta, which are both shape parameters. ML estimation is done
 	"""
 
+	property parameters:
+		def __get__(self):
+			return [self.alpha, self.beta]
+
 	def __init__( self, alpha, beta, frozen=False ):
 		"""
 		Make a new beta distribution. Both alpha and beta are both shape
 		parameters.
 		"""
 
-		self.parameters = [alpha, beta]
 		self.alpha = alpha
 		self.beta = beta
 		self.summaries = []
 		self.name = "BetaDistribution"
 		self.frozen = frozen
-		self.is_numeric_type = True
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Cython optimized function.
 		"""
@@ -902,76 +771,51 @@ cdef class BetaDistribution( Distribution ):
 		Return a random sample from the beta distribution.
 		"""
 
-		return random.betavariate( self.parameters[0], self.parameters[1] )
+		return random.betavariate( self.alpha, self.beta )
 
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def from_sample (self, items, weights=None, inertia=0.0 ):
 		"""
-		Take in a series of binary data and update the parameters. Simply put,
-		the posteriors are:
-
-		alpha = alpha + new_successes
-		beta = beta + new_failures
+		Set the parameters of this Distribution to maximize the likelihood of 
+		the given sample. Items holds some sort of sequence. If weights is 
+		specified, it holds a sequence of value to weight each item by.
 		"""
-
-		# If the distribution is frozen, don't bother with any calculation
-		if len(items) == 0 or self.frozen == True:
-			# No sample, so just ignore it and keep our old parameters.
-			return
-		
-		# Make it be a numpy array
-		items = numpy.asarray(items)
-		
-		if weights is None:
-			# Weight everything 1 if no weights specified
-			weights = numpy.ones_like(items)
-		else:
-			# Force whatever we have to be a Numpy array
-			weights = numpy.asarray(weights)
-		
-		if weights.sum() == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change the parameters at all.
+	
+		if self.frozen:
 			return
 
-		successes = items.dot( weights )
-		failures = (1-items).dot( weights )
-
-		alpha = self.parameters[0]*inertia + successes*(1-inertia)
-		beta = self.parameters[1]*inertia + failures*(1-inertia)
-
-		self.parameters = [ alpha, beta ]
-		self.alpha = alpha
-		self.beta = beta
+		self.summarize( items, weights )
+		self.from_summaries( inertia )
 
 	def summarize( self, items, weights=None ):
 		"""
-		Summarize some new data and store it to summaries.
+		Take in a series of items and their weights and reduce it down to a
+		summary statistic to be used in training later.
 		"""
 
-		# If the distribution is frozen, don't bother with any calculation
-		if len(items) == 0 or self.frozen == True:
-			# No sample, so just ignore it and keep our old parameters.
-			return
-		
-		# Make it be a numpy array
-		items = numpy.asarray(items)
-		
-		if weights is None:
-			# Weight everything 1 if no weights specified
-			weights = numpy.ones_like(items)
-		else:
-			# Force whatever we have to be a Numpy array
-			weights = numpy.asarray(weights)
-		
-		if weights.sum() == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change the parameters at all.
-			return
+		items, weights = weight_set( items, weights )
 
-		successes = items.dot( weights )
-		failures = (1-items).dot( weights )
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		self.summaries.append( [ successes, failures ] )
+		self._summarize( items_p, weights_p, items.shape[0] )
+
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
+		"""
+		Cython and such
+		"""
+
+		cdef double successes = 0, failures = 0
+		cdef SIZE_t i
+
+		for i in range(size):
+			if items[i] == 1:
+				successes += weights[i]
+			else:
+				failures += weights[i]
+
+		with gil:
+			self.summaries.append( (successes, failures) )
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
@@ -980,14 +824,15 @@ cdef class BetaDistribution( Distribution ):
 
 		summaries = numpy.array( self.summaries )
 
-		alpha = self.parameters[0]*inertia + summaries[:,0].sum( axis=0 )*(1-inertia)
-		beta = self.parameters[1]*inertia + summaries[:,1].sum( axis=0 )*(1-inertia)
+		successes, failures = 0, 0
+		for alpha, beta in self.summaries:
+			successes += alpha
+			failures += beta
 
-		self.parameters = [ alpha, beta ]
-		self.alpha = alpha
-		self.beta = beta
+		self.alpha = self.alpha*inertia + successes*(1-inertia)
+		self.beta = self.beta*inertia + failures*(1-inertia)
+
 		self.summaries = []
-
 
 cdef class GammaDistribution( Distribution ):
 	"""
@@ -1010,9 +855,15 @@ cdef class GammaDistribution( Distribution ):
 		self.summaries = []
 		self.name = "GammaDistribution"
 		self.frozen = frozen
-		self.is_numeric_type = True
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Cython optimized calculation.
 		"""
@@ -1174,6 +1025,11 @@ cdef class GammaDistribution( Distribution ):
 								 items.dot( weights ),
 								 weights.sum() ] )
 
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
+
+		pass
+
 	def from_summaries( self, inertia=0.0, epsilon=1E-9, 
 		iteration_limit=1000 ):
 		"""
@@ -1288,25 +1144,13 @@ cdef class DiscreteDistribution(Distribution):
 		
 		# Store the parameters
 		self.parameters = [ characters ]
+		self.dist = { key: _log(value) for key, value in characters.items() }
 		self.summaries = [ { key: 0 for key in characters.keys() } ]
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
-		self.is_numeric_type = False
 		
-		cdef int i, n = len(characters.values())
-		self.records = <KeyValuePair*> calloc( n, sizeof(KeyValuePair) )
-		self.n = n
-
-		cdef list keys = characters.keys()
-		cdef list values = characters.values()
-
-
-		for i in range(n):
-			self.records[i].key = <char*> keys[i]
-			self.records[i].value = _log(<double> values[i])			
-
-	def __dealloc__( self ):
-		free(self.records)
+		cdef int i
+		self.n = len(characters.values())
 
 	def __len__( self ):
 		"""
@@ -1391,17 +1235,19 @@ cdef class DiscreteDistribution(Distribution):
 
 		return self.parameters[0].values()
 
-	cdef double _slog_probability( self, char* symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef public double _log_probability( self, symbol ):
 		"""
 		Cython optimized lookup
 		"""
 
-		cdef int i, n = self.n
-
-		for i in range(n):
-			if self.records[i].key == symbol:
-				return self.records[i].value
-		return NEGINF 
+		return self.dict[symbol]
 
 	def sample( self ):
 		"""
@@ -1454,7 +1300,7 @@ cdef class DiscreteDistribution(Distribution):
 				prior_characters[character] * inertia
 
 		self.parameters = [ characters ]
-		#self.dist = { s: _log(c) for s, c in characters.items() }
+		self.dist = { s: _log(c) for s, c in characters.items() }
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -1476,6 +1322,11 @@ cdef class DiscreteDistribution(Distribution):
 			characters[character] += weight
 
 		self.summaries[0] = characters
+
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
+
+		pass
 
 	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
 		"""
@@ -1503,7 +1354,7 @@ cdef class DiscreteDistribution(Distribution):
 
 		self.parameters = [ characters ]
 		self.summaries = [{ key: 0 for key in self.keys() }]
-		#self.dist = { s: _log(c) for s, c in characters.items() }
+		self.dist = { s: _log(c) for s, c in characters.items() }
 
 cdef class LambdaDistribution(Distribution):
 	"""
@@ -1537,6 +1388,11 @@ cdef class LambdaDistribution(Distribution):
 
 		return self.parameters[0](symbol)
 
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil:
+
+		pass
+
 cdef class GaussianKernelDensity( Distribution ):
 	"""
 	A quick way of storing points to represent a Gaussian kernel density in one
@@ -1567,9 +1423,15 @@ cdef class GaussianKernelDensity( Distribution ):
 		self.summaries = []
 		self.name = "GaussianKernelDensity"
 		self.frozen = frozen
-		self.is_numeric_type = True
 	
-	cdef double _dlog_probability( self, double symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Actually calculate it here.
 		"""
@@ -1669,7 +1531,14 @@ cdef class UniformKernelDensity( Distribution ):
 		self.name = "UniformKernelDensity"
 		self.frozen = frozen
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
+
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Actually do math here.
 		"""
@@ -1771,9 +1640,15 @@ cdef class TriangleKernelDensity( Distribution ):
 		self.summaries = []
 		self.name = "TriangleKernelDensity"
 		self.frozen = frozen
-		self.is_numeric_type = True
+		
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Actually do math here.
 		"""
@@ -1883,23 +1758,30 @@ cdef class MixtureDistribution( Distribution ):
 		distributions = map( str, distributions )
 		return "MixtureDistribution( {}, {} )".format(
 			distributions, list(weights) ).replace( "'", "" )
+		
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of the given symbol under this distribution.
+		"""
 
-	cdef double _dlog_probability( self, double symbol ) nogil:
+		return self._log_probability( symbol )
+
+	cdef double _log_probability( self, double symbol ):
 		"""
 		Cython optimized function for distributions involving floats.
 		"""
 
 		cdef int i, n = self.n
 		cdef double w, prob = 0.0
+		cdef Distribution d
 
-		with gil:
-			for i in range( n ):
-				# Go through each point sequentially
-				w = self.weights[i]
-				d = self.distributions[i]
+		for i in range( n ):
+			# Go through each point sequentially
+			w = self.weights[i]
+			d = self.distributions[i]
 
-				# Calculate the probability for each point
-				prob += cexp( d.log_probability( symbol ) ) * w
+			# Calculate the probability for each point
+			prob += cexp( d.log_probability( symbol ) ) * w
 
 		# Return the log of the sum of probabilities
 		return _log( prob )	
@@ -2026,7 +1908,6 @@ cdef class MultivariateDistribution( Distribution ):
 
 	pass
 
-'''
 cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	"""
 	Allows you to create a multivariate distribution, where each distribution
@@ -2080,7 +1961,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		return self._log_probability( numpy.asarray(symbol) )
 
-	cdef double _log_probability( self, obs symbol ):
+	cdef double _log_probability( self, symbol ):
 		"""
 		Cython optimized function.
 		"""
@@ -2147,7 +2028,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 			d.from_summaries( inertia=inertia )
 
 		self.distributions = numpy.asarray( self.parameters[0], dtype=numpy.object_ )
-'''
+
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	"""

@@ -9,44 +9,37 @@ ctypedef numpy.npy_intp SIZE_t
 cdef class Distribution:
 	cdef public str name
 	cdef public list parameters, summaries
-	cdef public bint frozen, is_numeric_type
-	cdef double _dlog_probability( self, double symbol ) nogil
-	cdef double _slog_probability( self, char* symbol ) nogil
+	cdef public bint frozen
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t size ) nogil
 
 cdef class UniformDistribution( Distribution ):
 	cdef double start, end
-	cdef void _from_sample( self, double [:] items, double [:] weights, 
-		DOUBLE_t inertia, SIZE_t size ) nogil
-	cdef void _summarize( self, double [:] items, double [:] weights,
-		SIZE_t size ) nogil
+	cdef double _log_probability( self, double symbol )
 
 cdef class NormalDistribution( Distribution ):
 	cdef double mu, sigma 
-	cdef void _from_sample( self, numpy.ndarray items, numpy.ndarray weights,
-		DOUBLE_t inertia, DOUBLE_t min_std, SIZE_t size ) nogil
+	cdef double _log_probability( self, double symbol )
 
 cdef class LogNormalDistribution( Distribution ):
 	cdef double mu, sigma
-
-cdef class ExtremeValueDistribution( Distribution ):
-	cdef double mu, sigma, epsilon
+	cdef double _log_probability( self, double symbol )
 
 cdef class ExponentialDistribution( Distribution ):
 	cdef double rate
+	cdef double _log_probability( self, double symbol )
 
 cdef class BetaDistribution( Distribution ):
 	cdef double alpha, beta
+	cdef double _log_probability( self, double symbol )
 
 cdef class GammaDistribution( Distribution ):
 	cdef double alpha, beta
-
-cdef struct KeyValuePair:
-	char* key
-	double value
+	cdef double _log_probability( self, double symbol )
 
 cdef class DiscreteDistribution( Distribution ):
-	cdef KeyValuePair* records
 	cdef int n
+	cdef double _log_probability( self, symbol )
 
 cdef class LambdaDistribution( Distribution ):
 	pass
@@ -55,35 +48,39 @@ cdef class GaussianKernelDensity( Distribution ):
 	cdef double [:] points, weights
 	cdef int n
 	cdef double bandwidth
+	cdef double _log_probability( self, double symbol )
 
 cdef class UniformKernelDensity( Distribution ):
 	cdef double [:] points, weights
 	cdef int n
 	cdef double bandwidth
+	cdef double _log_probability( self, double symbol )
 
 cdef class TriangleKernelDensity( Distribution ):
 	cdef double [:] points, weights
 	cdef int n
 	cdef double bandwidth
+	cdef double _log_probability( self, double symbol )
 
 cdef class MixtureDistribution( Distribution ):
 	cdef double [:] weights
 	cdef Distribution [:] distributions
 	cdef int n
+	cdef double _log_probability( self, double symbol )
 
 
 cdef class MultivariateDistribution( Distribution ):
 	pass
 
 
-#cdef class IndependentComponentsDistribution( MultivariateDistribution ):
-#	cdef double [:] weights
-#	cdef Distribution [:] distributions
-#	cdef int n
-#	cdef double _log_probability( self, obs symbol ) nogil
+cdef class IndependentComponentsDistribution( MultivariateDistribution ):
+	cdef double [:] weights
+	cdef Distribution [:] distributions
+	cdef int n
+	cdef double _log_probability( self, symbol )
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
-	cdef public int diagonal 
+	cdef public int diagonal
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	cdef double [:] _from_sample( self, int [:,:] items, 
