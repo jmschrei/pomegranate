@@ -384,10 +384,10 @@ cdef class NormalDistribution( Distribution ):
 
 		self.mu = mean
 		self.sigma = std
-		self.summaries = []
 		self.name = "NormalDistribution"
 		self.frozen = frozen
-		
+		self.summaries = [0, 0, 0]
+
 	def log_probability( self, symbol ):
 		"""
 		Return the log probability of the given symbol under this distribution.
@@ -429,23 +429,19 @@ cdef class NormalDistribution( Distribution ):
 		SIZE_t n, SIZE_t d ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
-		cdef double mu=0, mu_sq, var=0, w=0
 		cdef SIZE_t i
+		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 
 		# Calculate the average, which is the MLE mu estimate
 		for i in range(n):
-			mu += items[i] * weights[i]
-			w += weights[i]
-		mu = mu / w
-		mu_sq = mu * mu
-
-		# Calculate the variance
-		for i in range(n):
-			var += (items[i] * items[i] - mu_sq) * weights[i]
-		var = var / w
+			w_sum += weights[i]
+			x_sum += weights[i] * items[i]
+			x2_sum += weights[i] * items[i] * items[i]
 
 		with gil:
-			self.summaries.append( (mu, var, w) )
+			self.summaries[0] += w_sum
+			self.summaries[1] += x_sum
+			self.summaries[2] += x2_sum
 		
 	def summarize( self, items, weights=None ):
 		"""
@@ -474,24 +470,16 @@ cdef class NormalDistribution( Distribution ):
 		if len( self.summaries ) == 0 or self.frozen == True:
 			return
 
-		if len( self.summaries ) == 1:
-			self.mu = self.mu*inertia + self.summaries[0][0]*(1-inertia)
-			self.sigma = self.sigma*inertia + self.summaries[0][1]*(1-inertia)
-			self.summaries = []
-		else:
-			summaries = numpy.asarray( self.summaries )
+		mu = self.summaries[1] / self.summaries[0]
+		var = self.summaries[2] / self.summaries[0] - self.summaries[1] ** 2.0 / self.summaries[0] ** 2.0
 
-			mean = numpy.average( summaries[:,0], weights=summaries[:,2] )
-			var = numpy.sum( [(v+m**2)*w for m, v, w in summaries] ) \
-				/ summaries[:,2].sum() - mean**2
+		sigma = csqrt(var)
+		if sigma < min_std:
+			sigma = min_std
 
-			std = csqrt(var)
-			if std < min_std:
-				std = min_std
-
-			self.mu = self.mu*inertia + mean*(1-inertia)
-			self.sigma = self.sigma*inertia + std*(1-inertia)
-			self.summaries = []
+		self.mu = self.mu*inertia + mu*(1-inertia)
+		self.sigma = self.sigma*inertia + sigma*(1-inertia)
+		self.summaries = [0, 0, 0]
 
 cdef class LogNormalDistribution( Distribution ):
 	"""
@@ -511,7 +499,7 @@ cdef class LogNormalDistribution( Distribution ):
 
 		self.mu = mu
 		self.sigma = sigma
-		self.summaries = []
+		self.summaries = [0, 0, 0]
 		self.name = "LogNormalDistribution"
 		self.frozen = frozen
 
@@ -553,6 +541,26 @@ cdef class LogNormalDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia, min_std )
 
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t n, SIZE_t d ) nogil:
+		"""Cython function to get the MLE estimate for a Gaussian."""
+		
+		cdef SIZE_t i
+		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
+		cdef double log_item
+
+		# Calculate the average, which is the MLE mu estimate
+		for i in range(n):
+			log_item = _log(items[i])
+			w_sum += weights[i]
+			x_sum += weights[i] * log_item
+			x2_sum += weights[i] * log_item * log_item
+
+		with gil:
+			self.summaries[0] += w_sum
+			self.summaries[1] += x_sum
+			self.summaries[2] += x2_sum
+		
 	def summarize( self, items, weights=None ):
 		"""
 		Take in a series of items and their weights and reduce it down to a
@@ -560,37 +568,14 @@ cdef class LogNormalDistribution( Distribution ):
 		"""
 
 		items, weights = weight_set( items, weights )
+		if weights.sum() <= 0:
+			return
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
 		self._summarize( items_p, weights_p, items.shape[0], 1 )
-
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t n, SIZE_t d ) nogil:
-		"""Cython function to get the MLE estimate for a Gaussian."""
 		
-		cdef double mu=0, mu_sq, var=0, w=0, sigma
-		cdef SIZE_t i
-
-		# Calculate the average, which is the MLE mu estimate
-		for i in range(n):
-			mu += _log( items[i] ) * weights[i]
-			w += weights[i]
-		mu = mu / w
-		mu_sq = mu * mu
-
-		# Calculate the variance
-		for i in range(n):
-			var += ( _log( items[i] ) * _log( items[i] ) - mu_sq ) * weights[i]
-		var = var / w
-
-		# Turn it into the standard deviation
-		sigma = csqrt(var)
-		
-		with gil:
-			self.summaries.append( (mu, sigma, w) )		
-
 	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
 		Takes in a series of summaries, represented as a mean, a variance, and
@@ -599,27 +584,20 @@ cdef class LogNormalDistribution( Distribution ):
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
 
+		# If no summaries stored or the summary is frozen, don't do anything.
 		if len( self.summaries ) == 0 or self.frozen == True:
 			return
 
-		if len( self.summaries ) == 1:
-			self.mu = self.mu*inertia + self.summaries[0][0]*(1-inertia)
-			self.sigma = self.sigma*inertia + self.summaries[0][1]*(1-inertia)
-			self.summaries = []
-		else:
-			summaries = numpy.asarray( self.summaries )
+		mu = self.summaries[1] / self.summaries[0]
+		var = self.summaries[2] / self.summaries[0] - self.summaries[1] ** 2.0 / self.summaries[0] ** 2.0
 
-			mean = numpy.average( summaries[:,0], weights=summaries[:,2] )
-			variance = numpy.sum( [(v+m**2)*w for m, v, w in summaries] ) \
-				/ summaries[:,2].sum() - mean**2
+		sigma = csqrt(var)
+		if sigma < min_std:
+			sigma = min_std
 
-			std = csqrt(variance)
-			if std < min_std:
-				std = min_std
-
-			self.mu = self.mu*inertia + mean*(1-inertia)
-			self.sigma = self.sigma*inertia + std*(1-inertia)
-			self.summaries = []
+		self.mu = self.mu*inertia + mu*(1-inertia)
+		self.sigma = self.sigma*inertia + sigma*(1-inertia)
+		self.summaries = [0, 0, 0]
 
 cdef class ExponentialDistribution( Distribution ):
 	"""
