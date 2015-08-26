@@ -11,7 +11,7 @@ cdef class Distribution:
 	cdef public list parameters, summaries
 	cdef public bint frozen
 	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil
+		SIZE_t n, SIZE_t d ) nogil
 
 cdef class UniformDistribution( Distribution ):
 	cdef double start, end
@@ -80,7 +80,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	cdef double _log_probability( self, symbol )
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
-	cdef public int diagonal
+	cdef public numpy.ndarray mu, cov
+	cdef int d
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	cdef double [:] _from_sample( self, int [:,:] items, 

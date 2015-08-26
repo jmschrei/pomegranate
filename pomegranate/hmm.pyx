@@ -2272,8 +2272,7 @@ cdef class HiddenMarkovModel( Model ):
 									log_sequence_probability )
 
 						with gil:
-							d = self.states[k].distribution
-						d._summarize( sequence, weights, n )
+							self.states[k].distribution.summarize( sequence_ndarray, weights_ndarray )
 
 			free(e)
 

@@ -57,7 +57,7 @@ def weight_set( items, weights ):
 	items = numpy.array(items, dtype=numpy.float64)
 	if weights is None:
 		# Weight everything 1 if no weights specified
-		weights = numpy.ones_like(items, dtype=numpy.float64)
+		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
 	else:
 		# Force whatever we have to be a Numpy array
 		weights = numpy.array(weights, dtype=numpy.float64)
@@ -194,7 +194,7 @@ cdef class Distribution:
 			self.summaries = [ items, weights ]
 
 	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
+		SIZE_t n, SIZE_t d ) nogil:
 
 		pass
 
@@ -316,13 +316,13 @@ cdef class UniformDistribution( Distribution ):
 		self.from_summaries( inertia )
 
 	cdef void _summarize( self, double* items, double* weights, 
-		SIZE_t size ) nogil:
+		SIZE_t n, SIZE_t d ) nogil:
 		"""Cython optimized training."""
 
 		cdef double minimum = INF, maximum = NEGINF 
 		cdef int i
 
-		for i in range(size):
+		for i in range(n):
 			if items[i] < minimum:
 				minimum = items[i]
 			if items[i] > maximum:
@@ -342,7 +342,7 @@ cdef class UniformDistribution( Distribution ):
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = NULL
 
-		self._summarize( items_p, weights_p, items.shape[0] )
+		self._summarize( items_p, weights_p, items.shape[0], 1 )
 		
 	def from_summaries( self, inertia=0.0 ):
 		"""
@@ -426,21 +426,21 @@ cdef class NormalDistribution( Distribution ):
 		self.from_summaries( inertia, min_std )
 
 	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
+		SIZE_t n, SIZE_t d ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
 		cdef double mu=0, mu_sq, var=0, w=0
 		cdef SIZE_t i
 
 		# Calculate the average, which is the MLE mu estimate
-		for i in range(size):
+		for i in range(n):
 			mu += items[i] * weights[i]
 			w += weights[i]
 		mu = mu / w
 		mu_sq = mu * mu
 
 		# Calculate the variance
-		for i in range(size):
+		for i in range(n):
 			var += (items[i] * items[i] - mu_sq) * weights[i]
 		var = var / w
 
@@ -460,7 +460,7 @@ cdef class NormalDistribution( Distribution ):
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		self._summarize( items_p, weights_p, items.shape[0] )
+		self._summarize( items_p, weights_p, items.shape[0], 1 )
 		
 	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
@@ -564,24 +564,24 @@ cdef class LogNormalDistribution( Distribution ):
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		self._summarize( items_p, weights_p, items.shape[0] )
+		self._summarize( items_p, weights_p, items.shape[0], 1 )
 
 	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
+		SIZE_t n, SIZE_t d ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
 		cdef double mu=0, mu_sq, var=0, w=0, sigma
 		cdef SIZE_t i
 
 		# Calculate the average, which is the MLE mu estimate
-		for i in range(size):
+		for i in range(n):
 			mu += _log( items[i] ) * weights[i]
 			w += weights[i]
-		mu = mu / size
+		mu = mu / w
 		mu_sq = mu * mu
 
 		# Calculate the variance
-		for i in range(size):
+		for i in range(n):
 			var += ( _log( items[i] ) * _log( items[i] ) - mu_sq ) * weights[i]
 		var = var / w
 
@@ -688,17 +688,17 @@ cdef class ExponentialDistribution( Distribution ):
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		self._summarize( items_p, weights_p, items.shape[0] )
+		self._summarize( items_p, weights_p, items.shape[0], 1 )
 
 	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
+		SIZE_t n, SIZE_t d ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
 		cdef double mu = 0, w = 0
 		cdef SIZE_t i
 
 		# Calculate the average, which is the MLE mu estimate
-		for i in range(size):
+		for i in range(n):
 			mu += items[i] * weights[i]
 			w += weights[i]
 		mu /= w
@@ -797,10 +797,10 @@ cdef class BetaDistribution( Distribution ):
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		self._summarize( items_p, weights_p, items.shape[0] )
+		self._summarize( items_p, weights_p, items.shape[0], 1 )
 
 	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
+		SIZE_t n, SIZE_t d ) nogil:
 		"""
 		Cython and such
 		"""
@@ -808,7 +808,7 @@ cdef class BetaDistribution( Distribution ):
 		cdef double successes = 0, failures = 0
 		cdef SIZE_t i
 
-		for i in range(size):
+		for i in range(n):
 			if items[i] == 1:
 				successes += weights[i]
 			else:
@@ -1024,11 +1024,6 @@ cdef class GammaDistribution( Distribution ):
 								 numpy.average( log(items), weights=weights ),
 								 items.dot( weights ),
 								 weights.sum() ] )
-
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
-
-		pass
 
 	def from_summaries( self, inertia=0.0, epsilon=1E-9, 
 		iteration_limit=1000 ):
@@ -1323,11 +1318,6 @@ cdef class DiscreteDistribution(Distribution):
 
 		self.summaries[0] = characters
 
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
-
-		pass
-
 	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
 		"""
 		Takes in a series of summaries and merge them.
@@ -1387,11 +1377,6 @@ cdef class LambdaDistribution(Distribution):
 		"""
 
 		return self.parameters[0](symbol)
-
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t size ) nogil:
-
-		pass
 
 cdef class GaussianKernelDensity( Distribution ):
 	"""
@@ -2036,16 +2021,24 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	matrix. This is mostly a wrapper for scipy.stats.multivariate_gaussian.
 	"""
 
-	def __init__( self, means, covariance, frozen=False, diagonal=False ):
+	property parameters:
+		def __get__(self):
+			return [self.mu, self.cov]
+
+
+	def __init__( self, means, covariance, frozen=False ):
 		"""
 		Take in the mean vector and the covariance matrix. 
 		"""
 
-		self.parameters = [ numpy.array(means), numpy.array(covariance) ]
 		self.name = "MultivariateGaussianDistribution"
 		self.frozen = frozen
-		self.diagonal = diagonal
-		self.summaries = []
+		self.mu = numpy.array(means)
+		self.cov = numpy.array(covariance)
+		
+		d = self.mu.shape[0]
+		self.d = self.mu.shape[0]
+		self.summaries = [0, 0, numpy.zeros(d), numpy.zeros((d,d))]
 
 	def log_probability( self, symbol, min_std=0.01 ):
 		"""
@@ -2055,21 +2048,20 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		"""
 
 		# Taken from sklearn.mixture.gmm._log_multivariate_normal_density_full
-		mean, covar = self.parameters
-		d = mean.shape[0]
+		d = self.mu.shape[0]
 
 		try:
-			cv_chol = scipy.linalg.cholesky(covar, lower=True)
+			cv_chol = scipy.linalg.cholesky( self.cov, lower=True )
 		except scipy.linalg.LinAlgError:
 			# The model is most probably stuck in a component with too
 			# few observations, we need to reinitialize this components
 			try:
-				cv_chol = scipy.linalg.cholesky( covar + (min_std ** 2.) * numpy.eye(d), lower=True )
+				cv_chol = scipy.linalg.cholesky( self.cov + (min_std ** 2.) * numpy.eye(d), lower=True )
 			except scipy.linalg.LinAlgError:
 				raise ValueError("Covariance matrix must be symmetric positive-definite")
 
 		cv_log_det = 2 * numpy.sum( numpy.log( numpy.diagonal(cv_chol) ) )
-		cv_sol = scipy.linalg.solve_triangular( cv_chol, (symbol - mean).T, lower=True).T
+		cv_sol = scipy.linalg.solve_triangular( cv_chol, (symbol - self.mu).T, lower=True).T
 		logp = - .5 * (numpy.sum(cv_sol ** 2) + d * numpy.log(2 * numpy.pi) + cv_log_det)
 		return logp
 
@@ -2082,55 +2074,65 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		return scipy.stats.multivariate_normal.rvs(
 			self.parameters[0], self.parameters[1] )
 
-	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01, diagonal=None, l=0. ):
+	def from_sample (self, items, weights=None, inertia=0, l=0 ):
+		"""
+		Set the parameters of this Distribution to maximize the likelihood of 
+		the given sample. Items holds some sort of sequence. If weights is 
+		specified, it holds a sequence of value to weight each item by.
+		"""
+	
+		if self.frozen:
+			return
+
+		self.summarize( items, weights )
+		self.from_summaries( inertia, l )
+
+	def summarize( self, items, weights=None ):
+		"""
+		Take in a series of items and their weights and reduce it down to a
+		summary statistic to be used in training later.
+		"""
+
+
+		items, weights = weight_set( items, weights )
+		n, d = items.shape[0], items.shape[1]
+
+		self.summaries[0] += weights.sum()
+		self.summaries[1] += n
+		self.summaries[2] += weights.T.dot( items )
+
+		for i in xrange(n):
+			for j in xrange(d):
+				for k in xrange(d):
+					self.summaries[3][j, k] += weights[i] * items[i, j] * items[i, k]
+
+	def from_summaries( self, inertia=0.0, l=0. ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
 		specified, it holds a sequence of value to weight each item by.
 		"""
 
-		# If the distribution is frozen, don't bother with any calculation
-		if len(items) == 0 or self.frozen == True:
-			# No sample, so just ignore it and keep our old parameters.
+		# If no summaries stored or the summary is frozen, don't do anything.
+		if len( self.summaries ) == 0 or self.frozen == True:
 			return
 
-		# Make it be a numpy array
-		items = numpy.asarray(items)
+		d = self.d
+		w_sum, n, column_sum, pair_sum = self.summaries
 
-		if weights is None:
-			# Weight everything 1 if no weights specified
-			weights = numpy.ones( items.shape[0], dtype=float ) / len( items )
-		elif numpy.sum( weights ) == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change parameters at all.
-			return
+		mu = column_sum / w_sum
+		cov = numpy.zeros((d,d))
 
-		# Take the mean
-		means = numpy.average( items, weights=weights, axis=0 )
+		for j in xrange(d):
+			for k in xrange(d):
+				cov[j, k] += pair_sum[j, k] - column_sum[j]*n*mu[k] - column_sum[k]*n*mu[j] + w_sum*n*n*mu[j]*mu[k]
+		cov /= w_sum
 
-		# Calculate the biased weight sample since we don't know the scaling
-		# of the weights
-		n, m = len(items), self.parameters[0].shape[0]
+		print cov
 
-		cov = numpy.zeros( (m, m) )
-		for i in xrange( n ):
-			diff = numpy.matrix( items[i] - means )
-			cov += weights[i] * numpy.array( diff.T.dot( diff ) )
-		cov /= numpy.sum( weights )
-
-        # We can shrink our estimates if needed to prevent getting a singular matrix
-		cov = ( 1.-l )*cov + l*numpy.eye( cov.shape[0] )
-
-		if diagonal == True or diagonal == None and self.diagonal == True:
-			cov = numpy.diag( numpy.diag( cov ) )
-
-		# Calculate the new parameters, respecting inertia, with an inertia
-		# of 0 being completely replacing the parameters, and an inertia of
-		# 1 being to ignore new training data.
-		prior_means, prior_covs = self.parameters
-
-		self.parameters = [ prior_means*inertia + means*(1-inertia), 
-							prior_covs*inertia + cov*(1-inertia) ]
+		self.mu = self.mu*inertia + mu*(1-inertia)
+		self.cov = self.cov*inertia + cov*(1-inertia)
+		self.summaries = [0, 0, numpy.zeros(d), numpy.zeros((d,d))]
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	"""
