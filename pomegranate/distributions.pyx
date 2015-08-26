@@ -2038,7 +2038,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		
 		d = self.mu.shape[0]
 		self.d = self.mu.shape[0]
-		self.summaries = [0, 0, numpy.zeros(d), numpy.zeros((d,d))]
+		self.summaries = [0, numpy.zeros(d), numpy.zeros((d,d))]
 
 	def log_probability( self, symbol, min_std=0.01 ):
 		"""
@@ -2087,24 +2087,45 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia, l )
 
+	cdef void _summarize( self, double* items, double* weights,
+		SIZE_t n, SIZE_t d ) nogil:
+
+		cdef double w_sum = 0.0
+		cdef double* column_sum = <double*> calloc( d, sizeof(double) )
+		cdef double* pair_sum = <double*> calloc(d*d, sizeof(double) )
+		cdef int i, j, k
+
+		for i in range(n):
+			w_sum += weights[i]
+
+			for j in range(d):
+				column_sum[j] += items[i*d + j] * weights[i]
+
+				for k in range(d):
+					pair_sum[j*d + k] += weights[i] * items[i*d + j] * items[i*d + k]
+
+		with gil:
+			self.summaries[0] += w_sum
+
+			for j in range(d):
+				self.summaries[1][j] += column_sum[j]
+
+				for k in range(d):
+					self.summaries[2][j, k] += pair_sum[j*d + k]
+
+
 	def summarize( self, items, weights=None ):
 		"""
 		Take in a series of items and their weights and reduce it down to a
 		summary statistic to be used in training later.
 		"""
 
-
 		items, weights = weight_set( items, weights )
-		n, d = items.shape[0], items.shape[1]
 
-		self.summaries[0] += weights.sum()
-		self.summaries[1] += n
-		self.summaries[2] += weights.T.dot( items )
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 
-		for i in xrange(n):
-			for j in xrange(d):
-				for k in xrange(d):
-					self.summaries[3][j, k] += weights[i] * items[i, j] * items[i, k]
+		self._summarize( items_p, weights_p, items.shape[0], items.shape[1] )
 
 	def from_summaries( self, inertia=0.0, l=0. ):
 		"""
@@ -2118,21 +2139,19 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 			return
 
 		d = self.d
-		w_sum, n, column_sum, pair_sum = self.summaries
+		w_sum, column_sum, pair_sum = self.summaries
 
 		mu = column_sum / w_sum
 		cov = numpy.zeros((d,d))
 
 		for j in xrange(d):
 			for k in xrange(d):
-				cov[j, k] += pair_sum[j, k] - column_sum[j]*n*mu[k] - column_sum[k]*n*mu[j] + w_sum*n*n*mu[j]*mu[k]
+				cov[j, k] += pair_sum[j, k] - column_sum[j]*mu[k] - column_sum[k]*mu[j] + w_sum*mu[j]*mu[k]
 		cov /= w_sum
-
-		print cov
 
 		self.mu = self.mu*inertia + mu*(1-inertia)
 		self.cov = self.cov*inertia + cov*(1-inertia)
-		self.summaries = [0, 0, numpy.zeros(d), numpy.zeros((d,d))]
+		self.summaries = [0, numpy.zeros(d), numpy.zeros((d,d))]
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	"""

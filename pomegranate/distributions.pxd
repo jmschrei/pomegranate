@@ -68,10 +68,8 @@ cdef class MixtureDistribution( Distribution ):
 	cdef int n
 	cdef double _log_probability( self, double symbol )
 
-
 cdef class MultivariateDistribution( Distribution ):
 	pass
-
 
 cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	cdef double [:] weights
