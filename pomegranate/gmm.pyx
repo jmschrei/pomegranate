@@ -92,9 +92,9 @@ cdef class GeneralMixtureModel( Distribution ):
 		of a point is the sum of the probabilities of each distribution.
 		"""
 
-		return self._log_probability( numpy.array( point ) )
+		return self.__log_probability( numpy.array( point ) )
 
-	cdef double _log_probability( self, numpy.ndarray point ):
+	cdef double __log_probability( self, numpy.ndarray point ):
 		"""
 		Cython optimized function for calculating log probabilities.
 		"""
