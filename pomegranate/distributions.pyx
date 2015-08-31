@@ -34,6 +34,8 @@ from utils cimport *
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
+DEF LOG_2_PI = 1.83787706641
+
 
 def log(value):
 	"""
@@ -151,6 +153,9 @@ cdef class Distribution:
 
 		with gil:
 			return self.log_probability( symbol )
+
+	cdef double _mv_log_probability( self, double* symbol, SIZE_t d ) nogil:
+		return 0.0
 
 	def sample( self ):
 		"""
@@ -1876,6 +1881,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		else:
 			weights = numpy.ones( n, dtype=numpy.float64 )
 
+		self.d = len(distributions)
 		self.parameters = [ distributions, weights ]
 		self.distributions = distributions
 		self.weights = weights
@@ -1980,7 +1986,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		def __get__(self):
 			return [self.mu, self.cov]
 
-	def __init__( self, means, covariance, frozen=False ):
+	def __cinit__( self, means, covariance, frozen=False ):
 		"""
 		Take in the mean vector and the covariance matrix. 
 		"""
@@ -1994,9 +2000,10 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.d = self.mu.shape[0]
 		self.summaries = [0, numpy.zeros(d), numpy.zeros((d,d))]
 
-		self.cv_chol = scipy.linalg.cholesky( self.cov, lower=True )
-		self.cv_log_det = d * numpy.log(2 * numpy.pi) + (2 * 
-			numpy.sum( numpy.log( numpy.diagonal(self.cv_chol) ) ) )
+		self.inv_cov_ndarray = numpy.linalg.inv( covariance ).astype( numpy.float64 )
+		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
+		self._mu = <double*> (<numpy.ndarray> self.mu).data
+		self._log_det = _log( numpy.linalg.det( covariance ) )
 
 	def log_probability( self, symbol ):
 		"""
@@ -2005,10 +2012,33 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		cv_sol = scipy.linalg.solve_triangular( self.cv_chol, (symbol - 
-			self.mu).T, lower=True).T
-		logp = - .5 * (numpy.sum(cv_sol ** 2) + self.cv_log_det)
-		return logp
+		symbol = numpy.array(symbol).astype( numpy.float64 )
+		return self._mv_log_probability( <double*> (<numpy.ndarray> symbol).data, 
+			symbol.shape[0] )
+
+	cdef double _mv_log_probability( self, double* symbol, SIZE_t d ) nogil:
+		"""Cython optimized log probability function."""
+
+		cdef SIZE_t i, j, l, k
+		cdef double* diff = <double*> calloc(d, sizeof(double))
+		cdef double* mid = <double*> calloc(d, sizeof(double))
+		cdef double logp = 0.0
+
+		for i in range(d):
+			diff[i] = symbol[i] - self._mu[i]
+
+		for i in range(d):
+			mid[i] = 0
+
+			for j in range(d):
+				mid[i] += diff[j] * self.inv_cov[i + j*d]
+
+		for i in range(d):
+			logp += mid[i] * diff[i]
+
+		free(diff)
+		free(mid)
+		return -0.5 * (d * LOG_2_PI + self._log_det + logp)
 
 	def sample( self ):
 		"""
