@@ -154,7 +154,7 @@ cdef class Distribution:
 		with gil:
 			return self.log_probability( symbol )
 
-	cdef double _mv_log_probability( self, double* symbol, SIZE_t d ) nogil:
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
 		return 0.0
 
 	def sample( self ):
@@ -206,8 +206,7 @@ cdef class Distribution:
 
 			self.summaries = [ items, weights ]
 
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t n, SIZE_t d ) nogil:
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 
 		pass
 
@@ -328,8 +327,7 @@ cdef class UniformDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
-	cdef void _summarize( self, double* items, double* weights, 
-		SIZE_t n, SIZE_t d ) nogil:
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython optimized training."""
 
 		cdef double minimum = INF, maximum = NEGINF 
@@ -360,7 +358,7 @@ cdef class UniformDistribution( Distribution ):
 		cdef SIZE_t n = items.shape[0]
 
 		with nogil:
-			self._summarize( items_p, weights_p, n, 1 )
+			self._summarize( items_p, weights_p, n )
 		
 	def from_summaries( self, inertia=0.0 ):
 		"""
@@ -437,8 +435,7 @@ cdef class NormalDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia, min_std )
 
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t n, SIZE_t d ) nogil:
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
 		cdef SIZE_t i
@@ -470,7 +467,7 @@ cdef class NormalDistribution( Distribution ):
 		cdef SIZE_t n = items.shape[0]
 
 		with nogil:
-			self._summarize( items_p, weights_p, n, 1 )
+			self._summarize( items_p, weights_p, n )
 		
 	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
@@ -555,8 +552,7 @@ cdef class LogNormalDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia, min_std )
 
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t n, SIZE_t d ) nogil:
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
 		cdef SIZE_t i
@@ -590,7 +586,7 @@ cdef class LogNormalDistribution( Distribution ):
 		cdef SIZE_t n = items.shape[0]
 
 		with nogil:
-			self._summarize( items_p, weights_p, n, 1 )
+			self._summarize( items_p, weights_p, n )
 		
 	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
@@ -684,10 +680,9 @@ cdef class ExponentialDistribution( Distribution ):
 		cdef SIZE_t n = items.shape[0]
 
 		with nogil:
-			self._summarize( items_p, weights_p, n, 1 )
+			self._summarize( items_p, weights_p, n )
 
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t n, SIZE_t d ) nogil:
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
 		cdef double mu = 0, w = 0
@@ -795,10 +790,9 @@ cdef class BetaDistribution( Distribution ):
 		cdef SIZE_t n = items.shape[0]
 
 		with nogil:
-			self._summarize( items_p, weights_p, n, 1 )
+			self._summarize( items_p, weights_p, n )
 
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t n, SIZE_t d ) nogil:
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""
 		Cython and such
 		"""
@@ -1263,8 +1257,7 @@ cdef class DiscreteDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n,
-		SIZE_t d ) nogil:
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython version of summarize."""
 
 		cdef int i
@@ -1931,20 +1924,18 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		return [ d.sample() for d in self.parameters[0] ]
 
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def from_sample( self, items, weights=None, inertia=0 ):
 		"""
-		Items are tuples, and so each distribution can be trained
-		independently of each other. 
+		Set the parameters of this Distribution to maximize the likelihood of 
+		the given sample. Items holds some sort of sequence. If weights is 
+		specified, it holds a sequence of value to weight each item by.
 		"""
-
-		# If the distribution is frozen, don't bother with any calculation
-		if self.frozen == True:
+	
+		if self.frozen:
 			return
 
-		items = numpy.asarray( items )
-
-		for i, d in enumerate( self.parameters[0] ):
-			d.from_sample( items[:,i], weights=weights, inertia=inertia )
+		self.summarize( items, weights )
+		self.from_summaries( inertia )
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -1953,12 +1944,18 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		data down to the appropriate distributions.
 		"""
 
-		items = numpy.asarray( items )
-
+		items, weights = weight_set( items, weights )
 		for i, d in enumerate( self.parameters[0] ):
 			d.summarize( items[:,i], weights=weights )
 
-		self.distributions = numpy.asarray( self.parameters[0], dtype=numpy.object_ )
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+
+		cdef SIZE_t i, j, d = self.d
+
+		for i in range(n):
+			for j in range(d):
+				pass
+
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
@@ -1972,9 +1969,6 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
-
-		self.distributions = numpy.asarray( self.parameters[0], dtype=numpy.object_ )
-
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	"""
@@ -1997,13 +1991,22 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.cov = numpy.array(covariance)
 		
 		d = self.mu.shape[0]
-		self.d = self.mu.shape[0]
-		self.summaries = [0, numpy.zeros(d), numpy.zeros((d,d))]
+		self.d = d
 
 		self.inv_cov_ndarray = numpy.linalg.inv( covariance ).astype( numpy.float64 )
 		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
 		self._mu = <double*> (<numpy.ndarray> self.mu).data
+		self._cov = <double*> (<numpy.ndarray> self.cov).data
 		self._log_det = _log( numpy.linalg.det( covariance ) )
+
+		self.w_sum = 0.0
+		self.column_sum = <double*> calloc( d, sizeof(double) )
+		self.pair_sum = <double*> calloc( d*d, sizeof(double) )
+		memset( self.column_sum, 0, d*sizeof(double) )
+		memset( self.pair_sum, 0, d*d*sizeof(double) )
+
+		self._mu_new = <double*> calloc( d, sizeof(double) )
+		self._cov_new = <double*> calloc( d*d, sizeof(double) )
 
 	def log_probability( self, symbol ):
 		"""
@@ -2013,32 +2016,20 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		"""
 
 		symbol = numpy.array(symbol).astype( numpy.float64 )
-		return self._mv_log_probability( <double*> (<numpy.ndarray> symbol).data, 
-			symbol.shape[0] )
+		return self._mv_log_probability( <double*> (<numpy.ndarray> symbol).data )
 
-	cdef double _mv_log_probability( self, double* symbol, SIZE_t d ) nogil:
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
 		"""Cython optimized log probability function."""
 
-		cdef SIZE_t i, j, l, k
-		cdef double* diff = <double*> calloc(d, sizeof(double))
-		cdef double* mid = <double*> calloc(d, sizeof(double))
+		cdef SIZE_t i, j, d = self.d
+		cdef double log_det = self._log_det
 		cdef double logp = 0.0
 
 		for i in range(d):
-			diff[i] = symbol[i] - self._mu[i]
-
-		for i in range(d):
-			mid[i] = 0
-
 			for j in range(d):
-				mid[i] += diff[j] * self.inv_cov[i + j*d]
+				logp += (symbol[i] - self._mu[i]) * (symbol[j] - self._mu[j]) * self.inv_cov[i + j*d]
 
-		for i in range(d):
-			logp += mid[i] * diff[i]
-
-		free(diff)
-		free(mid)
-		return -0.5 * (d * LOG_2_PI + self._log_det + logp)
+		return -0.5 * (d * LOG_2_PI + log_det + logp)
 
 	def sample( self ):
 		"""
@@ -2049,7 +2040,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		return scipy.stats.multivariate_normal.rvs(
 			self.parameters[0], self.parameters[1] )
 
-	def from_sample (self, items, weights=None, inertia=0, l=0 ):
+	def from_sample (self, items, weights=None, inertia=0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -2060,34 +2051,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 			return
 
 		self.summarize( items, weights )
-		self.from_summaries( inertia, l )
-
-	cdef void _summarize( self, double* items, double* weights,
-		SIZE_t n, SIZE_t d ) nogil:
-
-		cdef double w_sum = 0.0
-		cdef double* column_sum = <double*> calloc( d, sizeof(double) )
-		cdef double* pair_sum = <double*> calloc(d*d, sizeof(double) )
-		cdef int i, j, k
-
-		for i in range(n):
-			w_sum += weights[i]
-
-			for j in range(d):
-				column_sum[j] += items[i*d + j] * weights[i]
-
-				for k in range(d):
-					pair_sum[j*d + k] += weights[i] * items[i*d + j] * items[i*d + k]
-
-		with gil:
-			self.summaries[0] += w_sum
-
-			for j in range(d):
-				self.summaries[1][j] += column_sum[j]
-
-				for k in range(d):
-					self.summaries[2][j, k] += pair_sum[j*d + k]
-
+		self.from_summaries( inertia )
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -2101,12 +2065,30 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 		
 		cdef SIZE_t n = items.shape[0]
-		cdef SIZE_t d = items.shape[1]
 
 		with nogil:
-			self._summarize( items_p, weights_p, n, d )
+			self._summarize( items_p, weights_p, n )
 
-	def from_summaries( self, inertia=0.0, l=0. ):
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		"""Calculate sufficient statistics for a minibatch.
+
+		The sufficient statistics for a multivariate gaussian update is the sum of
+		each column, and the sum of the outer products of the vectors.
+		"""
+
+		cdef SIZE_t i, j, k, d = self.d
+
+		for i in range(n):
+			self.w_sum += weights[i]
+
+			for j in range(d):
+				self.column_sum[j] += items[i*d + j] * weights[i]
+
+				for k in range(d):
+					self.pair_sum[j*d + k] += (weights[i] * items[i*d + j] * 
+						items[i*d + k])
+
+	def from_summaries( self, double inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -2114,27 +2096,39 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		"""
 
 		# If no summaries stored or the summary is frozen, don't do anything.
-		if len( self.summaries ) == 0 or self.frozen == True:
+		if self.frozen == True or self.w_sum < 1e-7:
 			return
 
-		d = self.d
-		w_sum, column_sum, pair_sum = self.summaries
+		self._from_summaries( inertia )
 
-		mu = column_sum / w_sum
-		cov = numpy.zeros((d,d))
+	cdef void _from_summaries( self, double inertia ):
+		"""Cython optimized optimization."""
 
-		for j in xrange(d):
-			for k in xrange(d):
-				cov[j, k] += pair_sum[j, k] - column_sum[j]*mu[k] - column_sum[k]*mu[j] + w_sum*mu[j]*mu[k]
-		cov /= w_sum
+		cdef SIZE_t d = self.d, i, j, k
+		cdef double* column_sum = self.column_sum
+		cdef double* pair_sum = self.pair_sum
+		cdef double* u = self._mu_new
 
-		self.mu = self.mu*inertia + mu*(1-inertia)
-		self.cov = self.cov*inertia + cov*(1-inertia)
-		self.summaries = [0, numpy.zeros(d), numpy.zeros((d,d))]
+		print self.w_sum
 
-		self.cv_chol = scipy.linalg.cholesky( self.cov, lower=True )
-		self.cv_log_det = d * numpy.log(2 * numpy.pi) + (2 * 
-			numpy.sum( numpy.log( numpy.diagonal(self.cv_chol) ) ) )
+		for i in range(d):
+			u[i] = self.column_sum[i] / self.w_sum
+			self._mu[i] = self._mu[i] * inertia + u[i] * (1-inertia)
+
+		for j in range(d):
+			for k in range(d):
+				self._cov_new[j*d + k] = (pair_sum[j*d + k] - column_sum[j]*u[k] 
+					- column_sum[k]*u[j] + self.w_sum*u[j]*u[k]) / self.w_sum
+				self._cov[j*d + k] = self._cov[j*d + k] * inertia + self._cov_new[j*d +k] * (1-inertia)
+
+
+		memset( column_sum, 0, d*sizeof(double) )
+		memset( pair_sum, 0, d*d*sizeof(double) )
+		self.w_sum = 0.0
+
+		self.inv_cov_ndarray = numpy.linalg.inv( self.cov ).astype( numpy.float64 )
+		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
+		self._log_det = _log( numpy.linalg.det( self.cov ) )
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	"""

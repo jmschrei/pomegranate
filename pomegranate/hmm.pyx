@@ -935,7 +935,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef SIZE_t* in_edges = self.in_edge_count
 
 		cdef double* e = NULL
-		cdef double* b 
+		cdef double* f
 
 		with nogil:
 			f = <double*> calloc( m*(n+1), sizeof(double) )
@@ -950,7 +950,7 @@ cdef class HiddenMarkovModel( Model ):
 
 					for i in range( n ):
 						if self.multivariate:
-							e[l*n + i] = (d._mv_log_probability( sequence+i*dim, dim ) + 
+							e[l*n + i] = (d._mv_log_probability( sequence+i*dim ) + 
 								self.state_weights[l])
 						else:
 							e[l*n + i] = (d._log_probability( sequence[i] ) + 
@@ -1122,7 +1122,7 @@ cdef class HiddenMarkovModel( Model ):
 
 					for i in range( n ):
 						if self.multivariate:
-							e[l*n + i] = (d._mv_log_probability( sequence+i*dim, dim ) + 
+							e[l*n + i] = (d._mv_log_probability( sequence+i*dim ) + 
 								self.state_weights[l])
 						else:
 							e[l*n + i] = (d._log_probability( sequence[i] ) + 
@@ -2180,7 +2180,6 @@ cdef class HiddenMarkovModel( Model ):
 			while improvement > stop_threshold or iteration < min_iterations:
 				if max_iterations and iteration >= max_iterations:
 					break 
-
 				iteration += 1
 				last_log_probability_sum = trained_log_probability_sum
 
@@ -2196,14 +2195,14 @@ cdef class HiddenMarkovModel( Model ):
 					self.log_probability, check_pickle=False )( sequence ) 
 						for sequence in sequences ) )
 				improvement = trained_log_probability_sum - last_log_probability_sum
-
+				
 				if verbose:
 					print( "Training improvement: {}".format(improvement) )
 
 		return trained_log_probability_sum - initial_log_probability_sum
 
 	cpdef _baum_welch_summarize( self, numpy.ndarray sequence_ndarray ):
-		"""Python wrapper for the emissions update step.
+		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
 		API. It just calls the cython update, but provides a Python wrapper
@@ -2246,7 +2245,7 @@ cdef class HiddenMarkovModel( Model ):
 
 				for i in range( n ):
 					if self.multivariate:
-						e[l*n + i] = (d._mv_log_probability( sequence+i*dim, dim ) + 
+						e[l*n + i] = (d._mv_log_probability( sequence+i*dim ) + 
 							self.state_weights[l])
 					else:
 						e[l*n + i] = (d._log_probability( sequence[i] ) + 
@@ -2362,7 +2361,8 @@ cdef class HiddenMarkovModel( Model ):
 
 						with gil:
 							d = self.states[k].distribution
-						d._summarize( sequence, weights, n, 1 )
+
+						d._summarize( sequence, weights, n )
 
 			free(e)
 			free(visited)
