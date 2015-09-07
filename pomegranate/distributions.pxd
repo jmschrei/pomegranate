@@ -18,7 +18,7 @@ cdef class UniformDistribution( Distribution ):
 	cdef double start, end
 
 cdef class NormalDistribution( Distribution ):
-	cdef double mu, sigma 
+	cdef double mu, sigma, two_sigma_squared, log_sigma_sqrt_2_pi
 
 cdef class LogNormalDistribution( Distribution ):
 	cdef double mu, sigma

@@ -139,23 +139,23 @@ cdef class Distribution:
 
 		self.frozen = False 
 
-	def log_probability( self, symbol ):
+	def log_probability( self, double symbol ):
 		"""
 		Return the log probability of the given symbol under this distribution.
 		"""
 		
-		return NotImplementedError
+		cdef double logp
+		with nogil: 
+			logp = self._log_probability( symbol )
+		return logp
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Return the log probability, sped up in Cython.
-		"""
-
-		with gil:
-			return self.log_probability( symbol )
+		"""Placeholder for the log probability calculation."""
+		return NEGINF
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		return 0.0
+		"""Placeholder for log probability calculation of a vector."""
+		return NEGINF
 
 	def sample( self ):
 		"""
@@ -285,13 +285,6 @@ cdef class UniformDistribution( Distribution ):
 		self.name = "UniformDistribution"
 		self.frozen = frozen
 
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
-
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""
 		Cython optimized log probability calculation which does not require
@@ -397,23 +390,16 @@ cdef class NormalDistribution( Distribution ):
 		self.name = "NormalDistribution"
 		self.frozen = frozen
 		self.summaries = [0, 0, 0]
-
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
+		self.log_sigma_sqrt_2_pi = -_log(std * SQRT_2_PI)
+		self.two_sigma_squared = 2 * std ** 2
 
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""
 		Cython optimized function, with nogil enabled. 
 		"""
 
-		cdef double mu = self.mu, sigma = self.sigma
-  
-		return _log( 1.0 / ( sigma * SQRT_2_PI ) ) - ((symbol - mu) ** 2) /\
-			(2 * sigma ** 2)
+		return self.log_sigma_sqrt_2_pi - ((symbol - self.mu) ** 2) /\
+			self.two_sigma_squared
 
 	def sample( self ):
 		"""
@@ -491,6 +477,8 @@ cdef class NormalDistribution( Distribution ):
 		self.mu = self.mu*inertia + mu*(1-inertia)
 		self.sigma = self.sigma*inertia + sigma*(1-inertia)
 		self.summaries = [0, 0, 0]
+		self.log_sigma_sqrt_2_pi = -_log(sigma * SQRT_2_PI)
+		self.two_sigma_squared = 2 * sigma ** 2
 
 cdef class LogNormalDistribution( Distribution ):
 	"""

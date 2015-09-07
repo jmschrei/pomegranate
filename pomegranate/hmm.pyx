@@ -65,18 +65,14 @@ def exp(value):
 	return numpy.exp(value)
 
 def log_probability( model, samples, n_jobs=1 ):
-	'''
-	Return the log probability of samples given a model.
-	'''
+	"""Return the log probability of samples given a model."""
 
 	return sum( Parallel( n_jobs=n_jobs, backend='threading' )( 
 		delayed( model.log_probability, check_pickle=False )( sample ) 
 		for sample in samples) )
 
 cdef class HiddenMarkovModel( Model ):
-	"""
-	Represents a Hidden Markov Model.
-	"""
+	"""A Hidden Markov Model implementation."""
 
 	cdef public object start, end
 	cdef public int start_index, end_index, silent_start
@@ -929,9 +925,9 @@ cdef class HiddenMarkovModel( Model ):
 		cdef SIZE_t i, k, ki, l, li
 		cdef SIZE_t p = self.silent_start, m = self.n_states
 		cdef SIZE_t dim = self.d
+		cdef Distribution d
 
 		cdef double log_probability
-		cdef Distribution d
 		cdef SIZE_t* in_edges = self.in_edge_count
 
 		cdef double* e = NULL
@@ -1041,8 +1037,8 @@ cdef class HiddenMarkovModel( Model ):
 					# Add the previous partial result and update the table entry
 					f[(i+1)*m + l] = pair_lse( f[(i+1)*m + l], log_probability )
 
-		if emissions is NULL:
-			free(e)
+			if emissions is NULL:
+				free(e)
 		return f
 
 	cpdef numpy.ndarray backward( self, sequence ):
