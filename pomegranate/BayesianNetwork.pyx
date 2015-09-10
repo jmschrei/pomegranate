@@ -157,15 +157,15 @@ cdef class BayesianNetwork( Model ):
 
 		return self.graph.log_probability( data )
 
-	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Another name for the train method.
 		"""
 
-		self.train( items, weights, intertia, pseudocount )
+		self.train( items, weights, intertia )
 
 
-	def train( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+	def train( self, items, weights=None, inertia=0.0 ):
 		"""
 		Take in data, with each column corresponding to observations of the
 		state, as ordered by self.states.
@@ -179,9 +179,8 @@ cdef class BayesianNetwork( Model ):
 			if isinstance( state.distribution, ConditionalProbabilityTable ):
 				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
 				data = [ [ item[i] for i in idx ] for item in items ]
-				state.distribution.from_sample( data, weights, inertia, pseudocount )
+				state.distribution.from_sample( data, weights, inertia )
 			else:
-				state.distribution.from_sample( [ item[i] for item in items ], 
-					weights, inertia, pseudocount )
+				state.distribution.from_sample( [ item[i] for item in items ], weights, inertia )
 
 		self.bake()
