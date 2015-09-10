@@ -71,8 +71,6 @@ cdef class MultivariateDistribution( Distribution ):
 cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	cdef double [:] weights
 	cdef Distribution [:] distributions
-	cdef int n
-	cdef double __log_probability( self, symbol )
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	cdef public numpy.ndarray mu, cov, inv_cov_ndarray

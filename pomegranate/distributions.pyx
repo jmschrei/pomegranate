@@ -1806,17 +1806,15 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		"""
 
 		distributions = numpy.array( distributions, dtype=numpy.object_ )
-		n = distributions.shape[0]
+		self.d = len(distributions)
 
 		if weights:
 			weights = numpy.array( weights, dtype=numpy.float64 )
 		else:
-			weights = numpy.ones( n, dtype=numpy.float64 )
+			weights = numpy.ones( self.d, dtype=numpy.float64 )
 
-		self.d = len(distributions)
 		self.distributions = distributions
 		self.weights = weights
-		self.n = n
 		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
 
@@ -1836,23 +1834,27 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		return self.__log_probability( numpy.asarray(symbol) )
+		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype( numpy.float64 )
+		cdef double* symbol_ptr = <double*> symbol_ndarray.data
+		cdef double logp
 
-	cdef double __log_probability( self, symbol ):
-		"""
-		Cython optimized function.
-		"""
+		with nogil:
+			logp = self._mv_log_probability( symbol_ptr )
+		return logp
 
-		cdef int i, n = self.n
-		cdef double prob = 0.0
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
+		"""Cython optimized log probability function."""
 
-		for i in range(n):
-			w = self.weights[i]
-			d = <Distribution>self.distributions[i]
+		cdef int i, d = self.d
+		cdef double w, logp = 0.0
 
-			prob += d.log_probability( symbol[i] ) + _log(w)
+		with gil:
+			for i in range(d):
+				w = self.weights[i]
+				distribution = self.distributions[i]
+				logp += distribution.log_probability( symbol[i] ) + _log(w)
 
-		return prob
+		return logp
 
 	def sample( self ):
 		"""
