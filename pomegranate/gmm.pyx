@@ -60,7 +60,7 @@ def log_probability( model, samples ):
 
 	return sum( map( model.log_probability, samples ) )
 
-cdef class GeneralMixtureModel( Distribution ):
+cdef class GeneralMixtureModel:
 	"""
 	A General Mixture Model. Can be a mixture of any distributions, as long
 	as they are all the same dimensionality, have a log_probability method,
