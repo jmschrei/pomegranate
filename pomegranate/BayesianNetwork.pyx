@@ -184,3 +184,23 @@ cdef class BayesianNetwork( Model ):
 				state.distribution.from_sample( [ item[i] for item in items ], weights, inertia )
 
 		self.bake()
+
+	def impute( self, items, max_iterations=100 ):
+		"""
+		Take in a matrix of data and impute all nan values to their MLE
+		values. 
+		"""
+
+		for i, row in enumerate( items ):
+			obs = {}
+
+			for j, state in enumerate( self.states ):
+				if row[j] is not None:
+					obs[ state.name ] = row[j]
+
+			imputation = self.forward_backward( obs  )
+
+			for j in range( len( self.states) ):
+				items[i][j] = imputation[j].mle()
+
+		return items 

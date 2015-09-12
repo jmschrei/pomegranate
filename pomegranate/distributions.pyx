@@ -1143,6 +1143,16 @@ cdef class DiscreteDistribution( Distribution ):
 		"""Return values of the underlying dictionary."""
 		return self.dist.values()
 
+	def mle( self ):
+		"""Return the maximally likely key."""
+
+		max_key, max_value = None, 0
+		for key, value in self.items():
+			if value > max_value:
+				max_key, max_value = key, value
+
+		return max_key
+
 	def encode( self, encoded_keys ):
 		"""Encoding the distribution into integers."""
 		
