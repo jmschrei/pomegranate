@@ -140,11 +140,18 @@ cdef class BayesianNetwork( Model ):
 
 		return self.graph.marginal()
 
-	def forward_backward( self, data={}, max_iterations=100 ):
+	def forward_backward( self, data={}, max_iterations=100, check_input=True ):
 		"""
 		Run loopy belief propogation on the underlying factor graph until
 		convergence, and return the marginals.
 		"""
+
+		if check_input:
+			indices = { state.name: state.distribution for state in self.states }
+
+			for key, value in data.items():
+				if value not in indices[key].keys():
+					raise ValueError( "State '{}' does not have key '{}'".format( key, value ) )
 
 		return self.graph.forward_backward( data, max_iterations )
 
@@ -184,3 +191,29 @@ cdef class BayesianNetwork( Model ):
 				state.distribution.from_sample( [ item[i] for item in items ], weights, inertia )
 
 		self.bake()
+
+	def impute( self, items, max_iterations=100 ):
+		"""
+		Take in a matrix of data and impute all nan values to their MLE
+		values. 
+		"""
+
+		for i in range( len(items) ):
+			obs = {}
+
+			for j, state in enumerate( self.states ):
+				item = items[i][j]
+
+				if item not in (None, 'nan'):
+					try:
+						if not numpy.isnan(item):
+							obs[ state.name ] = item
+					except:
+						obs[ state.name ] = item
+
+			imputation = self.forward_backward( obs  )
+
+			for j in range( len( self.states) ):
+				items[i][j] = imputation[j].mle()
+
+		return items 
