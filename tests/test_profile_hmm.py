@@ -2,6 +2,8 @@ from __future__ import  (division, print_function)
 
 from pomegranate import *
 from nose.tools import with_setup
+from nose.tools import assert_equal
+from nose.tools import assert_not_equal
 import random
 import numpy as np
 
@@ -224,29 +226,17 @@ def teardown():
 
 @with_setup( setup, teardown )
 def test_same_length_viterbi():
-	'''
-	Take a few sequences of the same length of the profile, and ensure that
-	the log probability of the Viterbi path equals the predetermined values.
-	'''
-
 	scores = [ -0.5132449003570658, -11.048101241343396, -9.125519674022627, 
 		-5.0879558788604475 ]
 	sequences = [ list(x) for x in [ 'ACT', 'GGC', 'GAT', 'ACC' ] ]
 	
 	for seq, score in zip( sequences, scores ):
-		assert model.viterbi( seq )[0] == score, \
-			"Same length Viterbi check on Sequence '{}'".format( seq )
+		assert_equal( model.viterbi( seq )[0], score )
 
-	assert str( model.viterbi( list('XXX') ) ) == "(-inf, None)", \
-		"Impossible sequence Viterbi check"
+	assert_equal( str( model.viterbi( list('XXX') ) ), "(-inf, None)" )
 
 @with_setup( setup, teardown )
 def test_variable_length_viterbi():
-	'''
-	Take a few sequence of variable length, and ensure that the log probability
-	of the Viterbi path equals the predetermined values.
-	'''
-
 	scores = [ -5.406181012423981, -10.88681993576597, -3.6244718790494277, 
 	-3.644880750680635, -10.674332964640293, -10.393824835172445, 
 	-8.67126440174503, -16.903451796110275, -16.451699654050792 ]
@@ -254,31 +244,18 @@ def test_variable_length_viterbi():
 		'ACGTG', 'ATTT', 'TACCCTC', 'TGTCAACACT') ]
 
 	for seq, score in zip( sequences, scores ):
-		assert model.viterbi( seq )[0] == score, \
-			"Variable length Viterbi check on Sequence '{}'".format( seq )
+		assert_equal( model.viterbi( seq )[0], score )
 
 @with_setup( setup, teardown )
 def test_log_probability():
-	'''
-	Take a few sequences of variable length, and ensure that the sum of all
-	paths log probability equals the predetermined values.
-	'''
-
 	scores = [ -5.3931, -0.5052, -11.8478, -14.3482 ]
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
 
 	for seq, score in zip( sequences, scores ):
-		print( round( model.log_probability( seq ), 4 ) )
-		assert round( model.log_probability( seq ), 4 ) == score, \
-			"Variable length log probability check on '{}'".format( seq )
+		assert_equal( round( model.log_probability( seq ), 4 ), score )
 
 @with_setup( setup, teardown )
 def test_posterior_transitions():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work.
-	'''
-
 	a_scores = [ 0.0, 0.0021, 0.2017, 1.5105 ]
 	b_scores = [ 0.013, 0.0036, 1.9836, 2.145 ]
 	c_scores = [ 0.013, 0.0035, 0.817, 0.477 ]
@@ -293,24 +270,14 @@ def test_posterior_transitions():
 	for seq, a, b, c, d, t in scores:
 		trans, ems = model.forward_backward( seq )
 
-		assert round( trans[i].sum(), 4 ) == a, \
-			"Posterior transitions incorrect for '{}'".format( seq )
-		assert round( trans[j].sum(), 4 ) == b, \
-			"Posterior transitions incorrect for '{}'".format( seq )
-		assert round( trans[k].sum(), 4 ) == c, \
-			"Posterior transitions incorrect for '{}'".format( seq )
-		assert round( trans[l].sum(), 4 ) == d, \
-			"Posterior transitions incorrect for '{}'".format( seq )
-		assert round( trans.sum(), 4 ) == t, \
-			"Posterior transitions incorrect for '{}'".format( seq )
+		assert_equal( round( trans[i].sum(), 4 ), a )
+		assert_equal( round( trans[j].sum(), 4 ), b )
+		assert_equal( round( trans[k].sum(), 4 ), c )
+		assert_equal( round( trans[l].sum(), 4 ), d )
+		assert_equal( round( trans.sum(), 4 ), t )
 
 @with_setup( setup, teardown )
 def test_posterior_transitions_w_training():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work.
-	'''
-
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
 	indices = { state.name: i for i, state in enumerate( model.states ) }
 
@@ -319,27 +286,25 @@ def test_posterior_transitions_w_training():
 	d1, d2, d3 = indices['D1'], indices['D2'], indices['D3']
 	m1, m2, m3 = indices['M1'], indices['M2'], indices['M3']
 
-	assert transitions[d1, i1] == transitions[d2, i2]
-	assert transitions[i0, i0] == transitions[i1, i1] == transitions[i2, i2]
-	assert transitions[i0, m1] == transitions[i1, m2]
-	assert transitions[d1, d2] == transitions[d2, d3]
-	assert transitions[i0, d1] == transitions[i1, d2] == transitions[i2, d3]
+	assert_equal( transitions[d1, i1], transitions[d2, i2] )
+	assert_equal( transitions[i0, i0], transitions[i1, i1] )
+	assert_equal( transitions[i0, i0], transitions[i2, i2] )
+	assert_equal( transitions[i0, m1], transitions[i1, m2] )
+	assert_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 	model.train( sequences )
 	transitions = model.dense_transition_matrix()
 
-	assert transitions[d1, i1] != transitions[d2, i2]
-	assert transitions[i0, m1] != transitions[i1, m2]
-	assert transitions[d1, d2] != transitions[d2, d3]
-	assert transitions[i0, d1] != transitions[i1, d2] != transitions[i2, d3]
+	assert_not_equal( transitions[d1, i1], transitions[d2, i2] )
+	assert_not_equal( transitions[i0, m1], transitions[i1, m2] )
+	assert_not_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_not_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_not_equal( transitions[i0, d1], transitions[i2, d3] )
 
 @with_setup( setup, teardown )
 def test_posterior_transitions_w_vtraining():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work.
-	'''
-
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
 	indices = { state.name: i for i, state in enumerate( model.states ) }
 
@@ -348,26 +313,24 @@ def test_posterior_transitions_w_vtraining():
 	d1, d2, d3 = indices['D1'], indices['D2'], indices['D3']
 	m1, m2, m3 = indices['M1'], indices['M2'], indices['M3']
 
-	assert transitions[d1, i1] == transitions[d2, i2]
-	assert transitions[i0, i0] == transitions[i1, i1] == transitions[i2, i2]
-	assert transitions[i0, m1] == transitions[i1, m2]
-	assert transitions[d1, d2] == transitions[d2, d3]
-	assert transitions[i0, d1] == transitions[i1, d2] == transitions[i2, d3]
+	assert_equal( transitions[d1, i1], transitions[d2, i2] )
+	assert_equal( transitions[i0, i0], transitions[i1, i1] )
+	assert_equal( transitions[i0, i0], transitions[i2, i2] )
+	assert_equal( transitions[i0, m1], transitions[i1, m2] )
+	assert_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 	model.train( sequences, algorithm='viterbi' )
 	transitions = model.dense_transition_matrix()
 
-	assert transitions[i0, i0] != transitions[i1, i1]
-	assert transitions[d1, d2] != transitions[d2, d3]
-	assert transitions[i0, d1] != transitions[i1, d2] != transitions[i2, d3]
+	assert_not_equal( transitions[i0, i0], transitions[i1, i1] )
+	assert_not_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_not_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_not_equal( transitions[i0, d1], transitions[i2, d3] )
 
 @with_setup( tied_edge_setup, teardown )
 def test_posterior_transitions_w_tied_training():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work when tied edges are used.
-	'''
-
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
 	indices = { state.name: i for i, state in enumerate( model.states ) }
 
@@ -376,26 +339,24 @@ def test_posterior_transitions_w_tied_training():
 	d1, d2, d3 = indices['D1'], indices['D2'], indices['D3']
 	m1, m2, m3 = indices['M1'], indices['M2'], indices['M3']
 
-	assert transitions[d1, i1] == transitions[d2, i2]
-	assert transitions[i0, i0] == transitions[i1, i1] == transitions[i2, i2]
-	assert transitions[i0, m1] == transitions[i1, m2]
-	assert transitions[d1, d2] == transitions[d2, d3]
-	assert transitions[i0, d1] == transitions[i1, d2] == transitions[i2, d3]
+	assert_equal( transitions[d1, i1], transitions[d2, i2] )
+	assert_equal( transitions[i0, i0], transitions[i1, i1] )
+	assert_equal( transitions[i0, i0], transitions[i2, i2] )
+	assert_equal( transitions[i0, m1], transitions[i1, m2] )
+	assert_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 	model.train( sequences )
 	transitions = model.dense_transition_matrix() 
 
-	assert transitions[i0, i0] == transitions[i1, i1]
-	assert transitions[d1, d2] == transitions[d2, d3]
-	assert transitions[i0, d1] == transitions[i1, d2] == transitions[i2, d3]
+	assert_equal( transitions[i0, i0], transitions[i1, i1] )
+	assert_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 @with_setup( tied_edge_setup, teardown )
 def test_posterior_transitions_w_tied_vtraining():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work when tied edges are used.
-	'''
-
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
 	indices = { state.name: i for i, state in enumerate( model.states ) }
 
@@ -404,28 +365,27 @@ def test_posterior_transitions_w_tied_vtraining():
 	d1, d2, d3 = indices['D1'], indices['D2'], indices['D3']
 	m1, m2, m3 = indices['M1'], indices['M2'], indices['M3']
 
-	assert transitions[d1, i1] == transitions[d2, i2]
-	assert transitions[i0, i0] == transitions[i1, i1] == transitions[i2, i2]
-	assert transitions[i0, m1] == transitions[i1, m2]
-	assert transitions[d1, d2] == transitions[d2, d3]
-	assert transitions[i0, d1] == transitions[i1, d2] == transitions[i2, d3]
+	assert_equal( transitions[d1, i1], transitions[d2, i2] )
+	assert_equal( transitions[i0, i0], transitions[i1, i1] )
+	assert_equal( transitions[i0, i0], transitions[i2, i2] )
+	assert_equal( transitions[i0, m1], transitions[i1, m2] )
+	assert_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 	model.train( sequences, algorithm='viterbi' )
 	transitions = model.dense_transition_matrix() 
 
-	assert transitions[d1, i1] == transitions[d2, i2]
-	assert transitions[i0, i0] == transitions[i1, i1] == transitions[i2, i2]
-	assert transitions[i0, m1] == transitions[i1, m2]
-	assert transitions[d1, d2] == transitions[d2, d3]
-	assert transitions[i0, d1] == transitions[i1, d2] == transitions[i2, d3]
+	assert_equal( transitions[d1, i1], transitions[d2, i2] )
+	assert_equal( transitions[i0, i0], transitions[i1, i1] )
+	assert_equal( transitions[i0, i0], transitions[i2, i2] )
+	assert_equal( transitions[i0, m1], transitions[i1, m2] )
+	assert_equal( transitions[d1, d2], transitions[d2, d3] )
+	assert_equal( transitions[i0, d1], transitions[i1, d2] )
+	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 @with_setup( setup, teardown )
 def test_posterior_emissions():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work.
-	'''
-
 	a_scores = [ 0.987, 0.9965, 0.183, 0.523 ]
 	b_scores = [ 0.0, 0.9977, 0.7364, 0.6318 ]
 	c_scores = [ 0.0, 0.9975, 0.6237, 0.8641 ]
@@ -439,24 +399,14 @@ def test_posterior_emissions():
 		trans, ems = model.forward_backward( seq )
 		ems = np.exp( ems )
 
-		assert round( ems[:,i].sum(), 4 ) == a, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,j].sum(), 4 ) == b, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,k].sum(), 4 ) == c, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,l].sum(), 4 ) == d, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems.sum() ) == len( seq ), \
-			"Posterior emissions incorrect for '{}'".format( seq )
+		assert_equal( round( ems[:,i].sum(), 4 ), a )
+		assert_equal( round( ems[:,j].sum(), 4 ), b )
+		assert_equal( round( ems[:,k].sum(), 4 ), c )
+		assert_equal( round( ems[:,l].sum(), 4 ), d )
+		assert_equal( round( ems.sum() ), len( seq ) )
 
 @with_setup( multitransition_setup, teardown )
 def test_posterior_emissions_w_multitransition_setup():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work.
-	'''
-
 	a_scores = [ 0.987, 0.9965, 0.183, 0.523 ]
 	b_scores = [ 0.0, 0.9977, 0.7364, 0.6318 ]
 	c_scores = [ 0.0, 0.9975, 0.6237, 0.8641 ]
@@ -470,24 +420,14 @@ def test_posterior_emissions_w_multitransition_setup():
 		trans, ems = model.forward_backward( seq )
 		ems = np.exp( ems )
 
-		assert round( ems[:,i].sum(), 4 ) == a, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,j].sum(), 4 ) == b, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,k].sum(), 4 ) == c, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,l].sum(), 4 ) == d, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems.sum() ) == len( seq ), \
-			"Posterior emissions incorrect for '{}'".format( seq )
+		assert_equal( round( ems[:,i].sum(), 4 ), a )
+		assert_equal( round( ems[:,j].sum(), 4 ), b )
+		assert_equal( round( ems[:,k].sum(), 4 ), c )
+		assert_equal( round( ems[:,l].sum(), 4 ), d )
+		assert_equal( round( ems.sum() ), len( seq ) )
 
 @with_setup( tied_edge_setup, teardown )
 def test_posterior_emissions_w_tied_edge_setup():
-	'''
-	Take a few sequences of variable length, and ensure that some posterior
-	decodings work.
-	'''
-
 	a_scores = [ 0.987, 0.9965, 0.183, 0.523 ]
 	b_scores = [ 0.0, 0.9977, 0.7364, 0.6318 ]
 	c_scores = [ 0.0, 0.9975, 0.6237, 0.8641 ]
@@ -501,24 +441,15 @@ def test_posterior_emissions_w_tied_edge_setup():
 		trans, ems = model.forward_backward( seq )
 		ems = np.exp( ems )
 
-		assert round( ems[:,i].sum(), 4 ) == a, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,j].sum(), 4 ) == b, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,k].sum(), 4 ) == c, \
-			"Posterior emissions incorrect for '{}'".format( seq )
-		assert round( ems[:,l].sum(), 4 ) == d, \
-			"{} '{}'".format( round( ems[:,l].sum(), 4 ), seq )
-		assert round( ems.sum() ) == len( seq ), \
-			"Posterior emissions incorrect for '{}'".format( seq )
+		assert_equal( round( ems[:,i].sum(), 4 ), a )
+		assert_equal( round( ems[:,j].sum(), 4 ), b )
+		assert_equal( round( ems[:,k].sum(), 4 ), c )
+		assert_equal( round( ems[:,l].sum(), 4 ), d )
+		assert_equal( round( ems.sum() ), len( seq ) )
 
 @with_setup( setup, teardown )
 def test_properties():
-	'''
-	Test a few properties of the model.
-	'''
-
-	assert model.edge_count() == 29
-	assert model.state_count() == 12
-	assert model.name == "Global Alignment"
-	assert model.is_infinite() == False 
+	assert_equal( model.edge_count(), 29 )
+	assert_equal( model.state_count(), 12 )
+	assert_equal( model.name, "Global Alignment" )
+	assert_equal( model.is_infinite(), False )

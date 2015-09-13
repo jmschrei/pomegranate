@@ -1,24 +1,23 @@
 # test_bayes_net_monty.py
 # Contact: Jacob Schreiber
-#          jmschr@cs.washington.edu
+#          jmschreiber91@gmail.com
 
 '''
 These are unit tests for the Bayesian network part of pomegranate.
 '''
 
-from __future__ import  (division, print_function)
+from __future__ import  division
 
 from pomegranate import *
 from nose.tools import with_setup
+from nose.tools import assert_equal
+from nose.tools import assert_raises
 import random
-import numpy as np
-import time
+import numpy
+
+nan = numpy.nan
 
 def setup():
-	'''
-	Build the model which corresponds to the Monty hall network.
-	'''
-
 	global network, monty_index, prize_index, guest_index
 
 	random.seed(0)
@@ -77,63 +76,87 @@ def setup():
 	guest_index = network.states.index( s1 )
 
 def teardown():
-	'''
-	Tear down the network, aka do nothing.
-	'''
+	pass
 
 def discrete_equality( x, y, z=8 ):
-	'''
-	Test to see if two discrete distributions are equal to each other to
-	z decimal points.
-	'''
-
 	xd, yd = x.parameters[0], y.parameters[0]
 	for key, value in xd.items():
 		if round( yd[key], z ) != round( value, z ):
-			return False
-	return True
+			raise ValueError( "{} != {}".format( yd[key], value ) )
 
 def test_guest():
-	'''
-	See what happens when the guest says something.
-	'''
-
 	a = network.forward_backward( {'guest' : 'A'} )
 	b = network.forward_backward( {'guest' : 'B'} )
 	c = network.forward_backward( {'guest' : 'C'} )
 
 	prize_correct = DiscreteDistribution({'A' : 1./3, 'B' : 1./3, 'C' : 1./3 })
 
-	assert discrete_equality( a[prize_index], b[prize_index] )
-	assert discrete_equality( a[prize_index], c[prize_index] )
-	assert discrete_equality( a[prize_index], prize_correct )
+	discrete_equality( a[prize_index], b[prize_index] )
+	discrete_equality( a[prize_index], c[prize_index] )
+	discrete_equality( a[prize_index], prize_correct )
 
-	assert discrete_equality( a[monty_index], DiscreteDistribution({'A': 0.0, 'B' : 1./2, 'C' : 1./2}) )
-	assert discrete_equality( b[monty_index], DiscreteDistribution({'A': 1./2, 'B' : 0.0, 'C' : 1./2}) )
-	assert discrete_equality( c[monty_index], DiscreteDistribution({'A': 1./2, 'B' : 1./2, 'C' : 0.0}) )
+	discrete_equality( a[monty_index], DiscreteDistribution({'A': 0.0, 'B' : 1./2, 'C' : 1./2}) )
+	discrete_equality( b[monty_index], DiscreteDistribution({'A': 1./2, 'B' : 0.0, 'C' : 1./2}) )
+	discrete_equality( c[monty_index], DiscreteDistribution({'A': 1./2, 'B' : 1./2, 'C' : 0.0}) )
 
 def test_guest_monty():
-	'''
-	See what happens when the guest chooses a door and then Monty opens a door.
-	'''
-
 	b = network.forward_backward( { 'guest' : 'A', 'monty' : 'B' } )
 	c = network.forward_backward( { 'guest' : 'A', 'monty' : 'C' } )
 
-	assert discrete_equality( b[guest_index], DiscreteDistribution({'A': 1., 'B': 0., 'C': 0. }) )
-	assert discrete_equality( b[monty_index], DiscreteDistribution({'A': 0., 'B': 1., 'C': 0. }) )
-	assert discrete_equality( b[prize_index], DiscreteDistribution({'A': 1./3, 'B': 0.0, 'C': 2./3 }) )
-	assert discrete_equality( c[guest_index], DiscreteDistribution({'A': 1., 'B': 0., 'C': 0. }) )
-	assert discrete_equality( c[monty_index], DiscreteDistribution({'A': 0., 'B': 0., 'C': 1. }) )
-	assert discrete_equality( c[prize_index], DiscreteDistribution({'A': 1./3, 'B': 2./3, 'C': 0.0 }) )
+	discrete_equality( b[guest_index], DiscreteDistribution({'A': 1., 'B': 0., 'C': 0. }) )
+	discrete_equality( b[monty_index], DiscreteDistribution({'A': 0., 'B': 1., 'C': 0. }) )
+	discrete_equality( b[prize_index], DiscreteDistribution({'A': 1./3, 'B': 0.0, 'C': 2./3 }) )
+	discrete_equality( c[guest_index], DiscreteDistribution({'A': 1., 'B': 0., 'C': 0. }) )
+	discrete_equality( c[monty_index], DiscreteDistribution({'A': 0., 'B': 0., 'C': 1. }) )
+	discrete_equality( c[prize_index], DiscreteDistribution({'A': 1./3, 'B': 2./3, 'C': 0.0 }) )
 
 def test_monty():
-	'''
-	See what happens when we only know about Monty.
-	'''
-
 	a = network.forward_backward({ 'monty' : 'A' })
 
-	assert discrete_equality( a[monty_index], DiscreteDistribution({'A': 1.0, 'B': 0.0, 'C': 0.0}) )
-	assert discrete_equality( a[guest_index], a[prize_index] )
-	assert discrete_equality( a[guest_index], DiscreteDistribution({'A' : 0.0, 'B' : 1./2, 'C' : 1./2}) )
+	discrete_equality( a[monty_index], DiscreteDistribution({'A': 1.0, 'B': 0.0, 'C': 0.0}) )
+	discrete_equality( a[guest_index], a[prize_index] )
+	discrete_equality( a[guest_index], DiscreteDistribution({'A' : 0.0, 'B' : 1./2, 'C' : 1./2}) )
+
+def test_imputation():
+	obs = [['A', None, 'B'],
+	       ['A', None, 'C'],
+	       ['A', 'B', 'C']]
+
+	network.impute( obs )
+
+	assert_equal( obs[0], ['A', 'C', 'B'] )
+	assert_equal( obs[1], ['A', 'B', 'C'] )
+	assert_equal( obs[2], ['A', 'B', 'C'] )
+
+def test_numpy_imputation():
+	obs = numpy.array([['A', None, 'B'],
+	       			   ['A', None, 'C'],
+	       			   ['A', 'B', 'C']])
+
+	network.impute( obs )
+
+	assert_equal( obs[0, 0], 'A' )
+	assert_equal( obs[0, 1], 'C' )
+	assert_equal( obs[0, 2], 'B' )
+	assert_equal( obs[1, 0], 'A' )
+	assert_equal( obs[1, 1], 'B' )
+	assert_equal( obs[1, 2], 'C' )
+	assert_equal( obs[2, 0], 'A' )
+	assert_equal( obs[2, 1], 'B' )
+	assert_equal( obs[2, 2], 'C' )
+
+def test_raise_error():
+	obs = [['green', 'cat', None]]
+	assert_raises( ValueError, network.impute, obs )
+
+	obs = [['A', 'b', None]]
+	assert_raises( ValueError, network.impute, obs )
+
+	obs = [['none', 'B', None]]
+	assert_raises( ValueError, network.impute, obs )
+
+	obs = [['NaN', 'B', None]]
+	assert_raises( ValueError, network.impute, obs )
+
+	obs = [['A', 'C', 'D']]
+	assert_raises( ValueError, network.impute, obs )

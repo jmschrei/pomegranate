@@ -10,6 +10,8 @@ from __future__ import  (division, print_function)
 
 from pomegranate import *
 from nose.tools import with_setup
+from nose.tools import assert_equal
+from nose.tools import assert_raises
 
 def setup():
 	'''
@@ -59,57 +61,41 @@ def teardown():
 
 @with_setup( setup, teardown )
 def test_nickles():
-	"""
-	Test a valid sequence.
-	"""
-
 	seq = [ 5, 5, 5, 5, 5 ]
 
-	assert model.current_index == 0
+	assert_equal( model.current_index, 0 )
 
 	for i, symbol in enumerate( seq ):
 		model.step( symbol )
-		assert model.current_index == i + 1
+		assert_equal( model.current_index, i + 1 )
 
 @with_setup( setup, teardown )
 def test_dimes():
-	"""
-	Test a valid sequence.
-	"""
-
 	seq = [ 5, 10, 10 ]
 	states = [ 1, 3, 5 ]
 
-	assert model.current_index == 0
+	assert_equal( model.current_index, 0 )
 
 	for symbol, state in zip( seq, states ):
 		model.step( symbol )
-		assert model.current_index == state
+		assert_equal( model.current_index, state )
 
 @with_setup( setup, teardown )
 def test_quarter():
-	"""
-	Test a valid sequence.
-	"""
-
-	assert model.current_index == 0
+	assert_equal( model.current_index, 0 )
 	model.step( 25 )
-	assert model.current_index == 5
+	assert_equal( model.current_index, 5 )
 
 @with_setup( setup, teardown )
 def test_invalid():
-	"""
-	Test a valid sequence.
-	"""
-
-	assert model.current_index == 0
+	assert_equal( model.current_index, 0 )
 	model.step( 10 )
-	assert model.current_index == 2
+	assert_equal( model.current_index, 2 )
 	model.step( 25 )
-	assert model.current_index == 2
+	assert_equal( model.current_index, 2 )
 	model.step( 5 )
-	assert model.current_index == 3
+	assert_equal( model.current_index, 3 ) 
 	model.step( 10 )
-	assert model.current_index == 5
+	assert_equal( model.current_index, 5 )
 	model.step( 25 )
-	assert model.current_index == 5
+	assert_equal( model.current_index, 5 )

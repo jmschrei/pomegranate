@@ -37,10 +37,6 @@ def discrete_equality( x, y, z=8 ):
 
 @with_setup( setup, teardown )
 def test_normal():
-	'''
-	Test that the normal distribution implementation is correct.
-	'''
-
 	d = NormalDistribution( 5, 2 )
 	e = NormalDistribution( 5., 2. )
 
@@ -94,10 +90,6 @@ def test_normal():
 
 @with_setup( setup, teardown )
 def test_uniform():
-	'''
-	Test that the uniform distribution implementation is correct.
-	'''
-
 	d = UniformDistribution( 0, 10 )
 
 	assert_equal( d.log_probability( 2.34 ), -2.3025850929940455 )
@@ -154,10 +146,6 @@ def test_uniform():
 
 @with_setup( setup, teardown )
 def test_discrete():
-	'''
-	Test that the discrete distribution implementation is correct.
-	'''
-
 	d = DiscreteDistribution( { 'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25 } )
 
 	assert_equal( d.log_probability( 'C' ), -1.3862943611198906 )
@@ -208,10 +196,6 @@ def test_discrete():
 
 @with_setup( setup, teardown )
 def test_lognormal():
-	'''
-	Test that the lognormal distribution implementation is correct.
-	'''
-
 	d = LogNormalDistribution( 5, 2 )
 	assert_equal( round( d.log_probability( 5 ), 4 ), -4.6585 )
 
@@ -229,10 +213,6 @@ def test_lognormal():
 
 @with_setup( setup, teardown )
 def test_gamma():
-	'''
-	Test that the gamma distribution implementation is correct.
-	'''
-
 	d = GammaDistribution( 5, 2 )
 	assert_equal( round( d.log_probability( 4 ), 4 ), -2.1671 )
 
@@ -253,10 +233,6 @@ def test_gamma():
 
 @with_setup( setup, teardown )
 def test_exponential():
-	'''
-	Test that the beta distribution implementation is correct.
-	'''
-
 	d = ExponentialDistribution( 3 )
 	assert_equal( round( d.log_probability( 8 ), 4 ), -22.9014 )
 
@@ -275,10 +251,6 @@ def test_exponential():
 
 @with_setup( setup, teardown )
 def test_gaussian_kernel():
-	'''
-	Test that the Gaussian Kernel Density implementation is correct.
-	'''
-
 	d = GaussianKernelDensity( [ 0, 4, 3, 5, 7, 4, 2 ] )
 	assert_equal( round( d.log_probability( 3.3 ), 4 ), -1.7042 )
 
@@ -307,10 +279,6 @@ def test_gaussian_kernel():
 
 @with_setup( setup, teardown )
 def test_triangular_kernel():
-	'''
-	Test that the Triangular Kernel Density implementation is correct.
-	'''
-
 	d = TriangleKernelDensity( [ 1, 6, 3, 4, 5, 2 ] )
 	assert_equal( round( d.log_probability( 6.5 ), 4 ), -2.4849 )
 
@@ -330,10 +298,6 @@ def test_triangular_kernel():
 
 @with_setup( setup, teardown )
 def test_uniform_kernel():
-	'''
-	Test that the Uniform Kernel Density implementation is correct.
-	'''
-
 	d = UniformKernelDensity( [ 1, 3, 5, 6, 2, 2, 3, 2, 2 ] )
 
 	assert_equal( round( d.log_probability( 2.2 ), 4 ), -0.4055 )
@@ -352,10 +316,6 @@ def test_uniform_kernel():
 
 @with_setup( setup, teardown )
 def test_mixture():
-	'''
-	Test that the Mixture Distribution implementation is correct.
-	'''
-
 	d = MixtureDistribution( [ NormalDistribution( 5, 1 ), 
 							   NormalDistribution( 4, 4 ) ] )
 
@@ -373,10 +333,6 @@ def test_mixture():
 
 @with_setup( setup, teardown )
 def test_independent():
-	'''
-	Test that the Multivariate Distribution implementation is correct.
-	'''
-
 	d = IndependentComponentsDistribution( [ NormalDistribution( 5, 2 ), ExponentialDistribution( 2 ) ] )
 
 	assert_equal( round( d.log_probability( (4,1) ), 4 ), -3.0439 )
@@ -438,10 +394,6 @@ def test_independent():
 	assert_equal( d.parameters[0][1].parameters[1], 15 )
 
 def test_conditional():
-	'''
-	Test a conditional discrete distribution.
-	'''
-
 	phditis = DiscreteDistribution({ True : 0.01, False : 0.99 })
 	test_result = ConditionalProbabilityTable(
 		[[True,  True,  0.95 ],
@@ -453,10 +405,6 @@ def test_conditional():
 		DiscreteDistribution({False : 0.941, True : 0.059}) )
 
 def test_monty():
-	'''
-	Test based on the Monty Hall simulation.
-	'''
-
 	guest = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 
 	# The actual prize is independent of the other distributions
@@ -492,12 +440,12 @@ def test_monty():
 		 [ 'C', 'C', 'B', 0.5 ],
 		 [ 'C', 'C', 'C', 0.0 ]], [guest, prize] ) 
 
-	assert monty.log_probability( ('A', 'B', 'C') ) == 0.
-	assert monty.log_probability( ('C', 'B', 'A') ) == 0.
-	assert monty.log_probability( ('C', 'C', 'C') ) == float("-inf")
-	assert monty.log_probability( ('A', 'A', 'A') ) == float("-inf")
-	assert monty.log_probability( ('B', 'A', 'C') ) == 0.
-	assert monty.log_probability( ('C', 'A', 'B') ) == 0.
+	assert_equal( monty.log_probability( ('A', 'B', 'C') ), 0. )
+	assert_equal( monty.log_probability( ('C', 'B', 'A') ), 0. )
+	assert_equal( monty.log_probability( ('C', 'C', 'C') ), float("-inf") )
+	assert_equal( monty.log_probability( ('A', 'A', 'A') ), float("-inf") )
+	assert_equal( monty.log_probability( ('B', 'A', 'C') ), 0. )
+	assert_equal( monty.log_probability( ('C', 'A', 'B') ), 0. )
 
 	data = [[ 'A', 'A', 'C' ],
 			[ 'A', 'A', 'C' ],
@@ -514,8 +462,8 @@ def test_monty():
 
 	monty.from_sample( data, weights=[1, 1, 3, 3, 1, 1, 3, 7, 1, 1, 1, 1] )
 
-	assert monty.log_probability( ('A', 'A', 'A') ) == monty.log_probability( ('A', 'A', 'C') )
-	assert monty.log_probability( ('A', 'A', 'A') ) == monty.log_probability( ('A', 'A', 'B') )
-	assert monty.log_probability( ('B', 'A', 'A') ) == monty.log_probability( ('B', 'A', 'C') )
-	assert monty.log_probability( ('B', 'B', 'A') ) == float("-inf")
-	assert monty.log_probability( ('C', 'C', 'B') ) == float("-inf")
+	assert_equal( monty.log_probability( ('A', 'A', 'A') ), monty.log_probability( ('A', 'A', 'C') ) )
+	assert_equal( monty.log_probability( ('A', 'A', 'A') ), monty.log_probability( ('A', 'A', 'B') ) )
+	assert_equal( monty.log_probability( ('B', 'A', 'A') ), monty.log_probability( ('B', 'A', 'C') ) )
+	assert_equal( monty.log_probability( ('B', 'B', 'A') ), float("-inf") )
+	assert_equal( monty.log_probability( ('C', 'C', 'B') ), float("-inf") )

@@ -121,10 +121,6 @@ def teardown():
 
 @with_setup( setup, teardown )
 def test_monty():
-	"""
-	Test the monty distribution before and after training.
-	"""
-
 	assert monty.log_probability( ('A', 'A', 'C') ) == np.log( 0.5 )
 	assert monty.log_probability( ('B', 'B', 'C') ) == np.log( 0.5 )
 	assert monty.log_probability( ('C', 'C', 'C') ) == float("-inf")
@@ -150,10 +146,6 @@ def test_monty():
 
 @with_setup( setup, teardown )
 def test_friend():
-	"""
-	Test the friend distribution before and after training.
-	"""
-
 	assert friend.log_probability( True ) == np.log( 0.5 )
 	assert friend.log_probability( False ) == np.log( 0.5 )
 
@@ -178,10 +170,6 @@ def test_friend():
 
 @with_setup( setup, teardown )
 def test_remaining():
-	"""
-	Test the remaining distribution before and after training.
-	"""
-
 	assert remaining.log_probability( 0 ) == np.log( 0.1 )
 	assert remaining.log_probability( 1 ) == np.log( 0.7 )
 	assert remaining.log_probability( 2 ) == np.log( 0.2 )
@@ -207,10 +195,6 @@ def test_remaining():
 
 @with_setup( setup, teardown )
 def test_prize():
-	"""
-	Test the prize distribution.
-	"""
-
 	assert prize.log_probability( (True,  True,  'A') ) == np.log( 0.3 )
 	assert prize.log_probability( (True,  False, 'C') ) == np.log( 0.4 )
 	assert prize.log_probability( (False, True,  'B') ) == np.log( 0.9 )

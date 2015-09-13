@@ -11,14 +11,13 @@ from __future__ import  (division, print_function)
 
 from pomegranate import *
 from nose.tools import with_setup
+from nose.tools import assert_equal
 import random
 import numpy as np
 import time
 
 def setup():
-	'''
-	Build the model which corresponds to the Cold network.
-	'''
+	"""Build a simple model referring to the titanic disaster."""
 
 	global network
 
@@ -61,46 +60,28 @@ def setup():
 	network.bake()
 
 def teardown():
-	'''
-	Tear down the network, aka do nothing.
-	'''
-
-def discrete_equality( x, y, z=8 ):
-	'''
-	Test to see if two discrete distributions are equal to each other to
-	z decimal points.
-	'''
-
-	xd, yd = x.parameters[0], y.parameters[0]
-	for key, value in xd.items():
-		if round( yd[key], z ) != round( value, z ):
-			return False
-	return True
+	pass
 
 def test_guest():
-	'''
-	See what happens when the guest says something.
-	'''
-
 	male   = network.forward_backward( {'gender' : 'male'   } )
 	female = network.forward_backward( {'gender' : 'female' } ) 
 
-	assert female[0].log_probability( "survive" ) == 0.0
-	assert female[0].log_probability( "perish" ) == float("-inf")
+	assert_equal( female[0].log_probability( "survive" ), 0.0 )
+	assert_equal( female[0].log_probability( "perish" ), float("-inf") )
 
-	assert female[1].log_probability( "male" ) == float("-inf")
-	assert female[1].log_probability( "female" ) == 0.0
+	assert_equal( female[1].log_probability( "male" ), float("-inf") )
+	assert_equal( female[1].log_probability( "female" ), 0.0 )
 
-	assert female[2].log_probability( "first" ) == float("-inf")
-	assert female[2].log_probability( "second" ) == 0.0
-	assert female[2].log_probability( "third" ) == float("-inf")
+	assert_equal( female[2].log_probability( "first" ), float("-inf") )
+	assert_equal( female[2].log_probability( "second" ), 0.0 )
+	assert_equal( female[2].log_probability( "third" ), float("-inf") )
 
-	assert male[0].log_probability( "survive" ) == float("-inf")
-	assert male[0].log_probability( "perish" )  == 0.0
+	assert_equal( male[0].log_probability( "survive" ), float("-inf") )
+	assert_equal( male[0].log_probability( "perish" ), 0.0 )
 
-	assert male[1].log_probability( "male" )   == 0.0
-	assert male[1].log_probability( "female" ) == float("-inf")
+	assert_equal( male[1].log_probability( "male" ), 0.0 )
+	assert_equal( male[1].log_probability( "female" ), float("-inf") )
 
-	assert male[2].log_probability( "first" )  == 0.0
-	assert male[2].log_probability( "second" ) == float("-inf")
-	assert male[2].log_probability( "third" )  == float("-inf")
+	assert_equal( male[2].log_probability( "first" ), 0.0 )
+	assert_equal( male[2].log_probability( "second" ), float("-inf") )
+	assert_equal( male[2].log_probability( "third" ), float("-inf") )
