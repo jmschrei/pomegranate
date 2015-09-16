@@ -12,7 +12,6 @@ from libc.math cimport log as clog, sqrt as csqrt, exp as cexp, lgamma, fabs
 
 import math, random, itertools as it, sys, bisect, json
 import networkx, time
-import scipy.stats, scipy.sparse, scipy.special, scipy.linalg
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -25,8 +24,6 @@ else:
 import numpy
 cimport numpy
 
-import matplotlib.pyplot as plt
-
 cimport utils
 from utils cimport *
 
@@ -36,6 +33,7 @@ DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
 
+import scipy.special
 
 def log(value):
 	"""
@@ -192,6 +190,7 @@ cdef class Distribution:
 	def plot( self, n=1000, **kwargs ):
 		"""Plot the distribution by sampling from it."""
 
+		import matplotlib.pyplot as plt
 		samples = [ self.sample() for i in xrange( n ) ]
 		plt.hist( samples, **kwargs )
 
@@ -786,7 +785,7 @@ cdef class GammaDistribution( Distribution ):
 		Make a new gamma distribution. Alpha is the shape parameter and beta is 
 		the rate parameter.
 		"""
-		
+
 		self.alpha = alpha
 		self.beta = beta
 		self.summaries = []
@@ -1920,10 +1919,6 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 			d.from_summaries( inertia=inertia )
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
-	"""
-	A multivariate gaussian distribution, with a mean vector and a covariance
-	matrix. This is mostly a wrapper for scipy.stats.multivariate_gaussian.
-	"""
 
 	property parameters:
 		def __get__(self):
@@ -1991,8 +1986,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		according to the weights, then sample from that distribution. 
 		"""
 
-		return scipy.stats.multivariate_normal.rvs(
-			self.parameters[0], self.parameters[1] )
+		return numpy.random.multivariate_normal( self.parameters[0], 
+			self.parameters[1] )
 
 	def from_sample (self, items, weights=None, inertia=0 ):
 		"""

@@ -46,10 +46,9 @@ setup(
     description='Pomegranate is a graphical models library for Python, implemented in Cython for speed.',
     ext_modules=extensions,
     install_requires=[
-        "cython >= 0.20.1",
+        "cython >= 0.22.1",
         "numpy >= 1.8.0",
-        "scipy >= 0.13.3",
-        "networkx >= 1.8.1",
-        "matplotlib >= 1.3.1"
+        "joblib >= 0.90b4",
+        "networkx >= 1.8.1"
     ],
 )
