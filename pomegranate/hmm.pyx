@@ -13,10 +13,24 @@ import networkx
 import tempfile
 import warnings
 
+from .base cimport Model
+from .base cimport State
+from .distributions cimport Distribution
+from .distributions cimport MultivariateDistribution
+from .distributions cimport DiscreteDistribution
+from .utils cimport _log
+from .utils cimport pair_lse
+
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.string cimport memcpy
 from libc.string cimport memset
+
+import numpy
+cimport numpy
+
+from joblib import Parallel
+from joblib import delayed
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -24,19 +38,6 @@ if sys.version_info[0] > 2:
 	izip = zip
 else:
 	izip = it.izip
-
-import numpy
-cimport numpy
-
-from base cimport Model
-from base cimport State
-from distributions cimport Distribution
-from distributions cimport MultivariateDistribution
-from distributions cimport DiscreteDistribution
-from joblib import Parallel
-from joblib import delayed
-from utils cimport _log
-from utils cimport pair_lse
 
 try:
 	import pygraphviz
@@ -63,13 +64,6 @@ def log(value):
 		to_return[ value == 0 ] = NEGINF
 		return to_return
 	return _log( value )
-		
-def exp(value):
-	"""
-	Return e^value, or 0 if the value is - infinity.
-	"""
-	
-	return numpy.exp(value)
 
 def log_probability( model, samples, n_jobs=1, parallel=None ):
 	"""Return the log probability of samples given a model."""
@@ -88,7 +82,9 @@ cdef class HiddenMarkovModel( Model ):
 	"""
 
 	cdef public object start, end
-	cdef public int start_index, end_index, silent_start
+	cdef public int start_index
+	cdef public int end_index
+	cdef public int silent_start
 	cdef double* in_transition_pseudocounts
 	cdef double* out_transition_pseudocounts
 	cdef double [:] state_weights
