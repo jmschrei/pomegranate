@@ -1,31 +1,22 @@
 # base.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-cimport distributions
-from distributions import Distribution
+from .distributions cimport Distribution
+from .utils cimport *
 
-cimport utils
-from utils cimport *
-
-import numpy
-cimport numpy
-
-import networkx, sys
 import itertools as it
 import json
+import numpy
+import networkx
+import sys
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
-	from functools import reduce
 	xrange = range
-	izip = zip
-else:
-	izip = it.izip
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
-DEF SQRT_2_PI = 2.50662827463
 
 def log(value):
 	"""

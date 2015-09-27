@@ -13,8 +13,10 @@ import networkx
 import tempfile
 import warnings
 
-from libc.stdlib cimport calloc, free
-from libc.string cimport memcpy, memset
+from libc.stdlib cimport calloc
+from libc.stdlib cimport free
+from libc.string cimport memcpy
+from libc.string cimport memset
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
