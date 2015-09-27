@@ -1,59 +1,14 @@
 # BayesianNetwork.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-cimport cython
-from cython.view cimport array as cvarray
-from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
-import math, random, itertools as it, sys, bisect
-import networkx
-
-if sys.version_info[0] > 2:
-	# Set up for Python 3
-	from functools import reduce
-	xrange = range
-	izip = zip
-else:
-	izip = it.izip
-
 import numpy
-cimport numpy
 
-cimport utils 
-from utils cimport *
-
-cimport distributions
-from distributions cimport *
-
-cimport base
-from base cimport Model, State
-
-from FactorGraph import *
-
-# Define some useful constants
-DEF NEGINF = float("-inf")
-DEF INF = float("inf")
-DEF SQRT_2_PI = 2.50662827463
-
-# Useful python-based array-intended operations
-def log(value):
-	"""
-	Return the natural log of the given value, or - infinity if the value is 0.
-	Can handle both scalar floats and numpy arrays.
-	"""
-
-	if isinstance( value, numpy.ndarray ):
-		to_return = numpy.zeros(( value.shape ))
-		to_return[ value > 0 ] = numpy.log( value[ value > 0 ] )
-		to_return[ value == 0 ] = NEGINF
-		return to_return
-	return _log( value )
-		
-def exp(value):
-	"""
-	Return e^value, or 0 if the value is - infinity.
-	"""
-	
-	return numpy.exp(value)
+from .base cimport Model
+from .base cimport State
+from .distributions cimport DiscreteDistribution
+from .distributions cimport ConditionalProbabilityTable
+from .FactorGraph import FactorGraph
+from .utils cimport _log
 
 cdef class BayesianNetwork( Model ):
 	"""
@@ -169,7 +124,7 @@ cdef class BayesianNetwork( Model ):
 		Another name for the train method.
 		"""
 
-		self.train( items, weights, intertia )
+		self.train( items, weights, inertia )
 
 
 	def train( self, items, weights=None, inertia=0.0 ):

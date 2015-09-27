@@ -18,14 +18,6 @@ cdef inline double _log ( double x ) nogil:
 
 	return clog( x ) if x > 0 else NEGINF
 
-cdef inline int pair_int_max( int x, int y ) nogil:
-	'''
-	Calculate the maximum of a pair of two integers. This is
-	significantly faster than the Python function max().
-	'''
-
-	return x if x > y else y
-
 cdef inline double pair_lse( double x, double y ) nogil:
 	'''
 	Perform log-sum-exp on a pair of numbers in log space..  This is calculated

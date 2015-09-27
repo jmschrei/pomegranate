@@ -1,34 +1,19 @@
 # bayesnet.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-cimport cython
-from cython.view cimport array as cvarray
-from libc.math cimport log as clog, sqrt as csqrt, exp as cexp
-import math, random, itertools as it, sys, bisect, json
-import networkx
+from libc.stdlib cimport calloc
+from libc.stdlib cimport free
+from libc.string cimport memset
 
-from libc.stdlib cimport calloc, free, realloc
-from libc.string cimport memcpy, memset
+import json
+import numpy
+import sys
+
+from .base cimport Model
+from .base cimport State
 
 if sys.version_info[0] > 2:
-	# Set up for Python 3
 	from functools import reduce
-	xrange = range
-	izip = zip
-else:
-	izip = it.izip
-
-import numpy
-cimport numpy
-
-cimport utils 
-from utils cimport *
-
-cimport distributions
-from distributions cimport *
-
-cimport base
-from base cimport *
 
 cdef class FiniteStateMachine( Model ):
 	'''
@@ -41,7 +26,7 @@ cdef class FiniteStateMachine( Model ):
 	cdef object [:] edge_keys
 	cdef dict indices
 
-	cdef SIZE_t* out_edge_count
+	cdef int* out_edge_count
 	cdef int [:] out_transitions
 
 	def __init__( self, name=None, start=None ):
@@ -105,8 +90,8 @@ cdef class FiniteStateMachine( Model ):
 		# This holds numpy array indexed [a, b] to transition log probabilities 
 		# from a to b, where a and b are state indices. It starts out saying all
 		# transitions are impossible.
-		self.out_edge_count = <SIZE_t*> calloc( n+1, sizeof(SIZE_t) )
-		memset( self.out_edge_count, 0, (n+1)*sizeof(SIZE_t) )
+		self.out_edge_count = <int*> calloc( n+1, sizeof(int) )
+		memset( self.out_edge_count, 0, (n+1)*sizeof(int) )
 
 		# Now we need to find a way of storing in-edges for a state in a manner
 		# that can be called in the cythonized methods below. This is basically
@@ -225,7 +210,7 @@ cdef class FiniteStateMachine( Model ):
 		'''
 
 		cdef int i, k, ki
-		cdef SIZE_t* out_edges = self.out_edge_count 
+		cdef int* out_edges = self.out_edge_count 
 
 
 		i = self.current_index

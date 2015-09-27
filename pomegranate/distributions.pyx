@@ -4,36 +4,36 @@
 # distributions.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-cimport cython
-from cython.view cimport array as cvarray
-from libc.stdlib cimport calloc, free, realloc
-from libc.string cimport memcpy, memset
-from libc.math cimport log as clog, sqrt as csqrt, exp as cexp, lgamma, fabs
+from libc.stdlib cimport calloc
+from libc.stdlib cimport free
+from libc.string cimport memset
+from libc.math cimport exp as cexp
+from libc.math cimport fabs
+from libc.math cimport lgamma
+from libc.math cimport sqrt as csqrt 
 
-import math, random, itertools as it, sys, bisect, json
-import networkx, time
+import itertools as it
+import json
+import numpy
+import random
+import scipy.special
+import sys
+
+from .utils cimport pair_lse
+from .utils cimport _log
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
-	from functools import reduce
 	xrange = range
 	izip = zip
 else:
 	izip = it.izip
-
-import numpy
-cimport numpy
-
-cimport utils
-from utils cimport *
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
-
-import scipy.special
 
 def log(value):
 	"""
@@ -992,7 +992,7 @@ cdef class GammaDistribution( Distribution ):
 		# obvious.)
 		summaries = numpy.array( self.summaries )
 
-		statistic = math.log( numpy.average( summaries[:,0], 
+		statistic = _log( numpy.average( summaries[:,0], 
 											 weights=summaries[:,3] ) ) - \
 					numpy.average( summaries[:,1], 
 								   weights=summaries[:,3] )
@@ -1101,7 +1101,7 @@ cdef class DiscreteDistribution( Distribution ):
 
 		for key in self.keys():
 			p[key] -= total 
-			p[key] = math.exp( p[key] )
+			p[key] = cexp( p[key] )
 
 		return DiscreteDistribution( p )
 

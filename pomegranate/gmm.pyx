@@ -1,57 +1,24 @@
 # gmm.pyx
-# Contact: Jacob Schreiber
-#          jmschr@cs.washington.edu
+# Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-cimport cython
-from cython.view cimport array as cvarray
-from libc.math cimport log as clog, exp as cexp
-import itertools as it, sys, json
+cimport numpy
+import numpy
+import json
+import sys
 
 if sys.version_info[0] > 2:
-	# Set up for Python 3
-	from functools import reduce
 	xrange = range
-	izip = zip
-else:
-	izip = it.izip
 
 import numpy
 cimport numpy
 
-cimport distributions
-from distributions cimport *
-
-cimport utils
-from utils cimport *
-
-cimport base
-from base cimport *
+from .distributions cimport Distribution
+from .utils cimport _log
+from .utils cimport pair_lse
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
-DEF SQRT_2_PI = 2.50662827463
-
-# Useful python-based array-intended operations
-def log(value):
-	"""
-	Return the natural log of the given value, or - infinity if the value is 0.
-	Can handle both scalar floats and numpy arrays.
-	"""
-
-	if isinstance( value, numpy.ndarray ):
-		to_return = numpy.zeros(( value.shape ))
-		to_return[ value > 0 ] = numpy.log( value[ value > 0 ] )
-		to_return[ value == 0 ] = NEGINF
-		return to_return
-	return _log( value )
-		
-def exp(value):
-	"""
-	Return e^value, or 0 if the value is - infinity.
-	"""
-	
-	return numpy.exp(value)
 
 def log_probability( model, samples ):
 	'''
@@ -105,7 +72,7 @@ cdef class GeneralMixtureModel:
 
 		for i in xrange( n ):
 			d = self.distributions[i]
-			log_probability = d.log_probability( point ) + clog( self.weights[i] )
+			log_probability = d.log_probability( point ) + _log( self.weights[i] )
 			log_probability_sum = pair_lse( log_probability_sum,
 											log_probability )
 
