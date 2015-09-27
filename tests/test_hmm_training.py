@@ -1,8 +1,9 @@
-from __future__ import  (division, print_function)
+from __future__ import  division
 
 from pomegranate import *
 from nose.tools import with_setup
 from nose.tools import assert_equal
+from nose.tools import assert_almost_equal
 import random
 import numpy as np
 import time
@@ -329,5 +330,158 @@ def test_bw_train_w_edge_a_distribution_inertia():
 									 edge_inertia=0.5,
 									 distribution_inertia=0.5,
 									 max_iterations=5 )
+ 
+	assert_equal( round( total_improvement, 4 ), 81.5447 )
+
+@with_setup( setup, teardown )
+def test_bw_train_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 use_pseudocount=True,
+									 max_iterations=5,
+									 n_jobs=2 )
+
+	assert_equal( round( total_improvement, 4 ), 83.1132 )
+
+@with_setup( setup, teardown )
+def test_bw_train_no_pseudocount_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 use_pseudocount=False,
+									 max_iterations=5,
+									 n_jobs=2 )
+ 
+	assert_equal( round( total_improvement, 4 ), 85.681 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_pseudocount_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 transition_pseudocount=0.123,
+									 max_iterations=5,
+									 n_jobs=2 )
+	
+	assert_equal( round( total_improvement, 4 ), 84.9408 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_pseudocount_priors_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 transition_pseudocount=0.278,
+									 use_pseudocount=True,
+									 max_iterations=5,
+									 n_jobs=2 )
+	 
+	assert_equal( round( total_improvement, 4 ), 81.2265 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_inertia_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 edge_inertia=0.193,
+									 max_iterations=5,
+									 n_jobs=2 )
+	 
+	assert_equal( round( total_improvement, 4 ), 85.0528 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_inertia2_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 edge_inertia=0.82,
+									 max_iterations=5,
+									 n_jobs=2 )
+  
+	assert_equal( round( total_improvement, 4 ), 72.5134 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_pseudocount_inertia_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 edge_inertia=0.02,
+									 use_pseudocount=True,
+									 max_iterations=5,
+									 n_jobs=2 )
+ 
+	assert_equal( round( total_improvement, 4 ), 83.0764 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_frozen_distributions_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 distribution_inertia=1.00,
+									 max_iterations=5,
+									 n_jobs=2 )
+  
+	assert_equal( round( total_improvement, 4 ), 64.474 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_frozen_edges_parallel():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 edge_inertia=1.00,
+									 max_iterations=5,
+									 n_jobs=2 )
+
+	assert_equal( round( total_improvement, 4 ), 44.0208 )
+
+@with_setup( setup, teardown )
+def test_bw_train_w_edge_a_distribution_inertia():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 edge_inertia=0.5,
+									 distribution_inertia=0.5,
+									 max_iterations=5,
+									 n_jobs=2 )
  
 	assert_equal( round( total_improvement, 4 ), 81.5447 )
