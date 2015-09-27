@@ -1162,6 +1162,7 @@ cdef class DiscreteDistribution( Distribution ):
 		self.encoded_keys = encoded_keys
 		self.encoded_counts = <double*> calloc( n, sizeof(double) )
 		self.encoded_log_probability = <double*> calloc( n, sizeof(double) )
+		self.n = n
 
 		for i in range(n):
 			key = encoded_keys[i]
@@ -1212,8 +1213,16 @@ cdef class DiscreteDistribution( Distribution ):
 
 		cdef int i
 		self.encoded_summary = 1
+
+		encoded_counts = <double*> calloc( self.n, sizeof(double) )
+		memset( encoded_counts, 0, self.n*sizeof(double) )
+
 		for i in range(n):
-			self.encoded_counts[<SIZE_t> items[i]] += weights[i]
+			encoded_counts[<SIZE_t> items[i]] += weights[i]
+
+		with gil:
+			for i in range(self.n):
+				self.encoded_counts[i] += encoded_counts[i]
 
 	def summarize( self, items, weights=None ):
 		"""Reduce a set of obervations to sufficient statistics."""
