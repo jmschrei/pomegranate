@@ -1085,6 +1085,11 @@ cdef class DiscreteDistribution( Distribution ):
 		self.encoded_counts = NULL
 		self.encoded_log_probability = NULL
 
+	def __dealloc__( self ):
+		if self.encoded_keys is not None:
+			free( self.encoded_counts )
+			free( self.encoded_log_probability )
+
 	def __len__( self ):
 		"""Return the length of the underlying dictionary"""
 		return len( self.dist )
@@ -1223,6 +1228,8 @@ cdef class DiscreteDistribution( Distribution ):
 		with gil:
 			for i in range(self.n):
 				self.encoded_counts[i] += encoded_counts[i]
+
+		free( encoded_counts )
 
 	def summarize( self, items, weights=None ):
 		"""Reduce a set of obervations to sufficient statistics."""
