@@ -22,6 +22,8 @@ import sys
 from .utils cimport pair_lse
 from .utils cimport _log
 
+from collections import OrderedDict
+
 if sys.version_info[0] > 2:
 	# Set up for Python 3
 	xrange = range
@@ -1064,7 +1066,7 @@ cdef class DiscreteDistribution( Distribution ):
 	property parameters:
 		def __get__(self):
 			return [self.dist]
-	
+			
 	def __cinit__( self, dict characters, bint frozen=False ):
 		"""
 		Make a new discrete distribution with a dictionary of discrete
@@ -1076,12 +1078,12 @@ cdef class DiscreteDistribution( Distribution ):
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
 
-		self.dist = characters
+		self.dist = characters.copy()
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
 		self.summaries =[ { key: 0 for key in characters.keys() } ]
 
 		self.encoded_summary = 0
-		self.encoded_keys = None
+		self.encoded_keys = ()
 		self.encoded_counts = NULL
 		self.encoded_log_probability = NULL
 
@@ -1159,7 +1161,7 @@ cdef class DiscreteDistribution( Distribution ):
 
 	def encode( self, encoded_keys ):
 		"""Encoding the distribution into integers."""
-		
+
 		if encoded_keys is None:
 			return
 
@@ -2117,64 +2119,38 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	encode for.
 	"""
 
-	def __init__( self, distribution, parents, hashes=None, n=None, frozen=False ):
+	def __init__( self, table, parents, keys=None, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
 		"""
 
-		# If we're passed a formed distribution already, just store it. Otherwise
-		# generate it from a table.
 		self.summaries = []
 		self.name = "ConditionalProbabilityTable"
 		self.frozen = False
 
-		if isinstance( distribution, numpy.ndarray ) and hashes and n:
-			self.parameters = [ distribution, parents, hashes, n ]
+		if keys:
+			self.parameters = [ table, parents, keys ]
 		else:
-			# Take the list of lists and invert it so that a numpy array represents
-			# each column, since each column is a homogenous data type and we are
-			# unsure if the distribution is over integers or strings.
-			table = list( izip( *distribution ) )
+			keys = []
+			values = numpy.zeros( len(table) )
 
-			d_keys = list( set( table[-2] ) )
-			d_map = { key: i for i, key in enumerate( d_keys )}
-
-			# Create a mapping from values in the table to integers to be stored
-			# in a compressed array
-			hashes = hashes or [{ key: i for i, key in enumerate( parent.keys() ) } for parent in parents ] + [ d_map ]
-			n = n or list( map( len, parents+[d_keys] ) )
-			m = numpy.cumprod( [1] + n )
-
-			values = numpy.zeros( len( distribution ) )
-
-			# Go through each row and put it into the compressed array
-			for row in distribution:
-				i = sum( hashes[j][val]*m[j] for j, val in enumerate( row[:-1] ) )
+			for i, row in enumerate( table ):
+				keys.append( ( tuple(row[:-1]), i ) )
 				values[i] = _log( row[-1] )
 
-			# Store all the information
-			self.parameters = [ values, parents, hashes, n ]
+			keys = OrderedDict( keys[::-1] )
+			self.parameters = [ values, parents, keys ]
 
 	def __str__( self ):
 		"""
 		Regenerate the table.
 		"""
 
-		values, parents, hashes, n = self.parameters
-		r_hashes = [ list(d) for d in hashes ]
-		m = numpy.cumprod( [1]+n )
-		table = []
-
-		# Add a row to the table to be printed
-		for key in it.product( *[xrange(i) for i in n ] ):
-			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
-			idx = sum( j*m[i] for i, j in enumerate( key ) )
-
-			table.append( "\t".join( map( str, keys ) ) + "\t{}".format( numpy.exp( values[idx] ) ) )
-
-		# Return the table in string format
-		return "\n".join( table )
+		values, parents, keys = self.parameters
+		return "\n".join( 
+					"\t".join( map( str, key + (cexp( values[idx] ),) ) )
+							for key, idx in keys.items() ) 
 
 	def __len__( self ):
 		"""
@@ -2189,24 +2165,19 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		the child variable.
 		"""
 
-		return self.parameters[2][-1].keys()
+		return tuple(set(row[-1] for row in self.parameters[2].keys()))
 
-	def log_probability( self, value ):
+	def log_probability( self, symbol ):
 		"""
 		Return the log probability of a value, which is a tuple in proper
 		ordering, like the training data.
 		"""
 
 		# Unpack the parameters
-		values, parents, hashes, n = self.parameters
-		m = numpy.cumprod( [1]+n )
-
-		# Assume parent values are given in the same order that parents
-		# were specified
-		i = sum( hashes[j][val]*m[j] for j, val in enumerate( value ) )
+		values, _, keys = self.parameters
 
 		# Return the array element with that identity
-		return values[i]
+		return values[ keys[symbol] ]
 		
 	def joint( self, neighbor_values=None ):
 		"""
@@ -2217,12 +2188,9 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 
 		# Unpack the parameters
-		values, parents, hashes, n = self.parameters
-		r_hashes = [ list(d) for d in hashes ]
-		m = numpy.cumprod( [1]+n )
+		values, parents, hashes = self.parameters
 
 		neighbor_values = neighbor_values or parents+[None]
-		
 		# If given a dictionary, then decode it
 		if isinstance( neighbor_values, dict ):
 			nv = [ None for i in xrange( len( neighbor_values)+1 ) ]
@@ -2245,24 +2213,21 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		table = []
 
 		# Create the table row by row
-		for keys in it.product( *[ xrange(i) for i in n ] ):
-			i = sum( key*k for key, k in izip( keys, m ) )
+		for key, idx in hashes.items():
 
 			# Scale the probability by the weights on the marginals
-			scaled_val = values[i]
-			for j, k in enumerate( keys ):
-				if neighbor_values[j] == None:
-					continue
-				scaled_val += neighbor_values[j].log_probability( r_hashes[j][k] )
+			scaled_val = values[idx]
+			for j, k in enumerate( key ):
+				if neighbor_values[j] is not None:
+					scaled_val += neighbor_values[j].log_probability( k )
 
-			table.append( [ r_hashes[i][key] for i, key in enumerate( keys ) ] + [ cexp(scaled_val) ] )
+			table.append( key + (cexp(scaled_val),) )
 
 		# Normalize the values
 		total = sum( row[-1] for row in table )
-		for i, row in enumerate( table ):
-			table[i][-1] = row[-1] / total
+		table = [ row[:-1] + (row[-1] / total,) for row in table ]
 
-		return JointProbabilityTable( table, parents, hashes )
+		return JointProbabilityTable( table, parents )
 
 	def marginal( self, neighbor_values=None ):
 		"""
@@ -2299,82 +2264,26 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		else:
 			weights = numpy.asarray(weights, dtype=float)
 
-		# We need to convert the items from whatever form they are now into
-		# a matrix of integers for indexes. Each column may not be the same
-		# data type so we can't cast it as a numpy array. There is a higher
-		# overhead of doing this in Python versus Cython, but easier to handle
-		# inconsistent datatypes.
-		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int32 )
-		hashes = self.parameters[2]
-		for j, h in enumerate( hashes ):
-			for i in xrange( len(items) ):
-				int_items[i, j] = h[ items[i][j] ]
+		counts = {}
+		marginal_counts = {}
+		for item, weight in zip(items, weights):
+			item = tuple(item)
 
-		# Get the table through the cythonized function
-		self.parameters[0] = numpy.array( 
-			self._from_sample( int_items, weights, inertia, pseudocount ) )
+			counts[item] = counts.get(item, 0) + weight
+			marginal_counts[item[:-1]] = marginal_counts.get(item[:-1], 0) + weight
 
-	cdef double [:] _from_sample( self, int [:,:] items, double [:] weights, 
-		double inertia, double pseudocount ):
-		"""
-		Cython optimized counting function.
-		"""
+		values = numpy.zeros_like(self.parameters[0])
+		keys = self.parameters[2]
 
-		# We're updating the table based on counts, which is an ordered array
-		cdef double [:] table = numpy.zeros( self.parameters[0].shape[0] ) + pseudocount
-		cdef double _sum
-		cdef int i, j, key, prefix
-		cdef int n = items.shape[0], d = items.shape[1]
-		cdef list k = self.parameters[3]
-		cdef tuple keys
-		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int32 )
+		for key in self.parameters[2].keys():
+			count = counts.get( key, 0.0 )
+			marginal_count = marginal_counts.get( key[:-1], 0.0 )
 
-		# Go through each point and add it
-		for i in xrange( n ):
-			# Determine the bin to put this point in
-			key = 0
-			for j in xrange( d ):
-				key += items[i, j] * m[j]
+			probability = count / marginal_count if marginal_count > 0 else 1. / len(self)
+			values[keys[key]] = _log(probability)
 
-			# Add the weight of the point to the table to get weighted counts
-			table[key] += weights[i]
+		self.parameters[0] = values
 
-		# Now we normalize conditionally on the parents.
-		for keys in it.product( *[ xrange(i) for i in k[:-1] ] ):
-			# Reset the sum of weighted counts for the same parent values
-			_sum = 0
-
-			# Calculate the prefix--the index stem excluding the
-			# values of the marginal
-			prefix = 0
-			for j in xrange( d-1 ):
-				prefix += keys[j] * m[j]
-			
-			# Add in the specific marginal value for an easy summation
-			for j in xrange( k[-1] ):
-				# Create the key for this value of the marginal
-				key = prefix + j * m[-2] 
-
-				# Add the weighted count to the summation
-				_sum += table[key]
-
-			# Normalize based on those parent values
-			for j in xrange( k[-1] ):
-				key = prefix + j * m[-2]
-				# If we've observed data, updated based on the weighted counts
-				if _sum > 0:
-					table[key] /= _sum
-
-				# If we haven't observed data, set to uniform distribution
-				else:
-					table[key] = 1. / k[-1]  
-
-		# Update the current table, taking into account inertia
-		for i in xrange( table.shape[0] ):
-			table[i] = _log( ( 1. - inertia ) * table[i] + \
-				inertia * cexp( self.parameters[0][i] ) )
-
-		return table
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	"""

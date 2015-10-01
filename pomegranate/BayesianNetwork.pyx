@@ -110,22 +110,12 @@ cdef class BayesianNetwork( Model ):
 
 		return self.graph.forward_backward( data, max_iterations )
 
-	def log_probability( self, data ):
-		"""
-		Return the probability of the data given the model. This is just a
-		product of the factors in the factor graph, so call the underlying
-		factor graph representation to do that.
-		"""
-
-		return self.graph.log_probability( data )
-
 	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Another name for the train method.
 		"""
 
 		self.train( items, weights, inertia )
-
 
 	def train( self, items, weights=None, inertia=0.0 ):
 		"""

@@ -10,14 +10,12 @@ from __future__ import  (division, print_function)
 
 from pomegranate import *
 from nose.tools import with_setup
-import random
+from nose.tools import assert_equal
 import numpy as np
-import time
 
-
-import math
 from pomegranate import *
 
+np.set_printoptions(linewidth=500)
 
 def setup():
 	'''
@@ -121,9 +119,9 @@ def teardown():
 
 @with_setup( setup, teardown )
 def test_monty():
-	assert monty.log_probability( ('A', 'A', 'C') ) == np.log( 0.5 )
-	assert monty.log_probability( ('B', 'B', 'C') ) == np.log( 0.5 )
-	assert monty.log_probability( ('C', 'C', 'C') ) == float("-inf")
+	assert_equal( monty.log_probability( ('A', 'A', 'C') ), np.log(0.5) )
+	assert_equal( monty.log_probability( ('B', 'B', 'C') ), np.log(0.5) )
+	assert_equal( monty.log_probability( ('C', 'C', 'C') ), float("-inf") )
 
 	data = [[ True,  'A', 'A', 'C', 1, True  ],
 			[ True,  'A', 'A', 'C', 0, True  ],
@@ -140,14 +138,14 @@ def test_monty():
 
 	network.train( data )
 
-	assert monty.log_probability( ('A', 'A', 'C') ) == np.log( 0.6 )
-	assert monty.log_probability( ('B', 'B', 'C') ) == np.log( 0.5 )
-	assert monty.log_probability( ('C', 'C', 'C') ) == np.log( 0.75 )
+	assert_equal( monty.log_probability( ('A', 'A', 'C') ), np.log(0.6) )
+	assert_equal( monty.log_probability( ('B', 'B', 'C') ), np.log(0.5) )
+	assert_equal( monty.log_probability( ('C', 'C', 'C') ), np.log(0.75) )
 
 @with_setup( setup, teardown )
 def test_friend():
-	assert friend.log_probability( True ) == np.log( 0.5 )
-	assert friend.log_probability( False ) == np.log( 0.5 )
+	assert_equal( friend.log_probability(True), np.log(0.5) )
+	assert_equal( friend.log_probability(False), np.log(0.5) )
 
 	data = [[ True,  'A', 'A', 'C', 1, True  ],
 			[ True,  'A', 'A', 'C', 0, True  ],
@@ -164,15 +162,15 @@ def test_friend():
 
 	network.train( data )
 
-	assert friend.log_probability( True ) == np.log( 7. / 12 )
-	assert friend.log_probability( False ) == np.log( 5. / 12 )
+	assert_equal( friend.log_probability(True), np.log(7./12) )
+	assert_equal( friend.log_probability(False), np.log(5./12) )
 
 
 @with_setup( setup, teardown )
 def test_remaining():
-	assert remaining.log_probability( 0 ) == np.log( 0.1 )
-	assert remaining.log_probability( 1 ) == np.log( 0.7 )
-	assert remaining.log_probability( 2 ) == np.log( 0.2 )
+	assert_equal( remaining.log_probability(0), np.log( 0.1 ) )
+	assert_equal( remaining.log_probability(1), np.log( 0.7 ) )
+	assert_equal( remaining.log_probability(2), np.log( 0.2 ) )
 
 	data = [[ True,  'A', 'A', 'C', 1, True  ],
 			[ True,  'A', 'A', 'C', 0, True  ],
@@ -189,16 +187,16 @@ def test_remaining():
 
 	network.train( data )
 
-	assert remaining.log_probability( 0 ) == np.log( 3. / 12 )
-	assert remaining.log_probability( 1 ) == np.log( 5. / 12 )
-	assert remaining.log_probability( 2 ) == np.log( 4. / 12 )
+	assert_equal( remaining.log_probability(0), np.log(3./12) )
+	assert_equal( remaining.log_probability(1), np.log(5./12) )
+	assert_equal( remaining.log_probability(2), np.log(4./12) )
 
 @with_setup( setup, teardown )
 def test_prize():
-	assert prize.log_probability( (True,  True,  'A') ) == np.log( 0.3 )
-	assert prize.log_probability( (True,  False, 'C') ) == np.log( 0.4 )
-	assert prize.log_probability( (False, True,  'B') ) == np.log( 0.9 )
-	assert prize.log_probability( (False, False, 'A') ) == float("-inf")
+	assert_equal( prize.log_probability( (True,  True,  'A') ), np.log(0.3) )
+	assert_equal( prize.log_probability( (True,  False, 'C') ), np.log(0.4) )
+	assert_equal( prize.log_probability( (False, True,  'B') ), np.log(0.9) )
+	assert_equal( prize.log_probability( (False, False, 'A') ), float("-inf") )
 
 	data = [[ True,  'A', 'A', 'C', 1, True  ],
 			[ True,  'A', 'A', 'C', 0, True  ],
@@ -215,11 +213,15 @@ def test_prize():
 
 	network.train( data )
 
-	assert prize.log_probability( (True, True, 'C') ) == np.log( 0.5 )
-	assert prize.log_probability( (True, True, 'B') ) == float("-inf")
-	assert prize.log_probability( (True, False, 'A' ) ) == \
-		prize.log_probability( (True, False, 'B' ) ) == \
-		prize.log_probability( (True, False, 'C') )
+	assert_equal( prize.log_probability( (True, True, 'C') ), np.log(0.5) )
+	assert_equal( prize.log_probability( (True, True, 'B') ), float("-inf") )
 
-	assert prize.log_probability( (False, False, 'C') ) == float("-inf")
-	assert prize.log_probability( (False, True, 'C' ) ) == np.log( 2. / 3 )
+	a = prize.log_probability( (True, False, 'A' ) )
+	b = prize.log_probability( (True, False, 'B' ) )
+	c = prize.log_probability( (True, False, 'C' ) )
+
+	assert_equal( a, b )
+	assert_equal( b, c )
+
+	assert_equal( prize.log_probability( (False, False, 'C') ), float("-inf") )
+	assert_equal( prize.log_probability( (False, True, 'C' ) ), np.log(2./3) )
