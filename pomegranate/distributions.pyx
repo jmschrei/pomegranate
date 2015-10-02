@@ -1083,7 +1083,7 @@ cdef class DiscreteDistribution( Distribution ):
 		self.summaries =[ { key: 0 for key in characters.keys() } ]
 
 		self.encoded_summary = 0
-		self.encoded_keys = ()
+		self.encoded_keys = None
 		self.encoded_counts = NULL
 		self.encoded_log_probability = NULL
 
@@ -1969,6 +1969,12 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		self._mu_new = <double*> calloc( d, sizeof(double) )
 		self._cov_new = <double*> calloc( d*d, sizeof(double) )
+
+	def __dealloc__(self):
+		free(self._mu_new)
+		free(self._cov_new)
+		free(self.column_sum)
+		free(self.pair_sum)
 
 	def log_probability( self, symbol ):
 		"""
