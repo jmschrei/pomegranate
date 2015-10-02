@@ -19,7 +19,7 @@ import time
 def setup():
 	"""Build a simple model referring to the titanic disaster."""
 
-	global network
+	global network, passenger, gender, tclass
 
 	# Passengers on the Titanic either survive or perish
 	passenger = DiscreteDistribution( { 'survive': 0.6, 'perish': 0.4 } )
@@ -29,7 +29,7 @@ def setup():
 	            [[ 'survive', 'male',   0.0 ],
 	             [ 'survive', 'female', 1.0 ],
 	             [ 'perish', 'male',    1.0 ],
-		       [ 'perish', 'female',  0.0]], [passenger] )
+		         [ 'perish', 'female',  0.0]], [passenger] )
 
 
 	# Class of travel, given survival data
@@ -39,7 +39,7 @@ def setup():
 	             [ 'survive', 'third',  0.0 ],
 	             [ 'perish', 'first',  1.0 ],
 	             [ 'perish', 'second', 0.0 ],
-		       [ 'perish', 'third',  0.0]], [passenger] )
+		         [ 'perish', 'third',  0.0]], [passenger] )
 
 
 	# State objects hold both the distribution, and a high level name.
@@ -62,9 +62,25 @@ def setup():
 def teardown():
 	pass
 
+def test_network():
+	assert_equal( passenger.log_probability('survive'), np.log(0.6) )
+	assert_equal( passenger.log_probability('survive'), np.log(0.6) )
+
+	assert_equal( gender.log_probability( ('survive', 'male') ),   float("-inf") )
+	assert_equal( gender.log_probability( ('survive', 'female') ), 0.0 )
+	assert_equal( gender.log_probability( ('perish', 'male') ),    0.0 )
+	assert_equal( gender.log_probability( ('perish', 'female') ),  float("-inf") )
+
+	assert_equal( tclass.log_probability( ('survive', 'first') ), float("-inf") )
+	assert_equal( tclass.log_probability( ('survive', 'second') ), 0.0 )
+	assert_equal( tclass.log_probability( ('survive', 'third') ), float("-inf") )
+	assert_equal( tclass.log_probability( ('perish', 'first') ), 0.0 )
+	assert_equal( tclass.log_probability( ('perish', 'second') ), float("-inf") )
+	assert_equal( tclass.log_probability( ('perish', 'third') ), float("-inf") )
+
 def test_guest():
 	male   = network.forward_backward( {'gender' : 'male'   } )
-	female = network.forward_backward( {'gender' : 'female' } ) 
+	female = network.forward_backward( {'gender' : 'female' } )
 
 	assert_equal( female[0].log_probability( "survive" ), 0.0 )
 	assert_equal( female[0].log_probability( "perish" ), float("-inf") )

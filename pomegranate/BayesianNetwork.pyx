@@ -80,8 +80,6 @@ cdef class BayesianNetwork( Model ):
 				d.parameters[1] = [ d_mapping[parent] for parent in d.parameters[1] ]
 				state.distribution = d.joint()
 				state.distribution.parameters[1].append( dist )
-				state.distribution.parameters[2][-1] = { key: i for i, key in enumerate( dist.keys() ) }
-				state.distribution.parameters[3][-1] = len( dist )
 
 		# Finalize the factor graph structure
 		self.graph.bake()
@@ -110,22 +108,12 @@ cdef class BayesianNetwork( Model ):
 
 		return self.graph.forward_backward( data, max_iterations )
 
-	def log_probability( self, data ):
-		"""
-		Return the probability of the data given the model. This is just a
-		product of the factors in the factor graph, so call the underlying
-		factor graph representation to do that.
-		"""
-
-		return self.graph.log_probability( data )
-
 	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Another name for the train method.
 		"""
 
 		self.train( items, weights, inertia )
-
 
 	def train( self, items, weights=None, inertia=0.0 ):
 		"""
