@@ -258,7 +258,6 @@ cdef class FactorGraph( Model ):
 
 						if li == i:
 							in_messages[l] = state.distribution.marginal( neighbor_values=d )
-							break
 
 			# Calculate the current estimates on the marginals to compare to the
 			# last iteration, so that we can stop if we reach convergence.

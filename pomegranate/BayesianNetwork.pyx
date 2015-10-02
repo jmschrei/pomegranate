@@ -80,8 +80,6 @@ cdef class BayesianNetwork( Model ):
 				d.parameters[1] = [ d_mapping[parent] for parent in d.parameters[1] ]
 				state.distribution = d.joint()
 				state.distribution.parameters[1].append( dist )
-				state.distribution.parameters[2][-1] = { key: i for i, key in enumerate( dist.keys() ) }
-				state.distribution.parameters[3][-1] = len( dist )
 
 		# Finalize the factor graph structure
 		self.graph.bake()

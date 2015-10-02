@@ -82,15 +82,6 @@ def test_guest():
 	male   = network.forward_backward( {'gender' : 'male'   } )
 	female = network.forward_backward( {'gender' : 'female' } )
 
-	a = male[0].clamp('survive')
-	a = a.copy()
-	assert_equal( a.log_probability('survive'), 0 )
-	assert_equal( a.log_probability('perish'), float("-inf"))
-
-	#print(male[2])
-	#print(female[2])
-
-	'''
 	assert_equal( female[0].log_probability( "survive" ), 0.0 )
 	assert_equal( female[0].log_probability( "perish" ), float("-inf") )
 
@@ -110,4 +101,3 @@ def test_guest():
 	assert_equal( male[2].log_probability( "first" ), 0.0 )
 	assert_equal( male[2].log_probability( "second" ), float("-inf") )
 	assert_equal( male[2].log_probability( "third" ), float("-inf") )
-	'''

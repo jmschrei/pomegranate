@@ -1100,42 +1100,37 @@ cdef class DiscreteDistribution( Distribution ):
 		"""Multiply this by another distribution sharing the same keys."""
 
 		assert set( self.keys() ) == set( other.keys() )
-		p, total = {}, NEGINF
+		distribution, total = {}, 0.0
 
 		for key in self.keys():
-			p[key] = self.log_probability( key ) + other.log_probability( key )
-			total = pair_lse( total, p[key] )
+			distribution[key] = self.log_probability( key ) + other.log_probability( key )
+			total += cexp( distribution[key] )
 
 		for key in self.keys():
-			p[key] -= total 
-			p[key] = cexp( p[key] )
+			distribution[key] = cexp( distribution[key] ) / total
 
-		return DiscreteDistribution( p )
+		return DiscreteDistribution( distribution )
 
 	def equals( self, other ):
 		"""Return if the keys and values are equal"""
 
-		# If we're not even comparing to a discrete distribution, then it cannot
-		# be the same.
 		if not isinstance( other, DiscreteDistribution ):
 			return False
 
-		# If the key sets aren't the same, it cannot be the same and will cause
-		# crashing in the next step.
 		if set( self.keys() ) != set( other.keys() ):
 			return False
 
-		# Go through and make sure the log probabilities for each key are the same.
 		for key in self.keys():
-			if round( self.log_probability( key ), 12 ) != round( other.log_probability( key ), 12 ):
+			self_prob = round( self.log_probability( key ), 12 )
+			other_prob = round( other.log_probability( key ), 12 )
+			if self_prob != other_prob:
 				return False
 
 		return True
 
 	def clamp( self, key ):
 		"""Return a distribution clamped to a particular value."""
-		d = { k : 0. if k != key else 1. for k in self.keys() }
-		return DiscreteDistribution( d )
+		return DiscreteDistribution( { k : 0. if k != key else 1. for k in self.keys() } )
 
 	def keys( self ):
 		"""Return the keys of the underlying dictionary."""
@@ -1184,9 +1179,7 @@ cdef class DiscreteDistribution( Distribution ):
 	cdef double __log_probability( self, symbol ):
 		"""Cython optimized lookup."""
 
-		if self.log_dist.has_key( symbol ):
-			return self.log_dist[symbol]		
-		return NEGINF
+		return self.log_dist.get( symbol, NEGINF )
 
 	cdef public double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized lookup."""
@@ -2299,87 +2292,65 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 	by the marginals of each parent.
 	"""
 
-	def __init__( self, distribution, neighbors, hashes=None, n=None ):
+	def __init__( self, table, neighbors, keys=None, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
 		"""
 
-		# If passed all the information, just store it, otherwise we need to
-		# process it a little.
-		if isinstance( distribution, numpy.ndarray ) and hashes and n:
-			self.parameters = [ distribution, neighbors, hashes, n ]
+		self.summaries = []
+		self.name = "JointProbabilityTable"
+		self.frozen = False
+
+		if keys:
+			self.parameters = [ table, neighbors, keys ]
 		else:
-			# Take the list of lists and invert it so that a numpy array represents
-			# each column, since each column is a homogenous data type and we are
-			# unsure if the distribution is over integers or strings.
-			table = list( izip( *distribution ) )
+			keys = []
+			values = numpy.zeros( len(table) )
 
-			infer = len( neighbors ) == len( distribution[0] ) - 2
-			if infer:
-				d_keys = list( set( table[-2] ) )
-				d_map = { key: i for i, key in enumerate( d_keys )}
-
-			if hashes is None:
-				hashes = [{ key: i for i, key in enumerate( neighbor.keys() ) } for neighbor in neighbors ]
-
-				if infer:
-					hashes += [ d_map ]
-
-			if n is None and infer:
-				n = list( map( len, neighbors + [d_keys] ) )
-			elif n is None and not infer:
-				n = list( map( len, neighbors ) )
-				
-			m = numpy.cumprod( [1] + n )
-
-			values = numpy.zeros( len( distribution ) )
-
-			# Go through each row and put it into the compressed array
-			for row in distribution:
-				i = sum( hashes[j][val]*m[j] for j, val in enumerate( row[:-1] ) )
+			for i, row in enumerate( table ):
+				keys.append( ( tuple(row[:-1]), i ) )
 				values[i] = _log( row[-1] )
 
-			# Store all the information
-			self.parameters = [ values, neighbors, hashes, n ]
+			keys = OrderedDict( keys[::-1] )
+			self.parameters = [ values, neighbors, keys ]
 
 	def __str__( self ):
 		"""
 		Regenerate the table.
 		"""
 
-		values, parents, hashes, n = self.parameters
-		r_hashes = [ list(d) for d in hashes ]
-		m = numpy.cumprod( [1]+n )
-		table = []
+		values, parents, keys = self.parameters
+		return "\n".join( 
+					"\t".join( map( str, key + (cexp( values[idx] ),) ) )
+							for key, idx in keys.items() ) 
 
-		# Add a row to the table to be printed
-		for key in it.product( *[xrange(i) for i in n ] ):
-			keys = [ r_hashes[j][k] for j, k in enumerate( key ) ]
-			idx = sum( j*m[i] for i, j in enumerate( key ) )
-
-			table.append( "\t".join( map( str, keys ) ) + "\t{}".format( numpy.exp( values[idx] ) ) )
-
-		# Return the table in string format
-		return "\n".join( table )
-
-	def log_probability( self, neighbor_values ):
+	def __len__( self ):
 		"""
-		Return the log probability of a value given some number of parent
-		values, which can be a subset of the full number of parents. If this
-		is the case, then marginalize over unknown values.
+		The length of the distribution is the number of keys.
+		"""
+
+		return len( self.keys() )
+
+	def keys( self ):
+		"""
+		Return the keys of the probability distribution which has parents,
+		the child variable.
+		"""
+
+		return tuple(set(row[-1] for row in self.parameters[2].keys()))
+
+	def log_probability( self, symbol ):
+		"""
+		Return the log probability of a value, which is a tuple in proper
+		ordering, like the training data.
 		"""
 
 		# Unpack the parameters
-		values, neighbors, hashes, n = self.parameters
-		m = numpy.cumprod( [1]+n )
-
-		# Assume parent values are given in the same order that parents
-		# were specified
-		i = sum( hashes[j][val]*m[j] for j, val in enumerate( neighbor_values ) )
+		values, _, keys = self.parameters
 
 		# Return the array element with that identity
-		return values[i]
+		return values[ keys[symbol] ]
 
 	def marginal( self, wrt=-1, neighbor_values=None ):
 		"""
@@ -2396,7 +2367,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		"""
 
 		# Unpack the parameters
-		values, neighbors, hashes, n = self.parameters
+		values, neighbors, keys = self.parameters
 
 		# If given a dictionary, convert to a list
 		if isinstance( neighbor_values, dict ):
@@ -2404,26 +2375,24 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		if isinstance( neighbor_values, list ):
 			wrt = neighbor_values.index( None )
 
-		r_hashes = [ list(d) for d in hashes ]
-		m = numpy.cumprod( [1]+n )
-
 		# Determine the keys for the respective parent distribution
-		d = { k: 0 for k in hashes[wrt].keys() }
+		d = { k: 0 for k in neighbors[wrt].keys() }
+		total = 0.0
 
-		for ki, keys in enumerate( it.product( *[ xrange(i) for i in n ] ) ):
-			i = sum( key*k for key, k in izip( keys, m ) )
-			p = values[i]
+		for key, idx in keys.items():
+			logp = values[idx]
 
 			if neighbor_values is not None:
-				for j, k in enumerate( keys ):
+				for j, k in enumerate( key ):
 					if j == wrt:
 						continue
 
-					p += neighbor_values[j].log_probability( r_hashes[j][k] )
+					logp += neighbor_values[j].log_probability( k )
 
-			d[ r_hashes[wrt][ keys[wrt] ] ] += cexp( p )
+			p = cexp( logp )
+			d[ key[wrt] ] += p
+			total += p
 
-		total = sum( d.values() )
 		for key, value in d.items():
 			d[key] = value / total
 		
@@ -2449,57 +2418,20 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		else:
 			weights = numpy.asarray(weights, dtype=float)
 
-		# We need to convert the items from whatever form they are now into
-		# a matrix of integers for indexes. Each column may not be the same
-		# data type so we can't cast it as a numpy array. There is a higher
-		# overhead of doing this in Python versus Cython, but easier to handle
-		# inconsistent datatypes.
-		int_items = numpy.zeros( (len(items), len(items[0])), dtype=numpy.int )
-		hashes = self.parameters[2]
-		for j, h in enumerate( hashes ):
-			for i in xrange( len(items) ):
-				int_items[i, j] = h[ items[i][j] ]
+		counts = {}
+		total = 0.0
+		for item, weight in zip(items, weights):
+			item = tuple(item)
 
-		# Get the table through the cythonized function
-		self.parameters[0] = numpy.array( 
-			self._from_sample( int_items, weights, inertia, pseudocount ) )
+			counts[item] = counts.get(item, 0) + weight
+			total += weight
 
-	cdef double [:] _from_sample( self, int [:,:] items, double [:] weights, 
-		double inertia, double pseudocount ):
-		"""
-		Cython optimized counting function.
-		"""
+		values = numpy.zeros_like(self.parameters[0])
+		keys = self.parameters[2]
 
-		# We're updating the table based on counts, which is an ordered array
-		cdef double [:] table = numpy.zeros( self.parameters[0].shape[0] ) + pseudocount
-		cdef double _sum
-		cdef int i, j, key
-		cdef int n = items.shape[0], d = items.shape[1]
-		cdef list k = self.parameters[3]
-		cdef int [:] m = numpy.cumprod( [1]+k, dtype=numpy.int32 )
+		for key in self.parameters[2].keys():
+			count = counts.get( key, 0.0 )
+			probability = count / total
+			values[keys[key]] = _log(probability)
 
-		# Go through each point and add it
-		for i in xrange( n ):
-			# Determine the bin to put this point in
-			key = 0
-			for j in xrange( d ):
-				key += items[i, j] * m[j]
-
-			# Add the weight of the point to the table to get weighted counts
-			table[key] += weights[i]
-
-		# Calculate the sum of the counts across the table
-		_sum = 0
-		for i in xrange( table.shape[0] ):
-			_sum += table[i]
-
-		# Normalize the table
-		for i in xrange( table.shape[0] ):
-			table[i] /= _sum
-
-		# Update the current table, taking into account inertia
-		for i in xrange( table.shape[0] ):
-			table[i] = _log( ( 1. - inertia ) * table[i] + \
-				inertia * cexp( self.parameters[0][i] ) )
-
-		return table
+		self.parameters[0] = values

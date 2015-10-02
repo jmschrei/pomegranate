@@ -13,10 +13,6 @@ from nose.tools import with_setup
 from nose.tools import assert_equal
 import numpy as np
 
-from pomegranate import *
-
-np.set_printoptions(linewidth=500)
-
 def setup():
 	'''
 	Build the huge monty hall network. This is an example I made up with which

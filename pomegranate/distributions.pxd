@@ -90,5 +90,3 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	cdef public list parameters
-	cdef double [:] _from_sample( self, int [:,:] items, 
-		double [:] weights, double inertia, double pseudocount )
