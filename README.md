@@ -17,13 +17,13 @@ No good project is done alone, and so I'd like to thank all the previous contrib
 
 ## Installation
 
-pomegranate is now pip installable! Install using `pip install pomegranate`. You can also clone the repo or download the zip and manually move the files into your site-packages folder.
+pomegranate is now pip installable! Install using `pip install pomegranate`. You can also clone the repo using `git clone https://github.com/jmschrei/pomegranate.git` or download the zip and manually move the files into your site-packages folder.
 
 ## Contributing
 
 If you would like to contribute a feature then fork the master branch (fork the release if you are fixing a bug). Be sure to run the tests before changing any code. You'll need to have [nosetests](https://github.com/nose-devs/nose) installed. The following command will run all the tests:
 ```
-nosetests -w tests/
+nosetests -s -v tests/
 ```
 Let us know what you want to do just in case we're already working on an implementation of something similar. This way we can avoid any needless duplication of effort. Also, please don't forget to add tests for any new functions. 
 
@@ -45,7 +45,7 @@ print b.log_probability( 8 )
 print c.log_probability( 8 )
 ```
 
-This should return -2.737, -inf, and -3.44 respectively.  
+This should return `-2.737`, `-inf`, and `-3.44` respectively.  
 
 We can also update these distributions using Maximum Likelihood Estimates for the new values. Kernel densities will discard previous points and add in the new points, while MixtureDistributions will perform expectation-maximization to update the mixture of distributions.
 
@@ -63,6 +63,8 @@ c.summarize([5, 7, 8])
 c.summarize([2, 4, 6, 7, 2, 4, 5, 1, 3, 2, 1])
 c.from_summaries()
 ```
+
+Splitting up the data into batches will still give an exact answer, but allows for out of core training of distributions on massive amounts of data. 
 
 In addition, training can be done on weighted samples by passing an array of weights in along with the data for any of the training functions, such as `c.summarize([5,7,8], weights=[1,2,3])`. Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `c.from_sample([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
 
