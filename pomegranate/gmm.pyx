@@ -35,6 +35,7 @@ cdef class GeneralMixtureModel:
 	"""
 
 	cdef public list distributions
+	cdef list summaries
 	cdef public numpy.ndarray weights 
 
 	def __init__( self, distributions, weights=None ):
@@ -49,7 +50,7 @@ cdef class GeneralMixtureModel:
 			# Force whatever we have to be a Numpy array
 			weights = numpy.asarray(weights) / weights.sum()
 
-		self.weights = weights
+		self.weights = numpy.log( weights )
 		self.distributions = distributions
 		self.summaries = []
 
@@ -66,13 +67,13 @@ cdef class GeneralMixtureModel:
 		Cython optimized function for calculating log probabilities.
 		"""
 
-		cdef n=len(self.distributions), i=0
+		cdef int n=len(self.distributions), i=0
 		cdef double log_probability_sum=NEGINF, log_probability
 		cdef Distribution d
 
 		for i in xrange( n ):
 			d = self.distributions[i]
-			log_probability = d.log_probability( point ) + _log( self.weights[i] )
+			log_probability = d.log_probability( point ) + self.weights[i]
 			log_probability_sum = pair_lse( log_probability_sum,
 											log_probability )
 
@@ -114,8 +115,7 @@ cdef class GeneralMixtureModel:
 		matrix. 
 		"""
 
-		posterior = self.posterior( items )
-		return numpy.argmax( axis=1 )
+		return self.posterior( items ).argmax( axis=1 )
 
 	def train( self, items, weights=None, stop_threshold=0.1, max_iterations=1e8,
 		diagonal=False, verbose=False, inertia=None ):
@@ -126,13 +126,14 @@ cdef class GeneralMixtureModel:
 		expectation step.
 		"""
 
-		weights = numpy.array( weights ) or numpy.ones_like( items )
-		n = len( items )
-		m = len( self.distributions )
-		last_log_probability_sum = log_probability( self, items )
+		weights = numpy.array( weights ) or numpy.ones( items.shape[0] )
+		n, m = len( items ), len( self.distributions )
+
+		initial_log_probability_sum = log_probability( self, items )
+		last_log_probability_sum = initial_log_probability_sum
 
 		iteration, improvement = 0, INF
-		priors = numpy.log( self.weights )
+		priors = self.weights
 
 		while improvement > stop_threshold and iteration < max_iterations:
 			# The responsibility matrix
@@ -141,10 +142,10 @@ cdef class GeneralMixtureModel:
 			# Update the distribution based on the responsibility matrix
 			for i, distribution in enumerate( self.distributions ):
 				distribution.train( items, weights=r[:,i]*weights )
-				priors[i] = r[:,i].sum() / r.sum()
+				priors[i] = _log( r[:,i].sum() / r.sum() )
 
 			trained_log_probability_sum = log_probability( self, items )
-			improvement = trained_log_probability_sum - last_log_probability_sum
+			improvement = last_log_probability_sum - trained_log_probability_sum
 			last_log_probability_sum = trained_log_probability_sum
 
 			if verbose:
@@ -153,6 +154,7 @@ cdef class GeneralMixtureModel:
 			iteration += 1
 
 		self.weights = priors
+		return initial_log_probability_sum - last_log_probability_sum
 
 	def to_json( self ):
 		"""
@@ -171,7 +173,7 @@ cdef class GeneralMixtureModel:
 	@classmethod
 	def from_json( cls, s, verbose=False ):
 		"""
-		Read a HMM from the given JSON, build the model, and bake it.
+		Read a GMM from the given JSON, build the model, and bake it.
 		"""
 
 		# Load a dictionary from a JSON formatted string

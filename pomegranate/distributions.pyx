@@ -1942,8 +1942,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		self.name = "MultivariateGaussianDistribution"
 		self.frozen = frozen
-		self.mu = numpy.array(means)
-		self.cov = numpy.array(covariance)
+		self.mu = numpy.array(means, dtype=numpy.float64)
+		self.cov = numpy.array(covariance, dtype=numpy.float64)
 		
 		d = self.mu.shape[0]
 		self.d = d
