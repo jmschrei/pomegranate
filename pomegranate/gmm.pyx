@@ -1,3 +1,5 @@
+#cython: boundscheck=False
+#cython: cdivision=True
 # gmm.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
@@ -26,6 +28,22 @@ def log_probability( model, samples ):
 	'''
 
 	return sum( map( model.log_probability, samples ) )
+
+def weight_set( items, weights ):
+	"""
+	Set the weights to a numpy array of whatever is passed in, or an array of
+	1's if nothing is passed in.
+	"""
+
+	items = numpy.array(items, dtype=numpy.float64)
+	if weights is None:
+		# Weight everything 1 if no weights specified
+		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
+	else:
+		# Force whatever we have to be a Numpy array
+		weights = numpy.array(weights, dtype=numpy.float64)
+	
+	return items, weights
 
 cdef class GeneralMixtureModel:
 	"""
@@ -79,35 +97,42 @@ cdef class GeneralMixtureModel:
 
 		return log_probability_sum
 
+	def predict_proba( self, items ):
+		"""sklearn wrapper for the posterior method."""
+		
+		return self.posterior( items )
+
 	def posterior( self, items ):
-		"""
-		Return the posterior probability of each distribution given the data.
-		"""
+		"""Return the posterior probability of each point under each distribution."""
 
-		n, m = len( items ), len( self.distributions )
-		priors = self.weights
-		r = numpy.zeros( (n, m) ) 
+		return numpy.array( self._posterior( items, items.shape[0] ) )
 
-		for i, item in enumerate( items ):
-			# Counter for summation over the row
+	cdef double [:,:] _posterior( self, items, int n ):
+		cdef int m = len( self.distributions )
+		cdef double [:] priors = self.weights
+		cdef double [:,:] r = numpy.empty((n, m))
+		cdef double r_sum 
+		cdef int i, j
+		cdef Distribution d
+
+		for i in range(n):
 			r_sum = NEGINF
 
-			# Calculate the log probability of the point over each distribution
-			for j, distribution in enumerate( self.distributions ):
-				# Calculate the log probability of the item under the distribution
-				r[i, j] = distribution.log_probability( item )
-
-				# Add the weights of the model
+			for j in range(m):
+				d = self.distributions[j]
+				r[i, j] = d.log_probability( items[i] )
 				r[i, j] += priors[j]
-
-				# Add to the summation
 				r_sum = pair_lse( r_sum, r[i, j] )
 
-			# Normalize the row
-			for j in xrange( m ):
+			for j in range(m):
 				r[i, j] = r[i, j] - r_sum
 
 		return r
+
+	def predict( self, items ):
+		"""sklearn wrapper for posterior method."""
+
+		return self.maximum_a_posteriori( items )
 
 	def maximum_a_posteriori( self, items ):
 		"""
@@ -117,8 +142,15 @@ cdef class GeneralMixtureModel:
 
 		return self.posterior( items ).argmax( axis=1 )
 
+	def fit( self, items, weights=None, stop_threshold=0.1, max_iterations=1e8,
+		verbose=False ):
+		"""sklearn wrapper for train method."""
+
+		return self.train( items, weights, stop_threshold, max_iterations,
+			verbose )
+
 	def train( self, items, weights=None, stop_threshold=0.1, max_iterations=1e8,
-		diagonal=False, verbose=False, inertia=None ):
+		verbose=False ):
 		"""
 		Take in a list of data points and their respective weights. These are
 		most likely uniformly weighted, but the option exists if you want to
@@ -126,13 +158,12 @@ cdef class GeneralMixtureModel:
 		expectation step.
 		"""
 
-		weights = numpy.array( weights ) or numpy.ones( items.shape[0] )
-		n, m = len( items ), len( self.distributions )
+		items, weights = weight_set( items, weights )
 
 		initial_log_probability_sum = log_probability( self, items )
 		last_log_probability_sum = initial_log_probability_sum
+		iteration, improvement = 0, INF 
 
-		iteration, improvement = 0, INF
 		priors = self.weights
 
 		while improvement > stop_threshold and iteration < max_iterations:
