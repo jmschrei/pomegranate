@@ -11,7 +11,7 @@ pomegranate is a package for graphical models and Bayesian statistics for Python
 * Discrete Bayesian Networks
 * General Mixture Models
 
-See the wiki (currently under construction) for more documentation!
+See the tutorial below, or the more in depth tutorials in the `tutorials` folder with examples in IPython notebooks.
 
 No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM, and all the current contributors to pomegranate, including the graduate students who share my office I annoy on a regular basis by bouncing ideas off of.
 
