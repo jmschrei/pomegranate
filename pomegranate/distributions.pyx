@@ -1321,7 +1321,7 @@ cdef class GaussianKernelDensity( Distribution ):
 		points = numpy.asarray( points, dtype=numpy.float64 )
 		n = points.shape[0]
 		
-		if weights:
+		if weights is not None:
 			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
 			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
@@ -1387,7 +1387,7 @@ cdef class GaussianKernelDensity( Distribution ):
 		n = points.shape[0]
 
 		# Get the weights, or assign uniform weights
-		if weights:
+		if weights is not None:
 			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
 			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
