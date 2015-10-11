@@ -86,18 +86,21 @@ def test_multivariate_gmm_maximum_a_posteriori():
 	assert_almost_equal( gmm.maximum_a_posteriori(X), gmm.predict(X), 7 )
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
 def test_multivariate_gmm_train():
-	X = np.array([[1.1, 2.7, 3.0, 4.8, 6.2],
-		          [1.8, 2.1, 3.1, 5.2, 6.5],
-		          [0.9, 2.2, 3.2, 5.0, 5.8],
-		          [1.0, 2.1, 3.5, 4.3, 5.2],
-		          [1.2, 2.9, 3.1, 4.2, 5.5],
-		          [1.8, 1.9, 3.0, 4.9, 5.7],
-		          [1.2, 3.1, 2.9, 4.2, 5.9],
-		          [1.0, 2.9, 3.9, 4.1, 6.0]])
+	d1 = MultivariateGaussianDistribution( [0, 0], [[1, 0], [0, 1]] )
+	d2 = MultivariateGaussianDistribution( [2, 2], [[1, 0], [0, 1]] )
+	gmm = GeneralMixtureModel( [d1, d2] )
 
-	assert_almost_equal( gmm.train(X, verbose=True), 83.396986, 4 )
+	X = np.array([[ 0.1,  0.7],
+		          [ 1.8,  2.1],
+		          [-0.9, -1.2],
+		          [-0.0,  0.2],
+		          [ 1.4,  2.9],
+		          [ 1.8,  2.5],
+		          [ 1.4,  3.1],
+		          [ 1.0,  1.0]])
+
+	assert_almost_equal( gmm.train(X, verbose=True), 15.242416, 4 )
 
 
 def test_multivariate_gmm_train_iterations():
