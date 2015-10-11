@@ -136,10 +136,15 @@ cdef class Distribution:
 		
 		raise NotImplementedError
 	
-	def train( self, *args, **kwargs ):
+	def fit( self, items, weights=None, inertia=0.0 ):
+		"""sklearn wrapper for fitting a distribution."""
+
+		self.from_sample( items, weights, inertia )
+
+	def train( self, items, weights=None, inertia=0.0 ):
 		"""A wrapper for from_sample in order to homogenize calls more."""
 
-		self.from_sample( *args, **kwargs )
+		self.from_sample( items, weights, inertia )
 
 	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""Set the parameters of this distribution using MLE estimates."""
@@ -1942,8 +1947,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		self.name = "MultivariateGaussianDistribution"
 		self.frozen = frozen
-		self.mu = numpy.array(means)
-		self.cov = numpy.array(covariance)
+		self.mu = numpy.array(means, dtype=numpy.float64)
+		self.cov = numpy.array(covariance, dtype=numpy.float64)
 		
 		d = self.mu.shape[0]
 		self.d = d
@@ -2101,7 +2106,6 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 				self._cov_new[j*d + k] = (pair_sum[j*d + k] - column_sum[j]*u[k] 
 					- column_sum[k]*u[j] + self.w_sum*u[j]*u[k]) / self.w_sum
 				self._cov[j*d + k] = self._cov[j*d + k] * inertia + self._cov_new[j*d +k] * (1-inertia)
-
 
 		memset( column_sum, 0, d*sizeof(double) )
 		memset( pair_sum, 0, d*d*sizeof(double) )

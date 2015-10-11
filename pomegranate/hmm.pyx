@@ -1832,6 +1832,11 @@ cdef class HiddenMarkovModel( Model ):
 		# Return the log-likelihood and the right-way-arounded path
 		return ( log_likelihood, path )
 
+	def predict_proba( self, sequence ):
+		"""sklearn interface for the posterior calculation."""
+
+		return self.posterior( sequence )
+
 	def posterior( self, sequence ):
 		"""
 		Calculate the posterior of each state given each observation. This
@@ -1889,6 +1894,13 @@ cdef class HiddenMarkovModel( Model ):
 						log_sequence_probability
 
 		return emission_weights
+
+	def predict( self, sequence, algorithm='map' ):
+		"""sklearn interface. algorithm can be `map` or `viterbi`"""
+
+		if algorithm == 'map':
+			return self.maximum_a_posterior( sequence )
+		return self.viterbi( sequence )
 
 	def maximum_a_posteriori( self, sequence ):
 		"""
@@ -2095,10 +2107,20 @@ cdef class HiddenMarkovModel( Model ):
 		model.bake()
 		return model
 
+	def fit( self, sequences, stop_threshold=1E-9, min_iterations=0,
+		max_iterations=1e8, algorithm='baum-welch', verbose=True,
+		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
+		distribution_inertia=0.0, n_jobs=1  ):
+		"""sklearn interface to the train method."""
+
+		return self.train( sequences, stop_threshold, min_iterations,
+			max_iterations, algorithm, verbose, transition_pseudocount,
+			use_pseudocount, edge_inertia, distribution_inertia, n_jobs=1 )
+
 	def train( self, sequences, stop_threshold=1E-9, min_iterations=0,
 		max_iterations=1e8, algorithm='baum-welch', verbose=True,
 		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
-		distribution_inertia=0.0, inertia=None, n_jobs=1 ):
+		distribution_inertia=0.0, n_jobs=1 ):
 		"""
 		Given a list of sequences, performs re-estimation on the model
 		parameters. The two supported algorithms are "baum-welch" and
