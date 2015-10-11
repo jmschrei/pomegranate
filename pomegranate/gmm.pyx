@@ -29,22 +29,6 @@ def log_probability( model, samples ):
 
 	return sum( map( model.log_probability, samples ) )
 
-def weight_set( items, weights ):
-	"""
-	Set the weights to a numpy array of whatever is passed in, or an array of
-	1's if nothing is passed in.
-	"""
-
-	items = numpy.array(items, dtype=numpy.float64)
-	if weights is None:
-		# Weight everything 1 if no weights specified
-		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
-	else:
-		# Force whatever we have to be a Numpy array
-		weights = numpy.array(weights, dtype=numpy.float64)
-	
-	return items, weights
-
 cdef class GeneralMixtureModel:
 	"""
 	A General Mixture Model. Can be a mixture of any distributions, as long
@@ -108,12 +92,12 @@ cdef class GeneralMixtureModel:
 		return self.posterior( items )
 
 	def posterior( self, items ):
-		"""Return the posterior probability of each point under each distribution."""
+		"""Return the posterior log probability of each point under each distribution."""
 
-		return numpy.array( self._posterior( items, items.shape[0] ) )
+		return numpy.array( self._posterior( items ) )
 
-	cdef double [:,:] _posterior( self, items, int n ):
-		cdef int m = len( self.distributions )
+	cdef double [:,:] _posterior( self, numpy.ndarray items ):
+		cdef int m = len( self.distributions ), n = items.shape[0]
 		cdef double [:] priors = self.weights
 		cdef double [:,:] r = numpy.empty((n, m))
 		cdef double r_sum 
@@ -163,34 +147,35 @@ cdef class GeneralMixtureModel:
 		expectation step.
 		"""
 
-		items, weights = weight_set( items, weights )
+		if weights is None:
+			weights = numpy.ones(items.shape[0], dtype=numpy.float64)
+		else:
+			weights = numpy.array(weights, dtype=numpy.float64)
 
 		initial_log_probability_sum = log_probability( self, items )
 		last_log_probability_sum = initial_log_probability_sum
 		iteration, improvement = 0, INF 
 
-		priors = self.weights
-
 		while improvement > stop_threshold and iteration < max_iterations:
 			# The responsibility matrix
-			r = self.posterior( items )
+			r = self.predict_proba( items )
+			r_sum = r.sum()
 
 			# Update the distribution based on the responsibility matrix
 			for i, distribution in enumerate( self.distributions ):
-				distribution.train( items, weights=r[:,i]*weights )
-				priors[i] = _log( r[:,i].sum() / r.sum() )
+				distribution.fit( items, weights=r[:,i]*weights )
+				self.weights[i] = _log( r[:,i].sum() / r_sum )
 
 			trained_log_probability_sum = log_probability( self, items )
-			improvement = last_log_probability_sum - trained_log_probability_sum
-			last_log_probability_sum = trained_log_probability_sum
+			improvement = trained_log_probability_sum - last_log_probability_sum 
 
 			if verbose:
 				print( "Improvement: {}".format( improvement ) )
 
 			iteration += 1
+			last_log_probability_sum = trained_log_probability_sum
 
-		self.weights = priors
-		return initial_log_probability_sum - last_log_probability_sum
+		return trained_log_probability_sum - initial_log_probability_sum
 
 	def to_json( self ):
 		"""

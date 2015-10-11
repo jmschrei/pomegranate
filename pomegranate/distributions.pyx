@@ -392,7 +392,7 @@ cdef class NormalDistribution( Distribution ):
 		cdef SIZE_t i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 
-		# Calculate the average, which is the MLE mu estimate
+		# Calculate sufficient statistics for an update.
 		for i in range(n):
 			w_sum += weights[i]
 			x_sum += weights[i] * items[i]
@@ -1949,6 +1949,11 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.frozen = frozen
 		self.mu = numpy.array(means, dtype=numpy.float64)
 		self.cov = numpy.array(covariance, dtype=numpy.float64)
+
+		if self.mu.shape[0] != self.cov.shape[0]:
+			raise ValueError("mu shape is {} while cov shape is {}".format( self.mu.shape[0], self.cov.shape[0] ))
+		if self.cov.shape[0] != self.cov.shape[1]:
+			raise ValueError("cov is not a square matrix, dimensions are ({}, {})".format( self.cov.shape[0], self.cov.shape[1] ) )
 		
 		d = self.mu.shape[0]
 		self.d = d

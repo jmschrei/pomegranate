@@ -4,6 +4,7 @@ from pomegranate import *
 from nose.tools import with_setup
 from nose.tools import assert_true
 from nose.tools import assert_equal
+from nose.tools import assert_greater
 from numpy.testing import assert_almost_equal
 import random
 import numpy as np
@@ -96,32 +97,27 @@ def test_multivariate_gmm_train():
 		          [1.2, 3.1, 2.9, 4.2, 5.9],
 		          [1.0, 2.9, 3.9, 4.1, 6.0]])
 
-	assert_almost_equal( gmm.train(X, verbose=True), 25.8857, 4 )
+	assert_almost_equal( gmm.train(X, verbose=True), 83.396986, 4 )
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_multivariate_gmm_train():
-	X = np.array([[1.1, 2.7, 3.0, 4.8, 6.2],
-		          [1.8, 2.1, 3.1, 5.2, 6.5],
-		          [0.9, 2.2, 3.2, 5.0, 5.8],
-		          [1.0, 2.1, 3.5, 4.3, 5.2],
-		          [1.2, 2.9, 3.1, 4.2, 5.5],
-		          [1.8, 1.9, 3.0, 4.9, 5.7],
-		          [1.2, 3.1, 2.9, 4.2, 5.9],
-		          [1.0, 2.9, 3.9, 4.1, 6.0]])
-
-	assert_almost_equal( gmm.fit(X, verbose=True), 25.8857, 4 )
-
-
-@with_setup(setup_multivariate_gaussian, teardown)
 def test_multivariate_gmm_train_iterations():
-	X = np.array([[1.1, 2.7, 3.0, 4.8, 6.2],
+	X = np.array([[1.5, 3.7, 3.0, 4.8, 6.2],
 		          [1.8, 2.1, 3.1, 5.2, 6.5],
 		          [0.9, 2.2, 3.2, 5.0, 5.8],
-		          [1.0, 2.1, 3.5, 4.3, 5.2],
-		          [1.2, 2.9, 3.1, 4.2, 5.5],
-		          [1.8, 1.9, 3.0, 4.9, 5.7],
-		          [1.2, 3.1, 2.9, 4.2, 5.9],
-		          [1.0, 2.9, 3.9, 4.1, 6.0]])
+		          [1.0, .1, 3.5, 4.3, 5.2],
+		          [1.7, 3.9, 6.1, 7.2, 10.5],
+		          [1.6, 2.9, 6.0, 7.9, 10.7],
+		          [1.8, 6.1, 4.9, 8.2, 9.9],
+		          [1.9, 4.9, 6.9, 7.1, 10.0]])
 
-	assert_true( gmm.train(X, max_iterations=1) > gmm.train(X) )
+	mu = np.arange(5) * 2
+	cov = np.eye(5)
+	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(5) ]
+	gmm = GeneralMixtureModel( mgs )
+
+	improvement = gmm.train(X)
+
+	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(5) ]
+	gmm = GeneralMixtureModel( mgs )
+
+	assert_greater( improvement, gmm.train(X, max_iterations=1) )
