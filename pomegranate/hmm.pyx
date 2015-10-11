@@ -1835,6 +1835,11 @@ cdef class HiddenMarkovModel( Model ):
 	def predict_proba( self, sequence ):
 		"""sklearn interface for the posterior calculation."""
 
+		return numpy.exp( self.predict_log_proba( sequence ) )
+
+	def predict_log_proba( self, sequence ):
+		"""sklearn interface for the log posterior calculation."""
+
 		return self.posterior( sequence )
 
 	def posterior( self, sequence ):

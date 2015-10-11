@@ -70,7 +70,8 @@ def test_multivariate_gmm_posterior():
 		          [ 1., 2., 5., 2., 5. ]])
 
 	assert_almost_equal( gmm.posterior(X), posterior, 4)
-	assert_almost_equal( gmm.posterior(X), gmm.predict_proba(X), 7 )
+	assert_almost_equal( numpy.exp( gmm.posterior(X) ), gmm.predict_proba(X), 7 )
+	assert_almost_equal( gmm.posterior(X), gmm.predict_log_proba(X) )
 
 
 @with_setup(setup_multivariate_gaussian, teardown)

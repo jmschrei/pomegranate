@@ -98,8 +98,13 @@ cdef class GeneralMixtureModel:
 		return log_probability_sum
 
 	def predict_proba( self, items ):
-		"""sklearn wrapper for the posterior method."""
+		"""sklearn wrapper for the probability of each component for each point."""
 		
+		return numpy.exp( self.predict_log_proba( items ) )
+
+	def predict_log_proba( self, items ):
+		"""sklearn wrapper for the log probability of each component for each point."""
+
 		return self.posterior( items )
 
 	def posterior( self, items ):
