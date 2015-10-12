@@ -2285,7 +2285,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef double log_sequence_probability
 		cdef double log_transition_emission_probability_sum 
 
-		cdef double* expected_transitions = <double*> calloc(m*m, sizeof(double))
+		cdef double* expected_transitions = <double*> calloc(self.n_edges, sizeof(double))
 		cdef double* f
 		cdef double* b
 		cdef double* e
@@ -2346,7 +2346,7 @@ cdef class HiddenMarkovModel( Model ):
 					# Now divide by probability of the sequence to make it given
 					# this sequence, and add as this sequence's contribution to 
 					# the expected transitions matrix's k, l entry.
-					expected_transitions[k*m + li] += cexp(
+					expected_transitions[l] += cexp(
 						log_transition_emission_probability_sum - 
 						log_sequence_probability)
 
@@ -2375,7 +2375,7 @@ cdef class HiddenMarkovModel( Model ):
 					# Now divide by probability of the sequence to make it given
 					# this sequence, and add as this sequence's contribution to 
 					# the expected transitions matrix's k, l entry.
-					expected_transitions[k*m + li] += cexp(
+					expected_transitions[l] += cexp(
 						log_transition_emission_probability_sum -
 						log_sequence_probability )
 
@@ -2417,8 +2417,11 @@ cdef class HiddenMarkovModel( Model ):
 					(<Distribution>distributions[k])._summarize( sequence, weights, n )
 
 			with gil:
-				for i in range( m*m ):
-					self.expected_transitions[i] += expected_transitions[i]
+				# Convert the sparse expected transitions matrix to the dense one.
+				for k in range( m ):
+					for l in range( out_edges[k], out_edges[k+1] ):
+						li = self.out_transitions[l]
+						self.expected_transitions[k*m + li] += expected_transitions[l]
 
 			free(expected_transitions)
 			free(e)
