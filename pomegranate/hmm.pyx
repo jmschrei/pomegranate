@@ -961,7 +961,12 @@ cdef class HiddenMarkovModel( Model ):
 
 		sequence_data = <double*> sequence_ndarray.data
 
-		f = self._forward( sequence_data, n, NULL )
+		cdef list distributions_list = [ state.distribution for state in self.states[:self.silent_start]]
+		cdef numpy.ndarray distributions_ndarray = numpy.array( distributions_list )
+		cdef void** distributions = <void**> distributions_ndarray.data
+
+		with nogil:
+			f = self._forward( sequence_data, distributions, n, NULL )
 
 		for i in range(n+1):
 			for j in range(m):
@@ -970,126 +975,120 @@ cdef class HiddenMarkovModel( Model ):
 		free(f)
 		return f_ndarray
 
-	cdef double* _forward( self, double* sequence, int n, double* emissions ):
+	cdef double* _forward( self, double* sequence, void** distributions, 
+		int n, double* emissions ) nogil:
 		"""Run the forward algorithm using optimized cython code."""
 
 		cdef int i, k, ki, l, li
 		cdef int p = self.silent_start, m = self.n_states
 		cdef int dim = self.d
-		cdef Distribution d
 
 		cdef double log_probability
 		cdef int* in_edges = self.in_edge_count
 
 		cdef double* e = NULL
-		cdef double* f = NULL
+		cdef double* f = <double*> calloc( m*(n+1), sizeof(double) )
 
-		with nogil:
-			f = <double*> calloc( m*(n+1), sizeof(double) )
+		# Either fill in a new emissions matrix, or use the one which has
+		# been provided from a previous call.
+		if emissions is NULL:
+			e = <double*> calloc( n*self.silent_start, sizeof(double) )
+			for l in range( self.silent_start ):
+				for i in range( n ):
+					if self.multivariate:
+						e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
+							self.state_weights[l])
+					else:
+						e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
+							self.state_weights[l])
+		else:
+			e = emissions
 
-			# Either fill in a new emissions matrix, or use the one which has
-			# been provided from a previous call.
-			if emissions is NULL:
-				e = <double*> calloc( n*self.silent_start, sizeof(double) )
-				for l in range( self.silent_start ):
-					with gil:
-						d = self.states[l].distribution
+		# We must start in the start state, having emitted 0 symbols        
+		for i in range(m):
+			f[i] = NEGINF
+		f[self.start_index] = 0.
 
-					for i in range( n ):
-						if self.multivariate:
-							e[l*n + i] = (d._mv_log_probability( sequence+i*dim ) + 
-								self.state_weights[l])
-						else:
-							e[l*n + i] = (d._log_probability( sequence[i] ) + 
-								self.state_weights[l])
-			else:
-				e = emissions
+		for l in range( self.silent_start, m ):
+			# Handle transitions between silent states before the first symbol
+			# is emitted. No non-silent states have non-zero probability yet, so
+			# we can ignore them.
+			if l == self.start_index:
+				# Start state log-probability is already right. Don't touch it.
+				continue
 
-			# We must start in the start state, having emitted 0 symbols        
-			for i in range(m):
-				f[i] = NEGINF
-			f[self.start_index] = 0.
+			# This holds the log total transition probability in from 
+			# all current-step silent states that can have transitions into 
+			# this state.  
+			log_probability = NEGINF
+			for k in range( in_edges[l], in_edges[l+1] ):
+				ki = self.in_transitions[k]
+				if ki < self.silent_start or ki >= l:
+					continue
+
+				# For each current-step preceeding silent state k
+				log_probability = pair_lse( log_probability,
+					f[ki] + self.in_transition_log_probabilities[k] )
+
+			# Update the table entry
+			f[l] = log_probability
+
+		for i in range( n ):
+			for l in range( self.silent_start ):
+				# Do the recurrence for non-silent states l
+				# This holds the log total transition probability in from 
+				# all previous states
+
+				log_probability = NEGINF
+				for k in range( in_edges[l], in_edges[l+1] ):
+					ki = self.in_transitions[k]
+
+					# For each previous state k
+					log_probability = pair_lse( log_probability,
+						f[i*m + ki] + self.in_transition_log_probabilities[k] )
+
+				# Now set the table entry for log probability of emitting 
+				# index+1 characters and ending in state l
+				f[(i+1)*m + l] = log_probability + e[i + l*n]
 
 			for l in range( self.silent_start, m ):
-				# Handle transitions between silent states before the first symbol
-				# is emitted. No non-silent states have non-zero probability yet, so
-				# we can ignore them.
-				if l == self.start_index:
-					# Start state log-probability is already right. Don't touch it.
-					continue
+				# Now do the first pass over the silent states
+				# This holds the log total transition probability in from 
+				# all current-step non-silent states
+				log_probability = NEGINF
+				for k in range( in_edges[l], in_edges[l+1] ):
+					ki = self.in_transitions[k]
+					if ki >= self.silent_start:
+						continue
+
+					# For each current-step non-silent state k
+					log_probability = pair_lse( log_probability,
+						f[(i+1)*m + ki] + self.in_transition_log_probabilities[k] )
+
+				# Set the table entry to the partial result.
+				f[(i+1)*m + l] = log_probability
+
+			for l in range( self.silent_start, m ):
+				# Now the second pass through silent states, where we account
+				# for transitions between silent states.
 
 				# This holds the log total transition probability in from 
 				# all current-step silent states that can have transitions into 
-				# this state.  
+				# this state.
 				log_probability = NEGINF
 				for k in range( in_edges[l], in_edges[l+1] ):
 					ki = self.in_transitions[k]
 					if ki < self.silent_start or ki >= l:
 						continue
-
 					# For each current-step preceeding silent state k
 					log_probability = pair_lse( log_probability,
-						f[ki] + self.in_transition_log_probabilities[k] )
+						f[(i+1)*m + ki] + self.in_transition_log_probabilities[k] )
 
-				# Update the table entry
-				f[l] = log_probability
+				# Add the previous partial result and update the table entry
+				f[(i+1)*m + l] = pair_lse( f[(i+1)*m + l], log_probability )
 
-			for i in range( n ):
-				for l in range( self.silent_start ):
-					# Do the recurrence for non-silent states l
-					# This holds the log total transition probability in from 
-					# all previous states
-
-					log_probability = NEGINF
-					for k in range( in_edges[l], in_edges[l+1] ):
-						ki = self.in_transitions[k]
-
-						# For each previous state k
-						log_probability = pair_lse( log_probability,
-							f[i*m + ki] + self.in_transition_log_probabilities[k] )
-
-					# Now set the table entry for log probability of emitting 
-					# index+1 characters and ending in state l
-					f[(i+1)*m + l] = log_probability + e[i + l*n]
-
-				for l in range( self.silent_start, m ):
-					# Now do the first pass over the silent states
-					# This holds the log total transition probability in from 
-					# all current-step non-silent states
-					log_probability = NEGINF
-					for k in range( in_edges[l], in_edges[l+1] ):
-						ki = self.in_transitions[k]
-						if ki >= self.silent_start:
-							continue
-
-						# For each current-step non-silent state k
-						log_probability = pair_lse( log_probability,
-							f[(i+1)*m + ki] + self.in_transition_log_probabilities[k] )
-
-					# Set the table entry to the partial result.
-					f[(i+1)*m + l] = log_probability
-
-				for l in range( self.silent_start, m ):
-					# Now the second pass through silent states, where we account
-					# for transitions between silent states.
-
-					# This holds the log total transition probability in from 
-					# all current-step silent states that can have transitions into 
-					# this state.
-					log_probability = NEGINF
-					for k in range( in_edges[l], in_edges[l+1] ):
-						ki = self.in_transitions[k]
-						if ki < self.silent_start or ki >= l:
-							continue
-						# For each current-step preceeding silent state k
-						log_probability = pair_lse( log_probability,
-							f[(i+1)*m + ki] + self.in_transition_log_probabilities[k] )
-
-					# Add the previous partial result and update the table entry
-					f[(i+1)*m + l] = pair_lse( f[(i+1)*m + l], log_probability )
-
-			if emissions is NULL:
-				free(e)
+		if emissions is NULL:
+			free(e)
 		return f
 
 	cpdef numpy.ndarray backward( self, sequence ):
@@ -1133,7 +1132,13 @@ cdef class HiddenMarkovModel( Model ):
 
 		sequence_data = <double*> sequence_ndarray.data
 
-		b = self._backward( sequence_data, n, NULL )
+		cdef numpy.ndarray distributions_ndarray = numpy.empty( self.silent_start, dtype='object' )
+		for i in range(self.silent_start):
+			distributions_ndarray[i] = self.states[i].distribution
+		cdef void** distributions = <void**> distributions_ndarray.data
+
+		with nogil:
+			b = self._backward( sequence_data, distributions, n, NULL )
 
 		for i in range(n+1):
 			for j in range(m):
@@ -1142,7 +1147,8 @@ cdef class HiddenMarkovModel( Model ):
 		free(b)
 		return b_ndarray
 
-	cdef double* _backward( self, double* sequence, int n, double* emissions ):
+	cdef double* _backward( self, double* sequence, void** distributions, 
+		int n, double* emissions ) nogil:
 		"""Run the backward algorithm using optimized cython code."""
 
 		cdef int i, ir, k, kr, l, li
@@ -1150,59 +1156,134 @@ cdef class HiddenMarkovModel( Model ):
 		cdef int dim = self.d
 
 		cdef double log_probability
-		cdef Distribution d
 		cdef int* out_edges = self.out_edge_count
 
 		cdef double* e = NULL
-		cdef double* b 
+		cdef double* b = <double*> calloc( (n+1)*m, sizeof(double) )
 
-		with nogil:
-			b = <double*> calloc( (n+1)*m, sizeof(double) )
+		# Either fill in a new emissions matrix, or use the one which has
+		# been provided from a previous call.
+		if emissions is NULL:
+			e = <double*> calloc( n*self.silent_start, sizeof(double) )
+			for l in range( self.silent_start ):
+				for i in range( n ):
+					if self.multivariate:
+						e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
+							self.state_weights[l])
+					else:
+						e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
+							self.state_weights[l])
+		else:
+			e = emissions
 
-			# Either fill in a new emissions matrix, or use the one which has
-			# been provided from a previous call.
-			if emissions is NULL:
-				e = <double*> calloc( n*self.silent_start, sizeof(double) )
-				for l in range( self.silent_start ):
-					with gil:
-						d = self.states[l].distribution
+		# We must end in the end state, having emitted len(sequence) symbols
+		if self.finite == 1:
+			for i in range(m):
+				b[n*m + i] = NEGINF
+			b[n*m + self.end_index] = 0
+		else:
+			for i in range(self.silent_start):
+				b[n*m + i] = 0.
+			for i in range(self.silent_start, m):
+				b[n*m + i] = NEGINF
 
-					for i in range( n ):
-						if self.multivariate:
-							e[l*n + i] = (d._mv_log_probability( sequence+i*dim ) + 
-								self.state_weights[l])
-						else:
-							e[l*n + i] = (d._log_probability( sequence[i] ) + 
-								self.state_weights[l])
-			else:
-				e = emissions
+		for kr in range( m-self.silent_start ):
+			if self.finite == 0:
+				break
+			# Cython arrays cannot go backwards, so modify the loop to account
+			# for this.
+			k = m - kr - 1
 
-			# We must end in the end state, having emitted len(sequence) symbols
-			if self.finite == 1:
-				for i in range(m):
-					b[n*m + i] = NEGINF
-				b[n*m + self.end_index] = 0
-			else:
-				for i in range(self.silent_start):
-					b[n*m + i] = 0.
-				for i in range(self.silent_start, m):
-					b[n*m + i] = NEGINF
+			# Do the silent states' dependencies on each other.
+			# Doing it in reverse order ensures that anything we can 
+			# possibly transition to is already done.
+			
+			if k == self.end_index:
+				# We already set the log-probability for this, so skip it
+				continue
+
+			# This holds the log total probability that we go to
+			# current-step silent states and then continue from there to
+			# finish the sequence.
+			log_probability = NEGINF
+			for l in range( out_edges[k], out_edges[k+1] ):
+				li = self.out_transitions[l]
+				if li < k+1:
+					continue
+
+				# For each possible current-step silent state we can go to,
+				# take into account just transition probability
+				log_probability = pair_lse( log_probability,
+					b[n*m + li] + self.out_transition_log_probabilities[l] )
+
+			# Now this is the probability of reaching the end state given we are
+			# in this silent state.
+			b[n*m + k] = log_probability
+
+		for k in range( self.silent_start ):
+			if self.finite == 0:
+				break
+			# Do the non-silent states in the last step, which depend on
+			# current-step silent states.
+			
+			# This holds the total accumulated log probability of going
+			# to such states and continuing from there to the end.
+			log_probability = NEGINF
+			for l in range( out_edges[k], out_edges[k+1] ):
+				li = self.out_transitions[l]
+				if li < self.silent_start:
+					continue
+
+				# For each current-step silent state, add in the probability
+				# of going from here to there and then continuing on to the
+				# end of the sequence.
+				log_probability = pair_lse( log_probability,
+					b[n*m + li] + self.out_transition_log_probabilities[l] )
+
+			# Now we have summed the probabilities of all the ways we can
+			# get from here to the end, so we can fill in the table entry.
+			b[n*m + k] = log_probability
+
+		# Now that we're done with the base case, move on to the recurrence
+		for ir in range( n ):
+			#if self.finite == 0 and ir == 0:
+			#	continue
+			# Cython xranges cannot go backwards properly, redo to handle
+			# it properly
+			i = n - ir - 1
+			for kr in range( m-self.silent_start ):
+				k = m - kr - 1
+
+				# Do the silent states' dependency on subsequent non-silent
+				# states, iterating backwards to match the order we use later.
+				
+				# This holds the log total probability that we go to some
+				# subsequent state that emits the right thing, and then continue
+				# from there to finish the sequence.
+				log_probability = NEGINF
+				for l in range( out_edges[k], out_edges[k+1] ):
+					li = self.out_transitions[l]
+					if li >= self.silent_start:
+						continue
+
+					# For each subsequent non-silent state l, take into account
+					# transition and emission emission probability.
+					log_probability = pair_lse( log_probability,
+						b[(i+1)*m + li] + self.out_transition_log_probabilities[l] +
+						e[i + li*n] )
+
+				# We can't go from a silent state here to a silent state on the
+				# next symbol, so we're done finding the probability assuming we
+				# transition straight to a non-silent state.
+				b[i*m + k] = log_probability
 
 			for kr in range( m-self.silent_start ):
-				if self.finite == 0:
-					break
-				# Cython arrays cannot go backwards, so modify the loop to account
-				# for this.
 				k = m - kr - 1
 
 				# Do the silent states' dependencies on each other.
 				# Doing it in reverse order ensures that anything we can 
 				# possibly transition to is already done.
 				
-				if k == self.end_index:
-					# We already set the log-probability for this, so skip it
-					continue
-
 				# This holds the log total probability that we go to
 				# current-step silent states and then continue from there to
 				# finish the sequence.
@@ -1215,21 +1296,30 @@ cdef class HiddenMarkovModel( Model ):
 					# For each possible current-step silent state we can go to,
 					# take into account just transition probability
 					log_probability = pair_lse( log_probability,
-						b[n*m + li] + self.out_transition_log_probabilities[l] )
+						b[i*m + li] + self.out_transition_log_probabilities[l] )
 
-				# Now this is the probability of reaching the end state given we are
-				# in this silent state.
-				b[n*m + k] = log_probability
+				# Now add this probability in with the probability accumulated
+				# from transitions to subsequent non-silent states.
+				b[i*m + k] = pair_lse( log_probability, b[i*m + k] )
 
 			for k in range( self.silent_start ):
-				if self.finite == 0:
-					break
-				# Do the non-silent states in the last step, which depend on
-				# current-step silent states.
+				# Do the non-silent states in the current step, which depend on
+				# subsequent non-silent states and current-step silent states.
 				
 				# This holds the total accumulated log probability of going
 				# to such states and continuing from there to the end.
 				log_probability = NEGINF
+				for l in range( out_edges[k], out_edges[k+1] ):
+					li = self.out_transitions[l]
+					if li >= self.silent_start:
+						continue
+
+					# For each subsequent non-silent state l, take into account
+					# transition and emission emission probability.
+					log_probability = pair_lse( log_probability,
+						b[(i+1)*m + li] + self.out_transition_log_probabilities[l] +
+						e[i + li*n] )
+
 				for l in range( out_edges[k], out_edges[k+1] ):
 					li = self.out_transitions[l]
 					if li < self.silent_start:
@@ -1239,102 +1329,11 @@ cdef class HiddenMarkovModel( Model ):
 					# of going from here to there and then continuing on to the
 					# end of the sequence.
 					log_probability = pair_lse( log_probability,
-						b[n*m + li] + self.out_transition_log_probabilities[l] )
+						b[i*m + li] + self.out_transition_log_probabilities[l] )
 
 				# Now we have summed the probabilities of all the ways we can
 				# get from here to the end, so we can fill in the table entry.
-				b[n*m + k] = log_probability
-
-			# Now that we're done with the base case, move on to the recurrence
-			for ir in range( n ):
-				#if self.finite == 0 and ir == 0:
-				#	continue
-				# Cython xranges cannot go backwards properly, redo to handle
-				# it properly
-				i = n - ir - 1
-				for kr in range( m-self.silent_start ):
-					k = m - kr - 1
-
-					# Do the silent states' dependency on subsequent non-silent
-					# states, iterating backwards to match the order we use later.
-					
-					# This holds the log total probability that we go to some
-					# subsequent state that emits the right thing, and then continue
-					# from there to finish the sequence.
-					log_probability = NEGINF
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						if li >= self.silent_start:
-							continue
-
-						# For each subsequent non-silent state l, take into account
-						# transition and emission emission probability.
-						log_probability = pair_lse( log_probability,
-							b[(i+1)*m + li] + self.out_transition_log_probabilities[l] +
-							e[i + li*n] )
-
-					# We can't go from a silent state here to a silent state on the
-					# next symbol, so we're done finding the probability assuming we
-					# transition straight to a non-silent state.
-					b[i*m + k] = log_probability
-
-				for kr in range( m-self.silent_start ):
-					k = m - kr - 1
-
-					# Do the silent states' dependencies on each other.
-					# Doing it in reverse order ensures that anything we can 
-					# possibly transition to is already done.
-					
-					# This holds the log total probability that we go to
-					# current-step silent states and then continue from there to
-					# finish the sequence.
-					log_probability = NEGINF
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						if li < k+1:
-							continue
-
-						# For each possible current-step silent state we can go to,
-						# take into account just transition probability
-						log_probability = pair_lse( log_probability,
-							b[i*m + li] + self.out_transition_log_probabilities[l] )
-
-					# Now add this probability in with the probability accumulated
-					# from transitions to subsequent non-silent states.
-					b[i*m + k] = pair_lse( log_probability, b[i*m + k] )
-
-				for k in range( self.silent_start ):
-					# Do the non-silent states in the current step, which depend on
-					# subsequent non-silent states and current-step silent states.
-					
-					# This holds the total accumulated log probability of going
-					# to such states and continuing from there to the end.
-					log_probability = NEGINF
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						if li >= self.silent_start:
-							continue
-
-						# For each subsequent non-silent state l, take into account
-						# transition and emission emission probability.
-						log_probability = pair_lse( log_probability,
-							b[(i+1)*m + li] + self.out_transition_log_probabilities[l] +
-							e[i + li*n] )
-
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						if li < self.silent_start:
-							continue
-
-						# For each current-step silent state, add in the probability
-						# of going from here to there and then continuing on to the
-						# end of the sequence.
-						log_probability = pair_lse( log_probability,
-							b[i*m + li] + self.out_transition_log_probabilities[l] )
-
-					# Now we have summed the probabilities of all the ways we can
-					# get from here to the end, so we can fill in the table entry.
-					b[i*m + k] = log_probability
+				b[i*m + k] = log_probability
 
 		if emissions is NULL:
 			free(e)
@@ -2221,6 +2220,10 @@ cdef class HiddenMarkovModel( Model ):
 		cdef int m = len(self.states)
 		cdef double* expected_transitions = self.expected_transitions
 
+		cdef numpy.ndarray distributions_ndarray = numpy.empty( self.silent_start, dtype='object' )
+		for i in range(self.silent_start):
+			distributions_ndarray[i] = self.states[i].distribution
+
 		for i in range( len(sequences) ):
 			try:
 				sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
@@ -2242,7 +2245,7 @@ cdef class HiddenMarkovModel( Model ):
 				memset( expected_transitions, 0, m*m*sizeof(double) )
 				
 				parallel( delayed( self._baum_welch_summarize, check_pickle=False )(
-					sequence ) for sequence in sequences )
+					sequence, distributions_ndarray ) for sequence in sequences )
 
 				self._baum_welch_update( transition_pseudocount, use_pseudocount, 
 					edge_inertia, distribution_inertia )
@@ -2255,7 +2258,8 @@ cdef class HiddenMarkovModel( Model ):
 
 		return trained_log_probability_sum - initial_log_probability_sum
 
-	cpdef _baum_welch_summarize( self, numpy.ndarray sequence_ndarray ):
+	cpdef _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
+		numpy.ndarray distributions_ndarray ):
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
@@ -2264,9 +2268,14 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 
 		cdef double* sequence = <double*> sequence_ndarray.data
-		self.__baum_welch_summarize( sequence, sequence_ndarray.shape[0] )
+		cdef void** distributions = <void**> distributions_ndarray.data
+		cdef int n = sequence_ndarray.shape[0]
 
-	cdef void __baum_welch_summarize( self, double* sequence, int n ):
+		with nogil:
+			self.__baum_welch_summarize( sequence, distributions, n)
+
+	cdef void __baum_welch_summarize( self, double* sequence, void** distributions, 
+		int n ) nogil:
 		"""Collect sufficient statistics on a single sequence."""
 
 		cdef int i, k, l, li
@@ -2275,151 +2284,143 @@ cdef class HiddenMarkovModel( Model ):
 
 		cdef double log_sequence_probability
 		cdef double log_transition_emission_probability_sum 
-		cdef Distribution d
 
-		cdef double* weights
-		cdef double* expected_transitions = self.expected_transitions
+		cdef double* expected_transitions = <double*> calloc(m*m, sizeof(double))
 		cdef double* f
 		cdef double* b
 		cdef double* e
 
 		cdef int* tied_edges = self.tied_edge_group_size
 		cdef int* tied_states = self.tied_state_count
-		cdef int* visited
 		cdef int* out_edges = self.out_edge_count
 
-		with nogil:
-			visited = <int*> calloc( self.silent_start, sizeof(int) )
-			weights = <double*> calloc( n, sizeof(double) )
+		cdef int* visited = <int*> calloc( self.silent_start, sizeof(int) )
+		cdef double* weights = <double*> calloc( n, sizeof(double) )
 
-			e = <double*> calloc( n*self.silent_start, sizeof(double) )
-			for l in range( self.silent_start ):
-				with gil:
-					d = self.states[l].distribution
+		e = <double*> calloc( n*self.silent_start, sizeof(double) )
+		for l in range( self.silent_start ):
+			for i in range( n ):
+				if self.multivariate:
+					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
+						self.state_weights[l])
+				else:
+					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
+						self.state_weights[l])
 
-				for i in range( n ):
-					if self.multivariate:
-						e[l*n + i] = (d._mv_log_probability( sequence+i*dim ) + 
-							self.state_weights[l])
-					else:
-						e[l*n + i] = (d._log_probability( sequence[i] ) + 
-							self.state_weights[l])
+		f = self._forward( sequence, distributions, n, e )
+		b = self._backward( sequence, distributions, n, e )
 
-			with gil:
-				f = self._forward( sequence, n, e )
-				b = self._backward( sequence, n, e )
+		if self.finite == 1:
+			log_sequence_probability = f[n*m + self.end_index]
+		else:
+			log_sequence_probability = NEGINF
+			for i in range( self.silent_start ):
+				log_sequence_probability = pair_lse( f[n*m + i],
+					log_sequence_probability )
 
-			if self.finite == 1:
-				log_sequence_probability = f[n*m + self.end_index]
-			else:
-				log_sequence_probability = NEGINF
-				for i in range( self.silent_start ):
-					log_sequence_probability = pair_lse( f[n*m + i],
+		# Is the sequence impossible? If so, we can't train on it, so skip 
+		# it
+		if log_sequence_probability != NEGINF:
+			for k in range( m ):
+				# For each state we could have come from
+				for l in range( out_edges[k], out_edges[k+1] ):
+					li = self.out_transitions[l]
+					if li >= self.silent_start:
+						continue
+
+					# For each state we could go to (and emit a character)
+					# Sum up probabilities that we later normalize by 
+					# probability of sequence.
+					log_transition_emission_probability_sum = NEGINF
+					for i in range( n ):
+						# For each character in the sequence
+						# Add probability that we start and get up to state k, 
+						# and go k->l, and emit the symbol from l, and go from l
+						# to the end.
+						log_transition_emission_probability_sum = pair_lse( 
+							log_transition_emission_probability_sum, 
+							f[i*m + k] + 
+							self.out_transition_log_probabilities[l] + 
+							e[i + li*n] + b[(i+1)*m + li] )
+
+					# Now divide by probability of the sequence to make it given
+					# this sequence, and add as this sequence's contribution to 
+					# the expected transitions matrix's k, l entry.
+					expected_transitions[k*m + li] += cexp(
+						log_transition_emission_probability_sum - 
+						log_sequence_probability)
+
+				for l in range( out_edges[k], out_edges[k+1] ):
+					li = self.out_transitions[l]
+					if li < self.silent_start:
+						continue
+					# For each silent state we can go to on the same character
+					# Sum up probabilities that we later normalize by 
+					# probability of sequence.
+					log_transition_emission_probability_sum = NEGINF
+					for i in range( n+1 ):
+						# For each row in the forward DP table (where we can
+						# have transitions to silent states) of which we have 1 
+						# more than we have symbols...
+
+						# Add probability that we start and get up to state k, 
+						# and go k->l, and go from l to the end. In this case, 
+						# we use forward and backward entries from the same DP 
+						# table row, since no character is being emitted.
+						log_transition_emission_probability_sum = pair_lse( 
+							log_transition_emission_probability_sum, 
+							f[i*m + k] + self.out_transition_log_probabilities[l] 
+							+ b[i*m + li] )
+
+					# Now divide by probability of the sequence to make it given
+					# this sequence, and add as this sequence's contribution to 
+					# the expected transitions matrix's k, l entry.
+					expected_transitions[k*m + li] += cexp(
+						log_transition_emission_probability_sum -
 						log_sequence_probability )
 
-			# Is the sequence impossible? If so, we can't train on it, so skip 
-			# it
-			if log_sequence_probability != NEGINF:
-				for k in range( m ):
-					# For each state we could have come from
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						if li >= self.silent_start:
-							continue
+				memset( visited, 0, self.silent_start*sizeof(int) )
+				if k < self.silent_start:
+					# If another state in the set of tied states has already
+					# been visited, we don't want to retrain.
+					if visited[k] == 1:
+						continue
 
-						# For each state we could go to (and emit a character)
-						# Sum up probabilities that we later normalize by 
-						# probability of sequence.
-						log_transition_emission_probability_sum = NEGINF
-						for i in range( n ):
-							# For each character in the sequence
-							# Add probability that we start and get up to state k, 
-							# and go k->l, and emit the symbol from l, and go from l
-							# to the end.
-							log_transition_emission_probability_sum = pair_lse( 
-								log_transition_emission_probability_sum, 
-								f[i*m + k] + 
-								self.out_transition_log_probabilities[l] + 
-								e[i + li*n] + b[(i+1)*m + li] )
+					# Mark that we've visited this state
+					visited[k] = 1
 
-						# Now divide by probability of the sequence to make it given
-						# this sequence, and add as this sequence's contribution to 
-						# the expected transitions matrix's k, l entry.
-						with gil:
-							expected_transitions[k*m + li] += cexp(
-								log_transition_emission_probability_sum - 
-								log_sequence_probability)
+					# Mark that we've visited all other states in this state
+					# group.
+					for l in range( tied_states[k], tied_states[k+1] ):
+						li = self.tied[l]
+						visited[li] = 1
 
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						if li < self.silent_start:
-							continue
-						# For each silent state we can go to on the same character
-						# Sum up probabilities that we later normalize by 
-						# probability of sequence.
-						log_transition_emission_probability_sum = NEGINF
-						for i in range( n+1 ):
-							# For each row in the forward DP table (where we can
-							# have transitions to silent states) of which we have 1 
-							# more than we have symbols...
-
-							# Add probability that we start and get up to state k, 
-							# and go k->l, and go from l to the end. In this case, 
-							# we use forward and backward entries from the same DP 
-							# table row, since no character is being emitted.
-							log_transition_emission_probability_sum = pair_lse( 
-								log_transition_emission_probability_sum, 
-								f[i*m + k] + self.out_transition_log_probabilities[l] 
-								+ b[i*m + li] )
-
-						# Now divide by probability of the sequence to make it given
-						# this sequence, and add as this sequence's contribution to 
-						# the expected transitions matrix's k, l entry.
-						with gil:
-							expected_transitions[k*m + li] += cexp(
-								log_transition_emission_probability_sum -
-								log_sequence_probability )
-
-					memset( visited, 0, self.silent_start*sizeof(int) )
-					if k < self.silent_start:
-						# If another state in the set of tied states has already
-						# been visited, we don't want to retrain.
-						if visited[k] == 1:
-							continue
-
-						# Mark that we've visited this state
-						visited[k] = 1
-
-						# Mark that we've visited all other states in this state
-						# group.
+					for i in range( n ):
+						# For each symbol that came out
+						# What's the weight of this symbol for that state?
+						# Probability that we emit index characters and then 
+						# transition to state l, and that from state l we  
+						# continue on to emit len(sequence) - (index + 1) 
+						# characters, divided by the probability of the 
+						# sequence under the model.
+						# According to http://www1.icsi.berkeley.edu/Speech/
+						# docs/HTKBook/node7_mn.html, we really should divide by
+						# sequence probability.
+						weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] - 
+							log_sequence_probability )
+						
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
-							visited[li] = 1
-
-						for i in range( n ):
-							# For each symbol that came out
-							# What's the weight of this symbol for that state?
-							# Probability that we emit index characters and then 
-							# transition to state l, and that from state l we  
-							# continue on to emit len(sequence) - (index + 1) 
-							# characters, divided by the probability of the 
-							# sequence under the model.
-							# According to http://www1.icsi.berkeley.edu/Speech/
-							# docs/HTKBook/node7_mn.html, we really should divide by
-							# sequence probability.
-							weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] - 
+							weights[i] += cexp( f[(i+1)*m + li] + b[(i+1)*m + li] -
 								log_sequence_probability )
-							
-							for l in range( tied_states[k], tied_states[k+1] ):
-								li = self.tied[l]
-								weights[i] += cexp( f[(i+1)*m + li] + b[(i+1)*m + li] -
-									log_sequence_probability )
 
-						with gil:
-							d = self.states[k].distribution
+					(<Distribution>distributions[k])._summarize( sequence, weights, n )
 
-						d._summarize( sequence, weights, n )
+			with gil:
+				for i in range( m*m ):
+					self.expected_transitions[i] += expected_transitions[i]
 
+			free(expected_transitions)
 			free(e)
 			free(visited)
 			free(weights)
