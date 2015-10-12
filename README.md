@@ -17,7 +17,15 @@ No good project is done alone, and so I'd like to thank all the previous contrib
 
 ## Installation
 
-pomegranate is now pip installable! Install using `pip install pomegranate`. You can also clone the repo using `git clone https://github.com/jmschrei/pomegranate.git` or download the zip and manually move the files into your site-packages folder.
+pomegranate is now pip installable! Install using `pip install pomegranate`. You can get the bleeding edge using the following:
+
+```
+git clone https://github.com/jmschrei/pomegranate.git
+cd pomegranate
+python setup.py install
+```
+
+Lastly, you can also download the zip and manually move the files into your site-packages folder (or your PYTHON_PATH, if you've changed it).
 
 ## Contributing
 
