@@ -649,7 +649,7 @@ cdef class HiddenMarkovModel( Model ):
 		self.out_transition_log_probabilities = <double*> calloc( m, 
 			sizeof(double) )
 
-		self.expected_transitions =  <double*> calloc( m*m, sizeof(double) )
+		self.expected_transitions =  <double*> calloc( self.n_edges, sizeof(double) )
 
 		memset( self.in_transitions, -1, m*sizeof(int) )
 		memset( self.in_edge_count, 0, (n+1)*sizeof(int) )
@@ -2242,7 +2242,7 @@ cdef class HiddenMarkovModel( Model ):
 				iteration += 1
 				last_log_probability_sum = trained_log_probability_sum
 
-				memset( expected_transitions, 0, m*m*sizeof(double) )
+				memset( expected_transitions, 0, self.n_edges*sizeof(double) )
 				
 				parallel( delayed( self._baum_welch_summarize, check_pickle=False )(
 					sequence, distributions_ndarray ) for sequence in sequences )
@@ -2416,12 +2416,10 @@ cdef class HiddenMarkovModel( Model ):
 
 					(<Distribution>distributions[k])._summarize( sequence, weights, n )
 
+			# Update the master expected transitions vector representing the sparse matrix.
 			with gil:
-				# Convert the sparse expected transitions matrix to the dense one.
-				for k in range( m ):
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						self.expected_transitions[k*m + li] += expected_transitions[l]
+				for i in range(self.n_edges):
+					self.expected_transitions[i] += expected_transitions[i]
 
 			free(expected_transitions)
 			free(e)
@@ -2446,9 +2444,14 @@ cdef class HiddenMarkovModel( Model ):
 		cdef int start, end
 		cdef int* tied_edges = self.tied_edge_group_size
 
-		cdef double* expected_transitions = self.expected_transitions
+		cdef double* expected_transitions = <double*> calloc( m*m, sizeof(double) )
 
 		with nogil:
+			for k in range( m ):
+				for l in range( out_edges[k], out_edges[k+1] ):
+					li = self.out_transitions[l]
+					expected_transitions[k*m + li] = self.expected_transitions[l]
+					
 			# We now have expected_transitions taking into account all sequences.
 			# And a list of all emissions, and a weighting of each emission for each
 			# state
