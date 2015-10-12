@@ -169,14 +169,18 @@ cdef class HiddenMarkovModel( Model ):
 		self.graph.add_node(state)
 		self.state_names.add(state_name)
 
-	def add_states( self, states ):
+	def add_states( self, *states ):
 		"""
 		Adds multiple states to the model at the same time. Basically just a
 		helper function for the add_state method.
 		"""
 
 		for state in states:
-			self.add_state( state )
+			if isinstance( state, list ):
+				for s in state:
+					self.add_state( s )
+			else:
+				self.add_state( state )
 
 	def add_transition( self, a, b, probability, pseudocount=None, group=None ):
 		"""
@@ -1904,8 +1908,8 @@ cdef class HiddenMarkovModel( Model ):
 		"""sklearn interface. algorithm can be `map` or `viterbi`"""
 
 		if algorithm == 'map':
-			return self.maximum_a_posterior( sequence )
-		return self.viterbi( sequence )
+			return [ state_id for state_id, state in self.maximum_a_posteriori( sequence )[1] ]
+		return [ state_id for state_id, state in self.viterbi( sequence )[1] ]
 
 	def maximum_a_posteriori( self, sequence ):
 		"""
