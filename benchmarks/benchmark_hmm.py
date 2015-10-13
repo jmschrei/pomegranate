@@ -94,10 +94,10 @@ def main():
 	gaussian_sample = np.random.randn(n)*sigma + means
 	gaussian_batch = np.random.randn(50, n)*sigma + means
 
-	benchmark_forward( gaussian_model, gaussian_sample )
-	benchmark_backward( gaussian_model, gaussian_sample )
-	benchmark_viterbi( gaussian_model, gaussian_sample )
-	benchmark_forward_backward( gaussian_model, gaussian_sample )
+	#benchmark_forward( gaussian_model, gaussian_sample )
+	#benchmark_backward( gaussian_model, gaussian_sample )
+	#benchmark_viterbi( gaussian_model, gaussian_sample )
+	#benchmark_forward_backward( gaussian_model, gaussian_sample )
 	benchmark_training( gaussian_model, gaussian_batch, 1 )
 
 	# Reset the model
@@ -116,10 +116,10 @@ def main():
 	multivariate_gaussian_sample = np.random.randn(n, m)*sigma + means
 	multivariate_gaussian_batch = np.random.randn(500, n, m)*sigma + means
 
-	benchmark_forward( multivariate_gaussian_model, multivariate_gaussian_sample )
-	benchmark_backward( multivariate_gaussian_model, multivariate_gaussian_sample  )
-	benchmark_viterbi( multivariate_gaussian_model, multivariate_gaussian_sample  )
-	benchmark_forward_backward( multivariate_gaussian_model, multivariate_gaussian_sample  )
+	#benchmark_forward( multivariate_gaussian_model, multivariate_gaussian_sample )
+	#benchmark_backward( multivariate_gaussian_model, multivariate_gaussian_sample  )
+	#benchmark_viterbi( multivariate_gaussian_model, multivariate_gaussian_sample  )
+	#benchmark_forward_backward( multivariate_gaussian_model, multivariate_gaussian_sample  )
 	benchmark_training( multivariate_gaussian_model, multivariate_gaussian_batch, 1 )
 
 	# Reset the model
@@ -137,10 +137,10 @@ def main():
 	discrete_sample = list('ACGTAGCTACGACATCAGAC')
 	discrete_batch = np.array([ np.random.choice(list('ACGT'), size=200, p=row) for row in probs ]).T
 
-	benchmark_forward( discrete_model, discrete_sample )
-	benchmark_backward( discrete_model, discrete_sample  )
-	benchmark_viterbi( discrete_model, discrete_sample  )
-	benchmark_forward_backward( discrete_model, discrete_sample  )
+	#benchmark_forward( discrete_model, discrete_sample )
+	#benchmark_backward( discrete_model, discrete_sample  )
+	#benchmark_viterbi( discrete_model, discrete_sample  )
+	#benchmark_forward_backward( discrete_model, discrete_sample  )
 	benchmark_training( discrete_model, discrete_batch, 1 )
 
 	# Reset the model

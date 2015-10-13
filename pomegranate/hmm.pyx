@@ -65,16 +65,16 @@ def log(value):
 		return to_return
 	return _log( value )
 
-def log_probability( model, samples, n_jobs=1, parallel=None ):
+def log_probability( model, samples, n_jobs=1, parallel=None, check_input=True ):
 	"""Return the log probability of samples given a model."""
 
 	if parallel is not None:
 		return sum( parallel( delayed( model.log_probability, check_pickle=False )
-			( sample ) for sample in samples) )
+			( sample, check_input ) for sample in samples) )
 	else:
 		return sum( Parallel( n_jobs=n_jobs, backend='threading')( 
 			delayed( model.log_probability, check_pickle=False )
-				( sample ) for sample in samples) )
+				( sample, check_input ) for sample in samples) )
 
 cdef class HiddenMarkovModel( Model ):
 	"""
@@ -106,6 +106,7 @@ cdef class HiddenMarkovModel( Model ):
 	cdef int finite, n_tied_edge_groups
 	cdef dict keymap
 	cdef object state_names
+	cdef numpy.ndarray distributions
 
 	def __init__( self, name=None, start=None, end=None ):
 		"""
@@ -783,6 +784,10 @@ cdef class HiddenMarkovModel( Model ):
 			self.multivariate = 1
 			self.d = dist.d
 
+		self.distributions = numpy.empty(self.silent_start, dtype='object')
+		for i in range(self.silent_start):
+			self.distributions[i] = self.states[i].distribution
+
 		# This holds the index of the start state
 		try:
 			self.start_index = indices[self.start]
@@ -918,6 +923,39 @@ cdef class HiddenMarkovModel( Model ):
 			return [emissions, sequence_path]
 		return emissions
 
+	cpdef double log_probability( self, sequence, check_input=True ):
+		'''
+		Calculate the log probability of a single sequence. If a path is
+		provided, calculate the log probability of that sequence given
+		the path.
+		'''
+
+		cdef numpy.ndarray sequence_ndarray
+		cdef double* sequence_data
+		cdef double* f
+		cdef int n = len(sequence), m = len(self.states)
+		cdef void** distributions = <void**> self.distributions.data
+		cdef int mv = self.multivariate
+		cdef int is_str_type
+
+		if check_input:
+			if mv and not isinstance( sequence[0][0], str ):
+				sequence_ndarray = numpy.array( sequence, dtype=numpy.float64 )
+			elif not mv and not isinstance( sequence[0], str ):
+				sequence_ndarray = numpy.array( sequence, dtype=numpy.float64 )
+			else:
+				sequence = list( map( self.keymap.__getitem__, sequence ) )
+				sequence_ndarray = numpy.array( sequence, dtype=numpy.float64 )
+		else:
+			sequence_ndarray = sequence
+
+		sequence_data = <double*> sequence_ndarray.data
+
+		with nogil:
+			f = self._forward( sequence_data, distributions, n, NULL )
+
+		return f[n*m + self.end_index]
+
 	cpdef numpy.ndarray forward( self, sequence ):
 		'''
 		Python wrapper for the forward algorithm, calculating probability by
@@ -951,6 +989,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef double* sequence_data
 		cdef double* f
 		cdef int n = len(sequence), m = len(self.states)
+		cdef void** distributions = <void**> self.distributions.data
 		cdef numpy.ndarray f_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 
 		try:
@@ -960,10 +999,6 @@ cdef class HiddenMarkovModel( Model ):
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64)
 
 		sequence_data = <double*> sequence_ndarray.data
-
-		cdef list distributions_list = [ state.distribution for state in self.states[:self.silent_start]]
-		cdef numpy.ndarray distributions_ndarray = numpy.array( distributions_list )
-		cdef void** distributions = <void**> distributions_ndarray.data
 
 		with nogil:
 			f = self._forward( sequence_data, distributions, n, NULL )
@@ -1122,6 +1157,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef double* sequence_data
 		cdef double* b
 		cdef int n = len(sequence), m = len(self.states)
+		cdef void** distributions = <void**> self.distributions.data
 		cdef numpy.ndarray b_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 
 		try:
@@ -1131,11 +1167,6 @@ cdef class HiddenMarkovModel( Model ):
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64)
 
 		sequence_data = <double*> sequence_ndarray.data
-
-		cdef numpy.ndarray distributions_ndarray = numpy.empty( self.silent_start, dtype='object' )
-		for i in range(self.silent_start):
-			distributions_ndarray[i] = self.states[i].distribution
-		cdef void** distributions = <void**> distributions_ndarray.data
 
 		with nogil:
 			b = self._backward( sequence_data, distributions, n, NULL )
@@ -1546,84 +1577,6 @@ cdef class HiddenMarkovModel( Model ):
 
 		return numpy.array( expected_transitions ), \
 			numpy.array( emission_weights )
-
-	def log_probability( self, sequence, path=None ):
-		'''
-		Calculate the log probability of a single sequence. If a path is
-		provided, calculate the log probability of that sequence given
-		the path.
-		'''
-
-		if path:
-			return self._log_probability_of_path( numpy.array( sequence ),
-				numpy.array( path ) )
-		return self._log_probability( numpy.array( sequence ) )
-
-	cdef double _log_probability( self, numpy.ndarray sequence ):
-		'''
-		Calculate the probability here, in a cython optimized function.
-		'''
-
-		cdef int i
-		cdef double log_probability_sum
-		cdef double [:,:] f 
-
-		f = self.forward( sequence )
-		if self.finite == 1:
-			log_probability_sum = f[-1, self.end_index]
-		else:
-			log_probability_sum = NEGINF
-			for i in xrange( self.silent_start ):
-				log_probability_sum = pair_lse( 
-					log_probability_sum, f[-1, i] )
-
-		return log_probability_sum
-
-	cdef double _log_probability_of_path( self, numpy.ndarray sequence,
-		State [:] path ):
-		'''
-		Calculate the probability of a sequence, given the path it took through
-		the model.
-		'''
-
-		cdef int i=0, idx, j, ji, l, li, ki, m=len(self.states)
-		cdef int p=len(path), n=len(sequence)
-		cdef dict indices = { self.states[i]: i for i in xrange( m ) }
-		cdef State state
-
-		cdef int*  out_edges = self.out_edge_count
-
-		cdef double log_score = 0
-
-		# Iterate over the states in the path, as the path needs to be either
-		# equal in length or longer than the sequence, depending on if there
-		# are silent states or not.
-		for j in xrange( 1, p ):
-			# Add the transition probability first, because both silent and
-			# character generating states have to do the transition. So find
-			# the index of the last state, and see if there are any out
-			# edges from that state to the current state. This operation
-			# requires time proportional to the number of edges leaving the
-			# state, due to the way the sparse representation is set up.
-			ki = indices[ path[j-1] ]
-			ji = indices[ path[j] ]
-
-			for l in xrange( out_edges[ki], out_edges[ki+1] ):
-				li = self.out_transitions[l]
-				if li == ji:
-					log_score += self.out_transition_log_probabilities[l]
-					break
-				if l == out_edges[ki+1]-1:
-					return NEGINF
-
-			# If the state is not silent, then add the log probability of
-			# emitting that observation from this state.
-			if not path[j].is_silent():
-				log_score += path[j].distribution.log_probability( 
-					sequence[i] )
-				i += 1
-
-		return log_score
 
 	def viterbi( self, sequence ):
 		'''
@@ -2233,7 +2186,7 @@ cdef class HiddenMarkovModel( Model ):
 				                            dtype=numpy.float64 )
 
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
-			initial_log_probability_sum = log_probability( self, sequences, n_jobs, parallel )
+			initial_log_probability_sum = log_probability( self, sequences, n_jobs, parallel, check_input=False )
 			trained_log_probability_sum = initial_log_probability_sum
 
 			while improvement > stop_threshold or iteration < min_iterations:
@@ -2250,7 +2203,7 @@ cdef class HiddenMarkovModel( Model ):
 				self._baum_welch_update( transition_pseudocount, use_pseudocount, 
 					edge_inertia, distribution_inertia )
 
-				trained_log_probability_sum = log_probability( self, sequences, n_jobs, parallel )
+				trained_log_probability_sum = log_probability( self, sequences, n_jobs, parallel, check_input=False )
 				improvement = trained_log_probability_sum - last_log_probability_sum
 				
 				if verbose:
@@ -2451,7 +2404,7 @@ cdef class HiddenMarkovModel( Model ):
 				for l in range( out_edges[k], out_edges[k+1] ):
 					li = self.out_transitions[l]
 					expected_transitions[k*m + li] = self.expected_transitions[l]
-					
+
 			# We now have expected_transitions taking into account all sequences.
 			# And a list of all emissions, and a weighting of each emission for each
 			# state
