@@ -1189,6 +1189,8 @@ cdef class DiscreteDistribution( Distribution ):
 	cdef public double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized lookup."""
 
+		if symbol < 0 or symbol > self.n:
+			return NEGINF
 		return self.encoded_log_probability[<SIZE_t> symbol]
 
 	def sample( self ):
