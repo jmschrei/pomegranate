@@ -1912,162 +1912,6 @@ cdef class HiddenMarkovModel( Model ):
 
 		return log_probability_sum, path
 
-	def to_json( self ):
-		"""
-		Write out the HMM to JSON format, recursively including state and
-		distribution information.
-		"""
-		
-		model = { 
-					'class' : 'HiddenMarkovModel',
-					'name'  : self.name,
-					'start' : str(self.start),
-					'end'   : str(self.end),
-					'states' : map( str, self.states ),
-					'end_index' : self.end_index,
-					'start_index' : self.start_index,
-					'silent_index' : self.silent_start
-				}
-
-		indices = { state: i for i, state in enumerate( self.states )}
-
-		# Get the number of groups of edges which are tied
-		groups = []
-		n = self.n_tied_edge_groups-1
-		
-		# Go through each group one at a time
-		for i in xrange(n):
-			# Create an empty list for that group
-			groups.append( [] )
-
-			# Go through each edge in that group
-			start, end = self.tied_edge_group_size[i], self.tied_edge_group_size[i+1]
-
-			# Add each edge as a tuple of indices
-			for j in xrange( start, end ):
-				groups[i].append( ( self.tied_edges_starts[j], self.tied_edges_ends[j] ) )
-
-		# Now reverse this into a dictionary, such that each pair of edges points
-		# to a label (a number in this case)
-		d = { tup : i for i in xrange(n) for tup in groups[i] }
-
-		# Get all the edges from the graph
-		edges = []
-		for start, end, data in self.graph.edges_iter( data=True ):
-			# If this edge is part of a group of tied edges, annotate this group
-			# it is a part of
-			s, e = indices[start], indices[end]
-			prob, pseudocount = math.e**data['weight'], data['pseudocount']
-			edge = (s, e)
-			edges.append( ( s, e, prob, pseudocount, d.get( edge, None ) ) )
-
-		model['edges'] = edges
-
-		# Get distribution tie information
-		ties = []
-		for i in xrange( self.silent_start ):
-			start, end = self.tied_state_count[i], self.tied_state_count[i+1]
-
-			for j in xrange( start, end ):
-				ties.append( ( i, self.tied[j] ) )
-
-		model['distribution ties'] = ties
-		return json.dumps( model, separators=(',', ' : '), indent=4 )
-
-			
-	@classmethod
-	def from_json( cls, s, verbose=False ):
-		"""
-		Read a HMM from the given JSON, build the model, and bake it.
-		"""
-
-		# Load a dictionary from a JSON formatted string
-		d = json.loads( s )
-
-		# Make a new generic HMM
-		model = HiddenMarkovModel( str(d['name']) )
-
-		# Load all the states from JSON formatted strings
-		states = [ State.from_json( j ) for j in d['states'] ]
-		for i, j in d['distribution ties']:
-			# Tie appropriate states together
-			states[i].tie( states[j] )
-
-		# Add all the states to the model
-		model.add_states( states )
-
-		# Indicate appropriate start and end states
-		model.start = states[ d['start_index'] ]
-		model.end = states[ d['end_index'] ]
-
-		# Add all the edges to the model
-		for start, end, probability, pseudocount, group in d['edges']:
-			model.add_transition( states[start], states[end], probability, 
-				pseudocount, group )
-
-		# Bake the model
-		model.bake( verbose=verbose )
-		return model
-	
-	@classmethod
-	def from_matrix( cls, transition_probabilities, distributions, starts, ends,
-		state_names=None, name=None ):
-		"""
-		Take in a 2D matrix of floats of size n by n, which are the transition
-		probabilities to go from any state to any other state. May also take in
-		a list of length n representing the names of these nodes, and a model
-		name. Must provide the matrix, and a list of size n representing the
-		distribution you wish to use for that state, a list of size n indicating
-		the probability of starting in a state, and a list of size n indicating
-		the probability of ending in a state.
-
-		For example, if you wanted a model with two states, A and B, and a 0.5
-		probability of switching to the other state, 0.4 probability of staying
-		in the same state, and 0.1 probability of ending, you'd write the HMM
-		like this:
-
-		matrix = [ [ 0.4, 0.5 ], [ 0.4, 0.5 ] ]
-		distributions = [NormalDistribution(1, .5), NormalDistribution(5, 2)]
-		starts = [ 1., 0. ]
-		ends = [ .1., .1 ]
-		state_names= [ "A", "B" ]
-
-		model = Model.from_matrix( matrix, distributions, starts, ends, 
-			state_names, name="test_model" )
-		"""
-
-		# Build the initial model
-		model = Model( name=name )
-
-		# Build state objects for every state with the appropriate distribution
-		states = [ State( distribution, name=name ) for name, distribution in
-			izip( state_names, distributions) ]
-
-		n = len( states )
-
-		# Add all the states to the model
-		for state in states:
-			model.add_state( state )
-
-		# Connect the start of the model to the appropriate state
-		for i, prob in enumerate( starts ):
-			if prob != 0:
-				model.add_transition( model.start, states[i], prob )
-
-		# Connect all states to each other if they have a non-zero probability
-		for i in xrange( n ):
-			for j, prob in enumerate( transition_probabilities[i] ):
-				if prob != 0.:
-					model.add_transition( states[i], states[j], prob )
-
-		# Connect states to the end of the model if a non-zero probability 
-		for i, prob in enumerate( ends ):
-			if prob != 0:
-				model.add_transition( states[j], model.end, prob )
-
-		model.bake()
-		return model
-
 	def fit( self, sequences, stop_threshold=1E-9, min_iterations=0,
 		max_iterations=1e8, algorithm='baum-welch', verbose=True,
 		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
@@ -2674,3 +2518,160 @@ cdef class HiddenMarkovModel( Model ):
 				inertia=distribution_inertia )
 
 		return log_probability( self, sequences ) - initial_log_probability
+
+	def to_json( self ):
+		"""
+		Write out the HMM to JSON format, recursively including state and
+		distribution information.
+		"""
+		
+		model = { 
+					'class' : 'HiddenMarkovModel',
+					'name'  : self.name,
+					'start' : str(self.start),
+					'end'   : str(self.end),
+					'states' : map( str, self.states ),
+					'end_index' : self.end_index,
+					'start_index' : self.start_index,
+					'silent_index' : self.silent_start
+				}
+
+		indices = { state: i for i, state in enumerate( self.states )}
+
+		# Get the number of groups of edges which are tied
+		groups = []
+		n = self.n_tied_edge_groups-1
+		
+		# Go through each group one at a time
+		for i in xrange(n):
+			# Create an empty list for that group
+			groups.append( [] )
+
+			# Go through each edge in that group
+			start, end = self.tied_edge_group_size[i], self.tied_edge_group_size[i+1]
+
+			# Add each edge as a tuple of indices
+			for j in xrange( start, end ):
+				groups[i].append( ( self.tied_edges_starts[j], self.tied_edges_ends[j] ) )
+
+		# Now reverse this into a dictionary, such that each pair of edges points
+		# to a label (a number in this case)
+		d = { tup : i for i in xrange(n) for tup in groups[i] }
+
+		# Get all the edges from the graph
+		edges = []
+		for start, end, data in self.graph.edges_iter( data=True ):
+			# If this edge is part of a group of tied edges, annotate this group
+			# it is a part of
+			s, e = indices[start], indices[end]
+			prob, pseudocount = math.e**data['weight'], data['pseudocount']
+			edge = (s, e)
+			edges.append( ( s, e, prob, pseudocount, d.get( edge, None ) ) )
+
+		model['edges'] = edges
+
+		# Get distribution tie information
+		ties = []
+		for i in xrange( self.silent_start ):
+			start, end = self.tied_state_count[i], self.tied_state_count[i+1]
+
+			for j in xrange( start, end ):
+				ties.append( ( i, self.tied[j] ) )
+
+		model['distribution ties'] = ties
+		return json.dumps( model, separators=(',', ' : '), indent=4 )
+
+			
+	@classmethod
+	def from_json( cls, s, verbose=False ):
+		"""
+		Read a HMM from the given JSON, build the model, and bake it.
+		"""
+
+		# Load a dictionary from a JSON formatted string
+		d = json.loads( s )
+
+		# Make a new generic HMM
+		model = HiddenMarkovModel( str(d['name']) )
+
+		# Load all the states from JSON formatted strings
+		states = [ State.from_json( j ) for j in d['states'] ]
+		for i, j in d['distribution ties']:
+			# Tie appropriate states together
+			states[i].tie( states[j] )
+
+		# Add all the states to the model
+		model.add_states( states )
+
+		# Indicate appropriate start and end states
+		model.start = states[ d['start_index'] ]
+		model.end = states[ d['end_index'] ]
+
+		# Add all the edges to the model
+		for start, end, probability, pseudocount, group in d['edges']:
+			model.add_transition( states[start], states[end], probability, 
+				pseudocount, group )
+
+		# Bake the model
+		model.bake( verbose=verbose )
+		return model
+	
+	@classmethod
+	def from_matrix( cls, transition_probabilities, distributions, starts, ends,
+		state_names=None, name=None ):
+		"""
+		Take in a 2D matrix of floats of size n by n, which are the transition
+		probabilities to go from any state to any other state. May also take in
+		a list of length n representing the names of these nodes, and a model
+		name. Must provide the matrix, and a list of size n representing the
+		distribution you wish to use for that state, a list of size n indicating
+		the probability of starting in a state, and a list of size n indicating
+		the probability of ending in a state.
+
+		For example, if you wanted a model with two states, A and B, and a 0.5
+		probability of switching to the other state, 0.4 probability of staying
+		in the same state, and 0.1 probability of ending, you'd write the HMM
+		like this:
+
+		matrix = [ [ 0.4, 0.5 ], [ 0.4, 0.5 ] ]
+		distributions = [NormalDistribution(1, .5), NormalDistribution(5, 2)]
+		starts = [ 1., 0. ]
+		ends = [ .1., .1 ]
+		state_names= [ "A", "B" ]
+
+		model = Model.from_matrix( matrix, distributions, starts, ends, 
+			state_names, name="test_model" )
+		"""
+
+		# Build the initial model
+		model = Model( name=name )
+
+		# Build state objects for every state with the appropriate distribution
+		states = [ State( distribution, name=name ) for name, distribution in
+			izip( state_names, distributions) ]
+
+		n = len( states )
+
+		# Add all the states to the model
+		for state in states:
+			model.add_state( state )
+
+		# Connect the start of the model to the appropriate state
+		for i, prob in enumerate( starts ):
+			if prob != 0:
+				model.add_transition( model.start, states[i], prob )
+
+		# Connect all states to each other if they have a non-zero probability
+		for i in xrange( n ):
+			for j, prob in enumerate( transition_probabilities[i] ):
+				if prob != 0.:
+					model.add_transition( states[i], states[j], prob )
+
+		# Connect states to the end of the model if a non-zero probability 
+		for i, prob in enumerate( ends ):
+			if prob != 0:
+				model.add_transition( states[j], model.end, prob )
+
+		model.bake()
+		return model
+		
