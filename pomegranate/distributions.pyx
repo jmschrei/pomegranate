@@ -217,25 +217,23 @@ cdef class Distribution:
 
 		d = json.loads( s )
 
-		# Put in some simple checking before we evaluate the distribution
-		# component to ensure arbitrary malicious code isn't being evaluated.
 		if ' ' in d['class'] or 'Distribution' not in d['class']:
 			raise SyntaxError( "Distribution object attempting to read invalid object." )
 
-		dist = eval( "{}( [0], 0 )".format( d['name'] ) )
-		dist.parameters = d['parameters']
-		dist.frozen = d['frozen']
+		dist = eval( "{}( {}, frozen={} )".format( d['name'],
+		                                    ','.join( map( str, d['parameters'] ) ),
+		                                     d['frozen']) )
 		return dist
 
 
 cdef class UniformDistribution( Distribution ):
-	"""
-	A uniform distribution between two values.
-	"""
+	"""A uniform distribution between two values."""
 
 	property parameters:
-		def __get__(self):
+		def __get__( self ):
 			return [self.start, self.end]
+		def __set__( self, parameters ):
+			self.start, self.end = parameters
 
 	def __cinit__( UniformDistribution self, double start, double end, bint frozen=False ):
 		"""
@@ -251,10 +249,7 @@ cdef class UniformDistribution( Distribution ):
 		self.frozen = frozen
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Cython optimized log probability calculation which does not require
-		the gil to be in place.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef double start = self.start
 		cdef double end = self.end
@@ -266,10 +261,7 @@ cdef class UniformDistribution( Distribution ):
 		return NEGINF
 			
 	def sample( self ):
-		"""
-		Sample from this uniform distribution and return the value sampled.
-		"""
-		
+		"""Sample from this uniform distribution and return the value sampled."""
 		return random.uniform(self.start, self.end)
 		
 	def from_sample (self, items, weights=None, inertia=0.0 ):
@@ -341,8 +333,10 @@ cdef class NormalDistribution( Distribution ):
 	"""
 
 	property parameters:
-		def __get__(self):
+		def __get__( self ):
 			return [self.mu, self.sigma]
+		def __set__( self, parameters ):
+			self.mu, self.sigma = parameters
 
 	def __cinit__( self, double mean, double std, bint frozen=False ):
 		"""
@@ -359,18 +353,13 @@ cdef class NormalDistribution( Distribution ):
 		self.two_sigma_squared = 2 * std ** 2
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Cython optimized function, with nogil enabled. 
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		return self.log_sigma_sqrt_2_pi - ((symbol - self.mu) ** 2) /\
 			self.two_sigma_squared
 
 	def sample( self ):
-		"""
-		Sample from this normal distribution and return the value sampled.
-		"""
-		
+		"""Sample from this normal distribution and return the value sampled."""
 		return random.normalvariate( self.mu, self.sigma )
 		
 	def from_sample (self, items, weights=None, inertia=0.0, min_std=0.01 ):
@@ -451,8 +440,10 @@ cdef class LogNormalDistribution( Distribution ):
 	"""
 
 	property parameters:
-		def __get__(self):
+		def __get__( self ):
 			return [self.mu, self.sigma]
+		def __set__( self, parameters ):
+			self.mu, self.sigma = parameters
 
 	def __cinit__( self, double mu, double sigma, frozen=False ):
 		"""
@@ -467,18 +458,8 @@ cdef class LogNormalDistribution( Distribution ):
 		self.name = "LogNormalDistribution"
 		self.frozen = frozen
 
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
-
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Actually perform the calculations here, in the Cython-optimized
-		function.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef double mu = self.mu, sigma = self.sigma
 
@@ -486,10 +467,7 @@ cdef class LogNormalDistribution( Distribution ):
 			- 0.5 * ( ( _log( symbol ) - mu ) / sigma ) ** 2
 
 	def sample( self ):
-		"""
-		Return a sample from this distribution.
-		"""
-
+		"""Return a sample from this distribution."""
 		return numpy.random.lognormal( self.mu, self.sigma )
 
 	def from_sample (self, items, weights=None, inertia=0.0, min_std=0.01 ):
@@ -570,8 +548,10 @@ cdef class ExponentialDistribution( Distribution ):
 	"""
 	
 	property parameters:
-		def __get__(self):
-			return [self.rate]
+		def __get__( self ):
+			return [ self.rate ]
+		def __set__( self, parameters ):
+			self.rate = parameters[0]
 
 	def __cinit__( self, double rate, bint frozen=False ):
 		"""
@@ -583,28 +563,13 @@ cdef class ExponentialDistribution( Distribution ):
 		self.summaries = [0, 0]
 		self.name = "ExponentialDistribution"
 		self.frozen = frozen
-	
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Cython optimized function.
-		"""
-
-		cdef double rate = self.rate
-		return _log(rate) - rate * symbol
+		"""Cython optimized function for log probability calculation."""
+		return _log(self.rate) - self.rate * symbol
 		
 	def sample( self ):
-		"""
-		Sample from this exponential distribution and return the value
-		sampled.
-		"""
-		
+		"""Sample from this exponential distribution."""
 		return random.expovariate(*self.parameters)
 		
 	def from_sample (self, items, weights=None, inertia=0.0 ):
@@ -672,8 +637,10 @@ cdef class BetaDistribution( Distribution ):
 	"""
 
 	property parameters:
-		def __get__(self):
-			return [self.alpha, self.beta]
+		def __get__( self ):
+			return [ self.alpha, self.beta ]
+		def __set__( self, parameters ):
+			self.alpha, self.beta = parameters
 
 	def __init__( self, alpha, beta, frozen=False ):
 		"""
@@ -687,17 +654,8 @@ cdef class BetaDistribution( Distribution ):
 		self.name = "BetaDistribution"
 		self.frozen = frozen
 
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
-
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Cython optimized function.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef double a = self.alpha, b = self.beta
 
@@ -706,10 +664,7 @@ cdef class BetaDistribution( Distribution ):
 			(b-1)*_log(1.-symbol) )
 
 	def sample( self ):
-		"""
-		Return a random sample from the beta distribution.
-		"""
-
+		"""Return a random sample from the beta distribution."""
 		return random.betavariate( self.alpha, self.beta )
 
 	def from_sample (self, items, weights=None, inertia=0.0 ):
@@ -741,9 +696,7 @@ cdef class BetaDistribution( Distribution ):
 			self._summarize( items_p, weights_p, n )
 
 	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-		"""
-		Cython and such
-		"""
+		"""Cython optimized function for summarizing some data."""
 
 		cdef double successes = 0, failures = 0
 		cdef SIZE_t i
@@ -758,9 +711,7 @@ cdef class BetaDistribution( Distribution ):
 			self.summaries.append( (successes, failures) )
 
 	def from_summaries( self, inertia=0.0 ):
-		"""
-		Use the summaries in order to update the distribution.
-		"""
+		"""Use the summaries in order to update the distribution."""
 
 		summaries = numpy.array( self.summaries )
 
@@ -784,8 +735,10 @@ cdef class GammaDistribution( Distribution ):
 	"""
 	
 	property parameters:
-		def __get__(self):
-			return [self.alpha, self.beta]
+		def __get__( self ):
+			return [ self.alpha, self.beta ]
+		def __set__( self, parameters ):
+			self.alpha, self.beta = parameters
 
 	def __cinit__( self, double alpha, double beta, bint frozen=False ):
 		"""
@@ -799,17 +752,8 @@ cdef class GammaDistribution( Distribution ):
 		self.name = "GammaDistribution"
 		self.frozen = frozen
 
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
-
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Cython optimized calculation.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef double alpha = self.alpha, beta = self.beta
 		
@@ -1069,8 +1013,10 @@ cdef class DiscreteDistribution( Distribution ):
 	"""
 
 	property parameters:
-		def __get__(self):
-			return [self.dist]
+		def __get__( self ):
+			return [ self.dist ]
+		def __set__( self, parameters ):
+			self.dist = parameters[0]
 			
 	def __cinit__( self, dict characters, bint frozen=False ):
 		"""
@@ -1302,16 +1248,20 @@ cdef class LambdaDistribution(Distribution):
 
 		return self.parameters[0](symbol)
 
-cdef class GaussianKernelDensity( Distribution ):
-	"""
-	A quick way of storing points to represent a Gaussian kernel density in one
-	dimension. Takes in the points at initialization, and calculates the log of
-	the sum of the Gaussian distance of the new point from every other point.
-	"""
+cdef class KernelDensity( Distribution ):
+	"""An abstract kernel density, with shared properties and methods."""
 
 	property parameters:
-		def __get__(self):
-			return [self.points, self.bandwidth, self.weights]
+		def __get__( self ):
+			return [ self.points_ndarray.tolist(), self.bandwidth, self.weights_ndarray.tolist() ]
+		def __set__( self, parameters ):
+			self.points_ndarray = numpy.array( parameters[0] )
+			self.points = <double*> self.points_ndarray.data
+
+			self.bandwidth = parameters[1]
+
+			self.weights_ndarray = numpy.array( parameters[2] )
+			self.weights = <double*> self.weights_ndarray.data
 
 	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
 		"""
@@ -1329,41 +1279,78 @@ cdef class GaussianKernelDensity( Distribution ):
 			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
 
 		self.n = n
-		self.points = points
-		self.weights = weights
+		self.points_ndarray = points
+		self.points = <double*> self.points_ndarray.data
+		
+		self.weights_ndarray = weights
+		self.weights = <double*> self.weights_ndarray.data
+
 		self.bandwidth = bandwidth
 		self.summaries = []
-		self.name = "GaussianKernelDensity"
+		self.name = "KernelDensity"
 		self.frozen = frozen
-	
-	def log_probability( self, symbol ):
+
+	def from_sample( self, points, weights=None, inertia=0.0 ):
+		"""Replace the points, allowing for inertia if specified."""
+
+		# If the distribution is frozen, don't bother with any calculation
+		if self.frozen == True:
+			return
+
+		points = numpy.asarray( points, dtype=numpy.float64 )
+		n = points.shape[0]
+
+		# Get the weights, or assign uniform weights
+		if weights is not None:
+			weights = numpy.array( weights, dtype=numpy.float64 ) / numpy.sum(weights)
+		else:
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
+
+		# If no inertia, get rid of the previous points
+		if inertia == 0.0:
+			self.points_ndarray = points
+			self.weights_ndarray = weights
+			self.n = points.shape[0]
+
+		# Otherwise adjust weights appropriately
+		else: 
+			self.points_ndarray = numpy.concatenate( ( self.points_ndarray, points ) )
+			self.weights_ndarray = numpy.concatenate( ( self.weights_ndarray*inertia, weights*(1-inertia) ) )
+			self.n = points.shape[0]
+
+		self.points = <double*> self.points_ndarray.data
+		self.weights = <double*> self.weights_ndarray.data
+
+cdef class GaussianKernelDensity( KernelDensity ):
+	"""
+	A quick way of storing points to represent a Gaussian kernel density in one
+	dimension. Takes in the points at initialization, and calculates the log of
+	the sum of the Gaussian distance of the new point from every other point.
+	"""
+
+	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
 		"""
-		Return the log probability of the given symbol under this distribution.
+		Take in points, bandwidth, and appropriate weights. If no weights
+		are provided, a uniform weight of 1/n is provided to each point.
+		Weights are scaled so that they sum to 1. 
 		"""
 
-		return self._log_probability( symbol )
+		self.name = "GaussianKernelDensity"
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Actually calculate it here.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
-		cdef double bandwidth = self.bandwidth
 		cdef double mu, w
-
 		cdef double scalar = 1.0 / SQRT_2_PI
 		cdef int i, n = self.n
 		cdef double prob = 0.0
 
 		for i in range( n ):
-			# Go through each point sequentially
 			mu = self.points[i]
 			w = self.weights[i]
 
-			# Calculate the probability under that point
-			prob += w * scalar * cexp(-0.5 * ((mu-symbol) / bandwidth)**2)
+			prob += w * scalar * cexp( -0.5 * (( mu-symbol ) / self.bandwidth) ** 2 )
 
-		# Return the log of the sum of the probabilities
 		return _log( prob )
 
 	def sample( self ):
@@ -1376,46 +1363,12 @@ cdef class GaussianKernelDensity( Distribution ):
 		mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
 		return random.gauss( mu, self.parameters[1] )
 
-	def from_sample( self, points, weights=None, inertia=0.0 ):
-		"""
-		Replace the points, allowing for inertia if specified.
-		"""
-
-		# If the distribution is frozen, don't bother with any calculation
-		if self.frozen == True:
-			return
-
-		points = numpy.asarray( points, dtype=numpy.float64 )
-		n = points.shape[0]
-
-		# Get the weights, or assign uniform weights
-		if weights is not None:
-			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
-		else:
-			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
-
-		# If no inertia, get rid of the previous points
-		if inertia == 0.0:
-			self.points = points
-			self.weights = weights
-			self.n = self.points.shape[0]
-
-		# Otherwise adjust weights appropriately
-		else: 
-			self.points = numpy.concatenate( ( self.points, points ) )
-			self.weights = numpy.concatenate( ( self.weights*inertia, weights*(1-inertia) ) )
-			self.n = self.points.shape[0]
-
-cdef class UniformKernelDensity( Distribution ):
+cdef class UniformKernelDensity( KernelDensity ):
 	"""
 	A quick way of storing points to represent an Exponential kernel density in
 	one dimension. Takes in points at initialization, and calculates the log of
 	the sum of the Gaussian distances of the new point from every other point.
 	"""
-
-	property parameters:
-		def __get__(self):
-			return [self.points, self.bandwidth, self.weights]
 
 	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
 		"""
@@ -1424,33 +1377,10 @@ cdef class UniformKernelDensity( Distribution ):
 		Weights are scaled so that they sum to 1. 
 		"""
 
-		points = numpy.asarray( points, dtype=numpy.float64 )
-		n = points.shape[0]
-		
-		if weights:
-			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
-		else:
-			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
-
-		self.n = n
-		self.points = points
-		self.weights = weights
-		self.bandwidth = bandwidth
-		self.summaries = []
 		self.name = "UniformKernelDensity"
-		self.frozen = frozen
-
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Actually do math here.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef double bandwidth = self.bandwidth
 		cdef double mu, w
@@ -1483,46 +1413,12 @@ cdef class UniformKernelDensity( Distribution ):
 		bandwidth = self.parameters[1]
 		return random.uniform( mu-bandwidth, mu+bandwidth )
 
-	def from_sample( self, points, weights=None, inertia=0.0 ):
-		"""
-		Replace the points, allowing for inertia if specified.
-		"""
-
-		# If the distribution is frozen, don't bother with any calculation
-		if self.frozen == True:
-			return
-
-		points = numpy.asarray( points, dtype=numpy.float64 )
-		n = points.shape[0]
-
-		# Get the weights, or assign uniform weights
-		if weights:
-			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
-		else:
-			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
-
-		# If no inertia, get rid of the previous points
-		if inertia == 0.0:
-			self.points = points
-			self.weights = weights
-			self.n = self.points.shape[0]
-
-		# Otherwise adjust weights appropriately
-		else: 
-			self.points = numpy.concatenate( ( self.points, points ) )
-			self.weights = numpy.concatenate( ( self.weights*inertia, weights*(1-inertia) ) )
-			self.n = self.points.shape[0]
-
-cdef class TriangleKernelDensity( Distribution ):
+cdef class TriangleKernelDensity( KernelDensity ):
 	"""
 	A quick way of storing points to represent an Exponential kernel density in
 	one dimension. Takes in points at initialization, and calculates the log of
 	the sum of the Gaussian distances of the new point from every other point.
 	"""
-
-	property parameters:
-		def __get__(self):
-			return [self.points, self.bandwidth, self.weights]
 
 	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
 		"""
@@ -1531,33 +1427,10 @@ cdef class TriangleKernelDensity( Distribution ):
 		Weights are scaled so that they sum to 1. 
 		"""
 
-		points = numpy.asarray( points, dtype=numpy.float64 )
-		n = points.shape[0]
-		
-		if weights:
-			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
-		else:
-			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
-
-		self.n = n
-		self.points = points
-		self.weights = weights
-		self.bandwidth = bandwidth
-		self.summaries = []
 		self.name = "TriangleKernelDensity"
-		self.frozen = frozen
-		
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Actually do math here.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef double bandwidth = self.bandwidth
 		cdef double mu, w
@@ -1589,36 +1462,6 @@ cdef class TriangleKernelDensity( Distribution ):
 		bandwidth = self.parameters[1]
 		return random.triangular( mu-bandwidth, mu+bandwidth, mu )
 
-	def from_sample( self, points, weights=None, inertia=0.0 ):
-		"""
-		Replace the points, allowing for inertia if specified.
-		"""
-
-		# If the distribution is frozen, don't bother with any calculation
-		if self.frozen == True:
-			return
-
-		points = numpy.asarray( points, dtype=numpy.float64 )
-		n = points.shape[0]
-
-		# Get the weights, or assign uniform weights
-		if weights:
-			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
-		else:
-			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
-
-		# If no inertia, get rid of the previous points
-		if inertia == 0.0:
-			self.points = points
-			self.weights = weights
-			self.n = self.points.shape[0]
-
-		# Otherwise adjust weights appropriately
-		else: 
-			self.points = numpy.concatenate( ( self.points, points ) )
-			self.weights = numpy.concatenate( ( self.weights*inertia, weights*(1-inertia) ) )
-			self.n = self.points.shape[0]
-
 cdef class MixtureDistribution( Distribution ):
 	"""
 	Allows you to create an arbitrary mixture of distributions. There can be
@@ -1627,8 +1470,11 @@ cdef class MixtureDistribution( Distribution ):
 	"""
 
 	property parameters:
-		def __get__(self):
-			return [self.distributions, self.weights]
+		def __get__( self ):
+			return [ self.distributions, self.weights.tolist() ]
+		def __set__( self, parameters ):
+			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
+			self.weights = numpy.array( parameters[1] )
 
 	def __cinit__( self, distributions, weights=None, frozen=False ):
 		"""
@@ -1654,26 +1500,15 @@ cdef class MixtureDistribution( Distribution ):
 		self.frozen = frozen
 
 	def __str__( self ):
-		"""
-		Return a string representation of this mixture.
-		"""
+		"""Return a string representation of this mixture."""
 
 		distributions, weights = self.parameters
 		distributions = map( str, distributions )
 		return "MixtureDistribution( {}, {} )".format(
 			distributions, list(weights) ).replace( "'", "" )
-		
-	def log_probability( self, symbol ):
-		"""
-		Return the log probability of the given symbol under this distribution.
-		"""
-
-		return self._log_probability( symbol )
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Cython optimized function for distributions involving floats.
-		"""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef int i, n = self.n
 		cdef double w, prob = 0.0
@@ -1822,8 +1657,11 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	"""
 
 	property parameters:
-		def __get__(self):
-			return [self.distributions, self.weights]
+		def __get__( self ):
+			return [ self.distributions, self.weights.tolist() ]
+		def __set__( self, parameters ):
+			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
+			self.weights = numpy.array( parameters[1] )
 
 	def __cinit__( self, distributions, weights=None, frozen=False ):
 		"""
@@ -1846,9 +1684,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		self.frozen = frozen
 
 	def __str__( self ):
-		"""
-		Return a string representation of the IndependentComponentsDistribution.
-		"""
+		"""Return a string representation of the distribution."""
 
 		distributions = map( str, self.parameters[0] )
 		return "IndependentComponentsDistribution({})".format(
@@ -1870,7 +1706,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		return logp
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		"""Cython optimized log probability function."""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef int i, d = self.d
 		cdef double w, logp = 0.0
@@ -1939,8 +1775,11 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 	property parameters:
-		def __get__(self):
-			return [self.mu, self.cov]
+		def __get__( self ):
+			return [ self.mu.tolist(), self.cov.tolist() ]
+		def __set__( self, parameters ):
+			self.mu = numpy.array( parameters[0] )
+			self.cov = numpy.array( parameters[1] )
 
 	def __cinit__( self, means, covariance, frozen=False ):
 		"""
@@ -1997,7 +1836,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		return logp
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		"""Cython optimized log probability function."""
+		"""Cython optimized function for log probability calculation."""
 
 		cdef SIZE_t i, j, d = self.d
 		cdef double log_det = self._log_det

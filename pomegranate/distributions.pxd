@@ -44,33 +44,32 @@ cdef class DiscreteDistribution( Distribution ):
 cdef class LambdaDistribution( Distribution ):
 	pass
 
-cdef class GaussianKernelDensity( Distribution ):
-	cdef double [:] points, weights
+cdef class KernelDensity( Distribution ):
+	cdef numpy.ndarray points_ndarray, weights_ndarray
+	cdef double* points
+	cdef double* weights
 	cdef int n
 	cdef double bandwidth
 
-cdef class UniformKernelDensity( Distribution ):
-	cdef double [:] points, weights
-	cdef int n
-	cdef double bandwidth
+cdef class GaussianKernelDensity( KernelDensity ):
+	pass
 
-cdef class TriangleKernelDensity( Distribution ):
-	cdef double [:] points, weights
-	cdef int n
-	cdef double bandwidth
+cdef class UniformKernelDensity( KernelDensity ):
+	pass
+
+cdef class TriangleKernelDensity( KernelDensity ):
+	pass
 
 cdef class MixtureDistribution( Distribution ):
 	cdef double* weights_p
-	cdef double [:] weights
-	cdef Distribution [:] distributions
+	cdef numpy.ndarray distributions, weights
 	cdef int n
 
 cdef class MultivariateDistribution( Distribution ):
 	cdef public SIZE_t d
 
 cdef class IndependentComponentsDistribution( MultivariateDistribution ):
-	cdef double [:] weights
-	cdef Distribution [:] distributions
+	cdef numpy.ndarray distributions, weights
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	cdef public numpy.ndarray mu, cov, inv_cov_ndarray
