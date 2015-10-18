@@ -62,6 +62,34 @@ def test_multivariate_gmm_log_probability():
 	assert_equal( round(gmm.log_probability(X), 4), -10.7922 )
 
 
+def test_multivariate_gmm_json():
+	gmm_2 = GeneralMixtureModel.from_json( gmm.to_json() )
+
+	X = np.array([1.1, 2.7, 3.0, 4.8, 6.2])
+	assert_equal( round(gmm_2.log_probability(X), 4), -9.8406 )
+
+	X = np.array([1.8, 2.1, 3.1, 5.2, 6.5])
+	assert_equal( round(gmm_2.log_probability(X), 4), -9.6717 )
+
+	X = np.array([0.9, 2.2, 3.2, 5.0, 5.8])
+	assert_equal( round(gmm_2.log_probability(X), 4), -9.7162 )
+
+	X = np.array([1.0, 2.1, 3.5, 4.3, 5.2])
+	assert_equal( round(gmm_2.log_probability(X), 4), -9.894 )
+
+	X = np.array([1.2, 2.9, 3.1, 4.2, 5.5])
+	assert_equal( round(gmm_2.log_probability(X), 4), -10.9381 )
+
+	X = np.array([1.8, 1.9, 3.0, 4.9, 5.7])
+	assert_equal( round(gmm_2.log_probability(X), 4), -11.0661 )
+
+	X = np.array([1.2, 3.1, 2.9, 4.2, 5.9])
+	assert_equal( round(gmm_2.log_probability(X), 4), -11.3147 )
+
+	X = np.array([1.0, 2.9, 3.9, 4.1, 6.0])
+	assert_equal( round(gmm_2.log_probability(X), 4), -10.7922 )
+
+
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_multivariate_gmm_posterior():
 	posterior = np.array([[ -2.10001234e+01, -1.23402948e-04, -9.00012340e+00, -4.80001234e+01, -1.17000123e+02],

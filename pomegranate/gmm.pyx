@@ -186,7 +186,7 @@ cdef class GeneralMixtureModel:
 		model = { 
 					'class' : 'GeneralMixtureModel',
 					'distributions'  : map( str, self.distributions ),
-					'weights' : list( self.weights )
+					'weights' : self.weights.tolist()
 				}
 
 		return json.dumps( model, separators=(',', ' : '), indent=4 )
@@ -197,10 +197,9 @@ cdef class GeneralMixtureModel:
 		Read a GMM from the given JSON, build the model, and bake it.
 		"""
 
-		# Load a dictionary from a JSON formatted string
 		d = json.loads( s )
 
 		distributions = [ Distribution.from_json( j ) for j in d['distributions'] ] 
-		# Make a new generic HMM
+
 		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
 		return model
