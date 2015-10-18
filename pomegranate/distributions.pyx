@@ -220,10 +220,17 @@ cdef class Distribution:
 		if ' ' in d['class'] or 'Distribution' not in d['class']:
 			raise SyntaxError( "Distribution object attempting to read invalid object." )
 
-		dist = eval( "{}( {}, frozen={} )".format( d['name'],
-		                                    ','.join( map( str, d['parameters'] ) ),
-		                                     d['frozen']) )
-		return dist
+		if d['name'] == 'IndependentComponentsDistribution':
+			d['parameters'][0] = [Distribution.from_json(dist) for dist in d['parameters'][0]]
+			return IndependentComponentsDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
+		elif d['name'] == 'MixtureDistribution':
+			d['parameters'][0] = [Distribution.from_json(dist) for dist in d['parameters'][0]]
+			return MixtureDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
+		else:
+			dist = eval( "{}( {}, frozen={} )".format( d['name'],
+			                                    ','.join( map( str, d['parameters'] ) ),
+			                                     d['frozen']) )
+			return dist
 
 
 cdef class UniformDistribution( Distribution ):
@@ -1471,7 +1478,7 @@ cdef class MixtureDistribution( Distribution ):
 
 	property parameters:
 		def __get__( self ):
-			return [ self.distributions, self.weights.tolist() ]
+			return [ self.distributions.tolist(), self.weights.tolist() ]
 		def __set__( self, parameters ):
 			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
 			self.weights = numpy.array( parameters[1] )
@@ -1498,14 +1505,6 @@ cdef class MixtureDistribution( Distribution ):
 		self.distributions = distributions
 		self.name = "MixtureDistribution"
 		self.frozen = frozen
-
-	def __str__( self ):
-		"""Return a string representation of this mixture."""
-
-		distributions, weights = self.parameters
-		distributions = map( str, distributions )
-		return "MixtureDistribution( {}, {} )".format(
-			distributions, list(weights) ).replace( "'", "" )
 
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
@@ -1636,6 +1635,17 @@ cdef class MixtureDistribution( Distribution ):
 		weights = numpy.array( self.summaries )
 		self.weights = weights.sum( axis=0 ) / weights.sum()
 
+	def to_json( self ):
+		"""Convert the distribution to JSON format."""
+
+		return json.dumps( {
+								'class' : 'Distribution',
+								'name'  : self.name,
+								'parameters' : [ [ dist.to_json() for dist in self.parameters[0] ],
+								                 self.parameters[1] ],
+								'frozen' : self.frozen
+						   }, separators=(',', ' : ' ), indent=4 )
+
 cdef class MultivariateDistribution( Distribution ):
 	"""
 	An object to easily identify multivariate distributions such as tables.
@@ -1658,7 +1668,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 	property parameters:
 		def __get__( self ):
-			return [ self.distributions, self.weights.tolist() ]
+			return [ self.distributions.tolist(), self.weights.tolist() ]
 		def __set__( self, parameters ):
 			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
 			self.weights = numpy.array( parameters[1] )
@@ -1682,13 +1692,6 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		self.weights = weights
 		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
-
-	def __str__( self ):
-		"""Return a string representation of the distribution."""
-
-		distributions = map( str, self.parameters[0] )
-		return "IndependentComponentsDistribution({})".format(
-			distributions ).replace( "'", "" )
 
 	def log_probability( self, symbol ):
 		"""
@@ -1771,6 +1774,18 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
+
+	def to_json( self ):
+		"""Convert the distribution to JSON format."""
+
+		return json.dumps( {
+								'class' : 'Distribution',
+								'name'  : self.name,
+								'parameters' : [ [ dist.to_json() for dist in self.parameters[0] ],
+								                 self.parameters[1] ],
+								'frozen' : self.frozen
+						   }, separators=(',', ' : ' ), indent=4 )
+
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 

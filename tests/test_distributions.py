@@ -88,6 +88,11 @@ def test_normal():
 	assert_equal( round( d.parameters[0], 4 ), 4.9167 ) 
 	assert_equal( round( d.parameters[1], 4 ), 0.7592 )
 
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "NormalDistribution" )
+	assert_equal( round( e.parameters[0], 4 ), 4.9167 ) 
+	assert_equal( round( e.parameters[1], 4 ), 0.7592 )
+
 @with_setup( setup, teardown )
 def test_uniform():
 	d = UniformDistribution( 0, 10 )
@@ -144,6 +149,10 @@ def test_uniform():
 	d.from_sample( [ 0, 1, 6, 7, 8, 3, 4, 5, 2 ] )
 	assert_equal( d.parameters, [ 0, 8 ] )
 
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "UniformDistribution" )
+	assert_equal( e.parameters, [ 0, 8 ] )
+
 @with_setup( setup, teardown )
 def test_discrete():
 	d = DiscreteDistribution( { 'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25 } )
@@ -194,6 +203,10 @@ def test_discrete():
 	d.from_sample( list('ABAABBAAAAAAAAAAAAAAAAAA') )
 	assert_equal( d.parameters[0], { 'A': 0.25, 'B': 0.75 } )
 
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "DiscreteDistribution" )
+	assert_equal( e.parameters[0], { 'A': 0.25, 'B': 0.75 } )
+
 @with_setup( setup, teardown )
 def test_lognormal():
 	d = LogNormalDistribution( 5, 2 )
@@ -210,6 +223,11 @@ def test_lognormal():
 
 	assert_equal( round( d.parameters[0], 4 ), 1.6167 )
 	assert_equal( round( d.parameters[1], 4 ), 0.0237 )
+
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "LogNormalDistribution" )
+	assert_equal( round( e.parameters[0], 4 ), 1.6167 )
+	assert_equal( round( e.parameters[1], 4 ), 0.0237 )
 
 @with_setup( setup, teardown )
 def test_gamma():
@@ -231,6 +249,11 @@ def test_gamma():
 	assert_equal( round( d.parameters[0], 4 ), 31.8806 )
 	assert_equal( round( d.parameters[1], 4 ), 10.5916 )
 
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "GammaDistribution" )
+	assert_equal( round( e.parameters[0], 4 ), 31.8806 )
+	assert_equal( round( e.parameters[1], 4 ), 10.5916 )	
+
 @with_setup( setup, teardown )
 def test_exponential():
 	d = ExponentialDistribution( 3 )
@@ -248,6 +271,10 @@ def test_exponential():
 	d.from_summaries()
 
 	assert_equal( round( d.parameters[0], 4 ), 0.4545 )
+
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "ExponentialDistribution" )
+	assert_equal( round( e.parameters[0], 4 ), 0.4545 )
 
 @with_setup( setup, teardown )
 def test_gaussian_kernel():
@@ -277,6 +304,12 @@ def test_gaussian_kernel():
 	assert_equal( round( d.log_probability( 110 ), 4 ), -2.9368 )
 	assert_equal( round( d.log_probability( 0 ), 4 ), -5.1262 )
 
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "GaussianKernelDensity" )
+	assert_equal( round( e.log_probability( 110 ), 4 ), -2.9368 )
+	assert_equal( round( e.log_probability( 0 ), 4 ), -5.1262 )
+
+
 @with_setup( setup, teardown )
 def test_triangular_kernel():
 	d = TriangleKernelDensity( [ 1, 6, 3, 4, 5, 2 ] )
@@ -294,6 +327,10 @@ def test_triangular_kernel():
 	d.freeze()
 	d.from_sample( [ 1, 4, 6, 7, 3, 5, 7, 8, 3, 3, 4 ] )
 	assert_equal( round( d.log_probability( 6.5 ), 4 ), -2.4849 )
+
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "TriangleKernelDensity" )
+	assert_equal( round( e.log_probability( 6.5 ), 4 ), -2.4849 )
 
 
 @with_setup( setup, teardown )
@@ -314,6 +351,12 @@ def test_uniform_kernel():
 	assert_equal( round( d.log_probability( 2.2 ), 4 ), -0.4055 )
 	assert_equal( round( d.log_probability( 6.2 ), 4 ), -2.1972 )
 
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "UniformKernelDensity" )
+	assert_equal( round( e.log_probability( 2.2 ), 4 ), -0.4055 )
+	assert_equal( round( e.log_probability( 6.2 ), 4 ), -2.1972 )	
+
+
 @with_setup( setup, teardown )
 def test_mixture():
 	d = MixtureDistribution( [ NormalDistribution( 5, 1 ), 
@@ -330,6 +373,12 @@ def test_mixture():
 	assert_equal( round( d.log_probability( 6 ), 4 ), -2.2325 )
 	assert_equal( round( d.log_probability( 5 ), 4 ), -2.0066 )
 	assert_equal( round( d.log_probability( 4.5 ), 4 ), -2.0356 )
+
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "MixtureDistribution" )
+	assert_equal( round( e.log_probability( 6 ), 4 ), -2.2325 )
+	assert_equal( round( e.log_probability( 5 ), 4 ), -2.0066 )
+	assert_equal( round( e.log_probability( 4.5 ), 4 ), -2.0356 )
 
 @with_setup( setup, teardown )
 def test_independent():
@@ -392,6 +441,16 @@ def test_independent():
 
 	assert_equal( d.parameters[0][1].parameters[0], -2.5 )
 	assert_equal( d.parameters[0][1].parameters[1], 15 )
+
+	e = Distribution.from_json( d.to_json() )
+	assert_equal( e.name, "IndependentComponentsDistribution" )
+
+	assert_equal( round( e.parameters[0][0].parameters[0], 4 ), 4.3889 )
+	assert_equal( round( e.parameters[0][0].parameters[1], 4 ), 1.9655 )
+
+	assert_equal( e.parameters[0][1].parameters[0], -2.5 )
+	assert_equal( e.parameters[0][1].parameters[1], 15 )
+
 
 def test_conditional():
 	phditis = DiscreteDistribution({ True : 0.01, False : 0.99 })
