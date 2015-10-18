@@ -56,21 +56,15 @@ cdef class GeneralMixtureModel:
 		self.distributions = distributions
 		self.summaries = []
 
-	def log_probability( self, point ):
+	cpdef double log_probability( self, point ):
 		"""
 		Calculate the probability of a point given the model. The probability
 		of a point is the sum of the probabilities of each distribution.
 		"""
 
-		return self._log_probability( numpy.array( point ) )
-
-	cdef double _log_probability( self, numpy.ndarray point ):
-		"""
-		Cython optimized function for calculating log probabilities.
-		"""
-
-		cdef int n=len(self.distributions), i=0
-		cdef double log_probability_sum=NEGINF, log_probability
+		cdef int n = len( self.distributions )
+		cdef double log_probability_sum = NEGINF
+		cdef double log_probability
 		cdef Distribution d
 
 		for i in xrange( n ):
