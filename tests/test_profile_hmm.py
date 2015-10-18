@@ -6,6 +6,7 @@ from nose.tools import assert_equal
 from nose.tools import assert_not_equal
 import random
 import numpy as np
+import json
 
 def setup():
 	'''
@@ -86,6 +87,7 @@ def setup():
 	# Call bake to finalize the structure of the model.
 	model.bake()
 
+
 def multitransition_setup():
 	'''
 	Build a model that we want to use to test sequences. This is the same as the
@@ -139,6 +141,7 @@ def multitransition_setup():
 
 	# Call bake to finalize the structure of the model.
 	model.bake()	
+
 
 def tied_edge_setup():
 	'''
@@ -216,6 +219,7 @@ def tied_edge_setup():
 	# Call bake to finalize the structure of the model.
 	model.bake()
 
+
 def teardown():
 	'''
 	Remove the model at the end of the unit testing. Since it is stored in a
@@ -223,6 +227,7 @@ def teardown():
 	'''
 
 	pass
+
 
 @with_setup( setup, teardown )
 def test_same_length_viterbi():
@@ -235,6 +240,7 @@ def test_same_length_viterbi():
 
 	assert_equal( str( model.viterbi( list('XXX') ) ), "(-inf, None)" )
 
+
 @with_setup( setup, teardown )
 def test_variable_length_viterbi():
 	scores = [ -5.406181012423981, -10.88681993576597, -3.6244718790494277, 
@@ -246,6 +252,7 @@ def test_variable_length_viterbi():
 	for seq, score in zip( sequences, scores ):
 		assert_equal( model.viterbi( seq )[0], score )
 
+
 @with_setup( setup, teardown )
 def test_log_probability():
 	scores = [ -5.3931, -0.5052, -11.8478, -14.3482 ]
@@ -253,6 +260,7 @@ def test_log_probability():
 
 	for seq, score in zip( sequences, scores ):
 		assert_equal( round( model.log_probability( seq ), 4 ), score )
+
 
 @with_setup( setup, teardown )
 def test_posterior_transitions():
@@ -275,6 +283,7 @@ def test_posterior_transitions():
 		assert_equal( round( trans[k].sum(), 4 ), c )
 		assert_equal( round( trans[l].sum(), 4 ), d )
 		assert_equal( round( trans.sum(), 4 ), t )
+
 
 @with_setup( setup, teardown )
 def test_posterior_transitions_w_training():
@@ -303,6 +312,7 @@ def test_posterior_transitions_w_training():
 	assert_not_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_not_equal( transitions[i0, d1], transitions[i2, d3] )
 
+
 @with_setup( setup, teardown )
 def test_posterior_transitions_w_vtraining():
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
@@ -329,6 +339,7 @@ def test_posterior_transitions_w_vtraining():
 	assert_not_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_not_equal( transitions[i0, d1], transitions[i2, d3] )
 
+
 @with_setup( tied_edge_setup, teardown )
 def test_posterior_transitions_w_tied_training():
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
@@ -354,6 +365,7 @@ def test_posterior_transitions_w_tied_training():
 	assert_equal( transitions[d1, d2], transitions[d2, d3] )
 	assert_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
+
 
 @with_setup( tied_edge_setup, teardown )
 def test_posterior_transitions_w_tied_vtraining():
@@ -384,6 +396,7 @@ def test_posterior_transitions_w_tied_vtraining():
 	assert_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
+
 @with_setup( setup, teardown )
 def test_posterior_emissions():
 	a_scores = [ 0.987, 0.9965, 0.183, 0.523 ]
@@ -404,6 +417,7 @@ def test_posterior_emissions():
 		assert_equal( round( ems[:,k].sum(), 4 ), c )
 		assert_equal( round( ems[:,l].sum(), 4 ), d )
 		assert_equal( round( ems.sum() ), len( seq ) )
+
 
 @with_setup( multitransition_setup, teardown )
 def test_posterior_emissions_w_multitransition_setup():
@@ -426,6 +440,7 @@ def test_posterior_emissions_w_multitransition_setup():
 		assert_equal( round( ems[:,l].sum(), 4 ), d )
 		assert_equal( round( ems.sum() ), len( seq ) )
 
+
 @with_setup( tied_edge_setup, teardown )
 def test_posterior_emissions_w_tied_edge_setup():
 	a_scores = [ 0.987, 0.9965, 0.183, 0.523 ]
@@ -447,9 +462,30 @@ def test_posterior_emissions_w_tied_edge_setup():
 		assert_equal( round( ems[:,l].sum(), 4 ), d )
 		assert_equal( round( ems.sum() ), len( seq ) )
 
+
 @with_setup( setup, teardown )
 def test_properties():
 	assert_equal( model.edge_count(), 29 )
 	assert_equal( model.state_count(), 12 )
 	assert_equal( model.name, "Global Alignment" )
 	assert_equal( model.is_infinite(), False )
+
+
+@with_setup( setup, teardown )
+def test_to_json():
+	b = json.loads( model.to_json() )
+
+	assert_equal( b['name'], 'Global Alignment' )
+	assert_equal( len(b['edges']), 29 )
+	assert_equal( len(b['states']), 12 )
+	assert_equal( b['silent_index'], 7 )
+
+
+@with_setup( setup, teardown )
+def test_from_json():
+	hmm = HiddenMarkovModel.from_json( model.to_json() )
+
+	assert_equal( hmm.edge_count(), 29 )
+	assert_equal( hmm.state_count(), 12 )
+	assert_equal( hmm.name, "Global Alignment" )
+	assert_equal( hmm.is_infinite(), False )

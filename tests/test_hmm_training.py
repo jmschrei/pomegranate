@@ -1,6 +1,7 @@
 from __future__ import  division
 
 from pomegranate import *
+from pomegranate.hmm import log_probability
 from nose.tools import with_setup
 from nose.tools import assert_equal
 from nose.tools import assert_almost_equal
@@ -88,6 +89,7 @@ def setup():
 	# Call bake to finalize the structure of the model.
 	model.bake()
 
+
 def teardown():
 	'''
 	Remove the model at the end of the unit testing. Since it is stored in a
@@ -95,6 +97,7 @@ def teardown():
 	'''
 
 	pass
+
 
 @with_setup( setup, teardown )
 def test_viterbi_train():
@@ -110,6 +113,7 @@ def test_viterbi_train():
 
 	assert_equal( round( total_improvement, 4 ), 83.2834 )
 
+
 @with_setup( setup, teardown )
 def test_viterbi_train_no_pseudocount():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -123,6 +127,7 @@ def test_viterbi_train_no_pseudocount():
 
 	assert_equal( round( total_improvement, 4 ), 84.9318 )
 
+
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -135,6 +140,7 @@ def test_viterbi_train_w_pseudocount():
 									 transition_pseudocount=1. )
 
 	assert_equal( round( total_improvement, 4 ), 79.4713 )
+
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount_priors():
@@ -150,6 +156,7 @@ def test_viterbi_train_w_pseudocount_priors():
 
 	assert_equal( round( total_improvement, 4 ), 81.7439 )
 
+
 @with_setup( setup, teardown )
 def test_viterbi_train_w_inertia():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -163,6 +170,7 @@ def test_viterbi_train_w_inertia():
 
 	assert_equal( round( total_improvement, 4 ), 80.6241 )
 
+
 @with_setup( setup, teardown )
 def test_viterbi_train_w_inertia2():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -175,6 +183,7 @@ def test_viterbi_train_w_inertia2():
 									 edge_inertia=0.82 )
 
 	assert_equal( round( total_improvement, 4 ), 48.0067 )
+
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount_inertia():
@@ -190,6 +199,7 @@ def test_viterbi_train_w_pseudocount_inertia():
 
 	assert_equal( round( total_improvement, 4 ), 77.0155 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -203,6 +213,26 @@ def test_bw_train():
 									 max_iterations=5 )
 
 	assert_equal( round( total_improvement, 4 ), 83.1132 )
+
+
+@with_setup( setup, teardown )
+def test_bw_train_json():
+	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+
+	total_improvement = model.train( seqs, 
+									 algorithm='baum-welch', 
+									 verbose=False, 
+									 use_pseudocount=True,
+									 max_iterations=5 )
+
+	assert_equal( round( total_improvement, 4 ), 83.1132 )
+	assert_almost_equal( log_probability( model, seqs ), -42.425389, 4 )
+
+	hmm = HiddenMarkovModel.from_json( model.to_json() )
+	assert_almost_equal( log_probability( model, seqs ), -42.425389, 4 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_no_pseudocount():
@@ -218,6 +248,7 @@ def test_bw_train_no_pseudocount():
  
 	assert_equal( round( total_improvement, 4 ), 85.681 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -231,6 +262,7 @@ def test_bw_train_w_pseudocount():
 									 max_iterations=5 )
 	
 	assert_equal( round( total_improvement, 4 ), 84.9408 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount_priors():
@@ -247,6 +279,7 @@ def test_bw_train_w_pseudocount_priors():
 	 
 	assert_equal( round( total_improvement, 4 ), 81.2265 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_inertia():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -261,6 +294,7 @@ def test_bw_train_w_inertia():
 	 
 	assert_equal( round( total_improvement, 4 ), 85.0528 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_inertia2():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -274,6 +308,7 @@ def test_bw_train_w_inertia2():
 									 max_iterations=5 )
   
 	assert_equal( round( total_improvement, 4 ), 72.5134 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount_inertia():
@@ -290,6 +325,7 @@ def test_bw_train_w_pseudocount_inertia():
  
 	assert_equal( round( total_improvement, 4 ), 83.0764 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_frozen_distributions():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -304,6 +340,7 @@ def test_bw_train_w_frozen_distributions():
   
 	assert_equal( round( total_improvement, 4 ), 64.474 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_frozen_edges():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -317,6 +354,7 @@ def test_bw_train_w_frozen_edges():
 									 max_iterations=5 )
 
 	assert_equal( round( total_improvement, 4 ), 44.0208 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_w_edge_a_distribution_inertia():
@@ -333,6 +371,7 @@ def test_bw_train_w_edge_a_distribution_inertia():
  
 	assert_equal( round( total_improvement, 4 ), 81.5447 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_parallel():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -347,6 +386,7 @@ def test_bw_train_parallel():
 									 n_jobs=2 )
 
 	assert_equal( round( total_improvement, 4 ), 83.1132 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_no_pseudocount_parallel():
@@ -363,6 +403,7 @@ def test_bw_train_no_pseudocount_parallel():
  
 	assert_equal( round( total_improvement, 4 ), 85.681 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount_parallel():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -377,6 +418,7 @@ def test_bw_train_w_pseudocount_parallel():
 									 n_jobs=2 )
 	
 	assert_equal( round( total_improvement, 4 ), 84.9408 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount_priors_parallel():
@@ -394,6 +436,7 @@ def test_bw_train_w_pseudocount_priors_parallel():
 	 
 	assert_equal( round( total_improvement, 4 ), 81.2265 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_inertia_parallel():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -409,6 +452,7 @@ def test_bw_train_w_inertia_parallel():
 	 
 	assert_equal( round( total_improvement, 4 ), 85.0528 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_inertia2_parallel():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -423,6 +467,7 @@ def test_bw_train_w_inertia2_parallel():
 									 n_jobs=2 )
   
 	assert_equal( round( total_improvement, 4 ), 72.5134 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_w_pseudocount_inertia_parallel():
@@ -440,6 +485,7 @@ def test_bw_train_w_pseudocount_inertia_parallel():
  
 	assert_equal( round( total_improvement, 4 ), 83.0764 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_frozen_distributions_parallel():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -455,6 +501,7 @@ def test_bw_train_w_frozen_distributions_parallel():
   
 	assert_equal( round( total_improvement, 4 ), 64.474 )
 
+
 @with_setup( setup, teardown )
 def test_bw_train_w_frozen_edges_parallel():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
@@ -469,6 +516,7 @@ def test_bw_train_w_frozen_edges_parallel():
 									 n_jobs=2 )
 
 	assert_equal( round( total_improvement, 4 ), 44.0208 )
+
 
 @with_setup( setup, teardown )
 def test_bw_train_w_edge_a_distribution_inertia():
