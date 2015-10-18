@@ -185,7 +185,7 @@ cdef class GeneralMixtureModel:
 		
 		model = { 
 					'class' : 'GeneralMixtureModel',
-					'distributions'  : map( str, self.distributions ),
+					'distributions'  : list( map( str, self.distributions ) ),
 					'weights' : self.weights.tolist()
 				}
 

@@ -2506,7 +2506,7 @@ cdef class HiddenMarkovModel( Model ):
 					'name'  : self.name,
 					'start' : str(self.start),
 					'end'   : str(self.end),
-					'states' : map( str, self.states ),
+					'states' : list( map( str, self.states ) ),
 					'end_index' : self.end_index,
 					'start_index' : self.start_index,
 					'silent_index' : self.silent_start
