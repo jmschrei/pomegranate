@@ -933,6 +933,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
 		cdef double* f
+		cdef double log_probability_sum
 		cdef int n = len(sequence), m = len(self.states)
 		cdef void** distributions = <void**> self.distributions.data
 		cdef int mv = self.multivariate
@@ -954,7 +955,14 @@ cdef class HiddenMarkovModel( Model ):
 		with nogil:
 			f = self._forward( sequence_data, distributions, n, NULL )
 
-		return f[n*m + self.end_index]
+		if self.finite == 1:
+			log_probability_sum = f[n*m + self.end_index]
+		else:
+			log_probability_sum = NEGINF
+			for i in range( self.silent_start ):
+				log_probability_sum = pair_lse( log_probability_sum, f[n*m + i] )
+
+		return log_probability_sum
 
 	cpdef numpy.ndarray forward( self, sequence ):
 		'''
