@@ -41,7 +41,7 @@ Let us know what you want to do just in case we're already working on an impleme
 
 The emission distributions used later on for the other models can be used independently. This is useful if you want to calculate the probability of some data given a distribution, or had to fit a distribution to some given data. pomegranate offers a simple solution, which is an extensible library of distributions and kernel densities natively built in.
 
-```
+```python
 from pomegranate import *
 
 a = NormalDistribution( 5, 2 )
@@ -57,14 +57,14 @@ This should return `-2.737`, `-inf`, and `-3.44` respectively.
 
 We can also update these distributions using Maximum Likelihood Estimates for the new values. Kernel densities will discard previous points and add in the new points, while MixtureDistributions will perform expectation-maximization to update the mixture of distributions.
 
-```
+```python
 c.from_sample([1, 5, 7, 3, 2, 4, 3, 5, 7, 8, 2, 4, 6, 7, 2, 4, 5, 1, 3, 2, 1])
 print c
 ```
 
 This should result in `MixtureDistribution( [NormalDistribution(3.916, 2.132), ExponentialDistribution(0.99955)], [0.9961, 0.00386] )`. All distributions can be trained either as a batch using `from_sample`, or using summary statistics using `summarize` on lists of numbers until all numbers have been fed in, and then `from_summaries` like in the following example which produces the same result:
 
-```
+```python
 c = MixtureDistribution( [ NormalDistribution( 2, 4 ), ExponentialDistribution( 8 ) ], weights=[1, 0.01] )
 c.summarize([1, 5, 7, 3, 2, 4, 3])
 c.summarize([5, 7, 8])
@@ -80,7 +80,7 @@ In addition, training can be done on weighted samples by passing an array of wei
 
 [Finite state machines](http://en.wikipedia.org/wiki/Finite-state_machine) are computational machines which can be in one of many states. The machine can be defined as a graphical model where the states are the states of the machine, and the edges define the transitions from each state to the other states in the machine. As the machine receives data, the state which it is in changes in a greedy fashion. Since the machine can be in only one state at a time and is memoryless, it is extremely useful. A classic example is a turnstile, which can take in nickels, dimes, and quarters, but only needs 25 cents to pass.
 
-```
+```python
 from pomegranate import *
 
 # Create the states in the same way as you would an HMM
@@ -118,7 +118,7 @@ model.bake()
 
 In the above example, the name of the states encodes information about the state, and the edges each hold keys as to what cas pass along them. There are no distributions on these states, as this is not a probabilistic model, but distributions can be added without breaking the code if they are useful information to have on each state. 
 
-```
+```python
 # Take a sequence of observations
 seq = [ 5, 25, 10 ]
 
@@ -144,7 +144,7 @@ Inserted 5: Moving from 20 to 25.
 
 As we add nickles, we progress through the machine. But if we restarted and tried to do something invalid, we get the following, without progressing in the state machine:
 
-```
+```python
 # Take a sequence of coins to add to the model
 seq = [ 5, 25, 10 ]
 
@@ -181,7 +181,7 @@ This defines a 'profile HMM' of length 3, in which you model the a profile and a
 
 Lets make our profile we model 'ACT'. 
 
-```
+```python
 from pomegranate import *
 model = HiddenMarkovModel( "Global Sequence Aligner" )
 
@@ -269,7 +269,7 @@ This seems to work well. A perfect match goes through the three match states, an
 
 The HMM can then be used as a backend to do the alignment by defining a function which takes in two sequences, and uses the HMM in the global name space to do the alignment (works for this example, but using global name spaces in general is a bad idea). Using the HMM as a backend allows us to shield users from needing to know how HMMs work at all but only that through the power of math their sequences have been aligned.
 
-```
+```python
 def pairwise_alignment( x, y ):
     """
     This function will take in two sequences,  and insert dashes appropriately to make them appear aligned. This consists only of adding a dash to the model sequence for every insert in the path appropriately, and a dash in the observed sequence for every delete in the path appropriately.
@@ -318,14 +318,14 @@ A-TCC
 
 Everything is exactly the same as in YAHMM, except the `Model` class is now `HiddenMarkovModel`. If you have code using YAHMM you would like to port over to pomegranate, the only difference is the start of your file should have
 
-```
+```python
 from pomegranate import *
 from pomegranate import HiddenMarkovModel as Model
 ```
 
 instead of
 
-```
+```python
 from yahmm import *
 ```
 
@@ -337,7 +337,7 @@ Lets test out the Bayesian Network framework on the [Monty Hall problem](http://
 
 We can reproduce this result using Bayesian networks with three nodes, one for the guest, one for the prize, and one for the door Monty chooses to open. The door the guest initially chooses and the door the prize is behind are completely random processes across the three doors, but the door which Monty opens is dependent on both the door the guest chooses (it cannot be the door the guest chooses), and the door the prize is behind (it cannot be the door with the prize behind it). 
 
-```
+```python
 import math
 from pomegranate import *
 
@@ -425,7 +425,7 @@ Since guest is clamped to 'A', it is forced to stay that way. Note that the priz
 
 In order to reproduce the final result, we need to see what happens when Monty opens a door. Lets clamp the Monty distribution to 'B' to indicate he has opened that door. Now both guest and monty are observed variables, and prize is the hidden variable.
 
-```
+```python
 observations = { 'guest' : 'A', 'monty' : 'B' }
 beliefs = map( str, network.forward_backward( observations ) )
 print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip( network.states, beliefs ) )
@@ -440,7 +440,7 @@ Both guest and monty have been clamped to values. However, we see that probabili
 
 This has predominately leveraged forward propogation of messages. If we want to see backward propogation of messages, lets see what happens if we tuned in late and only saw which door Monty opened. Monty is an observed variable, while both guest and prize are hidden variables.
 
-```
+```python
 observations = { 'monty' : 'B' }
 beliefs = map( str, network.forward_backward( observations ) )
 print "\n".join( "{}\t{}".format( state.name, belief ) for state, belief in zip( network.states, beliefs ) )
