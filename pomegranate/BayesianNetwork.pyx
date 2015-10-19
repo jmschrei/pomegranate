@@ -96,7 +96,7 @@ cdef class BayesianNetwork( Model ):
 	def predict_proba( self, data={}, max_iterations=100, check_input=True ):
 		"""sklearn wrapper for loopy belief propogation."""
 
-		self.forward_backward( data, max_iterations, check_input )
+		return self.forward_backward( data, max_iterations, check_input )
 
 	def forward_backward( self, data={}, max_iterations=100, check_input=True ):
 		"""
