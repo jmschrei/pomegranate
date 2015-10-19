@@ -93,6 +93,11 @@ cdef class BayesianNetwork( Model ):
 
 		return self.graph.marginal()
 
+	def predict_proba( self, data={}, max_iterations=100, check_input=True ):
+		"""sklearn wrapper for loopy belief propogation."""
+
+		self.forward_backward( data, max_iterations, check_input )
+
 	def forward_backward( self, data={}, max_iterations=100, check_input=True ):
 		"""
 		Run loopy belief propogation on the underlying factor graph until
@@ -109,9 +114,12 @@ cdef class BayesianNetwork( Model ):
 		return self.graph.forward_backward( data, max_iterations )
 
 	def from_sample( self, items, weights=None, inertia=0.0 ):
-		"""
-		Another name for the train method.
-		"""
+		"""Another name for the train method."""
+
+		self.train( items, weights, inertia )
+
+	def fit( self, items, weights=None, inertia=0.0 ):
+		"""sklearn wrapper for the train method."""
 
 		self.train( items, weights, inertia )
 
