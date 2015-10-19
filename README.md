@@ -400,7 +400,7 @@ In order to reproduce the final result, we need to take advantage of the forward
 
 Lets say that the guest chooses door 'A'. guest becomes an observed variable, while both prize and monty are hidden variables. 
 
-```
+```python
 observations = { 'guest' : 'A' }
 
 # beliefs will be an array of posterior distributions or clamped values for each state, indexed corresponding to the order
