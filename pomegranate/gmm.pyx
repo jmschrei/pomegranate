@@ -18,6 +18,13 @@ from .distributions cimport Distribution
 from .utils cimport _log
 from .utils cimport pair_lse
 
+ctypedef numpy.npy_intp SIZE_t
+
+from libc.stdlib cimport calloc
+from libc.stdlib cimport free
+from libc.string cimport memset
+from libc.math cimport exp as cexp
+
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -208,6 +215,37 @@ cdef class GeneralMixtureModel( Distribution ):
 			last_log_probability_sum = trained_log_probability_sum
 
 		return trained_log_probability_sum - initial_log_probability_sum
+
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		"""
+		Summarization function for one step of EM.
+		"""
+
+		cdef double* r = <double*> calloc( self.n * n, sizeof(double) )
+		cdef int i, j
+		cdef double total
+
+		for i in range( n ):
+			total = 0.0
+
+			for j in range( self.n ):
+				r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._log_probability( items[i] ) + self.weights_ptr[j]
+				r[j*n + i] = cexp( r[j*n + i] )
+				total += r[j*n + i]
+
+			for j in range( self.n ):
+				r[j*n + i] = weights[i] * r[j*n + i] / total
+
+		for j in range( self.n ):
+			( <Distribution> self.distributions_ptr[j] )._summarize( items, &r[j*n], n )
+
+	def from_summaries( self, inertia=0.0 ):
+		"""
+		Update all distributions from the summaries.
+		"""
+
+		for distribution in self.distributions:
+			distribution.from_summaries( inertia )
 
 	def to_json( self ):
 		"""
