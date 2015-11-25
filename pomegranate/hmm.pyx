@@ -1039,11 +1039,11 @@ cdef class HiddenMarkovModel( Model ):
 			for l in range( self.silent_start ):
 				for i in range( n ):
 					if self.multivariate:
-						e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
-							self.state_weights[l])
+						e[l*n + i] = (( <Distribution> distributions[l] )._mv_log_probability( sequence+i*dim ) + 
+							self.state_weights[l] ) 
 					else:
-						e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
-							self.state_weights[l])
+						e[l*n + i] = (( <Distribution> distributions[l] )._log_probability( sequence[i] ) + 
+							self.state_weights[l] )
 		else:
 			e = emissions
 

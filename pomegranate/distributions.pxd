@@ -13,6 +13,7 @@ cdef class Distribution:
 	cdef double _log_probability( self, double symbol ) nogil
 	cdef double _mv_log_probability( self, double* symbol ) nogil
 	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil
+	cdef public int d
 
 cdef class UniformDistribution( Distribution ):
 	cdef double start, end
@@ -66,7 +67,7 @@ cdef class MixtureDistribution( Distribution ):
 	cdef int n
 
 cdef class MultivariateDistribution( Distribution ):
-	cdef public SIZE_t d
+	pass
 
 cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	cdef numpy.ndarray distributions, weights
