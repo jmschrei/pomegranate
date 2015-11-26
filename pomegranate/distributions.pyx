@@ -1762,7 +1762,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for i in range(n):
 			for j in range(d):
-				pass
+				( <Distribution> self.distributions_ptr[j] )._summarize( items+i*d+j, weights+i*d+j, 1 )
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
