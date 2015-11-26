@@ -1681,7 +1681,9 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		Weights are scaled so that they sum to 1. 
 		"""
 
-		distributions = numpy.array( distributions, dtype=numpy.object_ )
+		self.distributions = numpy.array( distributions )
+		self.distributions_ptr = <void**> self.distributions.data
+
 		self.d = len(distributions)
 
 		if weights:
@@ -1689,8 +1691,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		else:
 			weights = numpy.ones( self.d, dtype=numpy.float64 )
 
-		self.distributions = distributions
-		self.weights = weights
+		self.weights = numpy.log( weights )
+		self.weights_ptr = <double*> self.weights.data
 		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
 
@@ -1707,6 +1709,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		with nogil:
 			logp = self._mv_log_probability( symbol_ptr )
+
 		return logp
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
@@ -1715,11 +1718,9 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		cdef int i, d = self.d
 		cdef double w, logp = 0.0
 
-		with gil:
-			for i in range(d):
-				w = self.weights[i]
-				distribution = self.distributions[i]
-				logp += distribution.log_probability( symbol[i] ) + _log(w)
+		for i in range(d):
+			logp += ( <Distribution> self.distributions_ptr[i] )._log_probability( symbol[i] )
+			logp += self.weights_ptr[i]
 
 		return logp
 
