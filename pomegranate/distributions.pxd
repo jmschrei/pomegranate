@@ -70,7 +70,9 @@ cdef class MultivariateDistribution( Distribution ):
 	pass
 
 cdef class IndependentComponentsDistribution( MultivariateDistribution ):
-	cdef numpy.ndarray distributions, weights
+	cdef public numpy.ndarray distributions, weights
+	cdef double* weights_ptr
+	cdef void** distributions_ptr
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	cdef public numpy.ndarray mu, cov, inv_cov_ndarray
