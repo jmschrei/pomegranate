@@ -84,6 +84,7 @@ cdef class Distribution:
 		self.name = "Distribution"
 		self.frozen = False
 		self.summaries = []
+		self.d = 1
 
 	def __str__( self ):
 		"""Represent this distribution in JSON."""

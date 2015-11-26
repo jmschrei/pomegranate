@@ -18,6 +18,7 @@ from .base cimport State
 from .distributions cimport Distribution
 from .distributions cimport MultivariateDistribution
 from .distributions cimport DiscreteDistribution
+from .gmm import GeneralMixtureModel
 from .utils cimport _log
 from .utils cimport pair_lse
 
@@ -783,6 +784,9 @@ cdef class HiddenMarkovModel( Model ):
 		if isinstance( dist, MultivariateDistribution ):
 			self.multivariate = 1
 			self.d = dist.d
+		if isinstance( dist, GeneralMixtureModel ) and dist.d > 1:
+			self.multivariate = 1
+			self.d = dist.d
 
 		self.distributions = numpy.empty(self.silent_start, dtype='object')
 		for i in range(self.silent_start):
@@ -1039,11 +1043,11 @@ cdef class HiddenMarkovModel( Model ):
 			for l in range( self.silent_start ):
 				for i in range( n ):
 					if self.multivariate:
-						e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
-							self.state_weights[l])
+						e[l*n + i] = (( <Distribution> distributions[l] )._mv_log_probability( sequence+i*dim ) + 
+							self.state_weights[l] ) 
 					else:
-						e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
-							self.state_weights[l])
+						e[l*n + i] = (( <Distribution> distributions[l] )._log_probability( sequence[i] ) + 
+							self.state_weights[l] )
 		else:
 			e = emissions
 

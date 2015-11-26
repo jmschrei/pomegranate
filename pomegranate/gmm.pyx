@@ -18,6 +18,13 @@ from .distributions cimport Distribution
 from .utils cimport _log
 from .utils cimport pair_lse
 
+ctypedef numpy.npy_intp SIZE_t
+
+from libc.stdlib cimport calloc
+from libc.stdlib cimport free
+from libc.string cimport memset
+from libc.math cimport exp as cexp
+
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -29,16 +36,18 @@ def log_probability( model, samples ):
 
 	return sum( map( model.log_probability, samples ) )
 
-cdef class GeneralMixtureModel:
+cdef class GeneralMixtureModel( Distribution ):
 	"""
 	A General Mixture Model. Can be a mixture of any distributions, as long
 	as they are all the same dimensionality, have a log_probability method,
 	and a from_sample method.
 	"""
 
-	cdef public list distributions
-	cdef list summaries
+	cdef public numpy.ndarray distributions
 	cdef public numpy.ndarray weights 
+	cdef void** distributions_ptr
+	cdef double* weights_ptr
+	cdef int n
 
 	def __init__( self, distributions, weights=None ):
 		"""
@@ -53,8 +62,21 @@ cdef class GeneralMixtureModel:
 			weights = numpy.asarray(weights) / weights.sum()
 
 		self.weights = numpy.log( weights )
-		self.distributions = distributions
+		self.weights_ptr = <double*> self.weights.data
+		self.distributions = numpy.array( distributions )
 		self.summaries = []
+		self.n = len(distributions)
+		self.d = distributions[0].d
+		self.distributions_ptr = <void**> self.distributions.data
+
+	def sample( self ):
+		"""
+		Sample a point under this mixture by first selecting a component of the
+		mixture based on their weights, and then sampling that component.
+		"""
+
+		d = numpy.random.choice( self.distributions, p=numpy.exp(self.weights) )
+		return d.sample()
 
 	cpdef double log_probability( self, point ):
 		"""
@@ -62,7 +84,7 @@ cdef class GeneralMixtureModel:
 		of a point is the sum of the probabilities of each distribution.
 		"""
 
-		cdef int n = len( self.distributions )
+		cdef int i, n = len( self.distributions )
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 		cdef Distribution d
@@ -70,10 +92,42 @@ cdef class GeneralMixtureModel:
 		for i in xrange( n ):
 			d = self.distributions[i]
 			log_probability = d.log_probability( point ) + self.weights[i]
-			log_probability_sum = pair_lse( log_probability_sum,
-											log_probability )
+			log_probability_sum = pair_lse( log_probability_sum,log_probability )
 
 		return log_probability_sum
+
+	cdef double _log_probability( self, double symbol ) nogil:
+		"""
+		Calculate the probability of a point in one dimension under the model,
+		assuming a one dimensional model.
+		"""
+
+		cdef int i
+		cdef double log_probability_sum = NEGINF
+		cdef double log_probability
+
+		for i in range( self.n ):
+			log_probability = ( <Distribution> self.distributions_ptr[i] )._log_probability( symbol ) + self.weights_ptr[i]
+			log_probability_sum = pair_lse( log_probability_sum, log_probability )
+
+		return log_probability_sum
+
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
+		"""
+		Calculate the probability of a point in multiple dimensions under the model,
+		assuming multiple dimensions.
+		"""
+
+		cdef int i
+		cdef double log_probability_sum = NEGINF
+		cdef double log_probability
+
+		for i in range( self.n ):
+			log_probability = ( <Distribution> self.distributions_ptr[i] )._mv_log_probability( symbol ) + self.weights_ptr[i]
+			log_probability_sum = pair_lse( log_probability_sum, log_probability )
+
+		return log_probability_sum
+
 
 	def predict_proba( self, items ):
 		"""sklearn wrapper for the probability of each component for each point."""
@@ -170,6 +224,41 @@ cdef class GeneralMixtureModel:
 			last_log_probability_sum = trained_log_probability_sum
 
 		return trained_log_probability_sum - initial_log_probability_sum
+
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		"""
+		Summarization function for one step of EM.
+		"""
+
+		cdef double* r = <double*> calloc( self.n * n, sizeof(double) )
+		cdef int i, j
+		cdef double total
+
+		for i in range( n ):
+			total = 0.0
+
+			for j in range( self.n ):
+				if self.d == 1:
+					r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._log_probability( items[i] )
+				else:
+					r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._mv_log_probability( items+i*self.d )
+
+				r[j*n + i] = cexp( r[j*n + i] + self.weights_ptr[j] )
+				total += r[j*n + i]
+
+			for j in range( self.n ):
+				r[j*n + i] = weights[i] * r[j*n + i] / total
+
+		for j in range( self.n ):
+			( <Distribution> self.distributions_ptr[j] )._summarize( items, &r[j*n], n )
+
+	def from_summaries( self, inertia=0.0 ):
+		"""
+		Update all distributions from the summaries.
+		"""
+
+		for distribution in self.distributions:
+			distribution.from_summaries( inertia )
 
 	def to_json( self ):
 		"""
