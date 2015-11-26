@@ -69,6 +69,15 @@ cdef class GeneralMixtureModel( Distribution ):
 		self.d = distributions[0].d
 		self.distributions_ptr = <void**> self.distributions.data
 
+	def sample( self ):
+		"""
+		Sample a point under this mixture by first selecting a component of the
+		mixture based on their weights, and then sampling that component.
+		"""
+
+		d = numpy.random.choice( self.distributions, p=numpy.exp(self.weights) )
+		return d.sample()
+
 	cpdef double log_probability( self, point ):
 		"""
 		Calculate the probability of a point given the model. The probability
@@ -229,8 +238,12 @@ cdef class GeneralMixtureModel( Distribution ):
 			total = 0.0
 
 			for j in range( self.n ):
-				r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._log_probability( items[i] ) + self.weights_ptr[j]
-				r[j*n + i] = cexp( r[j*n + i] )
+				if self.d == 1:
+					r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._log_probability( items[i] )
+				else:
+					r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._mv_log_probability( items+i*self.d )
+
+				r[j*n + i] = cexp( r[j*n + i] + self.weights_ptr[j] )
 				total += r[j*n + i]
 
 			for j in range( self.n ):

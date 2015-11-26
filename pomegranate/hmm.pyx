@@ -18,6 +18,7 @@ from .base cimport State
 from .distributions cimport Distribution
 from .distributions cimport MultivariateDistribution
 from .distributions cimport DiscreteDistribution
+from .gmm import GeneralMixtureModel
 from .utils cimport _log
 from .utils cimport pair_lse
 
@@ -781,6 +782,9 @@ cdef class HiddenMarkovModel( Model ):
 					state.distribution.encode( keys )
 
 		if isinstance( dist, MultivariateDistribution ):
+			self.multivariate = 1
+			self.d = dist.d
+		if isinstance( dist, GeneralMixtureModel ) and dist.d > 1:
 			self.multivariate = 1
 			self.d = dist.d
 
