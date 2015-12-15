@@ -168,7 +168,7 @@ def test_viterbi_train_w_inertia():
 									 verbose=False, 
 									 edge_inertia=0.193 )
 
-	assert_equal( round( total_improvement, 4 ), 80.6241 )
+	assert_equal( round( total_improvement, 4 ), 84.9318 )
 
 
 @with_setup( setup, teardown )
@@ -182,7 +182,7 @@ def test_viterbi_train_w_inertia2():
 									 verbose=False, 
 									 edge_inertia=0.82 )
 
-	assert_equal( round( total_improvement, 4 ), 48.0067 )
+	assert_equal( round( total_improvement, 4 ), 84.9318 )
 
 
 @with_setup( setup, teardown )
@@ -197,7 +197,7 @@ def test_viterbi_train_w_pseudocount_inertia():
 									 edge_inertia=0.23,
 									 use_pseudocount=True ) 
 
-	assert_equal( round( total_improvement, 4 ), 77.0155 )
+	assert_equal( round( total_improvement, 4 ), 83.2834 )
 
 
 @with_setup( setup, teardown )
