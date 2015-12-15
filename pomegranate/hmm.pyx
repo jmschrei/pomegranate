@@ -1968,7 +1968,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		if algorithm.lower() == 'viterbi':
 			improvement = self._train_loop( sequences, 'viterbi', stop_threshold,
-				min_iterations, 1, verbose, 
+				min_iterations, max_iterations, verbose, 
 				transition_pseudocount, use_pseudocount, edge_inertia,
 				distribution_inertia, n_jobs )
 
@@ -2002,6 +2002,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef double initial_log_probability_sum
 		cdef double trained_log_probability_sum
 		cdef double last_log_probability_sum
+		cdef bint check_input = algorithm.lower() == 'viterbi'
 
 		if algorithm.lower() == 'viterbi':
 			sequences = map( numpy.array, sequences )
@@ -2013,8 +2014,6 @@ cdef class HiddenMarkovModel( Model ):
 					sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
 						                                   sequences[i] ) ), 
 					                            dtype=numpy.float64 )
-
-		check_input = algorithm.lower() == 'viterbi'
 
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
 			initial_log_probability_sum = log_probability( self, sequences, n_jobs, parallel, check_input=check_input )
