@@ -1967,11 +1967,13 @@ cdef class HiddenMarkovModel( Model ):
 				use_pseudocount, edge_inertia, distribution_inertia )
 
 		if algorithm.lower() == 'viterbi':
-			improvement = self._train_viterbi( sequences, transition_pseudocount,
-				use_pseudocount, edge_inertia, distribution_inertia )
+			improvement = self._train_loop( sequences, 'viterbi', stop_threshold,
+				min_iterations, max_iterations, verbose, 
+				transition_pseudocount, use_pseudocount, edge_inertia,
+				distribution_inertia, n_jobs )
 
 		elif algorithm.lower() == 'baum-welch':
-			improvement = self._train_baum_welch( sequences, stop_threshold,
+			improvement = self._train_loop( sequences, 'baum-welch', stop_threshold,
 				min_iterations, max_iterations, verbose, 
 				transition_pseudocount, use_pseudocount, edge_inertia,
 				distribution_inertia, n_jobs )
@@ -1980,10 +1982,71 @@ cdef class HiddenMarkovModel( Model ):
 			print( "Total Training Improvement: {}".format( improvement ) )
 		return improvement
 
-	cdef double _train_baum_welch(self, list sequences, double stop_threshold, 
-		int min_iterations, int max_iterations, bint verbose, 
+	cdef double _train_loop( self, list sequences, str algorithm, double stop_threshold,
+		int min_iterations, int max_iterations, bint verbose, double transition_pseudocount,
+		bint use_pseudocount, double edge_inertia, double distribution_inertia, int n_jobs ):
+		"""Wrapper for the training loop of unsupervised learning.
+
+		This is used for both Viterbi and Baum-Welch training, where Viterbi produces
+		hard assignments of edge transitions and state probabilities, and Baum-Welch
+		uses soft assignments. This is the outer loop which runs until convergence,
+		calling for one iteration of either training algorithm.
+
+		Convergence is defined by running for at least min_iterations and not
+		increasing until the log likelihood of the dataset changes by less than
+		stop_threshold.
+		"""
+
+		cdef int iteration = 0
+		cdef double improvement = INF
+		cdef double initial_log_probability_sum
+		cdef double trained_log_probability_sum
+		cdef double last_log_probability_sum
+		cdef bint check_input = algorithm.lower() == 'viterbi'
+
+		if algorithm.lower() == 'viterbi':
+			sequences = list( map( numpy.array, sequences ) )
+		else:
+			for i in range( len(sequences) ):
+				try:
+					sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
+				except: 
+					sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
+						                                   sequences[i] ) ), 
+					                            dtype=numpy.float64 )
+
+		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
+			initial_log_probability_sum = log_probability( self, sequences, n_jobs, parallel, check_input=check_input )
+			trained_log_probability_sum = initial_log_probability_sum
+
+			while improvement > stop_threshold or iteration < min_iterations:
+				if iteration >= max_iterations:
+					break 
+
+				iteration +=1
+				last_log_probability_sum = trained_log_probability_sum
+
+				if algorithm.lower() == 'baum-welch':
+					self._train_baum_welch_once( sequences, transition_pseudocount,
+						                         use_pseudocount, edge_inertia,
+						                         distribution_inertia, n_jobs, parallel )
+				elif algorithm.lower() == 'viterbi':
+					self._train_viterbi_once( sequences, transition_pseudocount,
+						                      use_pseudocount, edge_inertia,
+						                      distribution_inertia, n_jobs, parallel )
+
+				trained_log_probability_sum = log_probability( self, sequences, n_jobs, parallel, check_input=check_input )
+				improvement = trained_log_probability_sum - last_log_probability_sum
+				
+				if verbose:
+					print( "Training improvement: {}".format(improvement) )
+
+		return trained_log_probability_sum - initial_log_probability_sum
+
+
+	cdef void _train_baum_welch_once(self, list sequences, 
 		double transition_pseudocount, bint use_pseudocount, double edge_inertia, 
-		double distribution_inertia, int n_jobs ):
+		double distribution_inertia, int n_jobs, object parallel ):
 		"""
 		Given a list of sequences, perform Baum-Welch iterative re-estimation on
 		the model parameters.
@@ -1995,53 +2058,15 @@ cdef class HiddenMarkovModel( Model ):
 		Always trains for at least min_iterations.
 		"""
 
-		cdef int iteration = 0
-		cdef double improvement = INF
-		cdef double initial_log_probability_sum
-		cdef double trained_log_probability_sum
-		cdef double last_log_probability_sum
-
-		cdef int i
-		cdef int m = len(self.states)
 		cdef double* expected_transitions = self.expected_transitions
+		memset( expected_transitions, 0, self.n_edges*sizeof(double) )
+		
+		parallel( delayed( self._baum_welch_summarize, check_pickle=False )(
+			sequence, self.distributions ) for sequence in sequences )
 
-		cdef numpy.ndarray distributions_ndarray = numpy.empty( self.silent_start, dtype='object' )
-		for i in range(self.silent_start):
-			distributions_ndarray[i] = self.states[i].distribution
+		self._baum_welch_update( transition_pseudocount, use_pseudocount, 
+			edge_inertia, distribution_inertia )
 
-		for i in range( len(sequences) ):
-			try:
-				sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
-			except: 
-				sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
-					                                   sequences[i] ) ), 
-				                            dtype=numpy.float64 )
-
-		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
-			initial_log_probability_sum = log_probability( self, sequences, n_jobs, parallel, check_input=False )
-			trained_log_probability_sum = initial_log_probability_sum
-
-			while improvement > stop_threshold or iteration < min_iterations:
-				if iteration >= max_iterations:
-					break
-				iteration += 1
-				last_log_probability_sum = trained_log_probability_sum
-
-				memset( expected_transitions, 0, self.n_edges*sizeof(double) )
-				
-				parallel( delayed( self._baum_welch_summarize, check_pickle=False )(
-					sequence, distributions_ndarray ) for sequence in sequences )
-
-				self._baum_welch_update( transition_pseudocount, use_pseudocount, 
-					edge_inertia, distribution_inertia )
-
-				trained_log_probability_sum = log_probability( self, sequences, n_jobs, parallel, check_input=False )
-				improvement = trained_log_probability_sum - last_log_probability_sum
-				
-				if verbose:
-					print( "Training improvement: {}".format(improvement) )
-
-		return trained_log_probability_sum - initial_log_probability_sum
 
 	cpdef _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
 		numpy.ndarray distributions_ndarray ):
@@ -2329,9 +2354,10 @@ cdef class HiddenMarkovModel( Model ):
 		free(norm)
 		free(visited)
 
-	cdef double _train_viterbi( self, list sequences, 
+	cdef void _train_viterbi_once( self, list sequences, 
 		double transition_pseudocount, int use_pseudocount, 
-		double edge_inertia, double distribution_inertia ):
+		double edge_inertia, double distribution_inertia, int n_jobs,
+		object parallel ):
 		"""
 		Performs a simple viterbi training algorithm. Each sequence is tagged
 		using the viterbi algorithm, and both emissions and transitions are
@@ -2339,24 +2365,25 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 
 		cdef numpy.ndarray sequence
+		cdef numpy.ndarray path
 		cdef list labels = []
 
-		for i in range( len(sequences) ):
-			sequence = numpy.array( sequences[i] )
-
+		for sequence in sequences:
 			# Run the viterbi decoding on each observed sequence
 			log_sequence_probability, sequence_path = self.viterbi( sequence )
+			path = numpy.empty( len(sequence_path), dtype=object )
+
 			if log_sequence_probability == NEGINF:
 				print( "Warning: skipped impossible sequence {}".format(sequence) )
 				continue
 
 			# Strip off the ID
-			for i in xrange( len( sequence_path ) ):
-				sequence_path[i] = sequence_path[i][1]
+			for i, (index, state) in enumerate( sequence_path ):
+				path[i] = state
 
-			labels.append( sequence_path )
+			labels.append( path )
 
-		return self._train_labelled( sequences, labels, transition_pseudocount, use_pseudocount, 
+		self._train_labelled( sequences, labels, transition_pseudocount, use_pseudocount, 
 			edge_inertia, distribution_inertia )
 
 	cdef double _train_labelled( self, list sequences, list sequence_labels,
@@ -2370,7 +2397,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		cdef int i, j, m=len(self.states), n, a, b, k, l, li
 		cdef numpy.ndarray sequence 
-		cdef list labels
+		cdef numpy.ndarray labels
 		cdef State label
 		cdef list symbols = [ [] for i in xrange(m) ]
 		cdef int* tied_states = self.tied_state_count
@@ -2388,10 +2415,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef dict indices = { self.states[i]: i for i in xrange( m ) }
 
 		# Keep track of the log score across all sequences
-		for i in range( len(sequences) ):
-			sequence = numpy.array( sequences[i] )
-			labels = sequence_labels[i]
-
+		for sequence, labels in izip( sequences, sequence_labels ):
 			n = sequence.shape[0]
 
 			# Keep track of the number of transitions from one state to another
