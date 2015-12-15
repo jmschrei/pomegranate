@@ -2005,7 +2005,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef bint check_input = algorithm.lower() == 'viterbi'
 
 		if algorithm.lower() == 'viterbi':
-			sequences = map( numpy.array, sequences )
+			sequences = list( map( numpy.array, sequences ) )
 		else:
 			for i in range( len(sequences) ):
 				try:
