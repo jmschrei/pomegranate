@@ -10,7 +10,7 @@ DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 
 # Useful speed optimized functions
-cdef inline double _log ( double x ) nogil:
+cdef double _log ( double x ) nogil:
 	'''
 	A wrapper for the c log function, by returning negative infinity if the
 	input is 0.
@@ -18,7 +18,7 @@ cdef inline double _log ( double x ) nogil:
 
 	return clog( x ) if x > 0 else NEGINF
 
-cdef inline double pair_lse( double x, double y ) nogil:
+cdef double pair_lse( double x, double y ) nogil:
 	'''
 	Perform log-sum-exp on a pair of numbers in log space..  This is calculated
 	as z = log( e**x + e**y ). However, this causes underflow sometimes
