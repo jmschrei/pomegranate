@@ -42,5 +42,6 @@ from .fsm import *
 from .distributions import *
 from .base import *
 from .gmm import *
+from .NaiveBayes import *
 
 __version__ = '0.0.2'
