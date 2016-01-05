@@ -233,6 +233,14 @@ cdef class Distribution:
 			                                     d['frozen']) )
 			return dist
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls()
+		d.fit(items, weights)
+		return d
+
 
 cdef class UniformDistribution( Distribution ):
 	"""A uniform distribution between two values."""
@@ -243,7 +251,7 @@ cdef class UniformDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.start, self.end = parameters
 
-	def __cinit__( UniformDistribution self, double start, double end, bint frozen=False ):
+	def __cinit__( UniformDistribution self, double start=0, double end=1, bint frozen=False ):
 		"""
 		Make a new Uniform distribution over floats between start and end, 
 		inclusive. Start and end must not be equal.
@@ -272,7 +280,7 @@ cdef class UniformDistribution( Distribution ):
 		"""Sample from this uniform distribution and return the value sampled."""
 		return random.uniform(self.start, self.end)
 		
-	def from_sample (self, items, weights=None, inertia=0.0 ):
+	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -346,7 +354,7 @@ cdef class NormalDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.mu, self.sigma = parameters
 
-	def __cinit__( self, double mean, double std, bint frozen=False ):
+	def __cinit__( self, double mean=0, double std=1, bint frozen=False ):
 		"""
 		Make a new Normal distribution with the given mean mean and standard 
 		deviation std.
@@ -370,7 +378,7 @@ cdef class NormalDistribution( Distribution ):
 		"""Sample from this normal distribution and return the value sampled."""
 		return random.normalvariate( self.mu, self.sigma )
 		
-	def from_sample (self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -453,7 +461,7 @@ cdef class LogNormalDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.mu, self.sigma = parameters
 
-	def __cinit__( self, double mu, double sigma, frozen=False ):
+	def __cinit__( self, double mu=0, double sigma=1, frozen=False ):
 		"""
 		Make a new lognormal distribution. The parameters are the mu and sigma
 		of the normal distribution, which is the the exponential of the log
@@ -478,7 +486,7 @@ cdef class LogNormalDistribution( Distribution ):
 		"""Return a sample from this distribution."""
 		return numpy.random.lognormal( self.mu, self.sigma )
 
-	def from_sample (self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -561,7 +569,7 @@ cdef class ExponentialDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.rate = parameters[0]
 
-	def __cinit__( self, double rate, bint frozen=False ):
+	def __cinit__( self, double rate=1, bint frozen=False ):
 		"""
 		Make a new inverse gamma distribution. The parameter is called "rate" 
 		because lambda is taken.
@@ -580,7 +588,7 @@ cdef class ExponentialDistribution( Distribution ):
 		"""Sample from this exponential distribution."""
 		return random.expovariate(*self.parameters)
 		
-	def from_sample (self, items, weights=None, inertia=0.0 ):
+	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -650,7 +658,7 @@ cdef class BetaDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.alpha, self.beta = parameters
 
-	def __init__( self, alpha, beta, frozen=False ):
+	def __init__( self, alpha=1, beta=1, frozen=False ):
 		"""
 		Make a new beta distribution. Both alpha and beta are both shape
 		parameters.
@@ -675,7 +683,7 @@ cdef class BetaDistribution( Distribution ):
 		"""Return a random sample from the beta distribution."""
 		return random.betavariate( self.alpha, self.beta )
 
-	def from_sample (self, items, weights=None, inertia=0.0 ):
+	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -748,7 +756,7 @@ cdef class GammaDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.alpha, self.beta = parameters
 
-	def __cinit__( self, double alpha, double beta, bint frozen=False ):
+	def __cinit__( self, double alpha=1, double beta=1, bint frozen=False ):
 		"""
 		Make a new gamma distribution. Alpha is the shape parameter and beta is 
 		the rate parameter.
@@ -1026,7 +1034,7 @@ cdef class DiscreteDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.dist = parameters[0]
 			
-	def __cinit__( self, dict characters, bint frozen=False ):
+	def __cinit__( self, dict characters={}, bint frozen=False ):
 		"""
 		Make a new discrete distribution with a dictionary of discrete
 		characters and their probabilities, checking to see that these
@@ -1156,7 +1164,7 @@ cdef class DiscreteDistribution( Distribution ):
 				return key
 			rand -= value
 	
-	def from_sample (self, items, weights=None, inertia=0.0 ):
+	def from_sample( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -1238,7 +1246,7 @@ cdef class LambdaDistribution(Distribution):
 	untransformed probability.
 	"""
 	
-	def __init__(self, lambda_funct, frozen=True ):
+	def __init__(self, lambda_funct=None, frozen=True ):
 		"""
 		Takes in a lambda function and stores it. This function should return
 		the log probability of seeing a certain input.
@@ -1271,7 +1279,7 @@ cdef class KernelDensity( Distribution ):
 			self.weights_ndarray = numpy.array( parameters[2] )
 			self.weights = <double*> self.weights_ndarray.data
 
-	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
+	def __cinit__( self, points=[], bandwidth=1, weights=None, frozen=False ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
@@ -1336,7 +1344,7 @@ cdef class GaussianKernelDensity( KernelDensity ):
 	the sum of the Gaussian distance of the new point from every other point.
 	"""
 
-	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
+	def __cinit__( self, points=[], bandwidth=1, weights=None, frozen=False ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
@@ -1378,7 +1386,7 @@ cdef class UniformKernelDensity( KernelDensity ):
 	the sum of the Gaussian distances of the new point from every other point.
 	"""
 
-	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
+	def __cinit__( self, points=[], bandwidth=1, weights=None, frozen=False ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
@@ -1428,7 +1436,7 @@ cdef class TriangleKernelDensity( KernelDensity ):
 	the sum of the Gaussian distances of the new point from every other point.
 	"""
 
-	def __cinit__( self, points, bandwidth=1, weights=None, frozen=False ):
+	def __cinit__( self, points=[], bandwidth=1, weights=None, frozen=False ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
@@ -1484,7 +1492,7 @@ cdef class MixtureDistribution( Distribution ):
 			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
 			self.weights = numpy.array( parameters[1] )
 
-	def __cinit__( self, distributions, weights=None, frozen=False ):
+	def __cinit__( self, distributions=[], weights=None, frozen=False ):
 		"""
 		Take in the distributions and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
@@ -1674,7 +1682,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
 			self.weights = numpy.array( parameters[1] )
 
-	def __cinit__( self, distributions, weights=None, frozen=False ):
+	def __cinit__( self, distributions=[], weights=None, frozen=False ):
 		"""
 		Take in the distributions and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
@@ -1798,7 +1806,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 			self.mu = numpy.array( parameters[0] )
 			self.cov = numpy.array( parameters[1] )
 
-	def __cinit__( self, means, covariance, frozen=False ):
+	def __cinit__( self, means=[], covariance=[], frozen=False ):
 		"""
 		Take in the mean vector and the covariance matrix. 
 		"""
@@ -1874,7 +1882,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		return numpy.random.multivariate_normal( self.parameters[0], 
 			self.parameters[1] )
 
-	def from_sample (self, items, weights=None, inertia=0 ):
+	def from_sample( self, items, weights=None, inertia=0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -1985,7 +1993,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	encode for.
 	"""
 
-	def __init__( self, table, parents, keys=None, frozen=False ):
+	def __init__( self, table=None, parents=None, keys=None, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2159,7 +2167,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 	by the marginals of each parent.
 	"""
 
-	def __init__( self, table, neighbors, keys=None, frozen=False ):
+	def __init__( self, table=None, neighbors=None, keys=None, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
