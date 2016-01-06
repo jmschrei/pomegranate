@@ -233,14 +233,6 @@ cdef class Distribution:
 			                                     d['frozen']) )
 			return dist
 
-	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls()
-		d.fit(items, weights)
-		return d
-
 
 cdef class UniformDistribution( Distribution ):
 	"""A uniform distribution between two values."""
@@ -251,7 +243,7 @@ cdef class UniformDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.start, self.end = parameters
 
-	def __cinit__( UniformDistribution self, double start=0, double end=1, bint frozen=False ):
+	def __cinit__( UniformDistribution self, double start, double end, bint frozen=False ):
 		"""
 		Make a new Uniform distribution over floats between start and end, 
 		inclusive. Start and end must not be equal.
@@ -342,6 +334,13 @@ cdef class UniformDistribution( Distribution ):
 
 		self.summaries = [INF, NEGINF]
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls(0, 1)
+		d.fit(items, weights)
+		return d
 
 cdef class NormalDistribution( Distribution ):
 	"""
@@ -354,7 +353,7 @@ cdef class NormalDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.mu, self.sigma = parameters
 
-	def __cinit__( self, double mean=0, double std=1, bint frozen=False ):
+	def __cinit__( self, double mean, double std, bint frozen=False ):
 		"""
 		Make a new Normal distribution with the given mean mean and standard 
 		deviation std.
@@ -450,6 +449,14 @@ cdef class NormalDistribution( Distribution ):
 		self.log_sigma_sqrt_2_pi = -_log(sigma * SQRT_2_PI)
 		self.two_sigma_squared = 2 * sigma ** 2
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls(0, 1)
+		d.fit(items, weights)
+		return d
+
 cdef class LogNormalDistribution( Distribution ):
 	"""
 	Represents a lognormal distribution over non-negative floats.
@@ -461,7 +468,7 @@ cdef class LogNormalDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.mu, self.sigma = parameters
 
-	def __cinit__( self, double mu=0, double sigma=1, frozen=False ):
+	def __cinit__( self, double mu, double sigma, frozen=False ):
 		"""
 		Make a new lognormal distribution. The parameters are the mu and sigma
 		of the normal distribution, which is the the exponential of the log
@@ -558,6 +565,14 @@ cdef class LogNormalDistribution( Distribution ):
 		self.sigma = self.sigma*inertia + sigma*(1-inertia)
 		self.summaries = [0, 0, 0]
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls(0, 1)
+		d.fit(items, weights)
+		return d
+
 cdef class ExponentialDistribution( Distribution ):
 	"""
 	Represents an exponential distribution on non-negative floats.
@@ -569,7 +584,7 @@ cdef class ExponentialDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.rate = parameters[0]
 
-	def __cinit__( self, double rate=1, bint frozen=False ):
+	def __cinit__( self, double rate, bint frozen=False ):
 		"""
 		Make a new inverse gamma distribution. The parameter is called "rate" 
 		because lambda is taken.
@@ -617,7 +632,7 @@ cdef class ExponentialDistribution( Distribution ):
 			self._summarize( items_p, weights_p, n )
 
 	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-		"""Cython function to get the MLE estimate for a Gaussian."""
+		"""Cython function to get the MLE estimate for an exponential."""
 		
 		cdef double xw_sum = 0, w = 0
 		cdef SIZE_t i
@@ -644,6 +659,14 @@ cdef class ExponentialDistribution( Distribution ):
 
 		self.rate = self.summaries[0] / self.summaries[1]
 		self.summaries = [0, 0]
+
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls(1)
+		d.fit(items, weights)
+		return d
 
 
 cdef class BetaDistribution( Distribution ):
@@ -741,6 +764,15 @@ cdef class BetaDistribution( Distribution ):
 
 		self.summaries = []
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls(1, 1)
+		d.fit(items, weights)
+		return d
+
+
 cdef class GammaDistribution( Distribution ):
 	"""
 	This distribution represents a gamma distribution, parameterized in the 
@@ -756,7 +788,7 @@ cdef class GammaDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.alpha, self.beta = parameters
 
-	def __cinit__( self, double alpha=1, double beta=1, bint frozen=False ):
+	def __cinit__( self, double alpha, double beta, bint frozen=False ):
 		"""
 		Make a new gamma distribution. Alpha is the shape parameter and beta is 
 		the rate parameter.
@@ -1022,6 +1054,15 @@ cdef class GammaDistribution( Distribution ):
 		self.beta =	prior_rate*inertia + rate*(1-inertia)
 		self.summaries = []  	
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls(1)
+		d.fit(items, weights)
+		return d
+
+
 cdef class DiscreteDistribution( Distribution ):
 	"""
 	A discrete distribution, made up of characters and their probabilities,
@@ -1034,7 +1075,7 @@ cdef class DiscreteDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.dist = parameters[0]
 			
-	def __cinit__( self, dict characters={}, bint frozen=False ):
+	def __cinit__( self, dict characters, bint frozen=False ):
 		"""
 		Make a new discrete distribution with a dictionary of discrete
 		characters and their probabilities, checking to see that these
@@ -1231,6 +1272,23 @@ cdef class DiscreteDistribution( Distribution ):
 
 			self.encode( self.encoded_keys )
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		if weights is None:
+			weights = numpy.ones( len(items) )
+
+		characters = {}
+		for character, weight in it.izip(items, weights):
+			if character in characters:
+				characters[character] += weight
+			else:
+				characters[character] = weight
+
+		d = cls(characters)
+		return d
+
 
 cdef class LambdaDistribution(Distribution):
 	"""
@@ -1337,6 +1395,15 @@ cdef class KernelDensity( Distribution ):
 		self.points = <double*> self.points_ndarray.data
 		self.weights = <double*> self.weights_ndarray.data
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls([])
+		d.fit(items, weights)
+		return d
+
+
 cdef class GaussianKernelDensity( KernelDensity ):
 	"""
 	A quick way of storing points to represent a Gaussian kernel density in one
@@ -1429,6 +1496,15 @@ cdef class UniformKernelDensity( KernelDensity ):
 		bandwidth = self.parameters[1]
 		return random.uniform( mu-bandwidth, mu+bandwidth )
 
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls([])
+		d.fit(items, weights)
+		return d
+
+
 cdef class TriangleKernelDensity( KernelDensity ):
 	"""
 	A quick way of storing points to represent an Exponential kernel density in
@@ -1477,6 +1553,15 @@ cdef class TriangleKernelDensity( KernelDensity ):
 		mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
 		bandwidth = self.parameters[1]
 		return random.triangular( mu-bandwidth, mu+bandwidth, mu )
+
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls([])
+		d.fit(items, weights)
+		return d
+
 
 cdef class MixtureDistribution( Distribution ):
 	"""
@@ -1985,6 +2070,16 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.inv_cov_ndarray = numpy.linalg.inv( self.cov ).astype( numpy.float64 )
 		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
 		self._log_det = _log( numpy.linalg.det( self.cov ) )
+
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		n = len(items[0])
+		d = cls( numpy.ones(n), numpy.eye(n) )
+		d.fit(items, weights)
+		return d
+
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	"""
