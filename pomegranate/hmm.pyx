@@ -2223,6 +2223,8 @@ cdef class HiddenMarkovModel( Model ):
 							li = self.tied[l]
 							weights[i] += cexp( f[(i+1)*m + li] + b[(i+1)*m + li] -
 								log_sequence_probability )
+							with gil:
+								weights[i]
 
 					(<Distribution>distributions[k])._summarize( sequence, weights, n )
 
@@ -2348,8 +2350,10 @@ cdef class HiddenMarkovModel( Model ):
 				# states by only training that distribution one time, since many
 				# states are pointing to the same distribution object.
 				with gil:
+					print("enter")
 					self.states[k].distribution.from_summaries( 
 						inertia=distribution_inertia )
+					print("exit")
 
 		free(norm)
 		free(visited)
