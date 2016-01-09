@@ -1,2 +1,6 @@
+cython==0.22.1
+numpy==1.9.3
+joblib==0.9.0b4
+networkx==1.8.1
 nose
 wheel
