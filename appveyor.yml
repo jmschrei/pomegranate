@@ -1,65 +1,45 @@
 # Adapted from Olivier Grisel: 
 # https://github.com/ogrisel/python-appveyor-demo/blob/master/appveyor.yml
 
+matrix:
+  fast_finish: true
+
 environment:
   global:
-    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
-    # /E:ON and /V:ON options are not enabled in the batch script intepreter
-    # See: http://stackoverflow.com/a/13751649/163740
-    CMD_IN_ENV: "cmd /E:ON /V:ON /K .\\appveyor\\run_with_env.cmd"
+    CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
 
   matrix:
-    - PYTHON: "C:\\Python27.10"
-      PYTHON_VERSION: "2.7.10"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python27.10-x64"
-      PYTHON_VERSION: "2.7.10"
+    - PYTHON: "C:\\Python34_64"
+      PYTHON_VERSION: "3.4"
       PYTHON_ARCH: "64"
+      CONDA_PY: "34"
+      CONDA_NPY: "110"
 
-    - PYTHON: "C:\\Python27"
-      PYTHON_VERSION: "2.7.x"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python27-x64"
-      PYTHON_VERSION: "2.7.x"
+    - PYTHON: "C:\\Python27_64"
+      PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
+      CONDA_PY: "27"
+      CONDA_NPY: "110"
 
-    - PYTHON: "C:\\Python33"
-      PYTHON_VERSION: "3.3.x"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python33-x64"
-      PYTHON_VERSION: "3.3.x"
+    - PYTHON: "C:\\Python35_64"
+      PYTHON_VERSION: "3.5"
       PYTHON_ARCH: "64"
+      CONDA_PY: "35"
+      CONDA_NPY: "110"
 
-    - PYTHON: "C:\\Python34"
-      PYTHON_VERSION: "3.4.x"
-      PYTHON_ARCH: "32"
+# We always use a 64-bit machine, but can build x86 distributions
+# with the PYTHON_ARCH variable (which is used by CMD_IN_ENV).
+platform:
+    - x64
 
-    - PYTHON: "C:\\Python34-x64"
-      PYTHON_VERSION: "3.4.x" 
-      PYTHON_ARCH: "64"
+build: false
 
-    - PYTHON: "C:\\Python35"
-      PYTHON_VERSION: "3.5.0"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python35-x64"
-      PYTHON_VERSION: "3.5.0"
-      PYTHON_ARCH: "64"
-
-    - PYTHON: "C:\\Python270"
-      PYTHON_VERSION: "2.7.0"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python270-x64"
-      PYTHON_VERSION: "2.7.0"
-      PYTHON_ARCH: "64"
+init:
+  - "ECHO %PYTHON_VERSION% %PYTHON%"
 
 install:
-  - ECHO "Filesystem root:"
-  - ps: "ls \"C:/\""
+  - powershell .\appveyor\install.ps1
+  - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
 
   - ECHO "Installed SDKs:"
   - ps: "ls \"C:/Program Files/Microsoft SDKs/Windows\""
@@ -68,10 +48,6 @@ install:
   # not already installed.
   - ps: if (-not(Test-Path($env:PYTHON))) { & appveyor\install.ps1 }
 
-  # Prepend newly installed Python to the PATH of this build (this cannot be
-  # done from inside the powershell script as it would require to restart
-  # the parent CMD process).
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
 
   # Check that we have the expected version and architecture for Python
   - "python --version"
@@ -106,5 +82,5 @@ artifacts:
   # Archive the generated packages in the ci.appveyor.com build report.
   - path: dist\*
 
-#on_success:
-#  - TODO: upload the content of dist/*.whl to a public wheelhouse
+on_success:
+  - python appveyor\binstar-push.py
