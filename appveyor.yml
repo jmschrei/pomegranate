@@ -9,19 +9,19 @@ environment:
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
 
   matrix:
-    - PYTHON: "C:\\Python34_64"
-      PYTHON_VERSION: "3.4"
-      PYTHON_ARCH: "64"
-      CONDA_PY: "34"
-      CONDA_NPY: "110"
-
-    - PYTHON: "C:\\Python27_64"
+    - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
       CONDA_PY: "27"
       CONDA_NPY: "110"
 
-    - PYTHON: "C:\\Python35_64"
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4"
+      PYTHON_ARCH: "64"
+      CONDA_PY: "34"
+      CONDA_NPY: "110"
+
+    - PYTHON: "C:\\Python35"
       PYTHON_VERSION: "3.5"
       PYTHON_ARCH: "64"
       CONDA_PY: "35"
@@ -38,7 +38,6 @@ init:
   - "ECHO %PYTHON_VERSION% %PYTHON%"
 
 install:
-  - powershell .\appveyor\install.ps1
   - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
 
   - ECHO "Installed SDKs:"
