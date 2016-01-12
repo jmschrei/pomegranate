@@ -36,7 +36,7 @@ init:
   - "ECHO %PYTHON_VERSION% %PYTHON%"
 
 install:
-  - "powershell ./continuous_integration/appveyor/install.ps1"
+  - "powershell ./appveyor/install.ps1"
   - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
 
   # Check that we have the expected version and architecture for Python
