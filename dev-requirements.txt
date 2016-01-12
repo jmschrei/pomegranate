@@ -1,7 +1,7 @@
 --find-links http://28daf2247a33ed269873-7b1aad3fab3cc330e1fd9d109892382a.r6.cf2.rackcdn.com/
 
 numpy==1.9.3
-cython=0.22.1
+cython==0.22.1
 networkx==1.8.1
 joblib==0.9.0b4
 nose
