@@ -14,13 +14,26 @@ from .utils cimport pair_lse
 cdef double NEGINF = float("-inf")
 
 cdef class NaiveBayes( object ):
-	"""A Naive Bayes object, a supervised alternative to GMM."""
+	"""A Naive Bayes object, a supervised alternative to GMM.
+
+	This model can be initialized either by passing in initial distribution
+	objects or by passing in the constructor and the number of components.
+
+	>>> dist = NaiveBayes( [NormalDistribution(5, 1), NormalDistribution(6, 2)] )
+	>>> dist = NaiveBayes( NormalDistribution, n_components=2 )
+	"""
 
 	cdef list models
 	cdef numpy.ndarray weights_ndarray
 	cdef double* weights
 
-	def __init__( self, models ):
+	def __init__( self, models=[], n_components=-1 ):
+		if models == [] and n_components == -1:
+			raise ValueError("Must either give initial models or constructor and n_components")
+
+		if n_components > 0:
+			models = [ models ] * n_components
+
 		self.models = models
 		self.weights_ndarray = numpy.zeros( len(models), dtype=numpy.float64 ) + 1. / len(models)
 		self.weights = <double*> self.weights_ndarray.data
@@ -42,11 +55,12 @@ cdef class NaiveBayes( object ):
 			if isinstance( self.models[i], HiddenMarkovModel ):
 				data_list = list( data )
 				self.models[i].fit( data_list )
+			elif callable( self.models[i] ):
+				self.models[i] = self.models[i].from_samples( data )
 			else:
 				self.models[i].fit( data )
 
 			self.weights[i] = float(data.shape[0]) / X.shape[0]
-			print self.weights_ndarray
 	
 	cpdef predict_log_proba( self, numpy.ndarray X ):
 		"""
