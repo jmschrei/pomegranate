@@ -1,0 +1,71 @@
+# Adapted from Olivier Grisel: 
+# https://github.com/ogrisel/python-appveyor-demo/blob/master/appveyor.yml
+
+matrix:
+  fast_finish: true
+
+environment:
+  global:
+    CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
+
+  matrix:
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4"
+      PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python35"
+      PYTHON_VERSION: "3.5"
+      PYTHON_ARCH: "64"
+
+# We always use a 64-bit machine, but can build x86 distributions
+# with the PYTHON_ARCH variable (which is used by CMD_IN_ENV).
+platform:
+    - x64
+
+init:
+  - "ECHO %PYTHON_VERSION% %PYTHON%"
+
+install:
+  - "powershell ./appveyor/install.ps1"
+  - SET PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%
+
+  # Check that we have the expected version and architecture for Python
+  - "python --version"
+  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+
+  # Upgrade to the latest version of pip to avoid it displaying warnings
+  # about it being out of date.
+  - "%CMD_IN_ENV% pip install --disable-pip-version-check --user --upgrade pip"
+
+  # Install the build dependencies of the project. If some dependencies contain
+  # compiled extensions and are not provided as pre-built wheel packages,
+  # pip will build them from source using the MSVC compiler matching the
+  # target Python version and architecture
+  - "%CMD_IN_ENV% pip install --timeout=60 --trusted-host 28daf2247a33ed269873-7b1aad3fab3cc330e1fd9d109892382a.r6.cf2.rackcdn.com -r dev-requirements.txt"
+  # - "%CMD_IN_ENV% python setup.py bdist_wheel bdist_wininst"
+
+build_script:
+  # Build the compiled extension
+  - "%CMD_IN_ENV% python setup.py build"
+
+test_script:
+  # Run the project tests
+  - "%CMD_IN_ENV% python setup.py nosetests"
+
+after_test:
+  # If tests are successful, create binary packages for the project.
+  - "%CMD_IN_ENV% python setup.py bdist_wheel"
+  - "%CMD_IN_ENV% python setup.py bdist_wininst"
+  - "%CMD_IN_ENV% python setup.py bdist_msi"
+  - ps: "ls dist"
+
+artifacts:
+  # Archive the generated packages in the ci.appveyor.com build report.
+  - path: dist\*
+
+on_success:
+  - python appveyor\binstar-push.py

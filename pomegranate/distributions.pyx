@@ -433,7 +433,7 @@ cdef class NormalDistribution( Distribution ):
 		"""
 
 		# If no summaries stored or the summary is frozen, don't do anything.
-		if self.summaries[0] == 0 or self.frozen == True:
+		if self.summaries[0] == 0.0 or self.frozen == True:
 			return
 
 		mu = self.summaries[1] / self.summaries[0]
@@ -1850,6 +1850,10 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 			d.summarize( items[:,i], weights=weights )
 
 	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		"""
+		Distribute the dimensions of the sample to each of the components for storage
+		for the later update function.
+		"""
 
 		cdef SIZE_t i, j, d = self.d
 
@@ -1883,7 +1887,6 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
-
 	property parameters:
 		def __get__( self ):
 			return [ self.mu.tolist(), self.cov.tolist() ]
