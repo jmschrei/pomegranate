@@ -2,6 +2,8 @@
 
 [Hidden Markov models](http://en.wikipedia.org/wiki/Hidden_Markov_model) are a form of structured learning, in which a sequence of observations are labelled according to the hidden state they belong. HMMs can be thought of as non-greedy FSMs, in that the assignment of tags is done in a globally optimal way as opposed to being simply the best at the next step. HMMs have been used extensively in speech recognition and bioinformatics, where speech is a sequence of phonemes and DNA is a sequence of nucleotides. 
 
+An IPython notebook tutorial with visualizations can be [found here](https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_3_Hidden_Markov_Models.ipynb)
+
 A full tutorial on sequence alignment in bioinformatics can be found [here](http://nbviewer.ipython.org/github/jmschrei/yahmm/blob/master/examples/Global%20Sequence%20Alignment.ipynb) The gist is that you have a graphical structure as follows:
 
 ![alt text](http://www.cs.tau.ac.il/~rshamir/algmb/00/scribe00/html/lec06/img106.gif "Three Character Profile HMM")
