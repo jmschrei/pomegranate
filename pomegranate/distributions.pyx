@@ -1762,10 +1762,10 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 	property parameters:
 		def __get__( self ):
-			return [ self.distributions.tolist(), self.weights.tolist() ]
+			return [ self.distributions.tolist(), numpy.exp(self.weights).tolist() ]
 		def __set__( self, parameters ):
 			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
-			self.weights = numpy.array( parameters[1] )
+			self.weights = numpy.log( parameters[1] )
 
 	def __cinit__( self, distributions=[], weights=None, frozen=False ):
 		"""
