@@ -116,7 +116,7 @@ cdef class State( object ):
 		"""
 		Read a State from a given string formatted in JSON.
 		"""
-		
+
 		# Load a dictionary from a JSON formatted string
 		d = json.loads( s )
 
@@ -131,6 +131,7 @@ cdef class State( object ):
 		# Otherwise it has a distribution, so decode that
 		return cls( Distribution.from_json( d['distribution'] ),
 					name=str(d['name']), weight=d['weight'] )
+
 
 Node = State
 
