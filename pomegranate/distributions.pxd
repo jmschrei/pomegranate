@@ -88,7 +88,11 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	cdef void _from_summaries( self, double inertia )
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
+	cdef dict key_dict
 	cdef public list parameters
+	cdef void _from_sample( self, items, double [:] weights, double inertia, double pseudocount )
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
+	cdef dict key_dict
 	cdef public list parameters
+	cdef void _from_sample( self, items, double [:] weights, double inertia, double pseudocount )

@@ -7,6 +7,7 @@ from .base cimport Model
 from .base cimport State
 from .distributions cimport DiscreteDistribution
 from .distributions cimport ConditionalProbabilityTable
+from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 
