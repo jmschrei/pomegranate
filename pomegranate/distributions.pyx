@@ -2108,6 +2108,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 				keys.append( ( tuple(row[:-1]), i ) )
 				values[i] = _log( row[-1] )
 
+			self.key_dict = dict(keys)
 			keys = OrderedDict( keys[::-1] )
 			self.parameters = [ values, parents, keys ]
 
@@ -2213,36 +2214,20 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		i = -1 if neighbor_values == None else neighbor_values.index( None )
 		return self.joint( neighbor_values ).marginal( i )
 
-	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0. ):
-		"""
-		Update the table based on the data. 
-		"""
+	cdef void _from_sample( self, items, double [:] weights, double inertia, double pseudocount ):
+		"""Summarize."""
 
-		# If the distribution is frozen, don't bother with any calculation
-		if len(items) == 0 or self.frozen == True:
-			# No sample, so just ignore it and keep our old parameters.
-			return
+		cdef int i, n = len(items)
+		cdef dict counts = {}, marginal_counts = {}
+		cdef dict keys = self.key_dict
+		cdef tuple item
+		cdef numpy.ndarray values = numpy.zeros_like(self.parameters[0])
+		cdef double count, marginal_count, probability
 
-		if weights is None:
-			# Weight everything 1 if no weights specified
-			weights = numpy.ones( len(items), dtype=float )
-		elif numpy.sum( weights ) == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change parameters at all.
-			return
-		else:
-			weights = numpy.asarray(weights, dtype=float)
-
-		counts = {}
-		marginal_counts = {}
-		for item, weight in zip(items, weights):
-			item = tuple(item)
-
-			counts[item] = counts.get(item, 0) + weight
-			marginal_counts[item[:-1]] = marginal_counts.get(item[:-1], 0) + weight
-
-		values = numpy.zeros_like(self.parameters[0])
-		keys = self.parameters[2]
+		for i in range(n):
+			item = tuple(items[i])
+			counts[item] = counts.get(item, 0) + weights[i]
+			marginal_counts[item[:-1]] = marginal_counts.get(item[:-1], 0) + weights[i]
 
 		for key in self.parameters[2].keys():
 			count = counts.get( key, 0.0 )
@@ -2253,6 +2238,21 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		self.parameters[0] = values
 
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+		"""Update the parameters of the table based on the data."""
+
+		if len(items) == 0 or self.frozen == True:
+			return
+
+		if weights is None:
+			weights = numpy.ones( len(items), dtype='float64' )
+		elif numpy.sum( weights ) == 0:
+			return
+		else:
+			weights = numpy.asarray(weights, dtype='float64' )
+
+		self._from_sample( items, weights, inertia, pseudocount )
+
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	"""
@@ -2262,7 +2262,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 	by the marginals of each parent.
 	"""
 
-	def __init__( self, table=None, neighbors=None, keys=None, frozen=False ):
+	def __cinit__( self, table=None, neighbors=None, keys=None, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2282,13 +2282,12 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 				keys.append( ( tuple(row[:-1]), i ) )
 				values[i] = _log( row[-1] )
 
+			self.key_dict = dict(keys)
 			keys = OrderedDict( keys[::-1] )
 			self.parameters = [ values, neighbors, keys ]
 
 	def __str__( self ):
-		"""
-		Regenerate the table.
-		"""
+		"""Regenerate the table."""
 
 		values, parents, keys = self.parameters
 		return "\n".join( 
@@ -2296,9 +2295,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 							for key, idx in keys.items() ) 
 
 	def __len__( self ):
-		"""
-		The length of the distribution is the number of keys.
-		"""
+		"""The length of the distribution is the number of keys."""
 
 		return len( self.keys() )
 
@@ -2368,40 +2365,38 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		
 		return DiscreteDistribution( d )
 
-	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0. ):
-		"""
-		Update the table based on the data. 
-		"""
+	cdef void _from_sample( self, items, double [:] weights, double inertia, double pseudocount ):
+		"""Summarize."""
+
+		cdef numpy.ndarray values = numpy.zeros_like(self.parameters[0]) + pseudocount
+		cdef dict keys = self.key_dict
+		cdef int i, j, n = len(items), d = len(items[0])
+		cdef tuple item
+
+		for i in range(n):
+			item = tuple(items[i])
+			key = keys[item]
+			values[key] += weights[i]
+
+		total = values.sum()
+
+		for i in range(values.shape[0]):
+			values[i] = _log(values[i] / total)
+		
+		self.parameters[0] = values * (1.0-inertia) + self.parameters[0] * inertia
+
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+		"""Update the parameters of the table based on the data."""
 
 		# If the distribution is frozen, don't bother with any calculation
 		if len(items) == 0 or self.frozen == True:
-			# No sample, so just ignore it and keep our old parameters.
 			return
 
 		if weights is None:
-			# Weight everything 1 if no weights specified
-			weights = numpy.ones( len(items), dtype=float )
+			weights = numpy.ones( len(items), dtype='float64' )
 		elif numpy.sum( weights ) == 0:
-			# Since negative weights are banned, we must have no data.
-			# Don't change parameters at all.
 			return
 		else:
-			weights = numpy.asarray(weights, dtype=float)
+			weights = numpy.asarray( weights, dtype='float64' )
 
-		counts = {}
-		total = 0.0
-		for item, weight in zip(items, weights):
-			item = tuple(item)
-
-			counts[item] = counts.get(item, 0) + weight
-			total += weight
-
-		values = numpy.zeros_like(self.parameters[0])
-		keys = self.parameters[2]
-
-		for key in self.parameters[2].keys():
-			count = counts.get( key, 0.0 )
-			probability = count / total
-			values[keys[key]] = _log(probability)
-
-		self.parameters[0] = values
+		self._from_sample( items, weights, inertia, pseudocount )
