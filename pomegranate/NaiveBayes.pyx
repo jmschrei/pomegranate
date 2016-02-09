@@ -38,7 +38,7 @@ cdef class NaiveBayes( object ):
 		self.weights_ndarray = numpy.zeros( len(models), dtype=numpy.float64 ) + 1. / len(models)
 		self.weights = <double*> self.weights_ndarray.data
 
-	cpdef fit( self, numpy.ndarray X, numpy.ndarray y ):
+	cpdef fit( self, X, numpy.ndarray y ):
 		"""
 		Fit the Naive Bayes model to the data in a supervised manner. Do this
 		by passing the points associated with each model to only that model for
@@ -46,11 +46,13 @@ cdef class NaiveBayes( object ):
 		"""
 
 		cdef int i, n = len(self.models)
-		cdef numpy.ndarray data
+		cdef numpy.ndarray data, X_ndarray
 		cdef list data_list
 
+		X_ndarray = numpy.array(X)
+
 		for i in range(n):
-			data = X[ y==i ]
+			data = X_ndarray[ y==i ]
 
 			if isinstance( self.models[i], HiddenMarkovModel ):
 				data_list = list( data )
