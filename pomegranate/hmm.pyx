@@ -327,21 +327,28 @@ cdef class HiddenMarkovModel( Model ):
 		# other.start and other.end and self.start and self.end still mean the
 		# same State objects in the new combined graph.
 
-	def concatenate_model( self, other ):
+	def concatenate( self, other, suffix='', prefix='' ):
 		"""
-		Given another model, concatenate it in such a manner that you simply
-		add a transition of probability 1 from self.end to other.start, and
-		set the end of this model to other.end.
+		Concatenate this model to another model in such a way that a single
+		probability 1 edge is added between self.end and other.start. Rename
+		all other states appropriately by adding a suffix or prefix if needed.
 		"""
 
-		# Unify the graphs (requiring disjoint states)
+		other.name = "{}{}{}".format( prefix, other.name, suffix )
+		for state in other.states:
+			state.name = "{}{}{}".format( prefix, state.name, suffix )
+
 		self.graph = networkx.union( self.graph, other.graph )
-		
-		# Connect the two graphs
 		self.add_transition( self.end, other.start, 1.00 )
-
-		# Move the end to other.end
 		self.end = other.end
+
+
+	def concatenate_model( self, other ):
+		"""Deprecated. Use concatenate.
+		"""
+
+		raise Warning("Deprecated. Use concatenate.")
+
 
 	def draw( self, **kwargs ):
 		"""
