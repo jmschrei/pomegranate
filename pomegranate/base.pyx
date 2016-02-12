@@ -99,17 +99,17 @@ cdef class State( object ):
 
 		return State( **self.__dict__ )
 	
-	def to_json( self ):
+	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""
 		Convert this state to JSON format.
 		"""
 
 		return json.dumps( { 
 							    'class' : 'State',
-								'distribution' : None if self.is_silent() else str( self.distribution ),
+								'distribution' : None if self.is_silent() else json.loads( self.distribution.to_json() ),
 								'name' : self.name,
 								'weight' : self.weight  
-							}, separators=(',', ' : ' ), indent=4 )
+							}, separators=separators, indent=indent )
 
 	@classmethod
 	def from_json( cls, s ):
@@ -129,7 +129,7 @@ cdef class State( object ):
 			return cls( None, str(d['name']), d['weight'] )
 
 		# Otherwise it has a distribution, so decode that
-		return cls( Distribution.from_json( d['distribution'] ),
+		return cls( Distribution.from_json( json.dumps( d['distribution'] ) ),
 					name=str(d['name']), weight=d['weight'] )
 
 
@@ -158,7 +158,7 @@ cdef class Model( object ):
 		Represent this model with it's name and states.
 		"""
 		
-		return "{}:\n\t{}".format(self.name, "\n\t".join(map(str, self.states)))
+		return "{}:{}".format(self.name, "".join(map(str, self.states)))
 
 	def add_node( self, n ):
 		"""

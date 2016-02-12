@@ -202,7 +202,7 @@ cdef class Distribution:
 		samples = [ self.sample() for i in xrange( n ) ]
 		plt.hist( samples, **kwargs )
 
-	def to_json( self ):
+	def to_json( self, separators=(',', ' :'), indent=4 ):
 		"""Convert the distribution to JSON format."""
 
 		return json.dumps( {
@@ -210,7 +210,7 @@ cdef class Distribution:
 								'name'  : self.name,
 								'parameters' : self.parameters,
 								'frozen' : self.frozen
-						   }, separators=(',', ' : ' ), indent=4 )
+						   }, separators=separators, indent=indent )
 
 	@classmethod
 	def from_json( cls, s ):
@@ -222,10 +222,10 @@ cdef class Distribution:
 			raise SyntaxError( "Distribution object attempting to read invalid object." )
 
 		if d['name'] == 'IndependentComponentsDistribution':
-			d['parameters'][0] = [Distribution.from_json(dist) for dist in d['parameters'][0]]
+			d['parameters'][0] = [cls.from_json( json.dumps(dist) ) for dist in d['parameters'][0]]
 			return IndependentComponentsDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
 		elif d['name'] == 'MixtureDistribution':
-			d['parameters'][0] = [Distribution.from_json(dist) for dist in d['parameters'][0]]
+			d['parameters'][0] = [cls.from_json( json.dumps(dist) ) for dist in d['parameters'][0]]
 			return MixtureDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
 		else:
 			dist = eval( "{}( {}, frozen={} )".format( d['name'],
@@ -1729,16 +1729,16 @@ cdef class MixtureDistribution( Distribution ):
 		weights = numpy.array( self.summaries )
 		self.weights = weights.sum( axis=0 ) / weights.sum()
 
-	def to_json( self ):
+	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Convert the distribution to JSON format."""
 
 		return json.dumps( {
 								'class' : 'Distribution',
 								'name'  : self.name,
-								'parameters' : [ [ dist.to_json() for dist in self.parameters[0] ],
+								'parameters' : [[ json.loads( dist.to_json() ) for dist in self.parameters[0] ],
 								                 self.parameters[1] ],
 								'frozen' : self.frozen
-						   }, separators=(',', ' : ' ), indent=4 )
+						   }, separators=separators, indent=indent )
 
 cdef class MultivariateDistribution( Distribution ):
 	"""
@@ -1870,16 +1870,16 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
 
-	def to_json( self ):
+	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Convert the distribution to JSON format."""
 
 		return json.dumps( {
 								'class' : 'Distribution',
 								'name'  : self.name,
-								'parameters' : [ [ dist.to_json() for dist in self.parameters[0] ],
+								'parameters' : [[ json.loads( dist.to_json() ) for dist in self.parameters[0] ],
 								                 self.parameters[1] ],
 								'frozen' : self.frozen
-						   }, separators=(',', ' : ' ), indent=4 )
+						   }, separators=separators, indent=indent )
 
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
