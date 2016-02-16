@@ -11,7 +11,7 @@ pages:
 #- FAQ: faq.md
 - Models:
   - Distributions: probability.md
-#  - Naive Bayes: nb.md
+  - Naive Bayes: naivebayes.md
 #  - General Mixture Models: gmm.md
   - Hidden Markov Models: hmm.md
   - Bayesian Networks: bayesnet.md
