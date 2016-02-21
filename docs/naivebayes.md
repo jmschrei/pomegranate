@@ -26,11 +26,9 @@ clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), Exp
 
 Since Naive Bayes classifiers simply compares the likelihood of a sample occurring under different models, it can be initialized with any model in pomegranate. This is assuming that all the models take the same type of input.
 
-**TODO: covariance matrix for gaussian distribution**
-
 ```Python
-multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 0 ], [ 0, 2 ]] )
-indie = IndependentComponentsDistribution( distributions=[ UniformDistribution(0, 10), UniformDistribution(0, 10) ])
+multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
+indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
 clf = NaiveBayes([ mutli, indie ])
 ```
 
@@ -51,8 +49,8 @@ Finally, Naive Bayes must be given at least a model or n_components must be spec
 Naive Bayes has a fit method, in which the models in the classifier are trained to "fit" to a set of data. The method takes two numpy arrays as input, an array of samples and an array of correct classifications for each sample. Here is an example for a Naive Bayes made up of two bivariate distributions.
 
 ```Python
-multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 0 ], [ 0, 2 ]] )
-indie = IndependentComponentsDistribution( distributions=[ UniformDistribution(0, 10), UniformDistribution(0, 10) ])
+multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
+indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
 clf = NaiveBayes([ mutli, indie ])
 
 samples = np.array([[ 6, 5 ],
@@ -91,8 +89,8 @@ With the output being the following numpy array.
 With models that take in multiple inputs, the input to predict_proba would take the inputs as a list of lists. This would look like the following.
 
 ```Python
-multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 0 ], [ 0, 2 ]] )
-indie = IndependentComponentsDistribution( distributions=[ UniformDistribution(0, 10), UniformDistribution(0, 10) ])
+multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
+indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
 clf = NaiveBayes([ mutli, indie ])
 
 probs = clf.predict_proba( np.array([[ 0, 4 ],
