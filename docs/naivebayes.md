@@ -61,7 +61,18 @@ classes = np.array([ 0, 0, 1, 1 ])
 clf.fit( samples, classes )
 ```
 
-As we can see, there are four samples, with the first two samples labeled as class 0 and the last two samples labeled as class 1. The training samples follow the same format as the input for the prediction methods; they must match the input for the models used in the Naive Bayes classifier. Additionally, there must be a corresponding number of correct classfications for each sample. In other words the length of both arrays must be the same. On a final note, it is a good idea to include samples for all the models in the Naive Bayes classifier since all models are retrained, even if no samples are supplied to retrain it with.
+As we can see, there are four samples, with the first two samples labeled as class 0 and the last two samples labeled as class 1. Keep in mind that the training samples must match the input requirements for the models used. So if using a univariate distribution, then each sample must contain one item. A bivariate distribution, two. For hidden markov models, the sample can be a list of observations of any length. An example using hidden markov models would be the following.
+
+```Python
+# clf would be a classifier made up of hmms
+samples = np.array([list( 'HHHHHTHTHTTTTH' ),
+			  list( 'HHTHHTTHHHHHTH' ),
+			  list( 'TH' ), list( 'HHHHT' ),])
+classes = np.array([ 2, 2, 1, 0 ])
+clf.fit( samples, classes )
+```
+
+Additionally, there must be a corresponding number of correct classfications for each sample. In other words the length of both arrays must be the same. On a final note, it is a good idea to include samples for all the models in the Naive Bayes classifier since all models are retrained, even if no samples are supplied to retrain it with.
 
 ## Prediction
 
