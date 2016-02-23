@@ -1,7 +1,7 @@
 Naive Bayes Classifiers
 =======================
 
-The Naive Bayes classifier is a simple probabilistic classification model based on Bayes Theorem. It is a simple and fast classification model. Since Naive Bayes classifiers simply classifies sets of data by which class has the highest conditional probability, Naive Bayes classifiers can use any distribution or model which has a probabilistic interpretation of the data as one of its components. Basically if it can output a log probability, then it can be used in Naive Bayes.
+The Naive Bayes classifier is a simple probabilistic classification model based on Bayes Theorem. Since Naive Bayes classifiers classifies sets of data by which class has the highest conditional probability, Naive Bayes classifiers can use any distribution or model which has a probabilistic interpretation of the data as one of its components. Basically if it can output a log probability, then it can be used in Naive Bayes.
 
 An IPython notebook example demonstrating a Naive Bayes classifier using multivariate distributions can be [found here](https://github.com/jmschrei/pomegranate/blob/master/examples/naivebayes_multivariate_male_female.ipynb).
 
