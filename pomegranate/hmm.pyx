@@ -204,7 +204,7 @@ cdef class HiddenMarkovModel( Model ):
 		pseudocount = pseudocount or probability
 
 		# Add the transition
-		self.graph.add_edge(a, b, weight=log(probability), 
+		self.graph.add_edge(a, b, probability=log(probability), 
 			pseudocount=pseudocount, group=group )
 
 	def add_transitions( self, a, b, probabilities=None, pseudocounts=None,
@@ -381,7 +381,7 @@ cdef class HiddenMarkovModel( Model ):
 				done_nodes.add(n)
 				for node in self.graph.successors_iter(n):
 					add_node(node)
-					G.add_edge(n.name, node.name, label="%g" % (math.e ** self.graph.get_edge_data(n, node)['weight']))
+					G.add_edge(n.name, node.name, label="%g" % (math.e ** self.graph.get_edge_data(n, node)['probability']))
 					if node not in done_nodes:
 						proc_node(node)
 			for node in self.graph.nodes_iter():
@@ -485,7 +485,7 @@ cdef class HiddenMarkovModel( Model ):
 		for state in self.graph.nodes():
 
 			# Perform log sum exp on the edges to see if they properly sum to 1
-			out_edges = round( sum( numpy.e**x['weight'] 
+			out_edges = round( sum( numpy.e**x['probability'] 
 				for x in self.graph.edge[state].values() ), 8 )
 
 			# The end state has no out edges, so will be 0
@@ -498,7 +498,7 @@ cdef class HiddenMarkovModel( Model ):
 				# Reweight the edges so that the probability (not logp) sums
 				# to 1.
 				for edge in self.graph.edge[state].values():
-					edge['weight'] = edge['weight'] - log( out_edges )
+					edge['probability'] = edge['probability'] - log( out_edges )
 
 		# Automatically merge adjacent silent states attached by a single edge
 		# of 1.0 probability, as that adds nothing to the model. Traverse the
@@ -517,7 +517,7 @@ cdef class HiddenMarkovModel( Model ):
 					continue
 
 				# If a silent state has a probability 1 transition out
-				if e['weight'] == 0.0 and a.is_silent():
+				if e['probability'] == 0.0 and a.is_silent():
 
 					# Make sure the transition is an appropriate merger
 					if merge=='all' or ( merge=='partial' and b.is_silent() ):
@@ -536,7 +536,7 @@ cdef class HiddenMarkovModel( Model ):
 								pseudo = max( e['pseudocount'], d['pseudocount'] )
 								group = e['group'] if e['group'] == d['group'] else None
 								# Add a new edge going to the new node
-								self.graph.add_edge( x, b, weight=d['weight'],
+								self.graph.add_edge( x, b, probability=d['probability'],
 									pseudocount=pseudo,
 									group=group )
 
@@ -715,24 +715,24 @@ cdef class HiddenMarkovModel( Model ):
 					break
 				start += 1
 
-			self.in_transition_log_probabilities[ start ] = <double>data['weight']
-			self.in_transition_pseudocounts[ start ] = data['pseudocount']
+			self.in_transition_log_probabilities[start] = <double>data['probability']
+			self.in_transition_pseudocounts[start] = data['pseudocount']
 
 			# Store transition info in an array where the in_edge_count shows
 			# the mapping stuff.
-			self.in_transitions[ start ] = <int>indices[a]
+			self.in_transitions[start] = <int>indices[a]
 
 			# Now do the same for out edges
-			start = self.out_edge_count[ indices[a] ]
+			start = self.out_edge_count[indices[a]]
 
 			while self.out_transitions[ start ] != -1:
 				if start == self.out_edge_count[ indices[a]+1 ]:
 					break
 				start += 1
 
-			self.out_transition_log_probabilities[ start ] = <double>data['weight']
-			self.out_transition_pseudocounts[ start ] = data['pseudocount']
-			self.out_transitions[ start ] = <int>indices[b]  
+			self.out_transition_log_probabilities[start] = <double>data['probability']
+			self.out_transition_pseudocounts[start] = data['pseudocount']
+			self.out_transitions[start] = <int>indices[b]  
 
 			# If this edge belongs to a group, we need to add it to the
 			# dictionary. We only care about forward representations of
@@ -740,7 +740,7 @@ cdef class HiddenMarkovModel( Model ):
 			group = data['group']
 			if group != None:
 				if group in edge_groups:
-					edge_groups[ group ].append( ( indices[a], indices[b] ) )
+					edge_groups[group].append( ( indices[a], indices[b] ) )
 				else:
 					edge_groups[ group ] = [ ( indices[a], indices[b] ) ]
 
@@ -1917,7 +1917,7 @@ cdef class HiddenMarkovModel( Model ):
 			max_iterations, algorithm, verbose, transition_pseudocount,
 			use_pseudocount, edge_inertia, distribution_inertia, n_jobs=1 )
 
-	def train( self, sequences, stop_threshold=1E-9, min_iterations=0,
+	cpdef train( self, sequences, stop_threshold=1E-9, min_iterations=0,
 		max_iterations=1e8, algorithm='baum-welch', verbose=True,
 		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
 		distribution_inertia=0.0, n_jobs=1 ):
@@ -1984,6 +1984,15 @@ cdef class HiddenMarkovModel( Model ):
 				min_iterations, max_iterations, verbose, 
 				transition_pseudocount, use_pseudocount, edge_inertia,
 				distribution_inertia, n_jobs )
+
+		out_edges = self.out_edge_count
+
+		for k in range( self.silent_start ):
+			for l in range( out_edges[k], out_edges[k+1] ):
+				li = self.out_transitions[l]
+				prob = self.out_transition_log_probabilities[l]
+
+				self.graph[self.states[k]][self.states[li]]['probability'] = prob
 
 		if verbose:
 			print( "Total Training Improvement: {}".format( improvement ) )
@@ -2583,7 +2592,7 @@ cdef class HiddenMarkovModel( Model ):
 			# If this edge is part of a group of tied edges, annotate this group
 			# it is a part of
 			s, e = indices[start], indices[end]
-			prob, pseudocount = math.e**data['weight'], data['pseudocount']
+			prob, pseudocount = math.e**data['probability'], data['pseudocount']
 			edge = (s, e)
 			edges.append( ( s, e, prob, pseudocount, d.get( edge, None ) ) )
 
