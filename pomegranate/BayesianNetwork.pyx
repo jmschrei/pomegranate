@@ -85,6 +85,27 @@ cdef class BayesianNetwork( Model ):
 		# Finalize the factor graph structure
 		self.graph.bake()
 
+	def log_probability( self, sample ):
+		"""
+		Return the log probability of the sample under the Bayesian network.
+		Currently only supports samples which are fully observed.
+		"""
+
+		indices = { state.distribution: i for i, state in enumerate( self.states ) }
+		logp = 0.0
+
+		# Go through each state and pass in the appropriate data for the
+		# update to the states
+		for i, state in enumerate( self.states ):
+			if isinstance( state.distribution, ConditionalProbabilityTable ):
+				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
+				data = tuple( sample[i] for i in idx )
+				logp += state.distribution.log_probability( data )
+			else:
+				logp += state.distribution.log_probability( sample[i] )
+		
+		return logp
+
 	def marginal( self ):
 		"""
 		Return the marginal of the graph. This is equivilant to a pass of
