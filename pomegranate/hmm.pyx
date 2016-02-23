@@ -282,6 +282,11 @@ cdef class HiddenMarkovModel( Model ):
 
 		return transition_log_probabilities 
 
+	def copy( self ):
+		"""Returns a deep copy of the HMM."""
+
+		return HiddenMarkovModel.from_json( self.to_json() )
+
 	def freeze_distributions( self ):
 		"""
 		Freeze all the distributions in model. This means that upon training,
