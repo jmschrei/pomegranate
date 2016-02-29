@@ -277,6 +277,34 @@ def test_exponential():
 	assert_equal( round( e.parameters[0], 4 ), 0.4545 )
 
 @with_setup( setup, teardown )
+def test_poisson():
+	d = PoissonDistribution(5)
+
+	assert_almost_equal( d.log_probability(5), -1.7403021806115442 )
+	assert_almost_equal( d.log_probability(10), -4.0100334487345126 )
+	assert_almost_equal( d.log_probability(1), -3.3905620875658995 )
+	assert_equal( d.log_probability(-1), float("-inf") )
+
+	d = PoissonDistribution(0)
+
+	assert_equal( d.log_probability(1), float("-inf") )
+	assert_equal( d.log_probability(7), float("-inf") )
+
+	d.from_sample([1, 6, 4, 9, 1])
+	assert_equal( d.parameters[0], 4.2 )
+
+	d.from_sample([1, 6, 4, 9, 1], weights=[0, 0, 0, 1, 0])
+	assert_equal( d.parameters[0], 9 )
+
+	d.from_sample([1, 6, 4, 9, 1], weights=[1, 0, 0, 1, 0])
+	assert_equal( d.parameters[0], 5 )
+
+	assert_almost_equal( d.log_probability(5), -1.7403021806115442 )
+	assert_almost_equal( d.log_probability(10), -4.0100334487345126 )
+	assert_almost_equal( d.log_probability(1), -3.3905620875658995 )
+	assert_equal( d.log_probability(-1), float("-inf") )	
+
+@with_setup( setup, teardown )
 def test_gaussian_kernel():
 	d = GaussianKernelDensity( [ 0, 4, 3, 5, 7, 4, 2 ] )
 	assert_equal( round( d.log_probability( 3.3 ), 4 ), -1.7042 )
