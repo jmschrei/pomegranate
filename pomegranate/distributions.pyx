@@ -309,7 +309,9 @@ cdef class UniformDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items = numpy.array(items, dtype=numpy.float64)
+		items, weights = weight_set(items, weights)
+		if weights.sum() <= 0:
+			return
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = NULL
@@ -413,7 +415,7 @@ cdef class NormalDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set( items, weights )
+		items, weights = weight_set(items, weights)
 		if weights.sum() <= 0:
 			return
 
@@ -1287,6 +1289,116 @@ cdef class DiscreteDistribution( Distribution ):
 				characters[character] = weight
 
 		d = cls(characters)
+		return d
+
+
+cdef class PoissonDistribution(Distribution):
+	"""
+	A discrete probability distribution which expresses the probability of a 
+	number of events occuring in a fixed time window. It assumes these events
+	occur with at a known rate, and independently of each other.
+	"""
+
+	property parameters:
+		def __get__( self ):
+			return [self.l]
+		def __set__( self, parameters ):
+			self.l = parameters[0]
+
+	def __cinit__(self, l, frozen=False):
+		self.l = l
+		self.logl = _log(l)
+		self.name = "PoissonDistribution"
+		self.summaries = [0, 0]
+		self.frozen = frozen
+
+	cdef double _log_probability( self, double symbol ) nogil:
+		"""Cython optimized function for log probability calculation."""
+
+		cdef double factorial = 1.0
+		cdef int i
+
+		if symbol < 0:
+			return NEGINF
+
+		elif symbol > 1:
+			for i in range(2, <int>symbol+1):
+				factorial *= i
+
+		return symbol * self.logl - self.l - _log(factorial)
+
+	def sample( self ):
+		"""Sample from the poisson distribution."""
+
+		return numpy.random.poisson( self.l )
+
+	def from_sample( self, items, weights=None, inertia=0.0 ):
+		"""
+		Update the parameters of this distribution to maximize the likelihood
+		of the current samples. If weights are passed in, perform weighted
+		MLE, otherwise unweighted.
+		"""
+
+		if self.frozen:
+			return
+
+		self.summarize( items, weights )
+		self.from_summaries( inertia )
+
+	def summarize( self, items, weights=None ):
+		"""
+		Take in a series of items and their weights and reduce it down to a
+		summary statistic to be used in training later.
+		"""
+
+		items, weights = weight_set(items, weights)
+		if weights.sum() <= 0:
+			return
+
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
+		cdef SIZE_t n = items.shape[0]
+
+		with nogil:
+			self._summarize( items_p, weights_p, n )
+
+	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		"""Cython optimized function to calculate the summary statistics."""
+
+		cdef double x_sum = 0.0, w_sum = 0.0
+		cdef int i
+
+		for i in range(n):
+			x_sum += items[i] * weights[i]
+			w_sum += weights[i]
+
+		with gil:
+			self.summaries[0] += x_sum
+			self.summaries[1] += w_sum
+
+	def from_summaries( self, inertia=0.0 ):
+		"""
+		Takes in a series of summaries, consisting of the minimum and maximum
+		of a sample, and determine the global minimum and maximum.
+		"""
+
+		# If the distribution is frozen, don't bother with any calculation
+		if self.frozen == True:
+			return
+
+		x_sum, w_sum = self.summaries
+		mu = x_sum / w_sum 
+
+		self.l = mu*(1-inertia) + self.l*inertia
+		self.logl = _log(self.l)
+		self.summaries = [0, 0]
+
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		d = cls(0)
+		d.fit(items, weights)
 		return d
 
 

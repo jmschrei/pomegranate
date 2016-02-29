@@ -42,6 +42,9 @@ cdef class DiscreteDistribution( Distribution ):
 	cdef double* encoded_log_probability
 	cdef double __log_probability( self, symbol )
 
+cdef class PoissonDistribution( Distribution ):
+	cdef double l, logl
+
 cdef class LambdaDistribution( Distribution ):
 	pass
 
