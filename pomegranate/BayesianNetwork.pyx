@@ -130,7 +130,7 @@ cdef class BayesianNetwork( Model ):
 			indices = { state.name: state.distribution for state in self.states }
 
 			for key, value in data.items():
-				if value not in indices[key].keys():
+				if value not in indices[key].keys() and not isinstance( value, DiscreteDistribution ):
 					raise ValueError( "State '{}' does not have key '{}'".format( key, value ) )
 
 		return self.graph.forward_backward( data, max_iterations )
