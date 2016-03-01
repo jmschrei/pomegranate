@@ -9,8 +9,7 @@ from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 from libc.math cimport fabs
-from libc.math cimport lgamma
-from libc.math cimport sqrt as csqrt 
+from libc.math cimport sqrt as csqrt
 
 import itertools as it
 import json
@@ -21,6 +20,7 @@ import sys
 
 from .utils cimport pair_lse
 from .utils cimport _log
+from .utils cimport lgamma
 
 from collections import OrderedDict
 
@@ -248,7 +248,7 @@ cdef class UniformDistribution( Distribution ):
 		Make a new Uniform distribution over floats between start and end, 
 		inclusive. Start and end must not be equal.
 		"""
-		
+
 		# Store the parameters
 		self.start = start
 		self.end = end
@@ -773,7 +773,6 @@ cdef class BetaDistribution( Distribution ):
 		d = cls(1, 1)
 		d.fit(items, weights)
 		return d
-
 
 cdef class GammaDistribution( Distribution ):
 	"""

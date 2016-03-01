@@ -1,6 +1,7 @@
 from distutils.core import setup
 from distutils.extension import Extension
 import numpy as np
+import os
 
 try:
     from Cython.Build import cythonize
@@ -31,14 +32,15 @@ else:
     extensions = [
             Extension( "pomegranate.*", 
                        [ "pomegranate/*.pyx" ], 
-                       include_dirs=[np.get_include()] )
+                       include_dirs=[np.get_include()]
+                     )
     ]
 
     extensions = cythonize( extensions )
 
 setup(
     name='pomegranate',
-    version='0.3.2',
+    version='0.3.6',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=['pomegranate'],
