@@ -9,7 +9,6 @@ from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 from libc.math cimport fabs
-from libc.math cimport lgamma
 from libc.math cimport sqrt as csqrt 
 
 import itertools as it
@@ -21,6 +20,7 @@ import sys
 
 from .utils cimport pair_lse
 from .utils cimport _log
+from .utils cimport lgamma
 
 from collections import OrderedDict
 
