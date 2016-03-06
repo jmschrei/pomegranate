@@ -394,7 +394,7 @@ cdef class NormalDistribution( Distribution ):
 
 	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
-		
+
 		cdef SIZE_t i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 
@@ -1967,7 +1967,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for i in range(n):
 			for j in range(d):
-				( <Distribution> self.distributions_ptr[j] )._summarize( items+i*d+j, weights+i*d+j, 1 )
+				( <Distribution> self.distributions_ptr[j] )._summarize( items+i*d+j, weights+i, 1 )
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
