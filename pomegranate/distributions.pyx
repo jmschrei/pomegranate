@@ -2216,7 +2216,6 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		inner list represents a row.
 		"""
 
-		self.summaries = []
 		self.name = "ConditionalProbabilityTable"
 		self.frozen = False
 
@@ -2233,6 +2232,8 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			self.key_dict = dict(keys)
 			keys = OrderedDict( keys[::-1] )
 			self.parameters = [ values, parents, keys ]
+
+		self.summaries = [{}, {}]
 
 	def __str__( self ):
 		"""
@@ -2336,6 +2337,33 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		i = -1 if neighbor_values == None else neighbor_values.index( None )
 		return self.joint( neighbor_values ).marginal( i )
 
+	cpdef void summarize(self, items, weights):
+		"""Summarize the data into sufficient statistics to store."""
+
+		cdef int i, n = len(items)
+		cdef dict counts = {}, marginal_counts = {}
+		cdef tuple item
+
+		for i in range(n):
+			item = tuple(items[i])
+			self.summaries[0][item] = self.summaries[0].get(item, 0) + weights[i]
+			self.summaries[1][item[:-1]] = self.summaries[1].get(item[:-1], 0) + weights[i]
+
+	def from_summaries(self, inertia):
+		"""Update the parameters of the distribution using sufficient statistics."""
+
+		values = numpy.zeros_like(self.parameters[0])
+		keys = self.key_dict
+
+		for key in self.parameters[2].keys():
+			count = self.summaries[0].get( key, 0.0 )
+			marginal_count = self.summaries[1].get( key[:-1], 0.0 )
+
+			probability = count / marginal_count if marginal_count > 0 else 1. / len(self)
+			values[keys[key]] = _log(probability)
+
+		self.parameters[0] = self.parameters[0]*inertia + values*(1-inertia)
+
 	cdef void _from_sample( self, items, double [:] weights, double inertia, double pseudocount ):
 		"""Summarize."""
 
@@ -2358,7 +2386,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			probability = count / marginal_count if marginal_count > 0 else 1. / len(self)
 			values[keys[key]] = _log(probability)
 
-		self.parameters[0] = values
+		self.parameters[0] = self.parameters[0]*inertia + values*(1-inertia)
 
 	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""Update the parameters of the table based on the data."""

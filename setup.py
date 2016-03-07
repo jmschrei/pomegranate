@@ -18,7 +18,8 @@ filenames = [ "base",
               "fsm",
               "hmm",
               "gmm",
-              "NaiveBayes"
+              "NaiveBayes",
+              "MarkovChain"
             ]
 
 if not use_cython:
