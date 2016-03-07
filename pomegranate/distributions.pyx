@@ -2013,19 +2013,23 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.mu = numpy.array(means, dtype=numpy.float64)
 		self.cov = numpy.array(covariance, dtype=numpy.float64)
 
+		det = numpy.linalg.det(covariance)
+
 		if self.mu.shape[0] != self.cov.shape[0]:
-			raise ValueError("mu shape is {} while cov shape is {}".format( self.mu.shape[0], self.cov.shape[0] ))
+			raise ValueError("mu shape is {} while covariance shape is {}".format( self.mu.shape[0], self.cov.shape[0] ))
 		if self.cov.shape[0] != self.cov.shape[1]:
-			raise ValueError("cov is not a square matrix, dimensions are ({}, {})".format( self.cov.shape[0], self.cov.shape[1] ) )
+			raise ValueError("covariance is not a square matrix, dimensions are ({}, {})".format( self.cov.shape[0], self.cov.shape[1] ) )
+		if det == 0:
+			raise ValueError("covariance matrix is not invertible.")
 		
 		d = self.mu.shape[0]
 		self.d = d
 
-		self.inv_cov_ndarray = numpy.linalg.inv( covariance ).astype( numpy.float64 )
+		self.inv_cov_ndarray = numpy.linalg.inv(covariance).astype('float64')
 		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
 		self._mu = <double*> (<numpy.ndarray> self.mu).data
 		self._cov = <double*> (<numpy.ndarray> self.cov).data
-		self._log_det = _log( numpy.linalg.det( covariance ) )
+		self._log_det = _log(det)
 
 		self.w_sum = 0.0
 		self.column_sum = <double*> calloc( d, sizeof(double) )
@@ -2049,12 +2053,12 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype( numpy.float64 )
+		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype(numpy.float64)
 		cdef double* symbol_ptr = <double*> symbol_ndarray.data
 		cdef double logp
 
 		with nogil:
-			logp = self._mv_log_probability( symbol_ptr )
+			logp = self._mv_log_probability(symbol_ptr)
 		return logp
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
@@ -2125,6 +2129,10 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		for i in range(n):
 			w_sum += weights[i]
 
+			with gil:
+				print "dist: ", weights[i]
+
+
 			for j in range(d):
 				column_sum[j] += items[i*d + j] * weights[i]
 
@@ -2144,7 +2152,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		free(column_sum)
 		free(pair_sum)
 
-	def from_summaries( self, double inertia=0.0 ):
+	def from_summaries( self, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -2164,6 +2172,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		cdef double* column_sum = self.column_sum
 		cdef double* pair_sum = self.pair_sum
 		cdef double* u = self._mu_new
+
+		print self.w_sum
 
 		for i in range(d):
 			u[i] = self.column_sum[i] / self.w_sum

@@ -2239,11 +2239,15 @@ cdef class HiddenMarkovModel( Model ):
 						# sequence probability.
 						weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] - 
 							log_sequence_probability )
-						
+
+						with gil:
+							print( "hmm: ", f[(i+1)*m + k], b[(i+1)*m + k], log_sequence_probability )
+					
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
 							weights[i] += cexp( f[(i+1)*m + li] + b[(i+1)*m + li] -
 								log_sequence_probability )
+
 
 					(<Distribution>distributions[k])._summarize(sequence, weights, n)
 
