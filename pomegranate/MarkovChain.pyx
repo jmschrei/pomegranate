@@ -11,7 +11,7 @@ cdef class MarkovChain(object):
 	models P(X_i | X_i-1...X_i-k) for a k-th order Markov network."""
 
 	cdef int k
-	cdef list distributions
+	cdef public list distributions
 
 	def __init__(self, distributions):
 		self.k = len(distributions) - 1
@@ -37,15 +37,31 @@ cdef class MarkovChain(object):
 
 		return logp
 
-	def fit(self, sequences):
+	def fit(self, sequences, inertia=0.0):
 		"""Fit the model to new data."""
 
-		assert isinstance(sequence, list), "sequences must be of type list"
+		self.summarize(sequences)
+		self.from_summaries(inertia)
+
+	def summarize(self, sequences):
+		"""Calculate summary statistics for the sequences."""
+
+		assert isinstance(sequences, list), "sequences must be of type list"
 
 		n = max( map( len, sequences ) )
 		for i in range(self.k):
-			symbols = [ sequence[:i+1] for sequence in sequences if len(sequence) > i ]
-			self.distributions[i].fit(symbols)
+			if i == 0:
+				symbols = [ sequence[0] for sequence in sequences ]
+			else:
+				symbols = [ sequence[:i+1] for sequence in sequences if len(sequence) > i ]
+			self.distributions[i].summarize(symbols)
+
 		for j in range(n-self.k):
 			symbols = [ sequence[j:j+self.k+1] for sequence in sequences if len(sequence) > j+self.k ]
 			self.distributions[-1].summarize(symbols)
+
+	def from_summaries(self, inertia=0.0):
+		"""Update the parameters of the model using the stores summary statistics."""
+
+		for i in range(1, self.k+1):
+			self.distributions[i].from_summaries( inertia=inertia )
