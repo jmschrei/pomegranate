@@ -2129,10 +2129,6 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		for i in range(n):
 			w_sum += weights[i]
 
-			with gil:
-				print "dist: ", weights[i]
-
-
 			for j in range(d):
 				column_sum[j] += items[i*d + j] * weights[i]
 
@@ -2172,8 +2168,6 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		cdef double* column_sum = self.column_sum
 		cdef double* pair_sum = self.pair_sum
 		cdef double* u = self._mu_new
-
-		print self.w_sum
 
 		for i in range(d):
 			u[i] = self.column_sum[i] / self.w_sum
@@ -2216,7 +2210,6 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		inner list represents a row.
 		"""
 
-		self.summaries = []
 		self.name = "ConditionalProbabilityTable"
 		self.frozen = False
 
@@ -2233,6 +2226,8 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			self.key_dict = dict(keys)
 			keys = OrderedDict( keys[::-1] )
 			self.parameters = [ values, parents, keys ]
+
+		self.summaries = [{}, {}]
 
 	def __str__( self ):
 		"""
@@ -2336,32 +2331,8 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		i = -1 if neighbor_values == None else neighbor_values.index( None )
 		return self.joint( neighbor_values ).marginal( i )
 
-	cdef void _from_sample( self, items, double [:] weights, double inertia, double pseudocount ):
-		"""Summarize."""
-
-		cdef int i, n = len(items)
-		cdef dict counts = {}, marginal_counts = {}
-		cdef dict keys = self.key_dict
-		cdef tuple item
-		cdef numpy.ndarray values = numpy.zeros_like(self.parameters[0])
-		cdef double count, marginal_count, probability
-
-		for i in range(n):
-			item = tuple(items[i])
-			counts[item] = counts.get(item, 0) + weights[i]
-			marginal_counts[item[:-1]] = marginal_counts.get(item[:-1], 0) + weights[i]
-
-		for key in self.parameters[2].keys():
-			count = counts.get( key, 0.0 )
-			marginal_count = marginal_counts.get( key[:-1], 0.0 )
-
-			probability = count / marginal_count if marginal_count > 0 else 1. / len(self)
-			values[keys[key]] = _log(probability)
-
-		self.parameters[0] = values
-
-	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
-		"""Update the parameters of the table based on the data."""
+	def summarize(self, items, weights=None):
+		"""Summarize the data into sufficient statistics to store."""
 
 		if len(items) == 0 or self.frozen == True:
 			return
@@ -2373,7 +2344,38 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		else:
 			weights = numpy.asarray(weights, dtype='float64' )
 
-		self._from_sample( items, weights, inertia, pseudocount )
+		self._table_summarize(items, weights)
+
+	cdef void _table_summarize(self, items, double [:] weights):
+		cdef int i, n = len(items)
+		cdef tuple item
+
+		for i in range(n):
+			item = tuple(items[i])
+			self.summaries[0][item] = self.summaries[0].get(item, 0) + weights[i]
+			self.summaries[1][item[:-1]] = self.summaries[1].get(item[:-1], 0) + weights[i]
+
+	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
+		"""Update the parameters of the distribution using sufficient statistics."""
+
+		values = numpy.zeros_like(self.parameters[0])
+		keys = self.key_dict
+
+		for key in self.parameters[2].keys():
+			count = self.summaries[0].get( key, 0.0 )
+			marginal_count = self.summaries[1].get( key[:-1], 0.0 )
+
+			probability = count / marginal_count if marginal_count > 0 else 1. / len(self)
+			values[keys[key]] = probability
+
+		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
+		self.summaries = [{}, {}]
+
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+		"""Update the parameters of the table based on the data."""
+
+		self.summarize( items, weights )
+		self.from_summaries( inertia )
 
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
@@ -2390,7 +2392,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		inner list represents a row.
 		"""
 
-		self.summaries = []
+		self.summaries = [{}, 0]
 		self.name = "JointProbabilityTable"
 		self.frozen = False
 
@@ -2487,30 +2489,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		
 		return DiscreteDistribution( d )
 
-	cdef void _from_sample( self, items, double [:] weights, double inertia, double pseudocount ):
-		"""Summarize."""
+	def summarize( self, items, weights=None ):
+		"""Summarize the data into sufficient statistics to store."""
 
-		cdef numpy.ndarray values = numpy.zeros_like(self.parameters[0]) + pseudocount
-		cdef dict keys = self.key_dict
-		cdef int i, j, n = len(items), d = len(items[0])
-		cdef tuple item
-
-		for i in range(n):
-			item = tuple(items[i])
-			key = keys[item]
-			values[key] += weights[i]
-
-		total = values.sum()
-
-		for i in range(values.shape[0]):
-			values[i] = _log(values[i] / total)
-		
-		self.parameters[0] = values * (1.0-inertia) + self.parameters[0] * inertia
-
-	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
-		"""Update the parameters of the table based on the data."""
-
-		# If the distribution is frozen, don't bother with any calculation
 		if len(items) == 0 or self.frozen == True:
 			return
 
@@ -2519,6 +2500,33 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		elif numpy.sum( weights ) == 0:
 			return
 		else:
-			weights = numpy.asarray( weights, dtype='float64' )
+			weights = numpy.asarray(weights, dtype='float64' )
 
-		self._from_sample( items, weights, inertia, pseudocount )
+		self._table_summarize(items, weights)
+
+	cdef void _table_summarize(self, items, double [:] weights):
+		cdef int i, n = len(items)
+		cdef tuple item
+
+		for i in range(n):
+			item = tuple(items[i])
+			self.summaries[0][item] = self.summaries[0].get(item, 0) + weights[i]
+			self.summaries[1] += weights[i]
+
+	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
+		"""Update the parameters of the distribution using sufficient statistics."""
+
+		values = numpy.zeros_like(self.parameters[0])
+		keys = self.key_dict
+
+		for key in self.parameters[2].keys():
+			values[keys[key]] = self.summaries[0].get( key, 0.0 ) / self.summaries[1]
+
+		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
+		self.summaries = [{}, 0]
+
+	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+		"""Update the parameters of the table based on the data."""
+
+		self.summarize( items, weights )
+		self.from_summaries( inertia, pseudocount )
