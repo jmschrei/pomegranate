@@ -45,4 +45,4 @@ from .gmm import *
 from .NaiveBayes import *
 from .MarkovChain import *
 
-__version__ = '0.0.2'
+__version__ = '0.3.8'

@@ -2660,8 +2660,8 @@ cdef class HiddenMarkovModel( Model ):
 		return model
 	
 	@classmethod
-	def from_matrix( cls, transition_probabilities, distributions, starts, ends,
-		state_names=None, name=None ):
+	def from_matrix( cls, transition_probabilities, distributions, starts, ends=None,
+		state_names=None, name=None, verbose=None, merge='All' ):
 		"""
 		Take in a 2D matrix of floats of size n by n, which are the transition
 		probabilities to go from any state to any other state. May also take in
@@ -2710,10 +2710,11 @@ cdef class HiddenMarkovModel( Model ):
 				if prob != 0.:
 					model.add_transition( states[i], states[j], prob )
 
-		# Connect states to the end of the model if a non-zero probability 
-		for i, prob in enumerate( ends ):
-			if prob != 0:
-				model.add_transition( states[j], model.end, prob )
+		if ends is not None:
+			# Connect states to the end of the model if a non-zero probability 
+			for i, prob in enumerate( ends ):
+				if prob != 0:
+					model.add_transition( states[j], model.end, prob )
 
-		model.bake()
+		model.bake( verbose=verbose, merge=merge )
 		return model
