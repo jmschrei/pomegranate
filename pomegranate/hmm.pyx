@@ -402,7 +402,7 @@ cdef class HiddenMarkovModel( Model ):
 			networkx.draw()
 		pyplot.show()
 
-	def bake( self, verbose=False, merge="None" ): 
+	def bake( self, verbose=False, merge="All" ): 
 		"""
 		Finalize the topology of the model, and assign a numerical index to
 		every state. This method must be called before any of the probability-
