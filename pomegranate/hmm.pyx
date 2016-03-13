@@ -2687,7 +2687,7 @@ cdef class HiddenMarkovModel( Model ):
 		"""
 
 		# Build the initial model
-		model = Model( name=name )
+		model = HiddenMarkovModel( name=name )
 		state_names = state_names or ["s{}".format(i) for i in xrange(len(distributions))]
 
 		# Build state objects for every state with the appropriate distribution
