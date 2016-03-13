@@ -402,7 +402,7 @@ cdef class HiddenMarkovModel( Model ):
 			networkx.draw()
 		pyplot.show()
 
-	def bake( self, verbose=False, merge="all" ): 
+	def bake( self, verbose=False, merge="None" ): 
 		"""
 		Finalize the topology of the model, and assign a numerical index to
 		every state. This method must be called before any of the probability-
@@ -487,23 +487,24 @@ cdef class HiddenMarkovModel( Model ):
 
 		# Go through the model checking to make sure out edges sum to 1.
 		# Normalize them to 1 if this is not the case.
-		for state in self.graph.nodes():
+		if merge in ['all', 'partial']:
+			for state in self.graph.nodes():
 
-			# Perform log sum exp on the edges to see if they properly sum to 1
-			out_edges = round( sum( numpy.e**x['probability'] 
-				for x in self.graph.edge[state].values() ), 8 )
+				# Perform log sum exp on the edges to see if they properly sum to 1
+				out_edges = round( sum( numpy.e**x['probability'] 
+					for x in self.graph.edge[state].values() ), 8 )
 
-			# The end state has no out edges, so will be 0
-			if out_edges != 1. and state != self.end:
-				# Issue a notice if verbose is activated
-				if verbose:
-					print( "{} : {} summed to {}, normalized to 1.0"\
-						.format( self.name, state.name, out_edges ) )
+				# The end state has no out edges, so will be 0
+				if out_edges != 1. and state != self.end:
+					# Issue a notice if verbose is activated
+					if verbose:
+						print( "{} : {} summed to {}, normalized to 1.0"\
+							.format( self.name, state.name, out_edges ) )
 
-				# Reweight the edges so that the probability (not logp) sums
-				# to 1.
-				for edge in self.graph.edge[state].values():
-					edge['probability'] = edge['probability'] - log( out_edges )
+					# Reweight the edges so that the probability (not logp) sums
+					# to 1.
+					for edge in self.graph.edge[state].values():
+						edge['probability'] = edge['probability'] - log( out_edges )
 
 		# Automatically merge adjacent silent states attached by a single edge
 		# of 1.0 probability, as that adds nothing to the model. Traverse the
@@ -556,13 +557,14 @@ cdef class HiddenMarkovModel( Model ):
 			if merge_count == 0:
 				break
 
-		# Detect whether or not there are loops of silent states by going
-		# through every pair of edges, and ensure that there is not a cycle
-		# of silent states.		
-		for a, b, e in self.graph.edges( data=True ):
-			for x, y, d in self.graph.edges( data=True ):
-				if a is y and b is x and a.is_silent() and b.is_silent():
-					print( "Loop: {} - {}".format( a.name, b.name ) )
+		if merge in ['all', 'partial']:
+			# Detect whether or not there are loops of silent states by going
+			# through every pair of edges, and ensure that there is not a cycle
+			# of silent states.		
+			for a, b, e in self.graph.edges( data=True ):
+				for x, y, d in self.graph.edges( data=True ):
+					if a is y and b is x and a.is_silent() and b.is_silent():
+						print( "Loop: {} - {}".format( a.name, b.name ) )
 
 		states = self.graph.nodes()
 		n, m = len(states), len(self.graph.edges())
