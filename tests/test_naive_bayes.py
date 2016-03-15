@@ -11,9 +11,6 @@ import random
 import numpy as np
 
 def setup_univariate():
-	"""
-	Create univarite distributions for naive bayes
-	"""
 	global normal
 	global uniform
 	global univariate
@@ -23,9 +20,6 @@ def setup_univariate():
 	univariate = NaiveBayes([ normal, uniform ])
 
 def setup_multivariate():
-	"""
-	Create multivariate distributions for naive bayes
-	"""
 	global multivariate
 	global multi
 	global indie
@@ -35,9 +29,6 @@ def setup_multivariate():
 	multivariate = NaiveBayes([ multi, indie ])
 
 def setup_hmm():
-	"""
-	Create hidden markov models for naive bayes
-	"""
 	global hmms
 	global dumb
 	global fair
@@ -68,23 +59,14 @@ def setup_hmm():
 	hmms = NaiveBayes([ dumb, fair, smart ])
 
 def setup_bayesnet():
-	"""
-	Create bayesian networks for naive bayes
-	"""
 	# TODO: create test cases for bayesian networks
 	pass
 
 def teardown():
-	"""
-	Nothing to do here
-	"""
 	pass
 
 @with_setup( setup_univariate, teardown )
 def test_univariate_distributions():
-	"""
-	Check whether univariate distributions are working properly
-	"""
 	assert_almost_equal( normal.log_probability( 11 ), -6.112085713764219 )
 	assert_almost_equal( normal.log_probability( 9 ), -3.612085713764219 )
 	assert_almost_equal( normal.log_probability( 7 ), -2.112085713764219 )
@@ -101,9 +83,6 @@ def test_univariate_distributions():
 
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_distributions():
-	"""
-	Check whether univariate distributions are working properly
-	"""
 	assert_almost_equal( multi.log_probability([ 11, 11 ]), -20.531024246969945 )
 	assert_almost_equal( multi.log_probability([ 9, 9 ]), -10.531024246969945 )
 	assert_almost_equal( multi.log_probability([ 7, 7 ]), -4.531024246969945 )
@@ -120,9 +99,6 @@ def test_multivariate_distributions():
 
 @with_setup( setup_hmm, teardown )
 def test_hmms():
-	"""
-	Check whether hidden markov models are working properly
-	"""
 	assert_almost_equal( dumb.log_probability( list('H') ), -0.2231435513142097 )
 	assert_almost_equal( dumb.log_probability( list('T') ), -1.6094379124341003 )
 	assert_almost_equal( dumb.log_probability( list('HHHH') ), -0.8925742052568388 )
@@ -144,9 +120,6 @@ def test_hmms():
 	assert_almost_equal( smart.log_probability( list('THTHHHHHTHTH') ), -7.645551826734343 )
 
 def test_constructors():
-	"""
-	Test to see if constructors work properly.
-	"""
 	# check for value error when supplied no information
 	assert_raises( ValueError, NaiveBayes )
 
@@ -165,9 +138,6 @@ def test_constructors():
 
 @with_setup( setup_univariate, teardown )
 def test_univariate_log_proba():
-	"""
-	Test log probabilities for univariate naive bayes
-	"""
 	logs = univariate.predict_log_proba(np.array([ 5, 3, 1, -1 ]))
 
 	assert_almost_equal( logs[0][0], -0.40634848776410526 )
@@ -184,9 +154,6 @@ def test_univariate_log_proba():
 	
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_log_proba():
-	"""
-	Test log probabilities for multivariate naive bayes
-	"""
 	logs = multivariate.predict_log_proba(np.array([[ 5, 5 ], [ 2, 9 ], [ 10, 7 ], [ -1 ,7 ]]))
 
 	assert_almost_equal( logs[0][0], -0.11837282271439786 )
@@ -203,9 +170,6 @@ def test_multivariate_log_proba():
 
 @with_setup( setup_hmm, teardown )
 def test_hmm_log_proba():
-	"""
-	Test log probabilities for hidden markov model naive bayes
-	"""
 	logs = hmms.predict_log_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
 
 	assert_almost_equal( logs[0][0], -0.89097292388986515 )
@@ -230,9 +194,6 @@ def test_hmm_log_proba():
 
 @with_setup( setup_univariate, teardown )
 def test_univariate_proba():
-	"""
-	Test predict probability method for univariate naive bayes
-	"""
 	probs = univariate.predict_proba(np.array([ 5, 3, 1, -1 ]))
 
 	assert_almost_equal( probs[0][0], 0.66607800693933361 )
@@ -249,9 +210,6 @@ def test_univariate_proba():
 	
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_proba():
-	"""
-	Test predict probability method for multivariate naive bayes
-	"""
 	probs = multivariate.predict_proba(np.array([[ 5, 5 ], [ 2, 9 ], [ 10, 7 ], [ -1, 7 ]]))
 
 	assert_almost_equal( probs[0][0], 0.88836478829527532 )
@@ -268,9 +226,6 @@ def test_multivariate_proba():
 
 @with_setup( setup_hmm, teardown )
 def test_hmm_proba():
-	"""
-	Test predict probability method for hidden markov model naive bayes
-	"""
 	probs = hmms.predict_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
 
 	assert_almost_equal( probs[0][0], 0.41025641025641024 )
@@ -295,9 +250,6 @@ def test_hmm_proba():
 
 @with_setup( setup_univariate, teardown )
 def test_univariate_prediction():
-	"""
-	Test predict method for univariate naive bayes
-	"""
 	predicts = univariate.predict(np.array([ 5, 3, 1, -1 ]))
 
 	assert_equal( predicts[0], 0 )
@@ -307,9 +259,6 @@ def test_univariate_prediction():
 	
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_prediction():
-	"""
-	Test predict method for multivariate naive bayes
-	"""
 	predicts = multivariate.predict(np.array([[ 5, 5 ], [ 2, 9 ], [ 10, 7 ], [ -1, 7 ]]))
 
 	assert_equal( predicts[0], 0 )
@@ -319,9 +268,6 @@ def test_multivariate_prediction():
 
 @with_setup( setup_hmm, teardown )
 def test_hmm_prediction():
-	"""
-	Test predict method for hidden markov model naive bayes
-	"""
 	predicts = hmms.predict(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
 
 	assert_equal( predicts[0], 0 )
@@ -332,9 +278,6 @@ def test_hmm_prediction():
 	
 @with_setup( setup_univariate, teardown )
 def test_univariate_fit():
-	"""
-	Test fit method for univariate naive bayes
-	"""
 	X = np.array([ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 1, 9, 8, 2, 0, 1, 1, 8, 10, 0 ])
 	y = np.array([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ])
 
@@ -377,9 +320,6 @@ def test_univariate_fit():
 
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_fit():
-	"""
-	Test fit method for multivariate naive bayes
-	"""
 	X = np.array([[ 6, 5 ], [ 3.5, 4 ], [ 4, 6 ], [ 8, 6.5 ], [ 3.5, 4 ], [ 4.5, 5.5 ],
 				  [ 0, 7 ], [ 0.5, 7.5 ], [ 9.5, 8 ], [ 5, 0.5 ], [ 7.5, 1.5 ], [ 7, 7 ]])
 	y = np.array([ 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1 ])
@@ -422,9 +362,6 @@ def test_multivariate_fit():
 
 @with_setup( setup_hmm, teardown )
 def test_hmm_fit():
-	"""
-	Test fit method for hidden markov model naive bayes
-	"""
 	X = np.array([list( 'HHHHHTHTHTTTTH' ),
 				  list( 'HHTHHTTHHHHHTH' ),
 				  list( 'TH' ), list( 'HHHHT' ),])
@@ -482,9 +419,6 @@ def test_hmm_fit():
 	assert_equal( predicts[4], 1 )
 
 def test_raise_errors():
-	"""
-	Tests edge cases for naive bayes that should or should not raise errors
-	"""
 	# run on all other cases that should raise errors in combination
 	# example, constructing with objects with no parameters,
 	#	then running predict methods before fit

@@ -32,7 +32,7 @@ cdef class MarkovChain(object):
 			logp += self.distributions[i].log_probability(key)
 
 		for j in range(n-l):
-			key = tuple(sequence[j:j+k+1])
+			key = tuple(sequence[j:j+k+1]) if k > 0 else sequence[j]
 			logp += self.distributions[-1].log_probability(key)
 
 		return logp
@@ -46,8 +46,6 @@ cdef class MarkovChain(object):
 	def summarize(self, sequences):
 		"""Calculate summary statistics for the sequences."""
 
-		assert isinstance(sequences, list), "sequences must be of type list"
-
 		n = max( map( len, sequences ) )
 		for i in range(self.k):
 			if i == 0:
@@ -57,11 +55,15 @@ cdef class MarkovChain(object):
 			self.distributions[i].summarize(symbols)
 
 		for j in range(n-self.k):
-			symbols = [ sequence[j:j+self.k+1] for sequence in sequences if len(sequence) > j+self.k ]
+			if self.k == 0:
+				symbols = [ sequence[j] for sequence in sequences if len(sequence) > j+self.k ]
+			else:
+				symbols = [ sequence[j:j+self.k+1] for sequence in sequences if len(sequence) > j+self.k ]
+			
 			self.distributions[-1].summarize(symbols)
 
 	def from_summaries(self, inertia=0.0):
 		"""Update the parameters of the model using the stores summary statistics."""
 
-		for i in range(1, self.k+1):
+		for i in range(self.k+1):
 			self.distributions[i].from_summaries( inertia=inertia )
