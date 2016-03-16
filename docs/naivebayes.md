@@ -135,4 +135,7 @@ The corresponding output would be.
 [ 2, 2, 2, 0, 0 ]
 ```
 
-Pretty straightforward.
+API Reference
+=============
+
+.. autoclass:: pomegranate.NaiveBayes.NaiveBayes
