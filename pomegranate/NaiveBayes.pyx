@@ -153,7 +153,7 @@ cdef class NaiveBayes( object ):
 				self.models[i] = self.models[i].from_samples(X[0:1])
 
 			if isinstance( self.models[i], HiddenMarkovModel ):
-				self.models[i].summarize( list(X[y==i]) )
+				self.models[i].fit( list(X[y==i]) )
 			else:
 				self.models[i].summarize( X[y==i], weights[y==i] )
 
