@@ -8,8 +8,9 @@ Naive Bayes estimator, for anything with a log_probability method.
 import numpy
 cimport numpy
 
+from libc.math cimport exp as cexp
 from .hmm import HiddenMarkovModel
-from .utils cimport pair_lse 
+from .utils cimport pair_lse
 
 cdef double NEGINF = float("-inf")
 
@@ -103,7 +104,7 @@ cdef class NaiveBayes( object ):
 			Returns the fitted model 
 		"""
 
-		self.summarize( X, y )
+		self.summarize( X, y, weights )
 		self.from_summaries( inertia )
 		return self
 
@@ -134,9 +135,9 @@ cdef class NaiveBayes( object ):
 		if weights is None:
 			weights = numpy.ones(X.shape[0]) / X.shape[0]
 		else:
-			weights = numpy.array(weights, dtype='float64') / numpy.sum(weights)
+			weights = numpy.array(weights) / numpy.sum(weights)
 
-		if len(X.shape) == 1:
+		if len(X.shape) == 1 and not isinstance(X[0], list):
 			X = X.reshape( X.shape[0], 1 )
 
 		if not self.initialized:
@@ -157,7 +158,7 @@ cdef class NaiveBayes( object ):
 			else:
 				self.models[i].summarize( X[y==i], weights[y==i] )
 
-			self.summaries[i] += weights[y==i].shape
+			self.summaries[i] += weights[y==i].sum()
 
 	def from_summaries( self, inertia=0.0 ):
 		"""Fit the Naive Bayes model to the stored sufficient statistics.
@@ -177,7 +178,9 @@ cdef class NaiveBayes( object ):
 		self.summaries /= self.summaries.sum()
 
 		for i in range(n):
-			self.models[i].from_summaries(inertia=inertia)
+			if not isinstance( self.models[i], HiddenMarkovModel ):
+				self.models[i].from_summaries(inertia=inertia)
+
 			self.weights[i] = self.summaries[i]
 
 		self.summaries = numpy.zeros(n)
@@ -221,7 +224,7 @@ cdef class NaiveBayes( object ):
 
 		return r
 
-	def predict_proba( self, X ):
+	cpdef predict_proba( self, X ):
 		"""Return the normalized probability of samples under the model.
 
 		Parameters
@@ -250,7 +253,7 @@ cdef class NaiveBayes( object ):
 			total = 0.
 			
 			for j in range(m):
-				r[i, j] = numpy.e ** self.models[j].log_probability( X[i] ) * self.weights[j]
+				r[i, j] = cexp(self.models[j].log_probability( X[i] )) * self.weights[j]
 				total += r[i, j]
 
 			for j in range(m):
