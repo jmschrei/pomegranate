@@ -14,7 +14,7 @@ from .utils cimport pair_lse
 cdef double NEGINF = float("-inf")
 
 cdef class NaiveBayes( object ):
-	"""A Naive Bayes object, a supervised alternative to GMM.
+	"""A Naive Bayes model, a supervised alternative to GMM.
 
 	Parameters
 	----------
@@ -80,18 +80,53 @@ cdef class NaiveBayes( object ):
 		self.models = models
 
 	def fit( self, X, y, weights=None, inertia=0.0 ):
-		"""
-		Fit the Naive Bayes model to the data in a supervised manner. Do this
-		by passing the points associated with each model to only that model for
-		training.
+		"""Fit the Naive Bayes model to the data by passing along data to their components.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, variable)
+			Array of the samples, which can be either fixed size or variable depending
+			on the underlying components.
+
+		y : array-like, shape (n_samples,)
+			Array of the known labels as integers
+
+		weights : array-like, shape (n_samples,) optional
+			Array of the weight of each sample, a positive float
+
+		inertia : double, optional
+			Inertia used for the training the distributions.
+
+		Returns
+		-------
+		self : object
+			Returns the fitted model 
 		"""
 
 		self.summarize( X, y )
 		self.from_summaries( inertia )
+		return self
 
 
 	def summarize( self, X, y, weights=None ):
-		"""Summarize the values by storing the sufficient statistics in each model."""
+		"""Summarize data into stored sufficient statistics for out-of-core training.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, variable)
+			Array of the samples, which can be either fixed size or variable depending
+			on the underlying components.
+
+		y : array-like, shape (n_samples,)
+			Array of the known labels as integers
+
+		weights : array-like, shape (n_samples,) optional
+			Array of the weight of each sample, a positive float
+
+		Returns
+		-------
+		None
+		"""
 
 		X = numpy.array(X)
 		y = numpy.array(y)
@@ -125,7 +160,18 @@ cdef class NaiveBayes( object ):
 			self.summaries[i] += weights[y==i].shape
 
 	def from_summaries( self, inertia=0.0 ):
-		"""Update the underlying distributions using the stored sufficient statistics."""
+		"""Fit the Naive Bayes model to the stored sufficient statistics.
+
+		Parameters
+		----------
+		inertia : double, optional
+			Inertia used for the training the distributions.
+
+		Returns
+		-------
+		self : object
+			Returns the fitted model 
+		"""
 
 		n = len(self.models)
 		self.summaries /= self.summaries.sum()
@@ -134,10 +180,25 @@ cdef class NaiveBayes( object ):
 			self.models[i].from_summaries(inertia=inertia)
 			self.weights[i] = self.summaries[i]
 
-		self.summaries = numpy.zeros(n) 
+		self.summaries = numpy.zeros(n)
+		return self
 	
 	cpdef predict_log_proba( self, X ):
-		"""Predict the log probability of each sample under each model using Bayes Rule."""
+		"""Return the normalized log probability of samples under the model.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, variable)
+			Array of the samples, which can be either fixed size or variable depending
+			on the underlying components.
+
+		Returns
+		-------
+		r : array-like, shape (n_samples, n_components)
+			Returns the normalized log probabilities of the sample under the
+			components of the model. The normalized log probability is the
+			log of the posterior probability P(M|D) from Bayes rule.
+		"""
 
 		X = numpy.array(X)
 
@@ -160,8 +221,22 @@ cdef class NaiveBayes( object ):
 
 		return r
 
-	cpdef predict_proba( self, X ):
-		"""Predict the probability of each sample under each model using Bayes Rule."""
+	def predict_proba( self, X ):
+		"""Return the normalized probability of samples under the model.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, variable)
+			Array of the samples, which can be either fixed size or variable depending
+			on the underlying components.
+
+		Returns
+		-------
+		r : array-like, shape (n_samples, n_components)
+			Returns the normalized probabilities of the sample under the
+			components of the model. The normalized log probability is the
+			posterior probability P(M|D) from Bayes rule.
+		"""
 
 		X = numpy.array(X)
 
@@ -183,8 +258,22 @@ cdef class NaiveBayes( object ):
 
 		return r
 
-	cpdef predict( self, X ):
-		"""Predict the class label for each sample under each model."""
+	def predict( self, X ):
+		"""Return the most likely component corresponding to each sample.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, variable)
+			Array of the samples, which can be either fixed size or variable depending
+			on the underlying components.
+
+		Returns
+		-------
+		r : array-like, shape (n_samples, n_components)
+			Returns the normalized probabilities of the sample under the
+			components of the model. The normalized log probability is the
+			posterior probability P(M|D) from Bayes rule.
+		"""
 
 		if self.initialized == 0:
 			raise ValueError("must fit components to the data before prediction,")
