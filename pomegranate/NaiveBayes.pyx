@@ -15,272 +15,272 @@ from .utils cimport pair_lse
 cdef double NEGINF = float("-inf")
 
 cdef class NaiveBayes( object ):
-	"""A Naive Bayes model, a supervised alternative to GMM.
+    """A Naive Bayes model, a supervised alternative to GMM.
 
-	Parameters
-	----------
-	models : list or constructor
-		Must either be a list of initialized distribution/model objects, or
-		the constructor for a distribution object:
+    Parameters
+    ----------
+    models : list or constructor
+        Must either be a list of initialized distribution/model objects, or
+        the constructor for a distribution object:
 
-		* Initialized : NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
-		* Constructor : NaiveBayes(NormalDistribution)
+        * Initialized : NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
+        * Constructor : NaiveBayes(NormalDistribution)
 
-	weights : list or numpy.ndarray or None, default None
-		The prior probabilities of the components. If None is passed in then
-		defaults to the uniformly distributed priors.
-	
-	Attributes
-	----------
-	models : list
-		The model objects, either initialized by the user or fit to data.
+    weights : list or numpy.ndarray or None, default None
+        The prior probabilities of the components. If None is passed in then
+        defaults to the uniformly distributed priors.
+    
+    Attributes
+    ----------
+    models : list
+        The model objects, either initialized by the user or fit to data.
 
-	weights : numpy.ndarray
-		The prior probability of each component of the model.
+    weights : numpy.ndarray
+        The prior probability of each component of the model.
 
-	Examples
-	--------
-	>>> from pomegranate import *
-	>>> clf = NaiveBayes( NormalDistribution )
-	>>> X = [0, 2, 0, 1, 0, 5, 6, 5, 7, 6]
-	>>> y = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1]
-	>>> clf.fit(X, y)
-	>>> clf.predict_proba([6])
-	array([[ 0.01973451,  0.98026549]])
+    Examples
+    --------
+    >>> from pomegranate import *
+    >>> clf = NaiveBayes( NormalDistribution )
+    >>> X = [0, 2, 0, 1, 0, 5, 6, 5, 7, 6]
+    >>> y = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1]
+    >>> clf.fit(X, y)
+    >>> clf.predict_proba([6])
+    array([[ 0.01973451,  0.98026549]])
 
-	>>> from pomegranate import *
-	>>> clf = NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
-	>>> clf.predict_log_proba([[0], [1], [2], [-1]])
-	array([[-1.1836569 , -0.36550972],
-	       [-0.79437677, -0.60122959],
-	       [-0.26751248, -1.4493653 ],
-	       [-1.09861229, -0.40546511]])
-	"""
+    >>> from pomegranate import *
+    >>> clf = NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
+    >>> clf.predict_log_proba([[0], [1], [2], [-1]])
+    array([[-1.1836569 , -0.36550972],
+           [-0.79437677, -0.60122959],
+           [-0.26751248, -1.4493653 ],
+           [-1.09861229, -0.40546511]])
+    """
 
-	cdef int initialized
-	cdef public object models
-	cdef numpy.ndarray summaries
-	cdef public numpy.ndarray weights
+    cdef int initialized
+    cdef public object models
+    cdef numpy.ndarray summaries
+    cdef public numpy.ndarray weights
 
-	def __init__( self, models=None, weights=None ):
-		if not callable(models) and not isinstance(models, list): 
-			raise ValueError("must either give initial models or constructor")
+    def __init__( self, models=None, weights=None ):
+        if not callable(models) and not isinstance(models, list): 
+            raise ValueError("must either give initial models or constructor")
 
-		self.summaries = None
-		self.initialized = False
+        self.summaries = None
+        self.initialized = False
 
-		if not callable(models):
-			self.initialized = True
-			self.summaries = numpy.zeros(len(models))
+        if not callable(models):
+            self.initialized = True
+            self.summaries = numpy.zeros(len(models))
 
-			if weights is None:
-				self.weights = numpy.ones(len(models), dtype='float64') / len(models)
-			else:
-				self.weights = numpy.array(weights) / numpy.sum(weights)
+            if weights is None:
+                self.weights = numpy.ones(len(models), dtype='float64') / len(models)
+            else:
+                self.weights = numpy.array(weights) / numpy.sum(weights)
 
-		self.models = models
+        self.models = models
 
-	def fit( self, X, y, weights=None, inertia=0.0 ):
-		"""Fit the Naive Bayes model to the data by passing along data to their components.
+    def fit( self, X, y, weights=None, inertia=0.0 ):
+        """Fit the Naive Bayes model to the data by passing data to their components.
 
-		Parameters
-		----------
-		X : array-like, shape (n_samples, variable)
-			Array of the samples, which can be either fixed size or variable depending
-			on the underlying components.
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, variable)
+            Array of the samples, which can be either fixed size or variable depending
+            on the underlying components.
 
-		y : array-like, shape (n_samples,)
-			Array of the known labels as integers
+        y : array-like, shape (n_samples,)
+            Array of the known labels as integers
 
-		weights : array-like, shape (n_samples,) optional
-			Array of the weight of each sample, a positive float
+        weights : array-like, shape (n_samples,) optional
+            Array of the weight of each sample, a positive float
 
-		inertia : double, optional
-			Inertia used for the training the distributions.
+        inertia : double, optional
+            Inertia used for the training the distributions.
 
-		Returns
-		-------
-		self : object
-			Returns the fitted model 
-		"""
+        Returns
+        -------
+        self : object
+            Returns the fitted model 
+        """
 
-		self.summarize( X, y, weights )
-		self.from_summaries( inertia )
-		return self
+        self.summarize( X, y, weights )
+        self.from_summaries( inertia )
+        return self
 
 
-	def summarize( self, X, y, weights=None ):
-		"""Summarize data into stored sufficient statistics for out-of-core training.
+    def summarize( self, X, y, weights=None ):
+        """Summarize data into stored sufficient statistics for out-of-core training.
 
-		Parameters
-		----------
-		X : array-like, shape (n_samples, variable)
-			Array of the samples, which can be either fixed size or variable depending
-			on the underlying components.
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, variable)
+            Array of the samples, which can be either fixed size or variable depending
+            on the underlying components.
 
-		y : array-like, shape (n_samples,)
-			Array of the known labels as integers
+        y : array-like, shape (n_samples,)
+            Array of the known labels as integers
 
-		weights : array-like, shape (n_samples,) optional
-			Array of the weight of each sample, a positive float
+        weights : array-like, shape (n_samples,) optional
+            Array of the weight of each sample, a positive float
 
-		Returns
-		-------
-		None
-		"""
+        Returns
+        -------
+        None
+        """
 
-		X = numpy.array(X)
-		y = numpy.array(y)
+        X = numpy.array(X)
+        y = numpy.array(y)
 
-		if weights is None:
-			weights = numpy.ones(X.shape[0]) / X.shape[0]
-		else:
-			weights = numpy.array(weights) / numpy.sum(weights)
+        if weights is None:
+            weights = numpy.ones(X.shape[0]) / X.shape[0]
+        else:
+            weights = numpy.array(weights) / numpy.sum(weights)
 
-		if len(X.shape) == 1 and not isinstance(X[0], list):
-			X = X.reshape( X.shape[0], 1 )
+        if len(X.shape) == 1 and not isinstance(X[0], list):
+            X = X.reshape( X.shape[0], 1 )
 
-		if not self.initialized:
-			n = numpy.unique(y).shape[0]
-			self.models = [self.models] * n
-			self.weights = numpy.ones(n, dtype=numpy.float64) / n
-			self.summaries = numpy.zeros(n)
-			self.initialized = True
+        if not self.initialized:
+            n = numpy.unique(y).shape[0]
+            self.models = [self.models] * n
+            self.weights = numpy.ones(n, dtype=numpy.float64) / n
+            self.summaries = numpy.zeros(n)
+            self.initialized = True
 
-		n = len(self.models)
+        n = len(self.models)
 
-		for i in range(n):
-			if callable(self.models[i]):
-				self.models[i] = self.models[i].from_samples(X[0:1])
+        for i in range(n):
+            if callable(self.models[i]):
+                self.models[i] = self.models[i].from_samples(X[0:1])
 
-			if isinstance( self.models[i], HiddenMarkovModel ):
-				self.models[i].fit( list(X[y==i]) )
-			else:
-				self.models[i].summarize( X[y==i], weights[y==i] )
+            if isinstance( self.models[i], HiddenMarkovModel ):
+                self.models[i].fit( list(X[y==i]) )
+            else:
+                self.models[i].summarize( X[y==i], weights[y==i] )
 
-			self.summaries[i] += weights[y==i].sum()
+            self.summaries[i] += weights[y==i].sum()
 
-	def from_summaries( self, inertia=0.0 ):
-		"""Fit the Naive Bayes model to the stored sufficient statistics.
+    def from_summaries( self, inertia=0.0 ):
+        """Fit the Naive Bayes model to the stored sufficient statistics.
 
-		Parameters
-		----------
-		inertia : double, optional
-			Inertia used for the training the distributions.
+        Parameters
+        ----------
+        inertia : double, optional
+            Inertia used for the training the distributions.
 
-		Returns
-		-------
-		self : object
-			Returns the fitted model 
-		"""
+        Returns
+        -------
+        self : object
+            Returns the fitted model 
+        """
 
-		n = len(self.models)
-		self.summaries /= self.summaries.sum()
+        n = len(self.models)
+        self.summaries /= self.summaries.sum()
 
-		for i in range(n):
-			if not isinstance( self.models[i], HiddenMarkovModel ):
-				self.models[i].from_summaries(inertia=inertia)
+        for i in range(n):
+            if not isinstance( self.models[i], HiddenMarkovModel ):
+                self.models[i].from_summaries(inertia=inertia)
 
-			self.weights[i] = self.summaries[i]
+            self.weights[i] = self.summaries[i]
 
-		self.summaries = numpy.zeros(n)
-		return self
-	
-	cpdef predict_log_proba( self, X ):
-		"""Return the normalized log probability of samples under the model.
+        self.summaries = numpy.zeros(n)
+        return self
+    
+    cpdef predict_log_proba( self, X ):
+        """Return the normalized log probability of samples under the model.
 
-		Parameters
-		----------
-		X : array-like, shape (n_samples, variable)
-			Array of the samples, which can be either fixed size or variable depending
-			on the underlying components.
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, variable)
+            Array of the samples, which can be either fixed size or variable depending
+            on the underlying components.
 
-		Returns
-		-------
-		r : array-like, shape (n_samples, n_components)
-			Returns the normalized log probabilities of the sample under the
-			components of the model. The normalized log probability is the
-			log of the posterior probability P(M|D) from Bayes rule.
-		"""
+        Returns
+        -------
+        r : array-like, shape (n_samples, n_components)
+            Returns the normalized log probabilities of the sample under the
+            components of the model. The normalized log probability is the
+            log of the posterior probability P(M|D) from Bayes rule.
+        """
 
-		X = numpy.array(X)
+        X = numpy.array(X)
 
-		if self.initialized == 0:
-			raise ValueError("must fit components to the data before prediction,")
+        if self.initialized == 0:
+            raise ValueError("must fit components to the data before prediction,")
 
-		n, m = X.shape[0], len(self.models)
-		r = numpy.zeros( (n, m), dtype=numpy.float64 )
-		logw = numpy.log( self.weights )
+        n, m = X.shape[0], len(self.models)
+        r = numpy.zeros( (n, m), dtype=numpy.float64 )
+        logw = numpy.log( self.weights )
 
-		for i in range(n):
-			total = NEGINF
-			
-			for j in range(m):
-				r[i, j] = self.models[j].log_probability( X[i] ) + logw[j]
-				total = pair_lse( total, r[i, j] )
+        for i in range(n):
+            total = NEGINF
+            
+            for j in range(m):
+                r[i, j] = self.models[j].log_probability( X[i] ) + logw[j]
+                total = pair_lse( total, r[i, j] )
 
-			for j in range(m):
-				r[i, j] -= total
+            for j in range(m):
+                r[i, j] -= total
 
-		return r
+        return r
 
-	cpdef predict_proba( self, X ):
-		"""Return the normalized probability of samples under the model.
+    cpdef predict_proba( self, X ):
+        """Return the normalized probability of samples under the model.
 
-		Parameters
-		----------
-		X : array-like, shape (n_samples, variable)
-			Array of the samples, which can be either fixed size or variable depending
-			on the underlying components.
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, variable)
+            Array of the samples, which can be either fixed size or variable depending
+            on the underlying components.
 
-		Returns
-		-------
-		r : array-like, shape (n_samples, n_components)
-			Returns the normalized probabilities of the sample under the
-			components of the model. The normalized log probability is the
-			posterior probability P(M|D) from Bayes rule.
-		"""
+        Returns
+        -------
+        r : array-like, shape (n_samples, n_components)
+            Returns the normalized probabilities of the sample under the
+            components of the model. The normalized log probability is the
+            posterior probability P(M|D) from Bayes rule.
+        """
 
-		X = numpy.array(X)
+        X = numpy.array(X)
 
-		if self.initialized == 0:
-			raise ValueError("must fit components to the data before prediction,")
+        if self.initialized == 0:
+            raise ValueError("must fit components to the data before prediction,")
 
-		n, m = X.shape[0], len(self.models)
-		r = numpy.zeros( (n, m), dtype=numpy.float64 )
+        n, m = X.shape[0], len(self.models)
+        r = numpy.zeros( (n, m), dtype=numpy.float64 )
 
-		for i in range(n):
-			total = 0.
-			
-			for j in range(m):
-				r[i, j] = cexp(self.models[j].log_probability( X[i] )) * self.weights[j]
-				total += r[i, j]
+        for i in range(n):
+            total = 0.
+            
+            for j in range(m):
+                r[i, j] = cexp(self.models[j].log_probability( X[i] )) * self.weights[j]
+                total += r[i, j]
 
-			for j in range(m):
-				r[i, j] /= total
+            for j in range(m):
+                r[i, j] /= total
 
-		return r
+        return r
 
-	def predict( self, X ):
-		"""Return the most likely component corresponding to each sample.
+    def predict( self, X ):
+        """Return the most likely component corresponding to each sample.
 
-		Parameters
-		----------
-		X : array-like, shape (n_samples, variable)
-			Array of the samples, which can be either fixed size or variable depending
-			on the underlying components.
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, variable)
+            Array of the samples, which can be either fixed size or variable depending
+            on the underlying components.
 
-		Returns
-		-------
-		r : array-like, shape (n_samples, n_components)
-			Returns the normalized probabilities of the sample under the
-			components of the model. The normalized log probability is the
-			posterior probability P(M|D) from Bayes rule.
-		"""
+        Returns
+        -------
+        r : array-like, shape (n_samples, n_components)
+            Returns the normalized probabilities of the sample under the
+            components of the model. The normalized log probability is the
+            posterior probability P(M|D) from Bayes rule.
+        """
 
-		if self.initialized == 0:
-			raise ValueError("must fit components to the data before prediction,")
+        if self.initialized == 0:
+            raise ValueError("must fit components to the data before prediction,")
 
-		return self.predict_proba(X).argmax( axis=1 )
+        return self.predict_proba(X).argmax( axis=1 )
 
-	#def to_json( self, separators=(',', ' : '), indent=4 ):
+    #def to_json( self, separators=(',', ' : '), indent=4 ):
