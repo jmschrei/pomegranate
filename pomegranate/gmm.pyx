@@ -30,18 +30,53 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 def log_probability( model, samples ):
-	'''
-	Return the log probability of samples given a model.
-	'''
-
+	'''Return the log probability of samples given a model.'''
+	
 	return sum( map( model.log_probability, samples ) )
 
 cdef class GeneralMixtureModel( Distribution ):
+	"""A General Mixture Model.
+
+	This mixture model can be a mixture of any distribution as long as
+	they are all of the same dimensionality. Any object can serve as a
+	distribution as long as it has fit(X, weights), log_probability(X),
+	and summarize(X, weights)/from_summaries() methods if out of core
+	training is desired.
+
+	Parameters
+	----------
+	distributions : array-like, shape (n_components,) or callable
+		The components of the model. If array, corresponds to the initial
+		distributions of the components. If callable, must also pass in the
+		number of components and kmeans++ will be used to initialize them.
+
+	weights : array-like, optional, shape (n_components,)
+		The prior probabilities corresponding to each component. Does not
+		need to sum to one, but will be normalized to sum to one internally.
+
+	n_components : int, optional
+		If a callable is passed into distributions then this is the number
+		of components to initialize using the kmeans++ algorithm.
+
+
+	Attributes
+	----------
+	distributions : array-like, shape (n_components,)
+		The component distribution objects.
+
+	weights : array-like, shape (n_components,)
+		The learned prior weight of each object
+
+
+	Examples
+	--------
+	>>> from pomegranate import *
+	>>> clf = GeneralMixtureModel([NormalDistributon(5, 2), NormalDistribution(1, 0)])
+	>>> clf.fit([[1], [2], [6], [7], [8]])
+	>>> clf.predict_proba([[5], [4]])
+
 	"""
-	A General Mixture Model. Can be a mixture of any distributions, as long
-	as they are all the same dimensionality, have a log_probability method,
-	and a from_sample method.
-	"""
+
 
 	cdef public numpy.ndarray distributions
 	cdef public numpy.ndarray weights 
@@ -49,10 +84,8 @@ cdef class GeneralMixtureModel( Distribution ):
 	cdef double* weights_ptr
 	cdef int n
 
-	def __init__( self, distributions, weights=None ):
-		"""
-		Take in a list of MultivariateDistributions to be optimized.
-		"""
+	def __init__( self, distributions, weights=None, n_components=None ):
+		"""Take in a list of initial distributions."""
 
 		if weights is None:
 			# Weight everything 1 if no weights specified
@@ -70,24 +103,51 @@ cdef class GeneralMixtureModel( Distribution ):
 		self.distributions_ptr = <void**> self.distributions.data
 
 	def sample( self ):
-		"""
-		Sample a point under this mixture by first selecting a component of the
-		mixture based on their weights, and then sampling that component.
+		"""Generate a sample from the model.
+
+		First, randomly select a component weighted by the prior probability,
+		Then, use the sample method from that component to generate a sample.
+		
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		sample : object
+			A randomly generated sample from the model of the type modelled
+			by the emissions. An integer if using most distributions, or an
+			array if using multivariate ones, or a string for most discrete
+			distributions.
 		"""
 
 		d = numpy.random.choice( self.distributions, p=numpy.exp(self.weights) )
 		return d.sample()
 
-	cpdef double log_probability( self, point ):
-		"""
-		Calculate the probability of a point given the model. The probability
-		of a point is the sum of the probabilities of each distribution.
+	def log_probability( self, point ):
+		"""Calculate the log probability of a point under the distribution.
+
+		The probability of a point is the sum of the probabilities of each
+		distribution multiplied by the weights. Thus, the log probability
+		is the sum of the log probability plus the log prior.
+
+		This is the python interface.
+
+		Parameters
+		----------
+		point : object
+			The sample to calculate the log probability of. This is usually an
+			integer, but can also be an array of size (n_components,) or any
+			object.
+
+		Returns
+		-------
+		log_probability : double
+			The log probabiltiy of the point under the distribution.
 		"""
 
-		cdef int i, n = len( self.distributions )
-		cdef double log_probability_sum = NEGINF
-		cdef double log_probability
-		cdef Distribution d
+		n = len( self.distributions )
+		log_probability_sum = NEGINF
 
 		for i in xrange( n ):
 			d = self.distributions[i]
@@ -97,9 +157,25 @@ cdef class GeneralMixtureModel( Distribution ):
 		return log_probability_sum
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""
-		Calculate the probability of a point in one dimension under the model,
-		assuming a one dimensional model.
+		"""Calculate the log probability of a point under the distribution.
+
+		The probability of a point is the sum of the probabilities of each
+		distribution multiplied by the weights. Thus, the log probability
+		is the sum of the log probability plus the log prior.
+
+		This is the cython nogil interface for univariate emissions.
+
+		Parameters
+		----------
+		point : object
+			The sample to calculate the log probability of. This is usually an
+			integer, but can also be an array of size (n_components,) or any
+			object.
+
+		Returns
+		-------
+		log_probability : double
+			The log probabiltiy of the point under the distribution.
 		"""
 
 		cdef int i
@@ -113,9 +189,25 @@ cdef class GeneralMixtureModel( Distribution ):
 		return log_probability_sum
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		"""
-		Calculate the probability of a point in multiple dimensions under the model,
-		assuming multiple dimensions.
+		"""Calculate the log probability of a point under the distribution.
+
+		The probability of a point is the sum of the probabilities of each
+		distribution multiplied by the weights. Thus, the log probability
+		is the sum of the log probability plus the log prior.
+
+		This is the cython nogil interface for multivariate emissions.
+
+		Parameters
+		----------
+		point : object
+			The sample to calculate the log probability of. This is usually an
+			integer, but can also be an array of size (n_components,) or any
+			object.
+
+		Returns
+		-------
+		log_probability : double
+			The log probabiltiy of the point under the distribution.
 		"""
 
 		cdef int i
@@ -130,19 +222,78 @@ cdef class GeneralMixtureModel( Distribution ):
 
 
 	def predict_proba( self, items ):
-		"""sklearn wrapper for the probability of each component for each point."""
+		"""Calculate the posterior P(M|D) for data.
+
+		Calculate the probability of each item having been generated from
+		each component in the model. This returns normalized probabilities
+		such that each row should sum to 1.
+
+		Since calculating the log probability is much faster, this is just
+		a wrapper which exponentiates the log probability matrix.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			The samples to do the prediction on. Each sample is a row and each
+			column corresponds to a dimension in that sample. For univariate
+			distributions, a single array may be passed in.
+
+		Returns
+		-------
+		probability : array-like, shape (n_samples, n_components)
+			The normalized probability P(M|D) for each sample. This is the
+			probability that the sample was generated from each component.
+		"""
 		
 		return numpy.exp( self.predict_log_proba( items ) )
 
 	def predict_log_proba( self, items ):
-		"""sklearn wrapper for the log probability of each component for each point."""
+		"""Calculate the posterior log P(M|D) for data.
+
+		Calculate the log probability of each item having been generated from
+		each component in the model. This returns normalized log probabilities
+		such that the probabilities should sum to 1
+
+		This is a sklearn wrapper for the original posterior function.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			The samples to do the prediction on. Each sample is a row and each
+			column corresponds to a dimension in that sample. For univariate
+			distributions, a single array may be passed in.
+
+		Returns
+		-------
+		log_probability : array-like, shape (n_samples, n_components)
+			The normalized log probability log P(M|D) for each sample. This is
+			the probability that the sample was generated from each component.
+		"""
 
 		return self.posterior( items )
 
 	def posterior( self, items ):
-		"""Return the posterior log probability of each point under each distribution."""
+		"""Calculate the posterior log P(M|D) for data.
 
-		return numpy.array( self._posterior( items ) )
+		Calculate the log probability of each item having been generated from
+		each component in the model. This returns normalized log probabilities
+		such that the probabilities should sum to 1
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			The samples to do the prediction on. Each sample is a row and each
+			column corresponds to a dimension in that sample. For univariate
+			distributions, a single array may be passed in.
+
+		Returns
+		-------
+		log_probability : array-like, shape (n_samples, n_components)
+			The normalized log probability log P(M|D) for each sample. This is
+			the probability that the sample was generated from each component.
+		"""
+
+		return numpy.array( self._posterior( numpy.array( items ) ) )
 
 	cdef double [:,:] _posterior( self, numpy.ndarray items ):
 		cdef int m = len( self.distributions ), n = items.shape[0]
@@ -157,9 +308,8 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			for j in range(m):
 				d = self.distributions[j]
-				r[i, j] = d.log_probability( items[i] )
-				r[i, j] += priors[j]
-				r_sum = pair_lse( r_sum, r[i, j] )
+				r[i, j] = d.log_probability(items[i]) + priors[j]
+				r_sum = pair_lse(r_sum, r[i, j])
 
 			for j in range(m):
 				r[i, j] = r[i, j] - r_sum
@@ -167,33 +317,125 @@ cdef class GeneralMixtureModel( Distribution ):
 		return r
 
 	def predict( self, items ):
-		"""sklearn wrapper for posterior method."""
+		"""Predict the most likely component which generated each sample.
 
-		return self.maximum_a_posteriori( items )
+		Calculate the posterior P(M|D) for each sample and return the index
+		of the component most likely to fit it. This corresponds to a simple
+		argmax over the responsibility matrix. 
+
+		This is a sklearn wrapper for the maximum_a_posteriori method.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			The samples to do the prediction on. Each sample is a row and each
+			column corresponds to a dimension in that sample. For univariate
+			distributions, a single array may be passed in.
+
+		Returns
+		-------
+		indexes : array-like, shape (n_samples,)
+			The index of the component which fits the sample the best.
+		"""
+
+		return self.maximum_a_posteriori( numpy.array( items ) )
 
 	def maximum_a_posteriori( self, items ):
-		"""
-		Return the most likely distribution given the posterior
-		matrix. 
+		"""Predict the most likely component which generated each sample.
+
+		Calculate the posterior P(M|D) for each sample and return the index
+		of the component most likely to fit it. This corresponds to a simple
+		argmax over the responsibility matrix. 
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			The samples to do the prediction on. Each sample is a row and each
+			column corresponds to a dimension in that sample. For univariate
+			distributions, a single array may be passed in.
+
+		Returns
+		-------
+		indexes : array-like, shape (n_samples,)
+			The index of the component which fits the sample the best.
 		"""
 
 		return self.posterior( items ).argmax( axis=1 )
 
 	def fit( self, items, weights=None, stop_threshold=0.1, max_iterations=1e8,
 		verbose=False ):
-		"""sklearn wrapper for train method."""
+		"""Fit the model to new data using EM.
+
+		This method fits the components of the model to new data using the EM
+		method. It will iterate until either max iterations has been reached,
+		or the stop threshold has been passed.
+
+		This is a sklearn wrapper for train method.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+
+		stop_threshold : double, optional, positive
+			The threshold at which EM will terminate for the improvement of
+			the model. If the model does not improve its fit of the data by
+			a log probability of 0.1 then terminate.
+
+		max_iterations : int, optional, positive
+			The maximum number of iterations to run EM for. If this limit is
+			hit then it will terminate training, regardless of how well the
+			model is improving per iteration.
+
+		Returns
+		-------
+		improvement : double
+			The total improvement in log probability P(D|M)
+		"""
 
 		return self.train( items, weights, stop_threshold, max_iterations,
 			verbose )
 
 	def train( self, items, weights=None, stop_threshold=0.1, max_iterations=1e8,
 		verbose=False ):
+		"""Fit the model to new data using EM.
+
+		This method fits the components of the model to new data using the EM
+		method. It will iterate until either max iterations has been reached,
+		or the stop threshold has been passed.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+
+		stop_threshold : double, optional, positive
+			The threshold at which EM will terminate for the improvement of
+			the model. If the model does not improve its fit of the data by
+			a log probability of 0.1 then terminate.
+
+		max_iterations : int, optional, positive
+			The maximum number of iterations to run EM for. If this limit is
+			hit then it will terminate training, regardless of how well the
+			model is improving per iteration.
+
+		Returns
+		-------
+		improvement : double
+			The total improvement in log probability P(D|M)
 		"""
-		Take in a list of data points and their respective weights. These are
-		most likely uniformly weighted, but the option exists if you want to
-		add a second layer of weights on top of the ones learned in the
-		expectation step.
-		"""
+
+		items = numpy.array( items )
 
 		if weights is None:
 			weights = numpy.ones(items.shape[0], dtype=numpy.float64)
@@ -226,10 +468,6 @@ cdef class GeneralMixtureModel( Distribution ):
 		return trained_log_probability_sum - initial_log_probability_sum
 
 	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-		"""
-		Summarization function for one step of EM.
-		"""
-
 		cdef double* r = <double*> calloc( self.n * n, sizeof(double) )
 		cdef int i, j
 		cdef double total
@@ -253,17 +491,43 @@ cdef class GeneralMixtureModel( Distribution ):
 			( <Distribution> self.distributions_ptr[j] )._summarize( items, &r[j*n], n )
 
 	def from_summaries( self, inertia=0.0 ):
-		"""
-		Update all distributions from the summaries.
+		"""Fit the model to the collected sufficient statistics.
+
+		Fit the parameters of the model to the sufficient statistics gathered
+		during the summarize calls. This should return an exact update.
+		
+		Parameters
+		----------
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be 
+			old_parameters*inertia + new_parameters*(1-inertia), so an
+			inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters.
+
+		Returns
+		-------
+		None
 		"""
 
 		for distribution in self.distributions:
 			distribution.from_summaries( inertia )
 
 	def to_json( self, separators=(',', ' : '), indent=4 ):
-		"""
-		Write out the HMM to JSON format, recursively including state and
-		distribution information.
+		"""Serialize the model to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional 
+			The two separaters to pass to the json.dumps function for formatting.
+
+		indent : int, optional
+			The indentation to use at each level. Passed to json.dumps for
+			formatting.
+		
+		Returns
+		-------
+		A properly formatted JSON object.
 		"""
 		
 		model = { 
@@ -275,9 +539,13 @@ cdef class GeneralMixtureModel( Distribution ):
 		return json.dumps( model, separators=separators, indent=indent )
 
 	@classmethod
-	def from_json( cls, s, verbose=False ):
-		"""
-		Read a GMM from the given JSON, build the model, and bake it.
+	def from_json( cls, s ):
+		"""Read in a serialized model and return the appropriate classifier.
+		
+		Parameters
+		----------
+		s : str
+			A JSON formatted string containing the file.
 		"""
 
 		d = json.loads( s )
