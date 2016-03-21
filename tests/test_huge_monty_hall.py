@@ -132,7 +132,7 @@ def test_monty():
 			[ True,  'C', 'C', 'C', 2, True  ],
 			[ True,  'C', 'B', 'A', 1, False ]]
 
-	network.train( data )
+	network.fit( data )
 
 	assert_equal( monty.log_probability( ('A', 'A', 'C') ), np.log(0.6) )
 	assert_equal( monty.log_probability( ('B', 'B', 'C') ), np.log(0.5) )
@@ -156,7 +156,7 @@ def test_friend():
 			[ True,  'C', 'C', 'C', 2, True  ],
 			[ True,  'C', 'B', 'A', 1, False ]]
 
-	network.train( data )
+	network.fit( data )
 
 	assert_equal( friend.log_probability(True), np.log(7./12) )
 	assert_equal( friend.log_probability(False), np.log(5./12) )
@@ -181,7 +181,7 @@ def test_remaining():
 			[ True,  'C', 'C', 'C', 2, True  ],
 			[ True,  'C', 'B', 'A', 1, False ]]
 
-	network.train( data )
+	network.fit( data )
 
 	assert_equal( remaining.log_probability(0), np.log(3./12) )
 	assert_equal( remaining.log_probability(1), np.log(5./12) )
@@ -207,7 +207,7 @@ def test_prize():
 			[ True,  'C', 'C', 'C', 2, True  ],
 			[ True,  'C', 'B', 'A', 1, False ]]
 
-	network.train( data )
+	network.fit( data )
 
 	assert_equal( prize.log_probability( (True, True, 'C') ), np.log(0.5) )
 	assert_equal( prize.log_probability( (True, True, 'B') ), float("-inf") )
