@@ -98,9 +98,8 @@ def test_multivariate_gmm_posterior():
 	X = np.array([[ 2., 5., 7., 3., 2. ],
 		          [ 1., 2., 5., 2., 5. ]])
 
-	assert_almost_equal( gmm.posterior(X), posterior, 4)
-	assert_almost_equal( numpy.exp( gmm.posterior(X) ), gmm.predict_proba(X), 7 )
-	assert_almost_equal( gmm.posterior(X), gmm.predict_log_proba(X) )
+	assert_almost_equal( gmm.predict_log_proba(X), posterior, 4)
+	assert_almost_equal( numpy.exp(gmm.predict_log_proba(X)), gmm.predict_proba(X), 4 )
 
 
 @with_setup(setup_multivariate_gaussian, teardown)
@@ -110,8 +109,7 @@ def test_multivariate_gmm_maximum_a_posteriori():
 	X = np.array([[ 2., 5., 7., 3., 2. ],
 		          [ 1., 2., 5., 2., 5. ]])
 
-	assert_almost_equal( gmm.maximum_a_posteriori(X), posterior_argmax )
-	assert_almost_equal( gmm.maximum_a_posteriori(X), gmm.predict(X), 7 )
+	assert_almost_equal( gmm.predict(X), posterior_argmax )
 
 
 def test_multivariate_gmm_train():
@@ -128,7 +126,7 @@ def test_multivariate_gmm_train():
 		          [ 1.4,  3.1],
 		          [ 1.0,  1.0]])
 
-	assert_almost_equal( gmm.train(X, verbose=True), 15.242416, 4 )
+	assert_almost_equal( gmm.fit(X, verbose=True), 15.242416, 4 )
 
 
 def test_multivariate_gmm_train_iterations():
@@ -146,9 +144,9 @@ def test_multivariate_gmm_train_iterations():
 	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(5) ]
 	gmm = GeneralMixtureModel( mgs )
 
-	improvement = gmm.train(X)
+	improvement = gmm.fit(X)
 
 	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(5) ]
 	gmm = GeneralMixtureModel( mgs )
 
-	assert_greater( improvement, gmm.train(X, max_iterations=1) )
+	assert_greater( improvement, gmm.fit(X, max_iterations=1) )
