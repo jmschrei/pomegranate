@@ -157,6 +157,22 @@ cdef class HiddenMarkovModel( Model ):
 
 		self.state_names = set()
 
+	def __dealloc__(self):
+		free(self.in_transition_pseudocounts)
+		free(self.out_transition_pseudocounts)
+		free(self.tied_state_count)
+		free(self.tied)
+		free(self.tied_edge_group_size)
+		free(self.tied_edges_starts)
+		free(self.tied_edges_ends)
+		free(self.in_transition_log_probabilities)
+		free(self.out_transition_log_probabilities)
+		free(self.expected_transitions)
+		free(self.in_edge_count)
+		free(self.in_transitions)
+		free(self.out_edge_count)
+		free(self.out_transitions)
+
 	def add_state(self, state):
 		"""
 		Adds the given State to the model. It must not already be in the model,
@@ -2377,6 +2393,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		free(norm)
 		free(visited)
+		free(expected_transitions)
 
 	cdef void _train_viterbi_once( self, list sequences, 
 		double transition_pseudocount, int use_pseudocount, 
