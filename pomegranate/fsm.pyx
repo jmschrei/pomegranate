@@ -12,13 +12,68 @@ import sys
 from .base cimport Model
 from .base cimport State
 
-if sys.version_info[0] > 2:
-	from functools import reduce
-
 cdef class FiniteStateMachine( Model ):
-	'''
-	A finite state machine. 
-	'''
+	"""A Finite State Machine
+
+	A finite state machine is a model which can be in one of many 'states',
+	and transitions between these states upon seeing various observations. It
+	is not a probabilistic model, but is highly useful and very related to
+	HMMs.
+
+	Parameters
+	----------
+	name : str, optional
+		The name of the model.
+
+	start : state, optional
+		The start of the model.
+
+	Attributes
+	----------
+	start : state
+		The start object
+
+	current_state : state
+		The current state that the FSM is in.
+
+	start_index : int
+		The index of the state which is the starting state
+
+	silent_start : int
+		The start of the indexing of silent states
+
+	current_index : int
+		The index of current state the model is in
+
+	Examples
+	--------
+	>>> from pomegranate import *
+	>>> s1 = State( None, "s1" )
+	>>> s2 = State( None, "s2" )
+	>>> model = FiniteStateMachine( "example" )
+	>>> model.add_states([s1, s2])
+	>>> model.add_transition( model.start, s1, 'A' )
+	>>> model.add_transition( model.start, s2, 'B' )
+	>>> model.add_transition( s1, s2, 'B' )
+	>>> model.add_transition( s1, s1, 'A' )
+	>>> model.add_transition( s2, s1, 'A' )
+	>>> model.add_transition( s2, s2, 'B' )
+	>>> model.bake()
+	>>> print model.current_state.name
+	example-start
+	>>> model.step('A')
+	>>> print model.current_state.name, "after seeing 'A'"
+	s1 after seeing 'A'
+	>>> model.step('A')
+	>>> print model.current_state.name, "after seeing 'A'"
+	s1 after seeing 'A'
+	>>> model.step('B')
+	>>> print model.current_state.name, "after seeing 'B'"
+	s2 after seeing 'B'
+	>>> model.step('A')
+	>>> print model.current_state.name, "after seeing 'A'"
+	s1 after seeing 'A'
+	"""
 
 	cdef public object start
 	cdef public State current_state
@@ -30,15 +85,6 @@ cdef class FiniteStateMachine( Model ):
 	cdef int [:] out_transitions
 
 	def __init__( self, name=None, start=None ):
-		"""
-		Make a new Finite State Machine. Name is an optional string used to name
-		the model when output. Name may not contain spaces or newlines.
-		
-		If start is specified, the machine will start in that state and not generate
-		a new state for it.
-		"""
-		
-		# Save the name or make up a name.
 		self.name = name or str( id(self) )
 
 		# Create the starting state that we begin in
@@ -58,28 +104,53 @@ cdef class FiniteStateMachine( Model ):
 		free( self.out_edge_count )
 
 	def add_transition( self, a, b, key ):
-		"""
+		"""Add a transition for the model from a -> b.
+
 		Add a transition from state a to state b. Since this is a FSM,
 		instead of probabilities we have a key by which this edge is
 		traversed.
+		
+		Parameters
+		----------
+		a : state
+			The state the edge originates at
+
+		b : state
+			The state the edge ends up at
+		
+		key : object
+			The key which causes the model to transition from a to b
+
+		Returns
+		-------
+		None
 		"""
 
 		# Add the transition
 		self.edges.append( (a, b, key) )
 
 	def add_edge( self, a, b, key ):
-		"""
-		Another name for a transition.
-		"""
+		"""Wrapper for add_transition."""
 
 		self.add_transition( a, b, key )
 
-	def bake( self, verbose=False, merge="all" ): 
-		"""
-		Finalize the topology of the model, and assign a numerical index to
-		every state. This method must be called before any of the probability-
-		calculating methods. This is the same as the HMM bake, except that at
-		the end it sets current state information.
+	def bake( self ): 
+		"""Finalize the topology of the model.
+
+		Assign a numerical index to every state and create the underlying arrays
+		corresponding to the states and edges between the states. This method 
+		must be called before any of the probability-calculating methods. This 
+		is the same as the HMM bake, except that at the end it sets current
+		state information.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		self : object
+			Return the fit object.
 		"""
 		
 		# We need a mapping of states to their index. 
@@ -137,13 +208,27 @@ cdef class FiniteStateMachine( Model ):
 			self.current_state = self.start
 			self.current_index = self.start_index 
 		except KeyError:
-			raise SyntaxError( "Model.start has been deleted, leaving the \
+			raise SyntaxError( "model.start has been deleted, leaving the \
 				model with no start. Please ensure it has a start." )
 
+		return self
+
 	def to_json( self, separators=(',', ' : '), indent=4 ):
-		"""
-		Write out the HMM to JSON format, recursively including state and
-		distribution information.
+		"""Serialize the model to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional 
+			The two separaters to pass to the json.dumps function for formatting.
+
+		indent : int, optional
+			The indentation to use at each level. Passed to json.dumps for
+			formatting.
+		
+		Returns
+		-------
+		json : str
+			A properly formatted JSON object.
 		"""
 		
 		model = { 
@@ -169,8 +254,17 @@ cdef class FiniteStateMachine( Model ):
 			
 	@classmethod
 	def from_json( cls, s, verbose=False ):
-		"""
-		Read a HMM from the given JSON, build the model, and bake it.
+		"""Read in a serialized model and return the appropriate classifier.
+		
+		Parameters
+		----------
+		s : str
+			A JSON formatted string containing the file.
+
+		Returns
+		-------
+		model : object
+			A properly initialized and baked model.
 		"""
 
 		# Load a dictionary from a JSON formatted string
@@ -193,22 +287,30 @@ cdef class FiniteStateMachine( Model ):
 			model.add_transition( states[start], states[end], key )
 
 		# Bake the model
-		model.bake( verbose=verbose )
+		model.bake()
 		return model
 
 	def step( self, symbol ):
-		'''
-		Take in a sequence of symbols, and update the internal state.
-		It will take the best step given the current state in a greedy manner.
-		'''
+		"""Update the internal state based on a symbol.
+
+		Take in a symbol and move according to the edges in the model. This
+		updates the current state according to which edge could be passed.
+		
+		Parameters
+		----------
+		symbol : object
+			The next object in the sequence.
+
+		Returns
+		-------
+		self : object
+			The new object. 
+		"""
 
 		self._step( symbol )
+		return self
 
 	cdef void _step( self, object symbol ):
-		'''
-		Find the best next state to go to, and make the transition.
-		'''
-
 		cdef int i, k, ki
 		cdef int* out_edges = self.out_edge_count 
 
@@ -224,10 +326,19 @@ cdef class FiniteStateMachine( Model ):
 			raise SyntaxError( "No edges leaving state {} with key {}"
 				.format( self.states[i].name, symbol ) )
 
-	def restart( self ):
-		"""
-		Restart the state machine, setting it back to the beginning.
+	def reset( self ):
+		"""Reset the internal state to the start.
+		
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		self : object
+			The reset object
 		"""
 
 		self.current_index = 0
 		self.current_state = self.start
+		return self
