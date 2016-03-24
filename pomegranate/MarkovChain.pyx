@@ -3,12 +3,40 @@
 # MarkovChain.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+import numpy
 
 cdef class MarkovChain(object):
 	"""A Markov Chain.
 
 	Implemented as a series of conditional distributions, the Markov chain
-	models P(X_i | X_i-1...X_i-k) for a k-th order Markov network."""
+	models P(X_i | X_i-1...X_i-k) for a k-th order Markov network. The
+	conditional dependencies are directly on the emissions, and not on a
+	hidden state as in a hidden Markov model.
+
+	Parameters
+	----------
+	distributions : list, shape (k+1)
+		A list of the conditional distributions which make up the markov chain.
+		Begins with P(X_i), then P(X_i | X_i-1). For a k-th order markov chain
+		you must put in k+1 distributions.
+
+	Attributes
+	----------
+	distributions : list, shape (k+1)
+		The distributions which make up the chain.
+
+	Examples
+	--------
+	>>> from pomegranate import *
+	>>> d1 = DiscreteDistribution({'A': 0.25, 'B': 0.75})
+	>>> d2 = ConditionalProbabilityTable([['A', 'A', 0.33],
+		                             ['B', 'A', 0.67],
+		                             ['A', 'B', 0.82],
+		                             ['B', 'B', 0.18]], [d1])
+	>>> mc = MarkovChain([d1, d2])
+	>>> mc.log_probability(list('ABBAABABABAABABA'))
+	-8.9119890701808213
+	"""
 
 	cdef int k
 	cdef public list distributions
@@ -20,8 +48,18 @@ cdef class MarkovChain(object):
 	def log_probability(self, sequence):
 		"""Calculate the log probability of the sequence under the model.
 
-		This is the first slices under the first few components of the model,
-		and then the remaining slices under the last component."""
+		This calculates the first slices of increasing size under the
+		corresponding first few components of the model until size k is reached,
+		at which all slices are evaluated under the final component. 
+		
+		Parameters
+		----------
+		sequence : array-like
+			An array of observations
+
+		Returns : double
+			logp : The log probability of the sequence under the model.
+		"""
 
 		n, k = len(sequence), self.k
 		l = min(k, n)
@@ -37,14 +75,61 @@ cdef class MarkovChain(object):
 
 		return logp
 
-	def fit(self, sequences, inertia=0.0):
-		"""Fit the model to new data."""
+	def fit(self, sequences, weights=None, inertia=0.0):
+		"""Fit the model to new data using MLE.
 
-		self.summarize(sequences)
+		The underlying distributions are fed in their appropriate points and
+		weights and are updated.
+
+		Parameters
+		----------
+		sequences : array-like, shape (n_samples, variable)
+			This is the data to train on. Each row is a sample which contains
+			a sequence of variable length
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample. If nothing is passed in then 
+			each sample is assumed to be the same weight.
+
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters.
+
+		Returns
+		-------
+		None
+		"""
+
+		self.summarize(sequences, weights)
 		self.from_summaries(inertia)
 
-	def summarize(self, sequences):
-		"""Calculate summary statistics for the sequences."""
+	def summarize(self, sequences, weights=None):
+		"""Summarize a batch of data and store sufficient statistics.
+
+		This will summarize the sequences into sufficient statistics stored in
+		each distribution.
+
+		Parameters
+		----------
+		sequences : array-like, shape (n_samples, variable)
+			This is the data to train on. Each row is a sample which contains
+			a sequence of variable length
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample. If nothing is passed in then 
+			each sample is assumed to be the same weight.
+
+		Returns
+		-------
+		None
+		"""
+
+		if weights is None:
+			weights = numpy.ones(len(sequences), dtype='float64')
+		else:
+			weights = numpy.array(weights)
 
 		n = max( map( len, sequences ) )
 		for i in range(self.k):
@@ -52,7 +137,7 @@ cdef class MarkovChain(object):
 				symbols = [ sequence[0] for sequence in sequences ]
 			else:
 				symbols = [ sequence[:i+1] for sequence in sequences if len(sequence) > i ]
-			self.distributions[i].summarize(symbols)
+			self.distributions[i].summarize(symbols, weights)
 
 		for j in range(n-self.k):
 			if self.k == 0:
@@ -60,10 +145,26 @@ cdef class MarkovChain(object):
 			else:
 				symbols = [ sequence[j:j+self.k+1] for sequence in sequences if len(sequence) > j+self.k ]
 			
-			self.distributions[-1].summarize(symbols)
+			self.distributions[-1].summarize(symbols, weights)
 
 	def from_summaries(self, inertia=0.0):
-		"""Update the parameters of the model using the stores summary statistics."""
+		"""Fit the model to the collected sufficient statistics.
+
+		Fit the parameters of the model to the sufficient statistics gathered
+		during the summarize calls. This should return an exact update.
+		
+		Parameters
+		----------
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters.
+
+		Returns
+		-------
+		None
+		"""
 
 		for i in range(self.k+1):
 			self.distributions[i].from_summaries( inertia=inertia )

@@ -105,7 +105,7 @@ def test_viterbi_train():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 use_pseudocount=True )
@@ -120,7 +120,7 @@ def test_viterbi_train_no_pseudocount():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 use_pseudocount=False )
@@ -134,7 +134,7 @@ def test_viterbi_train_w_pseudocount():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 transition_pseudocount=1. )
@@ -148,7 +148,7 @@ def test_viterbi_train_w_pseudocount_priors():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 transition_pseudocount=0.278,
@@ -163,7 +163,7 @@ def test_viterbi_train_w_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.193 )
@@ -177,7 +177,7 @@ def test_viterbi_train_w_inertia2():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.82 )
@@ -191,7 +191,7 @@ def test_viterbi_train_w_pseudocount_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.23,
@@ -206,7 +206,7 @@ def test_bw_train():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
@@ -221,7 +221,7 @@ def test_bw_train_json():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
@@ -240,7 +240,7 @@ def test_bw_train_no_pseudocount():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 	
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=False,
@@ -255,7 +255,7 @@ def test_bw_train_w_pseudocount():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.123,
@@ -270,7 +270,7 @@ def test_bw_train_w_pseudocount_priors():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.278,
@@ -286,7 +286,7 @@ def test_bw_train_w_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.193,
@@ -301,7 +301,7 @@ def test_bw_train_w_inertia2():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.82,
@@ -316,7 +316,7 @@ def test_bw_train_w_pseudocount_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.02,
@@ -332,7 +332,7 @@ def test_bw_train_w_frozen_distributions():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 distribution_inertia=1.00,
@@ -347,7 +347,7 @@ def test_bw_train_w_frozen_edges():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=1.00,
@@ -362,7 +362,7 @@ def test_bw_train_w_edge_a_distribution_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.5,
@@ -378,7 +378,7 @@ def test_bw_train_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
@@ -394,7 +394,7 @@ def test_bw_train_no_pseudocount_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 	
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=False,
@@ -410,7 +410,7 @@ def test_bw_train_w_pseudocount_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.123,
@@ -426,7 +426,7 @@ def test_bw_train_w_pseudocount_priors_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.278,
@@ -443,7 +443,7 @@ def test_bw_train_w_inertia_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.193,
@@ -459,7 +459,7 @@ def test_bw_train_w_inertia2_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.82,
@@ -475,7 +475,7 @@ def test_bw_train_w_pseudocount_inertia_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.02,
@@ -492,7 +492,7 @@ def test_bw_train_w_frozen_distributions_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 distribution_inertia=1.00,
@@ -508,7 +508,7 @@ def test_bw_train_w_frozen_edges_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=1.00,
@@ -524,7 +524,7 @@ def test_bw_train_w_edge_a_distribution_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
-	total_improvement = model.train( seqs, 
+	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.5,

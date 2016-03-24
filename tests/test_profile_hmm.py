@@ -303,7 +303,7 @@ def test_posterior_transitions_w_training():
 	assert_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
-	model.train( sequences )
+	model.fit( sequences, verbose=False )
 	transitions = model.dense_transition_matrix()
 
 	assert_not_equal( transitions[d1, i1], transitions[d2, i2] )
@@ -331,7 +331,7 @@ def test_posterior_transitions_w_vtraining():
 	assert_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
-	model.train( sequences, algorithm='viterbi' )
+	model.fit( sequences, verbose=False, algorithm='viterbi' )
 	transitions = model.dense_transition_matrix()
 
 	assert_not_equal( transitions[i0, i0], transitions[i1, i1] )
@@ -358,7 +358,7 @@ def test_posterior_transitions_w_tied_training():
 	assert_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
-	model.train( sequences )
+	model.fit( sequences, verbose=False )
 	transitions = model.dense_transition_matrix() 
 
 	assert_equal( transitions[i0, i0], transitions[i1, i1] )
@@ -385,7 +385,7 @@ def test_posterior_transitions_w_tied_vtraining():
 	assert_equal( transitions[i0, d1], transitions[i1, d2] )
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
-	model.train( sequences, algorithm='viterbi' )
+	model.fit( sequences, verbose=False, algorithm='viterbi' )
 	transitions = model.dense_transition_matrix() 
 
 	assert_equal( transitions[d1, i1], transitions[d2, i2] )
@@ -468,7 +468,6 @@ def test_properties():
 	assert_equal( model.edge_count(), 29 )
 	assert_equal( model.state_count(), 12 )
 	assert_equal( model.name, "Global Alignment" )
-	assert_equal( model.is_infinite(), False )
 
 
 @with_setup( setup, teardown )
@@ -488,4 +487,3 @@ def test_from_json():
 	assert_equal( hmm.edge_count(), 29 )
 	assert_equal( hmm.state_count(), 12 )
 	assert_equal( hmm.name, "Global Alignment" )
-	assert_equal( hmm.is_infinite(), False )

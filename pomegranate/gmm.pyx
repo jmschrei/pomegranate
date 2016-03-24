@@ -522,7 +522,8 @@ cdef class GeneralMixtureModel( Distribution ):
 		
 		Returns
 		-------
-		A properly formatted JSON object.
+		json : str
+			A properly formatted JSON object.
 		"""
 		
 		model = { 
@@ -541,11 +542,14 @@ cdef class GeneralMixtureModel( Distribution ):
 		----------
 		s : str
 			A JSON formatted string containing the file.
+
+		Returns
+		-------
+		model : object
+			A properly initialized and baked model.
 		"""
 
 		d = json.loads( s )
-
 		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ] 
-
 		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
 		return model
