@@ -14,9 +14,16 @@ if sys.version_info[0] > 2:
 	xrange = range
 
 cdef class FactorGraph( Model ):
-	"""
-	A biparte graph between factors and conditional probability
-	distributions.
+	"""A Factor Graph model.
+
+	A biparte graph where conditional probability tables are on one side,
+	and marginals for each of the variables involved are on the other
+	side.
+
+	Parameters
+	----------
+	name : str, optional
+		The name of the model. Default is None.
 	"""
 
 	cdef numpy.ndarray transitions, edge_count, marginals
@@ -27,27 +34,44 @@ cdef class FactorGraph( Model ):
 		the model when output. Name may not contain spaces or newlines.
 		"""
 		
-		# Save the name or make up a name.
 		self.name = name or str( id(self) )
 		self.states = []
 		self.edges = []
 
 	def add_node( self, n ):
-		"""
-		Add a node to the graph.
+		"""Add a node to the given model. 
+		
+		The node must not already be in the model, nor may it be part of any 
+		other model that will eventually be combined with this one.
+
+		Parameters
+		----------
+		state : Node
+			A node object to be added to the model.
+
+		Returns
+		-------
+		None
 		"""
 
 		self.states.append( n )
 
-	def bake( self, verbose=False ): 
-		"""
-		Finalize the topology of the model, and assign a numerical index to
-		every node. This method must be called before any of the probability-
-		calculating or sampling methods.
-		
-		This fills in self.states (a list of all states in order), the sparse
-		matrices of transitions and their weights, and also will merge silent
-		states.
+	def bake( self ): 
+		"""Finalize the topology of the model.
+
+		Assign a numerical index to every state and create the underlying arrays
+		corresponding to the states and edges between the states. This method 
+		must be called before any of the probability-calculating methods. This 
+		is the same as the HMM bake, except that at the end it sets current
+		state information.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
 		"""
 
 		n, m = len(self.states), len(self.edges)
@@ -127,17 +151,55 @@ cdef class FactorGraph( Model ):
 		self.edges = []  
 
 	def marginal( self ):
-		"""
-		Return the marginal of the graph.
+		"""Return the marginal probabilities of each variable in the graph.
+
+		This is equivalent to a pass of belief propogation on a graph where
+		no data has been given. This will calculate the probability of each
+		variable being in each possible emission when nothing is known.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		marginals : array-like, shape (n_nodes)
+			An array of univariate distribution objects showing the marginal
+			probabilities of that variable.
 		"""
 
 		return self.forward_backward( {} )
 
 	def forward_backward( self, data, max_iterations=10, verbose=False ):
-		"""
-		Perform the sum-product algorithm. The term 'marginal node' and 'variable node'
-		are used interchangably as I wrote this method while very excited over the course
-		of several days.
+		"""Returns the probabilities of each variable in the graph given evidence.
+
+		This calculates the marginal probability distributions for each state given
+		the evidence provided through loopy belief propogation. Loopy belief
+		propogation is an approximate algorithm which is exact for certain graph
+		structures.
+
+		Parameters
+		----------
+		data : dict or array-like, shape <= n_nodes, optional
+			The evidence supplied to the graph. This can either be a dictionary
+			with keys being state names and values being the observed values
+			(either the emissions or a distribution over the emissions) or an
+			array with the values being ordered according to the nodes incorporation
+			in the graph (the order fed into .add_states/add_nodes) and None for
+			variables which are unknown. If nothing is fed in then calculate the
+			marginal of the graph.
+		max_iterations : int, optional
+			The number of iterations with which to do loopy belief propogation.
+			Usually requires only 1.
+		check_input : bool, optional
+			Check to make sure that the observed symbol is a valid symbol for that
+			distribution to produce.
+
+		Returns
+		-------
+		probabilities : array-like, shape (n_nodes)
+			An array of univariate distribution objects showing the probabilities
+			of each variable.
 		"""
 
 		n, m = len( self.states ), len( self.transitions )

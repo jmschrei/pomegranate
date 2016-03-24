@@ -86,13 +86,13 @@ cdef class HiddenMarkovModel( Model ):
 	Parameters
 	----------
 	name : str, optional
-		The name of the model.
+		The name of the model. Default is None.
 
 	start : State, optional
-		An optional state to force the model to start in
+		An optional state to force the model to start in. Default is None.
 
 	end : State, optional
-		An optional state to force the model to end in 
+		An optional state to force the model to end in. Default is None.
 
 	Attributes
 	----------
@@ -296,12 +296,13 @@ cdef class HiddenMarkovModel( Model ):
 
 		pseudocount : double, optional
 			The pseudocount to use for this specific edge if using edge
-			pseudocounts for training. Defaults to the probability.
+			pseudocounts for training. Defaults to the probability. Default
+			is None.
 
 		group : str, optional
 			The name of the group of edges to tie together during training. If
 			groups are used, then a transition across any one edge counts as a
-			transition across all edges.
+			transition across all edges. Default is None.
 
 		Returns
 		-------
@@ -319,19 +320,19 @@ cdef class HiddenMarkovModel( Model ):
 		Parameters
 		----------
 		a : State or list
-			Either a state or a list of states where the edges originate
+			Either a state or a list of states where the edges originate.
 
 		b : State or list
-			Either a state or a list of states where the edges go to
+			Either a state or a list of states where the edges go to.
 
 		probabilities : list
-			The probabilities associated with each transition
+			The probabilities associated with each transition.
 
 		pseudocounts : list, optional
-			The pseudocounts associated with each transition
+			The pseudocounts associated with each transition. Default is None.
 
 		groups : list, optional
-			The groups of each edge 
+			The groups of each edge. Default is None.
 
 		Returns
 		-------
@@ -473,10 +474,12 @@ cdef class HiddenMarkovModel( Model ):
 			The other model to concatenate
 
 		suffix : str, optional
-			Add the suffix to the end of all state names in the other model
+			Add the suffix to the end of all state names in the other model.
+			Default is ''.
 
 		prefix : str, optional
-			Add the prefix to the beginning of all state names in the other model
+			Add the prefix to the beginning of all state names in the other
+			model. Default is ''.
 
 		Returns
 		-------
@@ -569,7 +572,7 @@ cdef class HiddenMarkovModel( Model ):
 		----------
 		verbose : bool, optional
 			Return a log of changes made to the model during normalization
-			or merging.
+			or merging. Default is False.
 
 		merge : "None", "Partial, "All"
 			Merging has three options:
@@ -591,6 +594,7 @@ cdef class HiddenMarkovModel( Model ):
 				state, and a transition out, even if it is only to itself. If
 				the state does not have either, the HMM will likely not work as
 				intended.
+			Default is 'All'.
 
 		Returns
 		-------
@@ -994,11 +998,11 @@ cdef class HiddenMarkovModel( Model ):
 		----------
 		length : int, optional
 			Generate a sequence with a maximal length of this size. Used if
-			you have no explicit end state.
+			you have no explicit end state. Default is 0.
 
 		path : bool, optional
 			Return the path of hidden states in addition to the emissions. If
-			true will return a tuple of (sample, path).
+			true will return a tuple of (sample, path). Default is False.
 
 		Returns
 		-------
@@ -1116,7 +1120,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		check_input : bool, optional
 			Check to make sure that all emissions fall under the support of
-			the emission distributions.
+			the emission distributions. Default is True.
 
 		Returns
 		-------
@@ -2832,7 +2836,7 @@ cdef class HiddenMarkovModel( Model ):
 			# Now train this distribution on the symbols collected. If there
 			# are tied states, this will be done once per set of tied states
 			# in order to save time.
-			self.states[k].distribution.train( symbols[k], 
+			self.states[k].distribution.fit( symbols[k], 
 				inertia=distribution_inertia )
 
 		return log_probability( self, sequences ) - initial_log_probability

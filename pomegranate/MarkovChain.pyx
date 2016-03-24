@@ -4,6 +4,9 @@
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
 import numpy
+import json
+
+from .distributions import Distribution
 
 cdef class MarkovChain(object):
 	"""A Markov Chain.
@@ -89,13 +92,13 @@ cdef class MarkovChain(object):
 
 		weights : array-like, shape (n_samples,), optional
 			The initial weights of each sample. If nothing is passed in then 
-			each sample is assumed to be the same weight.
+			each sample is assumed to be the same weight. Default is None.
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
 			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
 			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters.
+			inertia of 1 means ignore the new parameters. Default is 0.0.
 
 		Returns
 		-------
@@ -119,7 +122,7 @@ cdef class MarkovChain(object):
 
 		weights : array-like, shape (n_samples,), optional
 			The initial weights of each sample. If nothing is passed in then 
-			each sample is assumed to be the same weight.
+			each sample is assumed to be the same weight. Default is None.
 
 		Returns
 		-------
@@ -159,7 +162,7 @@ cdef class MarkovChain(object):
 			The weight of the previous parameters of the model. The new
 			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
 			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters.
+			inertia of 1 means ignore the new parameters. Default is 0.0.
 
 		Returns
 		-------
@@ -168,3 +171,49 @@ cdef class MarkovChain(object):
 
 		for i in range(self.k+1):
 			self.distributions[i].from_summaries( inertia=inertia )
+
+	def to_json( self, separators=(',', ' : '), indent=4 ):
+		"""Serialize the model to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional 
+		    The two separaters to pass to the json.dumps function for formatting.
+		    Default is (',', ' : ').
+
+		indent : int, optional
+		    The indentation to use at each level. Passed to json.dumps for
+		    formatting. Default is 4.
+
+		Returns
+		-------
+		json : str
+		    A properly formatted JSON object.
+		"""
+
+		model = { 
+		            'class' : 'MarkovChain',
+		            'distributions'  : [ json.loads( d.to_json() ) for d in self.distributions ]
+		        }
+
+		return json.dumps( model, separators=separators, indent=indent )
+
+	@classmethod
+	def from_json( cls, s ):
+		"""Read in a serialized model and return the appropriate classifier.
+
+		Parameters
+		----------
+		s : str
+		    A JSON formatted string containing the file.
+
+		Returns
+		-------
+		model : object
+		    A properly initialized and baked model.
+		"""
+
+		d = json.loads( s )
+		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ] 
+		model = MarkovChain( distributions )
+		return model

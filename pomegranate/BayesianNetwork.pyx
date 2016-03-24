@@ -18,6 +18,19 @@ cdef class BayesianNetwork( Model ):
 	represent conditional dependencies of the children on their parents, and the
 	lack of an edge represents a conditional independence. 
 
+	Parameters
+	----------
+	name : str, optional
+		The name of the model. Default is None
+
+	Attributes
+	----------
+	states : list, shape (n_states,)
+		A list of all the state objects in the model
+
+	graph : networkx.DiGraph
+		The underlying graph object.
+
 	Example
 	-------
 	>>> from pomegranate import *
@@ -61,11 +74,22 @@ cdef class BayesianNetwork( Model ):
 	[['B', 'A']]
 	"""
 
-	def bake( self, verbose=False ): 
-		"""
-		The Bayesian Network is going to be mostly a wrapper for the Factor
-		Graph, as probabilities, inference, and training can be done more
-		efficiently on them.
+	def bake( self ): 
+		"""Finalize the topology of the model.
+
+		Assign a numerical index to every state and create the underlying arrays
+		corresponding to the states and edges between the states. This method 
+		must be called before any of the probability-calculating methods. This
+		includes converting conditional probability tables into joint probability
+		tables and creating a list of both marginal and table nodes.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
 		"""
 
 		# Initialize the factor graph
@@ -205,17 +229,19 @@ cdef class BayesianNetwork( Model ):
 			array with the values being ordered according to the nodes incorporation
 			in the graph (the order fed into .add_states/add_nodes) and None for
 			variables which are unknown. If nothing is fed in then calculate the
-			marginal of the graph.
+			marginal of the graph. Default is {}.
+
 		max_iterations : int, optional
 			The number of iterations with which to do loopy belief propogation.
-			Usually requires only 1.
+			Usually requires only 1. Default is 100.
+
 		check_input : bool, optional
 			Check to make sure that the observed symbol is a valid symbol for that
-			distribution to produce.
+			distribution to produce. Default is True.
 
 		Returns
 		-------
-		probabilitie : array-like, shape (n_nodes)
+		probabilities : array-like, shape (n_nodes)
 			An array of univariate distribution objects showing the probabilities
 			of each variable.
 		"""
@@ -239,17 +265,19 @@ cdef class BayesianNetwork( Model ):
 			array with the values being ordered according to the nodes incorporation
 			in the graph (the order fed into .add_states/add_nodes) and None for
 			variables which are unknown. If nothing is fed in then calculate the
-			marginal of the graph.
+			marginal of the graph. Default is {}.
+
 		max_iterations : int, optional
 			The number of iterations with which to do loopy belief propogation.
-			Usually requires only 1.
+			Usually requires only 1. Default is 100.
+
 		check_input : bool, optional
 			Check to make sure that the observed symbol is a valid symbol for that
-			distribution to produce.
+			distribution to produce. Default is True.
 
 		Returns
 		-------
-		probabilitie : array-like, shape (n_nodes)
+		probabilities : array-like, shape (n_nodes)
 			An array of univariate distribution objects showing the probabilities
 			of each variable.
 		"""
@@ -278,11 +306,13 @@ cdef class BayesianNetwork( Model ):
 		items : array-like, shape (n_samples, n_nodes)
 			The data to train on, where each row is a sample and each column
 			corresponds to the associated variable.
+
 		weights : array-like, shape (n_nodes), optional
-			The weight of each sample as a positive double
+			The weight of each sample as a positive double. Default is None.
+
 		inertia : double, optional
 			The inertia for updating the distributions, passed along to the
-			distribution method.
+			distribution method. Default is 0.0.
 
 		Returns
 		-------
@@ -298,9 +328,9 @@ cdef class BayesianNetwork( Model ):
 			if isinstance( state.distribution, ConditionalProbabilityTable ):
 				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
 				data = [ [ item[i] for i in idx ] for item in items ]
-				state.distribution.from_sample( data, weights, inertia )
+				state.distribution.fit( data, weights, inertia )
 			else:
-				state.distribution.from_sample( [ item[i] for item in items ], weights, inertia )
+				state.distribution.fit( [ item[i] for item in items ], weights, inertia )
 
 		self.bake()
 		return self
@@ -319,8 +349,10 @@ cdef class BayesianNetwork( Model ):
 			Data matrix to impute. Missing values must be either None (if lists)
 			or np.nan (if numpy.ndarray). Will fill in these values with the
 			maximally likely ones.
+
 		max_iterations : int, optional
-			Number of iterations to run loopy belief propogation for.
+			Number of iterations to run loopy belief propogation for. Default
+			is 100.
 
 		Returns
 		-------

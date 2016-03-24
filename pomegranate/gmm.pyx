@@ -53,10 +53,12 @@ cdef class GeneralMixtureModel( Distribution ):
 	weights : array-like, optional, shape (n_components,)
 		The prior probabilities corresponding to each component. Does not
 		need to sum to one, but will be normalized to sum to one internally.
+		Defaults to None.
 
 	n_components : int, optional
 		If a callable is passed into distributions then this is the number
-		of components to initialize using the kmeans++ algorithm.
+		of components to initialize using the kmeans++ algorithm. Defaults
+		to None.
 
 
 	Attributes
@@ -144,7 +146,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		Parameters
 		----------
 		n : int, optional
-			The number of samples to generate.
+			The number of samples to generate. Defaults to 1.
 
 		Returns
 		-------
@@ -375,25 +377,27 @@ cdef class GeneralMixtureModel( Distribution ):
 		weights : array-like, shape (n_samples,), optional
 			The initial weights of each sample in the matrix. If nothing is
 			passed in then each sample is assumed to be the same weight.
+			Default is None.
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
 			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
 			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters.
+			inertia of 1 means ignore the new parameters. Default is 0.0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
 			the model. If the model does not improve its fit of the data by
-			a log probability of 0.1 then terminate.
+			a log probability of 0.1 then terminate. Default is 0.1.
 
 		max_iterations : int, optional, positive
 			The maximum number of iterations to run EM for. If this limit is
 			hit then it will terminate training, regardless of how well the
-			model is improving per iteration.
+			model is improving per iteration. Default is 1e8.
 
 		verbose : bool, optional
 			Whether or not to print out improvement information over iterations.
+			Default is False.
 
 		Returns
 		-------
@@ -437,6 +441,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		weights : array-like, shape (n_samples,), optional
 			The initial weights of each sample in the matrix. If nothing is
 			passed in then each sample is assumed to be the same weight.
+			Default is None.
 
 		Returns
 		-------
@@ -494,7 +499,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			The weight of the previous parameters of the model. The new
 			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
 			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters.
+			inertia of 1 means ignore the new parameters. Default is 0.0.
 
 		Returns
 		-------
@@ -515,10 +520,11 @@ cdef class GeneralMixtureModel( Distribution ):
 		----------
 		separators : tuple, optional 
 			The two separaters to pass to the json.dumps function for formatting.
+			Default is (',', ' : ').
 
 		indent : int, optional
 			The indentation to use at each level. Passed to json.dumps for
-			formatting.
+			formatting. Default is 4.
 		
 		Returns
 		-------

@@ -23,10 +23,10 @@ cdef class FiniteStateMachine( Model ):
 	Parameters
 	----------
 	name : str, optional
-		The name of the model.
+		The name of the model. Default is None.
 
 	start : state, optional
-		The start of the model.
+		The start of the model. Default is None.
 
 	Attributes
 	----------
@@ -149,8 +149,7 @@ cdef class FiniteStateMachine( Model ):
 
 		Returns
 		-------
-		self : object
-			Return the fit object.
+		None
 		"""
 		
 		# We need a mapping of states to their index. 
@@ -211,8 +210,6 @@ cdef class FiniteStateMachine( Model ):
 			raise SyntaxError( "model.start has been deleted, leaving the \
 				model with no start. Please ensure it has a start." )
 
-		return self
-
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Serialize the model to a JSON.
 
@@ -220,10 +217,11 @@ cdef class FiniteStateMachine( Model ):
 		----------
 		separators : tuple, optional 
 			The two separaters to pass to the json.dumps function for formatting.
+			Default is (',', ' : ').
 
 		indent : int, optional
 			The indentation to use at each level. Passed to json.dumps for
-			formatting.
+			formatting. Default is 4.
 		
 		Returns
 		-------

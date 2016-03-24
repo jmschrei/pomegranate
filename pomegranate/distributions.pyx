@@ -38,10 +38,7 @@ DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
 
 def log(value):
-	"""
-	Return the natural log of the given value, or - infinity if the value is 0.
-	Can handle both scalar floats and numpy arrays.
-	"""
+	"""Return the natural log of the given value, or - nf if the value is 0."""
 
 	if isinstance( value, numpy.ndarray ):
 		to_return = numpy.zeros(( value.shape ))
@@ -51,9 +48,11 @@ def log(value):
 	return _log( value )
 
 def weight_set( items, weights ):
-	"""
-	Set the weights to a numpy array of whatever is passed in, or an array of
-	1's if nothing is passed in.
+	"""Converts both items and weights to appropriate numpy arrays. 
+
+	Convert the items into a numpy array with 64-bit floats, and the weight
+	array to the same. If no weights are passed in, then return a numpy array
+	with uniform weights.
 	"""
 
 	items = numpy.array(items, dtype=numpy.float64)
@@ -67,20 +66,33 @@ def weight_set( items, weights ):
 	return items, weights
 
 cdef class Distribution:
-	"""
-	Represents a probability distribution over whatever the HMM you're making is
-	supposed to emit. Ought to be subclassed and have log_probability(), 
-	sample(), and from_sample() overridden. Distribution.name should be 
-	overridden and replaced with a unique name for the distribution type. The 
-	distribution should be registered by calling register() on the derived 
-	class, so that Distribution.read() can read it. Any distribution parameters 
-	need to be floats stored in self.parameters, so they will be properly 
-	written by write().
+	"""A probability distribution.
+
+	Represents a probability distribution over the defined support. This is
+	the base class which must be subclassed to specific probability
+	distributions. All distributions have the below methods exposed.
+
+	Parameters
+	----------
+	Varies on distribution.
+
+	Attributes
+	----------
+	name : str
+		The name of the type of distributioon.
+
+	summaries : list
+		Sufficient statistics to store the update.
+
+	frozen : bool
+		Whether or not the distribution will be updated during training.
+
+	d : int
+		The dimensionality of the data. Univariate distributions are all
+		1, while multivariate distributions are > 1.
 	"""
 
 	def __cinit__( self ):
-		"""Initialize a new abstract distribution."""
-
 		self.name = "Distribution"
 		self.frozen = False
 		self.summaries = []
@@ -97,27 +109,85 @@ cdef class Distribution:
 		return self.to_json()
 
 	def marginal( self, *args, **kwargs ):
-		"""Abstract method to return the marginal of the distribution."""
+		"""Return the marginal of the distribution.
+
+		Parameters
+		----------
+		*args : optional
+			Arguments to pass in to specific distributions
+
+		**kwargs : optional
+			Keyword arguments to pass in to specific distributions
+
+		Returns
+		-------
+		distribution : Distribution
+			The marginal distribution. If this is a multivariate distribution
+			then this method is filled in. Otherwise returns self. 
+		"""
 
 		return self
 
 	def copy( self ):
-		"""Return a copy of this distribution, untied."""
+		"""Return a deep copy of this distribution object.
+
+		This object will not be tied to any other distribution or connected
+		in any form.
+
+		Paramters
+		---------
+		None
+
+		Returns
+		-------
+		distribution : Distribution
+			A copy of the distribution with the same parameters.
+		"""
 
 		return self.__class__( *self.parameters ) 
 
 	def freeze( self ):
-		"""Freeze the distribution, preventing updates from occuring."""
+		"""Freeze the distribution, preventing updates from occuring.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
 
 		self.frozen = True
 
 	def thaw( self ):
-		"""Thaw the distribution, re-allowing updates to occur."""
+		"""Thaw the distribution, re-allowing updates to occur.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
 
 		self.frozen = False 
 
 	def log_probability( self, double symbol ):
-		"""Return the log probability of the given symbol under this distribution."""
+		"""Return the log probability of the given symbol under this distribution.
+
+		Parameters
+		----------
+		symbol : double
+			The symbol to calculate the log probability of (overriden for
+			DiscreteDistributions)
+		
+		Returns
+		-------
+		logp : double
+			The log probability of that point under the distribution.
+		"""
 		
 		cdef double logp
 		with nogil: 
@@ -133,33 +203,77 @@ cdef class Distribution:
 		return NEGINF
 
 	def sample( self ):
-		"""Return a random item sampled from this distribution."""
+		"""Return a random item sampled from this distribution.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		sample : double or object
+			Returns a sample from the distribution of a type in the support
+			of the distribution.
+		"""
 		
 		raise NotImplementedError
 	
 	def fit( self, items, weights=None, inertia=0.0 ):
-		"""sklearn wrapper for fitting a distribution."""
+		"""Fit the distribution to new data using MLE estimates.
 
-		self.from_sample( items, weights, inertia )
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on. For univariate distributions an array
+			is used, while for multivariate distributions a 2d matrix is used.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+			Default is None.
+
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters. Default is 0.0.
+
+		Returns
+		-------
+		None
+		"""
+
+		if self.frozen == True:
+			return
+		raise NotImplementedError
+		
 
 	def train( self, items, weights=None, inertia=0.0 ):
 		"""A wrapper for from_sample in order to homogenize calls more."""
 
-		self.from_sample( items, weights, inertia )
-
-	def from_sample( self, items, weights=None, inertia=0.0 ):
-		"""Set the parameters of this distribution using MLE estimates."""
-		
-		if self.frozen == True:
-			return
-		raise NotImplementedError
+		raise Warning("Deprecated. Use fit instead")
+	
 
 	def summarize( self, items, weights=None ):
-		"""
-		Summarize the incoming items into a summary statistic to be used to
-		update the parameters upon usage of the `from_summaries` method. By
-		default, this will simply store the items and weights into a large
-		sample, and call the `from_sample` method.
+		"""Summarize a batch of data into sufficient statistics for a later update.
+
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on. For univariate distributions an array
+			is used, while for multivariate distributions a 2d matrix is used.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+			Default is None.
+
+		Returns
+		-------
+		None
 		"""
 
 		# If no previously stored summaries, just store the incoming data
@@ -183,27 +297,70 @@ cdef class Distribution:
 		pass
 
 	def from_summaries( self, inertia=0.0 ):
-		"""
-		Update the parameters of the distribution based on the summaries stored
-		previously. 
+		"""Fit the distribution to the stored sufficient statistics.
+
+		Parameters
+		----------
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters. Default is 0.0.
+
+		Returns
+		-------
+		None
 		"""
 
 		# If the distribution is frozen, don't bother with any calculation
 		if self.frozen == True:
 			return
 
-		self.train( *self.summaries, inertia=inertia )
+		self.fit( *self.summaries, inertia=inertia )
 		self.summaries = []
 
 	def plot( self, n=1000, **kwargs ):
-		"""Plot the distribution by sampling from it."""
+		"""Plot the distribution by sampling from it.
+
+		This function will plot a histogram of samples drawn from a distribution
+		on the current open figure.
+
+		Parameters
+		----------
+		n : int, optional
+			The number of samples to draw from the distribution. Default is
+			1000.
+
+		**kwargs : arguments, optional
+			Arguments to pass to matplotlib's histogram function.
+
+		Returns
+		-------
+		None
+		"""
 
 		import matplotlib.pyplot as plt
 		samples = [ self.sample() for i in xrange( n ) ]
 		plt.hist( samples, **kwargs )
 
 	def to_json( self, separators=(',', ' :'), indent=4 ):
-		"""Convert the distribution to JSON format."""
+		"""Serialize the distribution to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional 
+			The two separaters to pass to the json.dumps function for formatting.
+			Default is (',', ' : ').
+
+		indent : int, optional
+			The indentation to use at each level. Passed to json.dumps for
+			formatting. Default is 4.
+		
+		Returns
+		-------
+		json : str
+			A properly formatted JSON object.
+		"""
 
 		return json.dumps( {
 								'class' : 'Distribution',
@@ -214,7 +371,18 @@ cdef class Distribution:
 
 	@classmethod
 	def from_json( cls, s ):
-		"""Read in a JSON and produce an appropriate distribution."""
+		"""Read in a serialized distribution and return the appropriate object.
+		
+		Parameters
+		----------
+		s : str
+			A JSON formatted string containing the file.
+
+		Returns
+		-------
+		model : object
+			A properly initialized and baked model.
+		"""
 
 		d = json.loads( s )
 
@@ -227,6 +395,14 @@ cdef class Distribution:
 		elif d['name'] == 'MixtureDistribution':
 			d['parameters'][0] = [cls.from_json( json.dumps(dist) ) for dist in d['parameters'][0]]
 			return MixtureDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
+		elif 'Table' in d['name']:
+			parents = [ Distribution.from_json( json.dumps(j) ) for j in d['parents'] ]
+			keys = [ (tuple(c), b) for c, b in d['keys'] ]
+			if d['name'] == 'ConditionalProbabilityTable':
+				model = ConditionalProbabilityTable( d['values'], parents, OrderedDict(keys) )
+			elif d['name'] == 'JointProbabilityTable':
+				model = JointProbabilityTable( d['values'], parents, OrderedDict(keys) )
+			return model
 		else:
 			dist = eval( "{}( {}, frozen={} )".format( d['name'],
 			                                    ','.join( map( str, d['parameters'] ) ),
@@ -272,7 +448,7 @@ cdef class UniformDistribution( Distribution ):
 		"""Sample from this uniform distribution and return the value sampled."""
 		return random.uniform(self.start, self.end)
 		
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -379,7 +555,7 @@ cdef class NormalDistribution( Distribution ):
 		"""Sample from this normal distribution and return the value sampled."""
 		return random.normalvariate( self.mu, self.sigma )
 		
-	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def fit( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -495,7 +671,7 @@ cdef class LogNormalDistribution( Distribution ):
 		"""Return a sample from this distribution."""
 		return numpy.random.lognormal( self.mu, self.sigma )
 
-	def from_sample( self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def fit( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -605,7 +781,7 @@ cdef class ExponentialDistribution( Distribution ):
 		"""Sample from this exponential distribution."""
 		return random.expovariate(*self.parameters)
 		
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -708,7 +884,7 @@ cdef class BetaDistribution( Distribution ):
 		"""Return a random sample from the beta distribution."""
 		return random.betavariate( self.alpha, self.beta )
 
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -821,7 +997,7 @@ cdef class GammaDistribution( Distribution ):
 		# alpha/beta are shape/scale. So we have to mess with the parameters.
 		return random.gammavariate(self.parameters[0], 1.0 / self.parameters[1])
 		
-	def from_sample( self, items, weights=None, inertia=0.0, epsilon=1E-9, 
+	def fit( self, items, weights=None, inertia=0.0, epsilon=1E-9, 
 		iteration_limit=1000 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
@@ -1207,7 +1383,7 @@ cdef class DiscreteDistribution( Distribution ):
 				return key
 			rand -= value
 	
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -1332,7 +1508,7 @@ cdef class PoissonDistribution(Distribution):
 
 		return numpy.random.poisson( self.l )
 
-	def from_sample( self, items, weights=None, inertia=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
 		Update the parameters of this distribution to maximize the likelihood
 		of the current samples. If weights are passed in, perform weighted
@@ -1476,7 +1652,7 @@ cdef class KernelDensity( Distribution ):
 		self.name = "KernelDensity"
 		self.frozen = frozen
 
-	def from_sample( self, points, weights=None, inertia=0.0 ):
+	def fit( self, points, weights=None, inertia=0.0 ):
 		"""Replace the points, allowing for inertia if specified."""
 
 		# If the distribution is frozen, don't bother with any calculation
@@ -1738,7 +1914,7 @@ cdef class MixtureDistribution( Distribution ):
 				return d.sample()
 			i -= w 
 
-	def from_sample( self, items, weights=None ):
+	def fit( self, items, weights=None ):
 		"""
 		Perform EM to estimate the parameters of each distribution
 		which is a part of this mixture.
@@ -1937,7 +2113,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		return [ d.sample() for d in self.parameters[0] ]
 
-	def from_sample( self, items, weights=None, inertia=0 ):
+	def fit( self, items, weights=None, inertia=0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -1995,7 +2171,6 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
-
 	property parameters:
 		def __get__( self ):
 			return [ self.mu.tolist(), self.cov.tolist() ]
@@ -2083,7 +2258,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		return numpy.random.multivariate_normal( self.parameters[0], 
 			self.parameters[1] )
 
-	def from_sample( self, items, weights=None, inertia=0 ):
+	def fit( self, items, weights=None, inertia=0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of 
 		the given sample. Items holds some sort of sequence. If weights is 
@@ -2371,12 +2546,40 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
 		self.summaries = [{}, {}]
 
-	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""Update the parameters of the table based on the data."""
 
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
+	def to_json( self, separators=(',', ' : '), indent=4 ):
+		"""Serialize the model to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional 
+		    The two separaters to pass to the json.dumps function for formatting.
+		    Default is (',', ' : ').
+
+		indent : int, optional
+		    The indentation to use at each level. Passed to json.dumps for
+		    formatting. Default is 4.
+
+		Returns
+		-------
+		json : str
+		    A properly formatted JSON object.
+		"""
+
+		model = { 
+					'class' : 'Distribution',
+		            'name' : 'ConditionalProbabilityTable',
+		            'values' : self.parameters[0].tolist(),
+		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
+		            'keys' : self.parameters[2].items()
+		        }
+
+		return json.dumps( model, separators=separators, indent=indent )
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	"""
@@ -2525,8 +2728,37 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
 		self.summaries = [{}, 0]
 
-	def from_sample( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""Update the parameters of the table based on the data."""
 
 		self.summarize( items, weights )
 		self.from_summaries( inertia, pseudocount )
+
+	def to_json( self, separators=(',', ' : '), indent=4 ):
+		"""Serialize the model to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional 
+		    The two separaters to pass to the json.dumps function for formatting.
+		    Default is (',', ' : ').
+
+		indent : int, optional
+		    The indentation to use at each level. Passed to json.dumps for
+		    formatting. Default is 4.
+
+		Returns
+		-------
+		json : str
+		    A properly formatted JSON object.
+		"""
+
+		model = { 
+					'class' : 'Distribution',
+		            'name' : 'JointProbabilityTable',
+		            'values' : self.parameters[0].tolist(),
+		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
+		            'keys' : self.parameters[2].items()
+		        }
+
+		return json.dumps( model, separators=separators, indent=indent )

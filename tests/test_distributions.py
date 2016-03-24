@@ -47,7 +47,7 @@ def test_normal():
 	assert_almost_equal( d.log_probability( 0 ), -4.737085713764219 )
 	assert_equal( d.log_probability( 0 ), e.log_probability( 0. ) )
 
-	d.from_sample( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
+	d.fit( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
 
 	assert_equal( round( d.parameters[0], 4 ), 4.9167 )
 	assert_equal( round( d.parameters[1], 4 ), 0.7592 )
@@ -59,13 +59,13 @@ def test_normal():
 	d = NormalDistribution( 5, 1e-10 )
 	assert_almost_equal( d.log_probability( 1e100 ), -4.9999999999999994e+219 )
 
-	d.from_sample( [ 0, 2, 3, 2, 100 ], weights=[ 0, 5, 2, 3, 200 ] )
+	d.fit( [ 0, 2, 3, 2, 100 ], weights=[ 0, 5, 2, 3, 200 ] )
 	assert_equal( round( d.parameters[0], 4 ), 95.3429 )
 	assert_equal( round( d.parameters[1], 4 ), 20.8276 )
 	assert_equal( round( d.log_probability( 50 ), 8 ), -6.32501194 )
 
 	d = NormalDistribution( 5, 2 )
-	d.from_sample( [ 0, 5, 3, 5, 7, 3, 4, 5, 2 ], inertia=0.5 )
+	d.fit( [ 0, 5, 3, 5, 7, 3, 4, 5, 2 ], inertia=0.5 )
 
 	assert_equal( round( d.parameters[0], 4 ), 4.3889 )
 	assert_equal( round( d.parameters[1], 4 ), 1.9655 )
@@ -79,12 +79,12 @@ def test_normal():
 	assert_equal( round( d.parameters[1], 4 ), 20.8276 )
 
 	d.freeze()
-	d.from_sample( [ 0, 1, 1, 2, 3, 2, 1, 2, 2 ] )
+	d.fit( [ 0, 1, 1, 2, 3, 2, 1, 2, 2 ] )
 	assert_equal( round( d.parameters[0], 4 ), 95.3429 )
 	assert_equal( round( d.parameters[1], 4 ), 20.8276 )
 
 	d.thaw()
-	d.from_sample( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
+	d.fit( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
 	assert_equal( round( d.parameters[0], 4 ), 4.9167 ) 
 	assert_equal( round( d.parameters[1], 4 ), 0.7592 )
 
@@ -106,7 +106,7 @@ def test_uniform():
 
 	for i in xrange( 10 ):
 		data = np.random.randn( 100 ) * 100
-		d.from_sample( data )
+		d.fit( data )
 		assert_equal( d.parameters[0], data.min() ) 
 		assert_equal( d.parameters[1], data.max() )
 
@@ -117,12 +117,12 @@ def test_uniform():
 		assert_less_equal( sample,  maximum )
 
 	d = UniformDistribution( 0, 10 )
-	d.from_sample( [ -5, 20 ], inertia=0.5 )
+	d.fit( [ -5, 20 ], inertia=0.5 )
 
 	assert_equal( d.parameters[0], -2.5 )
 	assert_equal( d.parameters[1], 15 )
 
-	d.from_sample( [ -100, 100 ], inertia=1.0 )
+	d.fit( [ -100, 100 ], inertia=1.0 )
 
 	assert_equal( d.parameters[0], -2.5 )
 	assert_equal( d.parameters[1], 15 )
@@ -142,11 +142,11 @@ def test_uniform():
 	assert_equal( d.parameters[1], 200 )
 
 	d.freeze()
-	d.from_sample( [ 0, 1, 6, 7, 8, 3, 4, 5, 2 ] )
+	d.fit( [ 0, 1, 6, 7, 8, 3, 4, 5, 2 ] )
 	assert_equal( d.parameters, [ 0, 200 ] )
 
 	d.thaw()
-	d.from_sample( [ 0, 1, 6, 7, 8, 3, 4, 5, 2 ] )
+	d.fit( [ 0, 1, 6, 7, 8, 3, 4, 5, 2 ] )
 	assert_equal( d.parameters, [ 0, 8 ] )
 
 	e = Distribution.from_json( d.to_json() )
@@ -163,14 +163,14 @@ def test_discrete():
 	assert_equal( d.log_probability( 'a' ), float( '-inf' ) )
 
 	seq = "ACGTACGTTGCATGCACGCGCTCTCGCGC"
-	d.from_sample( list( seq ) )
+	d.fit( list( seq ) )
 
 	assert_equal( d.log_probability( 'C' ), -0.9694005571881036 )
 	assert_equal( d.log_probability( 'A' ), -1.9810014688665833 )
 	assert_equal( d.log_probability( 'T' ), -1.575536360758419 )
 
 	seq = "ACGTGTG"
-	d.from_sample( list( seq ), weights=[0.,1.,2.,3.,4.,5.,6.] )
+	d.fit( list( seq ), weights=[0.,1.,2.,3.,4.,5.,6.] )
 
 	assert_equal( d.log_probability( 'A' ), float( '-inf' ) )
 	assert_equal( d.log_probability( 'C' ), -3.044522437723423 )
@@ -200,7 +200,7 @@ def test_discrete():
 	assert_equal( d.parameters[0], { 'A': 0.25, 'B': 0.75 } )
 
 	d.freeze()
-	d.from_sample( list('ABAABBAAAAAAAAAAAAAAAAAA') )
+	d.fit( list('ABAABBAAAAAAAAAAAAAAAAAA') )
 	assert_equal( d.parameters[0], { 'A': 0.25, 'B': 0.75 } )
 
 	e = Distribution.from_json( d.to_json() )
@@ -212,7 +212,7 @@ def test_lognormal():
 	d = LogNormalDistribution( 5, 2 )
 	assert_equal( round( d.log_probability( 5 ), 4 ), -4.6585 )
 
-	d.from_sample( [ 5.1, 5.03, 4.98, 5.05, 4.91, 5.2, 5.1, 5., 4.8, 5.21 ])
+	d.fit( [ 5.1, 5.03, 4.98, 5.05, 4.91, 5.2, 5.1, 5., 4.8, 5.21 ])
 	assert_equal( round( d.parameters[0], 4 ), 1.6167 )
 	assert_equal( round( d.parameters[1], 4 ), 0.0237 )
 
@@ -234,7 +234,7 @@ def test_gamma():
 	d = GammaDistribution( 5, 2 )
 	assert_equal( round( d.log_probability( 4 ), 4 ), -2.1671 )
 
-	d.from_sample( [ 2.3, 4.3, 2.7, 2.3, 3.1, 3.2, 3.4, 3.1, 2.9, 2.8 ] )
+	d.fit( [ 2.3, 4.3, 2.7, 2.3, 3.1, 3.2, 3.4, 3.1, 2.9, 2.8 ] )
 	assert_equal( round( d.parameters[0], 4 ), 31.8806 )
 	assert_equal( round( d.parameters[1], 4 ), 10.5916 )
 
@@ -259,7 +259,7 @@ def test_exponential():
 	d = ExponentialDistribution( 3 )
 	assert_equal( round( d.log_probability( 8 ), 4 ), -22.9014 )
 
-	d.from_sample( [ 2.7, 2.9, 3.8, 1.9, 2.7, 1.6, 1.3, 1.0, 1.9 ] )
+	d.fit( [ 2.7, 2.9, 3.8, 1.9, 2.7, 1.6, 1.3, 1.0, 1.9 ] )
 	assert_equal( round( d.parameters[0], 4 ), 0.4545 )
 
 	d = ExponentialDistribution( 4 )
@@ -290,13 +290,13 @@ def test_poisson():
 	assert_equal( d.log_probability(1), float("-inf") )
 	assert_equal( d.log_probability(7), float("-inf") )
 
-	d.from_sample([1, 6, 4, 9, 1])
+	d.fit([1, 6, 4, 9, 1])
 	assert_equal( d.parameters[0], 4.2 )
 
-	d.from_sample([1, 6, 4, 9, 1], weights=[0, 0, 0, 1, 0])
+	d.fit([1, 6, 4, 9, 1], weights=[0, 0, 0, 1, 0])
 	assert_equal( d.parameters[0], 9 )
 
-	d.from_sample([1, 6, 4, 9, 1], weights=[1, 0, 0, 1, 0])
+	d.fit([1, 6, 4, 9, 1], weights=[1, 0, 0, 1, 0])
 	assert_equal( d.parameters[0], 5 )
 
 	assert_almost_equal( d.log_probability(5), -1.7403021806115442 )
@@ -309,10 +309,10 @@ def test_gaussian_kernel():
 	d = GaussianKernelDensity( [ 0, 4, 3, 5, 7, 4, 2 ] )
 	assert_equal( round( d.log_probability( 3.3 ), 4 ), -1.7042 )
 
-	d.from_sample( [ 1, 6, 8, 3, 2, 4, 7, 2] )
+	d.fit( [ 1, 6, 8, 3, 2, 4, 7, 2] )
 	assert_equal( round( d.log_probability( 1.2 ), 4 ), -2.0237 )
 
-	d.from_sample( [ 1, 0, 108 ], weights=[2., 3., 278.] )
+	d.fit( [ 1, 0, 108 ], weights=[2., 3., 278.] )
 	assert_equal( round( d.log_probability( 110 ), 4 ), -2.9368 )
 	assert_equal( round( d.log_probability( 0 ), 4 ), -5.1262 )
 
@@ -328,7 +328,7 @@ def test_gaussian_kernel():
 	assert_equal( round( d.log_probability( 0 ), 4 ), -5.1262 )
 
 	d.freeze()
-	d.from_sample( [ 1, 3, 5, 4, 6, 7, 3, 4, 2 ] )
+	d.fit( [ 1, 3, 5, 4, 6, 7, 3, 4, 2 ] )
 	assert_equal( round( d.log_probability( 110 ), 4 ), -2.9368 )
 	assert_equal( round( d.log_probability( 0 ), 4 ), -5.1262 )
 
@@ -353,7 +353,7 @@ def test_triangular_kernel():
 	assert_equal( round( d.log_probability( 6.5 ), 4 ), -2.4849 )
 
 	d.freeze()
-	d.from_sample( [ 1, 4, 6, 7, 3, 5, 7, 8, 3, 3, 4 ] )
+	d.fit( [ 1, 4, 6, 7, 3, 5, 7, 8, 3, 3, 4 ] )
 	assert_equal( round( d.log_probability( 6.5 ), 4 ), -2.4849 )
 
 	e = Distribution.from_json( d.to_json() )
@@ -421,7 +421,7 @@ def test_independent():
 	assert_equal( round( d.log_probability( (4,1) ), 4 ), -0.1536 )
 	assert_equal( round( d.log_probability( (100, 0.001) ), 4 ), -1126.1556 )
 
-	d.from_sample( [ (5, 1), (5.2, 1.7), (4.7, 1.9), (4.9, 2.4), (4.5, 1.2) ] )
+	d.fit( [ (5, 1), (5.2, 1.7), (4.7, 1.9), (4.9, 2.4), (4.5, 1.2) ] )
 
 	assert_equal( round( d.parameters[0][0].parameters[0], 4 ), 4.86 )
 	assert_equal( round( d.parameters[0][0].parameters[1], 4 ), 0.2417 )
@@ -429,7 +429,7 @@ def test_independent():
 
 	d = IndependentComponentsDistribution( [ NormalDistribution( 5, 2 ),
 									UniformDistribution( 0, 10 ) ] )
-	d.from_sample( [ ( 0, 0 ), ( 5, 0 ), ( 3, 0 ), ( 5, -5 ), ( 7, 0 ),
+	d.fit( [ ( 0, 0 ), ( 5, 0 ), ( 3, 0 ), ( 5, -5 ), ( 7, 0 ),
 				     ( 3, 0 ), ( 4, 0 ), ( 5, 0 ), ( 2, 20) ], inertia=0.5 )
 
 	assert_equal( round( d.parameters[0][0].parameters[0], 4 ), 4.3889 )
@@ -438,7 +438,7 @@ def test_independent():
 	assert_equal( d.parameters[0][1].parameters[0], -2.5 )
 	assert_equal( d.parameters[0][1].parameters[1], 15 )
 
-	d.from_sample( [ ( 0, 0 ), ( 5, 0 ), ( 3, 0 ), ( 5, -5 ), ( 7, 0 ),
+	d.fit( [ ( 0, 0 ), ( 5, 0 ), ( 3, 0 ), ( 5, -5 ), ( 7, 0 ),
 				     ( 3, 0 ), ( 4, 0 ), ( 5, 0 ), ( 2, 20 ) ], inertia=0.75 )
 
 	assert_not_equal( round( d.parameters[0][0].parameters[0], 4 ), 4.3889 )
@@ -462,7 +462,7 @@ def test_independent():
 	assert_equal( d.parameters[0][1].parameters[1], 15 )
 
 	d.freeze()
-	d.from_sample( [ ( 1, 7 ), ( 7, 2 ), ( 2, 4), ( 2, 4 ), ( 1, 4 ) ] )
+	d.fit( [ ( 1, 7 ), ( 7, 2 ), ( 2, 4), ( 2, 4 ), ( 1, 4 ) ] )
 
 	assert_equal( round( d.parameters[0][0].parameters[0], 4 ), 4.3889 )
 	assert_equal( round( d.parameters[0][0].parameters[1], 4 ), 1.9655 )
@@ -547,7 +547,7 @@ def test_monty():
 			[ 'C', 'C', 'C' ],
 			[ 'C', 'B', 'A' ]]
 
-	monty.from_sample( data, weights=[1, 1, 3, 3, 1, 1, 3, 7, 1, 1, 1, 1] )
+	monty.fit( data, weights=[1, 1, 3, 3, 1, 1, 3, 7, 1, 1, 1, 1] )
 
 	assert_equal( monty.log_probability( ('A', 'A', 'A') ), monty.log_probability( ('A', 'A', 'C') ) )
 	assert_equal( monty.log_probability( ('A', 'A', 'A') ), monty.log_probability( ('A', 'A', 'B') ) )
