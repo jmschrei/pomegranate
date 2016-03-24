@@ -1,5 +1,5 @@
 Probability Distributions
-========================
+=========================
 
 The probability distribution is one of the simplest probabilistic models used. While these are frequently used as parts of more complex models such as General Mixture Models or Hidden Markov Models, they can also be used by themselves. Many simple analyses require just calculating the probability of samples under a distribution, or fitting a distribution to data and seeing what the distribution parameters are. pomegranate has a large library of probability distributions, kernel densities, and the ability to combine these to form multivariate or mixture distributions. 
 
@@ -7,38 +7,22 @@ An IPython notebook tutorial with visualizations can be [found here](https://git
 
 Here is a full list of currently implemented distributions:
 
-```
-UniformDistribution
-NormalDistribution
-LogNormalDistribution
-ExponentialDistribution
-BetaDistribution
-GammaDistribution
-DiscreteDistribution
-LambdaDistribution
-GaussianKernelDensity
-UniformKernelDensity
-TriangleKernelDensity
-IndependentComponentsDistribution
-MultivariateGaussianDistribution
-ConditionalProbabilityTable
-JointProbabilityTable
-```
+* UniformDistribution
+* NormalDistribution
+* LogNormalDistribution
+* ExponentialDistribution
+* BetaDistribution
+* GammaDistribution
+* DiscreteDistribution
+* LambdaDistribution
+* GaussianKernelDensity
+* UniformKernelDensity
+* TriangleKernelDensity
+* IndependentComponentsDistribution
+* MultivariateGaussianDistribution
+* ConditionalProbabilityTable
+* JointProbabilityTable
 
-All distribution objects have the same methods:
-
-```
-copy() : Make a deep copy of the distribution
-freeze() : Prevent the distribution from updating on training calls
-thaw() : Reallow the distribution to update on training calls
-log_probability( symbol ): Return the log probability of the symbol under the distribution
-sample() : Return a randomly generated sample from the distribution
-fit / train / from_sample( items, weights=None, inertia=None ) : Update the parameters of the distribution
-summarize( items, weights=None ) : Store sufficient statistics of a dataset for a future update
-from_summaries( inertia=0.0 ) : Update the parameters of the distribution from the sufficient statistics
-to_json() : Return a json formatted string representing the distribution
-from_json( s ) : Build an appropriate distribution object from the string
-```
 
 ## Initialization
 
@@ -117,3 +101,11 @@ d.from_summaries()
 Splitting up the data into batches will still give an exact answer, but allows for out of core training of distributions on massive amounts of data. 
 
 In addition, training can be done on weighted samples by passing an array of weights in along with the data for any of the training functions, such as `d.summarize([5,7,8], weights=[1,2,3])`. Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `d.from_sample([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
+
+API Reference
+=============
+
+```eval_rst
+.. automodule:: pomegranate.distributions
+	:members:
+```

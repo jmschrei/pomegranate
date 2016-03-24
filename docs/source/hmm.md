@@ -159,3 +159,10 @@ instead of
 ```python
 from yahmm import *
 ```
+API Reference
+=============
+
+```eval_rst
+.. automodule:: pomegranate.hmm
+    :members:
+```

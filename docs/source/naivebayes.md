@@ -5,15 +5,6 @@ The Naive Bayes classifier is a simple probabilistic classification model based 
 
 An IPython notebook example demonstrating a Naive Bayes classifier using multivariate distributions can be [found here](https://github.com/jmschrei/pomegranate/blob/master/examples/naivebayes_multivariate_male_female.ipynb).
 
-Naive Bayes implements the following methods:
-
-```
-predict_log_proba( X ) : Input a set of data and output the log probability of each sample under each component
-predict_proba( X ) : Input a set of data and output the probability of each sample under each component
-predict( X ) : Input a set of data and classify each sample under one of the components
-fit( X, y ) : Fit the Naive Bayes classifier to a set of training data, with X being the sample, and y being the correct classification for each sample
-```
-
 ## Initialization
 
 Naive Bayes can be initialized a number of ways. The classifier can be initialized either by (1) passing in the initial distribution objects or by (2) passing in the constructor and the number of components.
@@ -138,4 +129,7 @@ The corresponding output would be.
 API Reference
 =============
 
-.. autoclass:: pomegranate.NaiveBayes.NaiveBayes
+```eval_rst
+.. automodule:: pomegranate.NaiveBayes
+	:members:
+```

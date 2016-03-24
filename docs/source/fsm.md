@@ -91,3 +91,11 @@ Inserted 10: Moving from 5 to 15.
 ```
 
 Presumably there would be client code surrounding the state machine to see where it is at each position, and do something based on which state it is currently in.
+
+API Reference
+=============
+
+```eval_rst
+.. automodule:: pomegranate.fsm
+	:members:
+```

@@ -126,3 +126,11 @@ prize	DiscreteDistribution({'A': 0.49999999999999994, 'C': 0.49999999999999994, 
 We know that if Monty opened door 'B', that the prize cannot be behind 'B' and that the guest could not have opened 'B'. The posterior guest and prize probabilities show this. 
 
 Useful stuff.
+
+API Reference
+=============
+
+```eval_rst
+.. automodule:: pomegranate.BayesianNetwork
+	:members:
+```
