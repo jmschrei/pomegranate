@@ -1,4 +1,5 @@
-### Bayesian Networks
+Bayesian Networks
+=================
 
 [Bayesian networks](http://en.wikipedia.org/wiki/Bayesian_network) are a powerful inference tool, in which nodes represent some random variable we care about, edges represent dependencies and a lack of an edge between two nodes represents a conditional independence. A powerful algorithm called the sum-product or forward-backward algorithm allows for inference to be done on this network, calculating posteriors on unobserved ("hidden") variables when limited information is given. The more information is known, the better the inference will be, but there is no requirement on the number of nodes which must be observed. If no information is given, the marginal of the graph is trivially calculated. The hidden and observed variables do not need to be explicitly defined when the network is set, they simply exist based on what information is given. 
 
@@ -128,7 +129,7 @@ We know that if Monty opened door 'B', that the prize cannot be behind 'B' and t
 Useful stuff.
 
 API Reference
-=============
+-------------
 
 ```eval_rst
 .. automodule:: pomegranate.BayesianNetwork

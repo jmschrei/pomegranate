@@ -22,7 +22,7 @@ No good project is done alone, and so I'd like to thank all the previous contrib
 
 pomegranate is now pip installable! Install using `pip install pomegranate`. You can get the bleeding edge using the following:
 
-```
+```bash
 git clone https://github.com/jmschrei/pomegranate.git
 cd pomegranate
 python setup.py install
@@ -39,3 +39,17 @@ If you would like to contribute a feature then fork the master branch (fork the 
 nosetests -s -v tests/
 ```
 Let us know what you want to do just in case we're already working on an implementation of something similar. This way we can avoid any needless duplication of effort. Also, please don't forget to add tests for any new functions. 
+
+```eval_rst
+.. toctree::
+	:maxdepth: 2
+
+	index
+	probability
+	markovchain
+	naivebayes
+	gmm
+	bayesnet
+	factorgraph
+	fsm
+```
