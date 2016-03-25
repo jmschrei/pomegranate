@@ -5,11 +5,14 @@ pomegranate
 
 pomegranate is a package for graphical models and Bayesian statistics for Python, implemented in cython. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components used could be rearranged to do other cool things. It currently supports:
 
-* Probability Distributions
-* Naive Bayes
-* General Mixture Models
-* Hidden Markov Models
-* Discrete Bayesian Networks
+* [Probability Distributions](probability.md)
+* [Markov Chains](markovchain.md)
+* [Naive Bayes](naivebayes.md)
+* [General Mixture Models](gmm.md)
+* [Hidden Markov Models](hmm.md)
+* [Discrete Bayesian Networks](bayesnet.md)
+* [Factor Graphs](factorgraph.md)
+* [Finite State Machines](fsm.md)
 
 Documentation and tutorials for each of these methods are present on the scrollbar to the left. IPython notebook examples and further tutorials are present in the github repository.
 
@@ -19,7 +22,7 @@ No good project is done alone, and so I'd like to thank all the previous contrib
 
 pomegranate is now pip installable! Install using `pip install pomegranate`. You can get the bleeding edge using the following:
 
-```
+```bash
 git clone https://github.com/jmschrei/pomegranate.git
 cd pomegranate
 python setup.py install
@@ -36,3 +39,17 @@ If you would like to contribute a feature then fork the master branch (fork the 
 nosetests -s -v tests/
 ```
 Let us know what you want to do just in case we're already working on an implementation of something similar. This way we can avoid any needless duplication of effort. Also, please don't forget to add tests for any new functions. 
+
+```eval_rst
+.. toctree::
+	:maxdepth: 2
+
+	index
+	probability
+	markovchain
+	naivebayes
+	gmm
+	bayesnet
+	factorgraph
+	fsm
+```

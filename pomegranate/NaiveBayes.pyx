@@ -1,10 +1,6 @@
 # NaiveBayes.pyx
 # Authors: Jacob Schreiber <jmschreiber91@gmail.com>
 
-"""
-Naive Bayes estimator, for anything with a log_probability method.
-"""
-
 import numpy
 cimport numpy
 

@@ -1,4 +1,5 @@
-### Hidden Markov Models
+Hidden Markov Models
+====================
 
 [Hidden Markov models](http://en.wikipedia.org/wiki/Hidden_Markov_model) are a form of structured learning, in which a sequence of observations are labelled according to the hidden state they belong. HMMs can be thought of as non-greedy FSMs, in that the assignment of tags is done in a globally optimal way as opposed to being simply the best at the next step. HMMs have been used extensively in speech recognition and bioinformatics, where speech is a sequence of phonemes and DNA is a sequence of nucleotides. 
 
@@ -158,4 +159,11 @@ instead of
 
 ```python
 from yahmm import *
+```
+API Reference
+-------------
+
+```eval_rst
+.. automodule:: pomegranate.hmm
+    :members:
 ```

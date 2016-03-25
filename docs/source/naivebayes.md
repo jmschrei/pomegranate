@@ -5,16 +5,8 @@ The Naive Bayes classifier is a simple probabilistic classification model based 
 
 An IPython notebook example demonstrating a Naive Bayes classifier using multivariate distributions can be [found here](https://github.com/jmschrei/pomegranate/blob/master/examples/naivebayes_multivariate_male_female.ipynb).
 
-Naive Bayes implements the following methods:
-
-```
-predict_log_proba( X ) : Input a set of data and output the log probability of each sample under each component
-predict_proba( X ) : Input a set of data and output the probability of each sample under each component
-predict( X ) : Input a set of data and classify each sample under one of the components
-fit( X, y ) : Fit the Naive Bayes classifier to a set of training data, with X being the sample, and y being the correct classification for each sample
-```
-
-## Initialization
+Initialization
+--------------
 
 Naive Bayes can be initialized a number of ways. The classifier can be initialized either by (1) passing in the initial distribution objects or by (2) passing in the constructor and the number of components.
 
@@ -44,7 +36,8 @@ clf = NaiveBayes( NormalDistribution, n_components=5 )
 
 Finally, Naive Bayes must be given at least a model or n_components must be specified otherwise a ValueError will be thrown.
 
-## Fitting
+Fitting
+-------
 
 Naive Bayes has a fit method, in which the models in the classifier are trained to "fit" to a set of data. The method takes two numpy arrays as input, an array of samples and an array of correct classifications for each sample. Here is an example for a Naive Bayes made up of two bivariate distributions.
 
@@ -74,7 +67,8 @@ clf.fit( samples, classes )
 
 Additionally, there must be a corresponding number of correct classfications for each sample. In other words the length of both arrays must be the same. On a final note, it is a good idea to include samples for all the models in the Naive Bayes classifier since all models are retrained, even if no samples are supplied to retrain it with.
 
-## Prediction
+Prediction
+----------
 
 Naive Bayes has three different prediction methods which all take the same input, an numpy array of samples. These methods are predict_proba, predict_log_proba, and predict which output, respectively, the probability of each sample occurring under each model, the log probability of each sample occurring under each model, and the model each sample is classified as.
 
@@ -136,6 +130,9 @@ The corresponding output would be.
 ```
 
 API Reference
-=============
+-------------
 
-.. autoclass:: pomegranate.NaiveBayes.NaiveBayes
+```eval_rst
+.. automodule:: pomegranate.NaiveBayes
+	:members:
+```

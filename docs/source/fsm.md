@@ -1,5 +1,5 @@
 Finite State Machines
-====================
+=====================
 
 [Finite state machines](http://en.wikipedia.org/wiki/Finite-state_machine) are computational machines which can be in one of many states. The machine can be defined as a graphical model where the states are the states of the machine, and the edges define the transitions from each state to the other states in the machine. As the machine receives data, the state which it is in changes in a greedy fashion. Since the machine can be in only one state at a time and is memoryless, it is extremely useful. A classic example is a turnstile, which can take in nickels, dimes, and quarters, but only needs 25 cents to pass.
 
@@ -91,3 +91,11 @@ Inserted 10: Moving from 5 to 15.
 ```
 
 Presumably there would be client code surrounding the state machine to see where it is at each position, and do something based on which state it is currently in.
+
+API Reference
+-------------
+
+```eval_rst
+.. automodule:: pomegranate.fsm
+	:members:
+```
