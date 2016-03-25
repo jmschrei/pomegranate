@@ -44,7 +44,6 @@ Let us know what you want to do just in case we're already working on an impleme
 .. toctree::
 	:maxdepth: 2
 
-	index
 	probability
 	markovchain
 	naivebayes
