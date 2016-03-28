@@ -124,9 +124,9 @@ def test_constructors():
 	assert_raises( ValueError, NaiveBayes )
 
 	# check error is not thrown
-	NaiveBayes( NormalDistribution, 3 )
-	NaiveBayes( MultivariateGaussianDistribution, 5 )
-	NaiveBayes( HiddenMarkovModel, 2 )
+	NaiveBayes( NormalDistribution )
+	NaiveBayes( MultivariateGaussianDistribution )
+	NaiveBayes( HiddenMarkovModel )
 
 	# check if error is thrown
 	#NaiveBayes([ normal, multi ])
@@ -422,4 +422,9 @@ def test_raise_errors():
 	# run on all other cases that should raise errors in combination
 	# example, constructing with objects with no parameters,
 	#	then running predict methods before fit
-	pass
+	
+	# check if fit first ValueError is thrown
+	train_error = NaiveBayes( MultivariateGaussianDistribution )
+	assert_raises( ValueError, train_error.predict, [ 1, 2, 3 ] )
+	assert_raises( ValueError, train_error.predict_proba, [ 1, 2, 3 ] )
+	assert_raises( ValueError, train_error.predict_log_proba, [ 1, 2, 3 ] )
