@@ -2225,9 +2225,6 @@ cdef class HiddenMarkovModel( Model ):
 			The total improvement in fitting the model to the data
 		"""
 
-		# Convert the boolean into an integer for downstream use.
-		use_pseudocount = int( use_pseudocount )
-
 		if isinstance( sequences, numpy.ndarray ):
 			sequences = list(sequences)
 
@@ -2246,25 +2243,16 @@ cdef class HiddenMarkovModel( Model ):
 			improvement = self._train_labelled( sequences, labels, transition_pseudocount, 
 				use_pseudocount, edge_inertia, distribution_inertia )
 
-		if algorithm.lower() == 'viterbi':
-			improvement = self._train_loop( sequences, 'viterbi', stop_threshold,
+		else:
+			improvement = self._train_loop( sequences, algorithm.lower(), stop_threshold,
 				min_iterations, max_iterations, verbose, 
 				transition_pseudocount, use_pseudocount, edge_inertia,
 				distribution_inertia, n_jobs )
-
-		elif algorithm.lower() == 'baum-welch':
-			improvement = self._train_loop( sequences, 'baum-welch', stop_threshold,
-				min_iterations, max_iterations, verbose, 
-				transition_pseudocount, use_pseudocount, edge_inertia,
-				distribution_inertia, n_jobs )
-
-		out_edges = self.out_edge_count
 
 		for k in range( self.silent_start ):
-			for l in range( out_edges[k], out_edges[k+1] ):
+			for l in range( self.out_edge_count[k], self.out_edge_count[k+1] ):
 				li = self.out_transitions[l]
 				prob = self.out_transition_log_probabilities[l]
-
 				self.graph[self.states[k]][self.states[li]]['probability'] = prob
 
 		if verbose:
@@ -2325,7 +2313,7 @@ cdef class HiddenMarkovModel( Model ):
 				last_log_probability_sum = trained_log_probability_sum
 
 				if algorithm.lower() == 'baum-welch':
-					self.summarize( sequences, n_jobs, parallel )
+					self.summarize( sequences, n_jobs, parallel, False )
 					self.from_summaries( transition_pseudocount, use_pseudocount,
 										 edge_inertia, distribution_inertia )
 				elif algorithm.lower() == 'viterbi':
@@ -2346,13 +2334,11 @@ cdef class HiddenMarkovModel( Model ):
 
 		return trained_log_probability_sum - initial_log_probability_sum
 
-	def summarize( self, sequences, n_jobs=1, parallel=None ):
+	def summarize( self, sequences, n_jobs=1, parallel=None, check_input=True ):
 		"""Summarize data into stored sufficient statistics for out-of-core
 		training. Only implemented for Baum-Welch training since Viterbi
 		is less memory intensive.
 
-		Parameters
-		----------
 		Parameters
 		----------
 		sequence : array-like 
@@ -2362,10 +2348,29 @@ cdef class HiddenMarkovModel( Model ):
 			The number of threads to use when performing training. This
 			leads to exact updates. Default is 1.
 
+		parallel : joblib.Parallel 
+			The joblib threadpool. Passed between iterations of Baum-Welch so
+			that a new threadpool doesn't have to be created each iteration.
+			Default is None.
+
+		check_input : bool
+			Check the input. This casts the input sequences as numpy arrays,
+			and converts non-numeric inputs into numeric inputs for faster
+			processing later. Default is True.
+
 		Returns
 		-------
 		None
 		"""
+
+		if check_input:
+			for i in range( len(sequences) ):
+				try:
+					sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
+				except: 
+					sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
+						                                   sequences[i] ) ), 
+					                            dtype=numpy.float64 )
 
 		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
 
@@ -2404,27 +2409,6 @@ cdef class HiddenMarkovModel( Model ):
 
 		self._baum_welch_update( transition_pseudocount, use_pseudocount, 
 			edge_inertia, distribution_inertia )
-
-	cdef void _train_baum_welch_once(self, list sequences, 
-		double transition_pseudocount, bint use_pseudocount, double edge_inertia, 
-		double distribution_inertia, int n_jobs, object parallel ):
-		"""Perform Baum-Welch iterative re-estimation on the model parameters.
-		
-		Iterates until the log of the "score" (total likelihood of all 
-		sequences) changes by less than stop_threshold. Returns the final log
-		score.
-		
-		Always trains for at least min_iterations.
-		"""
-
-		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
-		
-		parallel( delayed( self._baum_welch_summarize, check_pickle=False )(
-			sequence, self.distributions ) for sequence in sequences )
-
-		self._baum_welch_update( transition_pseudocount, use_pseudocount, 
-			edge_inertia, distribution_inertia )
-
 
 	cpdef _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
 		numpy.ndarray distributions_ndarray ):
