@@ -29,10 +29,154 @@ from libc.math cimport exp as cexp
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
-def log_probability( model, samples ):
-	'''Return the log probability of samples given a model.'''
-	
-	return sum( map( model.log_probability, samples ) )
+cdef double log_probability( Distribution model, double* samples, int n, int d ):
+	cdef double logp = 0.0
+	cdef int i, j
+
+	for i in range(n):
+		if d > 1:
+			logp += model._mv_log_probability( samples + i*d )
+		else:
+			logp += model._log_probability( samples[i] )
+
+	return logp 
+
+cdef class Kmeans( object ):
+	"""A kmeans model.
+
+	Kmeans is not a probabilistic model, but it is used in the kmeans++
+	initialization for GMMs. In essence, a point is selected as the center
+	for one component and then remaining points are selected
+
+	Parameters
+	----------
+	k : int
+		The number of centroids.
+
+	Attributes
+	----------
+	k : int
+		The number of centroids
+
+	centroids : array-like, shape (k, n_dim)
+		The means of the centroid points.
+	"""
+
+	cdef public int k
+	cdef public numpy.ndarray centroids_ndarray
+	cdef double* centroids
+
+	def __init__( self, k ):
+		self.k = k
+
+	cpdef fit( self, X, max_iterations=10 ):
+		"""Fit the model to the data using k centroids.
+		
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_dim)
+			The data to fit to.
+
+		max_iterations : int, optional
+			The maximum number of iterations to run for. Default is 10.
+
+		Returns
+		-------
+		None
+		"""
+
+		X = numpy.array(X)
+		n, d = X.shape
+
+		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+
+		self.centroids_ndarray = numpy.zeros((self.k, d))
+		self.centroids = <double*> self.centroids_ndarray.data
+		self._fit( X_ptr, n, d, self.k, max_iterations )
+
+	cdef void _fit( self, double* X, int n, int d, int k, int max_iterations ) nogil:
+		cdef int i, j, y, l, iterations
+		cdef double* weight = <double*> calloc(k*d, sizeof(double))
+		cdef double* size = <double*> calloc(k, sizeof(double))
+		cdef double min_dist, dist
+
+		for i in range(k):
+			for j in range(d):
+				self.centroids[i*d + j] = X[i*d + j]
+
+		iterations = 0
+		while iterations < max_iterations:
+			iterations += 1
+
+			# Expectation
+			for i in range(n):
+				min_dist = INF
+
+				for j in range(k):
+					dist = 0.0
+
+					for l in range(d):
+						dist += ( self.centroids[j*d + l] - X[i*d + l] ) ** 2.0
+
+					if dist < min_dist:
+						min_dist = dist
+						y = j
+
+				size[y] += 1
+				for l in range(d):
+					weight[y*d + l] += X[i*d + l]
+		
+			# Maximization
+			for j in range(k):
+				for l in range(d):
+					self.centroids[j*d + l] = weight[j*d + l] / size[j]
+		
+		free(weight)
+		free(size)
+
+	cpdef predict( self, X ):
+		"""Predict nearest centroid for each point.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_dim)
+			The data to fit to.
+
+		Returns
+		-------
+		y : array-like, shape (n_samples,)
+			The index of the nearest centroid.
+		"""
+
+		X = numpy.array(X)
+		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+		cdef int n, d
+
+		n, d = X.shape
+		
+		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
+		cdef int* y_ptr = <int*> y.data
+
+		self._predict( X_ptr, y_ptr, n, d, self.k )
+		return y
+
+	cdef void _predict( self, double* X, int* y, int n, int d, int k ) nogil:
+		cdef int i, j, l
+		cdef double dist, min_dist
+
+		for i in range(n):
+			min_dist = INF
+
+			for j in range(k):
+				dist = 0.0
+
+				for l in range(d):
+					dist += ( self.centroids[j*d + l] - X[i*d + l] ) ** 2.0
+
+				if dist < min_dist:
+					min_dist = dist
+					y[i] = j
+
 
 cdef class GeneralMixtureModel( Distribution ):
 	"""A General Mixture Model.
@@ -108,32 +252,41 @@ cdef class GeneralMixtureModel( Distribution ):
 
 
 	cdef public numpy.ndarray distributions
+	cdef object distribution_callable
 	cdef public numpy.ndarray weights
 	cdef numpy.ndarray summaries_ndarray
 	cdef void** distributions_ptr
 	cdef double* weights_ptr
 	cdef double* summaries_ptr
 	cdef int n
+	cdef int initialized
 
 	def __init__( self, distributions, weights=None, n_components=None ):
 		"""Take in a list of initial distributions."""
 
-		if weights is None:
-			weights = numpy.ones_like(distributions, dtype=float) / len( distributions )
+		if callable(distributions):
+			self.initialized = False
+			self.n = n_components
+			self.distribution_callable = distributions
 		else:
-			weights = numpy.asarray(weights) / weights.sum()
+			self.initialized = True
 
-		self.weights = numpy.log( weights )
-		self.weights_ptr = <double*> self.weights.data
+			if weights is None:
+				weights = numpy.ones_like(distributions, dtype=float) / len( distributions )
+			else:
+				weights = numpy.asarray(weights) / weights.sum()
 
-		self.distributions = numpy.array( distributions )
-		self.distributions_ptr = <void**> self.distributions.data
-		
-		self.summaries_ndarray = numpy.zeros_like(weights, dtype='float64')
-		self.summaries_ptr = <double*> self.summaries_ndarray.data
+			self.weights = numpy.log( weights )
+			self.weights_ptr = <double*> self.weights.data
 
-		self.n = len(distributions)
-		self.d = distributions[0].d
+			self.distributions = numpy.array( distributions )
+			self.distributions_ptr = <void**> self.distributions.data
+
+			self.summaries_ndarray = numpy.zeros_like(weights, dtype='float64')
+			self.summaries_ptr = <double*> self.summaries_ndarray.data
+
+			self.n = len(distributions)
+			self.d = distributions[0].d
 
 	def sample( self, n=1 ):
 		"""Generate a sample from the model.
@@ -304,35 +457,40 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Returns
 		-------
-		log_probability : array-like, shape (n_samples, n_components)
+		y : array-like, shape (n_samples, n_components)
 			The normalized log probability log P(M|D) for each sample. This is
 			the probability that the sample was generated from each component.
 		"""
 
-		return numpy.array( self._predict_log_proba( numpy.array(items) ) )
+		items = numpy.array( items, dtype='float64' )
+		n, d = items.shape
 
-	cdef double [:,:] _predict_log_proba( self, numpy.ndarray items ):
-		cdef int m = len( self.distributions ), n = items.shape[0]
-		cdef double [:] priors = self.weights
-		cdef double [:,:] r = numpy.empty((n, m))
-		cdef double r_sum 
+		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		cdef numpy.ndarray y = numpy.zeros((n, self.n))
+		cdef double* y_ptr = <double*> y.data
+		self._predict_log_proba( items_ptr, n, d, self.n, y_ptr )
+		return y
+
+	cdef void _predict_log_proba( self, double* items, int n, int d, int m, double* y) nogil:
+		cdef double y_sum, logp
 		cdef int i, j
-		cdef Distribution d
 
 		for i in range(n):
-			r_sum = NEGINF
+			y_sum = NEGINF
 
 			for j in range(m):
-				d = self.distributions[j]
-				r[i, j] = d.log_probability(items[i]) + priors[j]
-				r_sum = pair_lse(r_sum, r[i, j])
+				if d > 1:
+					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(items + i*d)
+				else:
+					logp = (<Distribution> self.distributions_ptr[j])._log_probability(items[i])
+
+				y[i*m + j] = logp + self.weights_ptr[j]
+				y_sum = pair_lse(y_sum, y[i*m + j])
 
 			for j in range(m):
-				r[i, j] = r[i, j] - r_sum
+				y[i*m + j] = y[i*m + j] - y_sum
 
-		return r
-
-	def predict( self, items ):
+	cpdef predict( self, items ):
 		"""Predict the most likely component which generated each sample.
 
 		Calculate the posterior P(M|D) for each sample and return the index
@@ -354,7 +512,38 @@ cdef class GeneralMixtureModel( Distribution ):
 			The index of the component which fits the sample the best.
 		"""
 
-		return self.predict_log_proba( items ).argmax( axis=1 )
+		items = numpy.array( items, dtype='float64' )
+		n, d = items.shape
+
+		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		cdef int* y_ptr = self._predict( items_ptr, n, d, self.n )
+		
+		y = numpy.zeros(n, dtype='int')
+		for i in range(n):
+			y[i] = y_ptr[i]
+
+		free(y_ptr)
+		return y
+
+	cdef int* _predict( self, double* items, int n, int d, int m ) nogil:
+		cdef int i, j
+		cdef int* y = <int*> calloc(n, sizeof(int))
+		cdef double max_logp, logp
+
+		for i in range(n):
+			max_logp = NEGINF
+
+			for j in range(m):
+				if d > 1:
+					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(items + i*d) + self.weights_ptr[j]
+				else:
+					logp = (<Distribution> self.distributions_ptr[j])._log_probability(items[i]) + self.weights_ptr[j]
+
+				if logp > max_logp:
+					max_logp = logp
+					y[i] = j
+
+		return y
 
 	def fit( self, items, weights=None, inertia=0.0, stop_threshold=0.1, 
 		max_iterations=1e8, verbose=False ):
@@ -403,7 +592,32 @@ cdef class GeneralMixtureModel( Distribution ):
 			The total improvement in log probability P(D|M)
 		"""
 
-		initial_log_probability_sum = log_probability( self, items )
+		items = numpy.array(items)
+		n, d = items.shape
+
+		# If not initialized then we need to do kmeans initialization.
+		if self.initialized == False:
+			kmeans = Kmeans(self.n)
+			kmeans.fit(items, max_iterations=1)
+			y = kmeans.predict(items)
+			distributions = [ self.distribution_callable.from_samples( items[y==i] ) for i in range(self.n) ]
+
+			self.distributions = numpy.array( distributions )
+			self.distributions_ptr = <void**> self.distributions.data
+
+			self.weights = numpy.log( numpy.ones(self.n) / self.n )
+			self.weights_ptr = <double*> self.weights.data
+
+			self.summaries_ndarray = numpy.zeros_like(self.weights, dtype='float64')
+			self.summaries_ptr = <double*> self.summaries_ndarray.data
+
+			self.n = len(distributions)
+			self.d = distributions[0].d
+			self.initialized = True
+
+		cdef double* X_ptr = <double*> (<numpy.ndarray> items).data
+
+		initial_log_probability_sum = log_probability( self, X_ptr, n, d )
 		last_log_probability_sum = initial_log_probability_sum
 		iteration, improvement = 0, INF 
 
@@ -411,7 +625,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			self.summarize( items, weights )
 			self.from_summaries( inertia )
 
-			trained_log_probability_sum = log_probability( self, items )
+			trained_log_probability_sum = log_probability( self, X_ptr, n, d )
 			improvement = trained_log_probability_sum - last_log_probability_sum 
 
 			if verbose:

@@ -2283,6 +2283,21 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 		
 		cdef SIZE_t n = items.shape[0]
+		d = items.shape[1]
+
+		if self.d != d:
+			self.d = d
+
+			free(self.column_sum)
+			self.column_sum = <double*> calloc( d, sizeof(double) )
+			memset( self.column_sum, 0, d*sizeof(double) )
+
+			free(self.pair_sum)
+			self.pair_sum = <double*> calloc( d*d, sizeof(double) )
+			memset( self.pair_sum, 0, d*d*sizeof(double) )
+
+			self._mu_new = <double*> calloc( d, sizeof(double) )
+			self._cov_new = <double*> calloc( d*d, sizeof(double) )
 
 		with nogil:
 			self._summarize( items_p, weights_p, n )
@@ -2334,15 +2349,17 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		if self.frozen == True or self.w_sum < 1e-7:
 			return
 
-		self._from_summaries( inertia )
-
-	cdef void _from_summaries( self, double inertia ):
-		"""Cython optimized optimization."""
-
 		cdef SIZE_t d = self.d, i, j, k
 		cdef double* column_sum = self.column_sum
 		cdef double* pair_sum = self.pair_sum
 		cdef double* u = self._mu_new
+
+		if self.cov.shape[0] != self.d:
+			self.cov = numpy.zeros((self.d, self.d))
+			self._cov = <double*> (<numpy.ndarray> self.cov).data
+
+			self.mu = numpy.zeros(self.d)
+			self._mu = <double*> (<numpy.ndarray> self.mu).data
 
 		for i in range(d):
 			u[i] = self.column_sum[i] / self.w_sum
@@ -2358,9 +2375,9 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		memset( pair_sum, 0, d*d*sizeof(double) )
 		self.w_sum = 0.0
 
-		self.inv_cov_ndarray = numpy.linalg.inv( self.cov ).astype( numpy.float64 )
+		self.inv_cov_ndarray = numpy.linalg.inv(self.cov).astype('float64')
 		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
-		self._log_det = _log( numpy.linalg.det( self.cov ) )
+		_, self._log_det = numpy.linalg.slogdet(self.cov)
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
