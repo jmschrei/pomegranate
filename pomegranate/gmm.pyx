@@ -119,10 +119,8 @@ cdef class GeneralMixtureModel( Distribution ):
 		"""Take in a list of initial distributions."""
 
 		if weights is None:
-			# Weight everything 1 if no weights specified
 			weights = numpy.ones_like(distributions, dtype=float) / len( distributions )
 		else:
-			# Force whatever we have to be a Numpy array
 			weights = numpy.asarray(weights) / weights.sum()
 
 		self.weights = numpy.log( weights )

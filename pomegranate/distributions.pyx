@@ -1952,7 +1952,7 @@ cdef class MixtureDistribution( Distribution ):
 
 		# Update the emissions of each distribution
 		for i, distribution in enumerate( distributions ):
-			distribution.from_sample( items, weights=r[:,i] )
+			distribution.fit( items, weights=r[:,i] )
 
 		# Update the weight of each distribution
 		self.weights = r.sum( axis=0 ) / r.sum()

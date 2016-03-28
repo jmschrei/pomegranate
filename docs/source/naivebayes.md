@@ -1,6 +1,8 @@
 Naive Bayes Classifiers
 =======================
 
+[IPython Notebook Tutorial](https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_5_Naive_Bayes.ipynb)
+
 The Naive Bayes classifier is a simple probabilistic classification model based on Bayes Theorem. Since Naive Bayes classifiers classifies sets of data by which class has the highest conditional probability, Naive Bayes classifiers can use any distribution or model which has a probabilistic interpretation of the data as one of its components. Basically if it can output a log probability, then it can be used in Naive Bayes.
 
 An IPython notebook example demonstrating a Naive Bayes classifier using multivariate distributions can be [found here](https://github.com/jmschrei/pomegranate/blob/master/examples/naivebayes_multivariate_male_female.ipynb).
@@ -12,60 +14,34 @@ Naive Bayes can be initialized a number of ways. The classifier can be initializ
 
 For example, here is an initialization using an already initialized normal distribution for class 0, a uniform distribution for class 1, and an exponential distribution for class 2 .
 
-```Python
-clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
+```python
+>>> clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
 ```
 
 Since Naive Bayes classifiers simply compares the likelihood of a sample occurring under different models, it can be initialized with any model in pomegranate. This is assuming that all the models take the same type of input.
 
-```Python
-multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
-indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
-clf = NaiveBayes([ mutli, indie ])
+```python
+>>> multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
+>>> indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
+>>> clf = NaiveBayes([ mutli, indie ])
 ```
 
 Naive Bayes classifiers can also take Hidden Markov Models as input as well as Bayesian Networks.
 
 If all the models in the Naive Bayes classifier use the same type of model, then Naive Bayes can be initialized by passing in the constructor for the model and the number of classses there are.
 
-```Python
-clf = NaiveBayes( NormalDistribution, n_components=5 )
+```python
+>>> clf = NaiveBayes( NormalDistribution, n_components=5 )
 ```
 
 **Warning!** keep in mind that if Naive Bayes is initialized this way then all the classes must be fitted to some data before any prediction methods are called.
 
 Finally, Naive Bayes must be given at least a model or n_components must be specified otherwise a ValueError will be thrown.
 
-Fitting
--------
+Log Probability
+---------------
 
-Naive Bayes has a fit method, in which the models in the classifier are trained to "fit" to a set of data. The method takes two numpy arrays as input, an array of samples and an array of correct classifications for each sample. Here is an example for a Naive Bayes made up of two bivariate distributions.
-
-```Python
-multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
-indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
-clf = NaiveBayes([ mutli, indie ])
-
-samples = np.array([[ 6, 5 ],
-					[ 3.5, 4 ],
-					[ 7.5, 1.5 ],
-					[ 7, 7 ]])
-classes = np.array([ 0, 0, 1, 1 ])
-clf.fit( samples, classes )
-```
-
-As we can see, there are four samples, with the first two samples labeled as class 0 and the last two samples labeled as class 1. Keep in mind that the training samples must match the input requirements for the models used. So if using a univariate distribution, then each sample must contain one item. A bivariate distribution, two. For hidden markov models, the sample can be a list of observations of any length. An example using hidden markov models would be the following.
-
-```Python
-# clf would be a classifier made up of hmms
-samples = np.array([list( 'HHHHHTHTHTTTTH' ),
-			  list( 'HHTHHTTHHHHHTH' ),
-			  list( 'TH' ), list( 'HHHHT' ),])
-classes = np.array([ 2, 2, 1, 0 ])
-clf.fit( samples, classes )
-```
-
-Additionally, there must be a corresponding number of correct classfications for each sample. In other words the length of both arrays must be the same. On a final note, it is a good idea to include samples for all the models in the Naive Bayes classifier since all models are retrained, even if no samples are supplied to retrain it with.
+Naive Bayes models do not have a log probability method themselves because it is a comparison between multiple models.
 
 Prediction
 ----------
@@ -76,14 +52,9 @@ Since Naive Bayes uses Bayes Theorem, the probability of a sample occurring unde
 
 Calling predict_proba on five samples for a Naive Bayes with univariate components would look like the following.
 
-```Python
-clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
-
-probs = clf.predict_proba( np.array([ 0, 1, 2, 3, 4 ]) )
-```
-With the output being the following numpy array.
-
-```Python
+```python
+>>> clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
+>>> clf.predict_proba( np.array([ 0, 1, 2, 3, 4 ]) )
 [[ 0.00790443  0.09019051  0.90190506]
  [ 0.05455011  0.20207126  0.74337863]
  [ 0.21579499  0.33322883  0.45097618]
@@ -93,41 +64,64 @@ With the output being the following numpy array.
 
 With models that take in multiple inputs, the input to predict_proba would take the inputs as a list of lists. This would look like the following.
 
-```Python
-multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
-indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
-clf = NaiveBayes([ mutli, indie ])
-
-probs = clf.predict_proba( np.array([[ 0, 4 ],
-									 [ 1, 3 ],
-									 [ 2, 2 ],
-									 [ 3, 1 ],
-									 [ 4, 0 ]]) )
+```python
+>>> multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
+>>> indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
+>>> clf = NaiveBayes([ mutli, indie ])
+>>> probs = clf.predict_proba( np.array([[ 0, 4 ],
+									     [ 1, 3 ],
+									     [ 2, 2 ],
+									     [ 3, 1 ],
+									     [ 4, 0 ]]) )
 ```
 
 With the output having the same format as the example above. Keep in mind that the samples taken as input must be the same length as one another unless Naive Bayes is being used to compare Hidden Markov Models.
 
 The method predict_log_proba is called in the exact same manner, and its output is formatted exactly the same as predict_proba. The only difference is the output values are the log probabilities rather than the probabitilies of each sample occurring.
 
-```Python
-clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
-
-log_probs = clf.predict_log_proba( np.array([ 0, 1, 2, 3, 4 ]) )
+```python
+>>> clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
+>>> log_probs = clf.predict_log_proba( np.array([ 0, 1, 2, 3, 4 ]) )
 ```
 
 Finally, there is the method predict. Again, this takes the same formatted input as predict_proba and predict_log_proba. However instead of outputting a array of arrays, predict outputs an array of classifications for each sample. Here is a call using the Naive Bayes made up of three univariate distributions once again.
 
-```Python
-clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
-
-predictions = clf.predict( np.array([ 0, 1, 2, 3, 4 ]) )
-```
-
-The corresponding output would be.
-
-```Python
+```python
+>>> clf = NaiveBayes([ NormalDistribution( 5, 2 ), UniformDistribution( 0, 10 ), ExponentialDistribution( 1.0 ) ])
+>>> clf.predict( np.array([ 0, 1, 2, 3, 4 ]) )
 [ 2, 2, 2, 0, 0 ]
 ```
+
+Fitting
+-------
+
+Naive Bayes has a fit method, in which the models in the classifier are trained to "fit" to a set of data. The method takes two numpy arrays as input, an array of samples and an array of correct classifications for each sample. Here is an example for a Naive Bayes made up of two bivariate distributions.
+
+```python
+>>> multi = MultivariateGaussianDistribution( means=[ 5, 5 ], covariance=[[ 2, 3 ], [ 3, 2 ]] )
+>>> indie = IndependentComponentsDistribution( distributions=[ NormalDistribution( 5, 2 ), NormalDistribution( 5, 2 ) ])
+>>> clf = NaiveBayes([ mutli, indie ])
+
+>>> samples = np.array([[ 6, 5 ],
+	    				[ 3.5, 4 ],
+		    			[ 7.5, 1.5 ],
+			    		[ 7, 7 ]])
+>>> classes = np.array([ 0, 0, 1, 1 ])
+>>> clf.fit( samples, classes )
+```
+
+As we can see, there are four samples, with the first two samples labeled as class 0 and the last two samples labeled as class 1. Keep in mind that the training samples must match the input requirements for the models used. So if using a univariate distribution, then each sample must contain one item. A bivariate distribution, two. For hidden markov models, the sample can be a list of observations of any length. An example using hidden markov models would be the following.
+
+```python
+>>> samples = np.array([list( 'HHHHHTHTHTTTTH' ),
+				   	    list( 'HHTHHTTHHHHHTH' ),
+				  	    list( 'TH' ), 
+				  	    list( 'HHHHT' )])
+>>> classes = np.array([ 2, 2, 1, 0 ])
+>>> clf.fit( samples, classes )
+```
+
+Additionally, there must be a corresponding number of correct classfications for each sample. In other words the length of both arrays must be the same. On a final note, it is a good idea to include samples for all the models in the Naive Bayes classifier since all models are retrained, even if no samples are supplied to retrain it with.
 
 API Reference
 -------------
