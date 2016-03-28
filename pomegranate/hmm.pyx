@@ -2325,12 +2325,9 @@ cdef class HiddenMarkovModel( Model ):
 				last_log_probability_sum = trained_log_probability_sum
 
 				if algorithm.lower() == 'baum-welch':
-					self._train_baum_welch_once( sequences, 
-												 transition_pseudocount,
-						                         use_pseudocount, 
-						                         edge_inertia,
-						                         distribution_inertia, n_jobs, 
-						                         parallel )
+					self.summarize( sequences, n_jobs, parallel )
+					self.from_summaries( transition_pseudocount, use_pseudocount,
+										 edge_inertia, distribution_inertia )
 				elif algorithm.lower() == 'viterbi':
 					self._train_viterbi_once( sequences, 
 											  transition_pseudocount,
@@ -2349,6 +2346,64 @@ cdef class HiddenMarkovModel( Model ):
 
 		return trained_log_probability_sum - initial_log_probability_sum
 
+	def summarize( self, sequences, n_jobs=1, parallel=None ):
+		"""Summarize data into stored sufficient statistics for out-of-core
+		training. Only implemented for Baum-Welch training since Viterbi
+		is less memory intensive.
+
+		Parameters
+		----------
+		Parameters
+		----------
+		sequence : array-like 
+			An array (or list) of observations.
+
+		n_jobs : int, optional
+			The number of threads to use when performing training. This
+			leads to exact updates. Default is 1.
+
+		Returns
+		-------
+		None
+		"""
+
+		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
+
+		if parallel is None:
+			parallel = Parallel( n_jobs=n_jobs, backend='threading' )
+
+		parallel([ delayed( self._baum_welch_summarize, check_pickle=False )(
+			sequence, self.distributions ) for sequence in sequences ])
+
+	def from_summaries( self, transition_pseudocount=0, 
+		use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0 ):
+		"""Fit the model to the stored summary statistics.
+
+		Parameters
+		----------
+		transition_pseudocount : int, optional
+			A pseudocount to add to all transitions to add a prior to the
+			MLE estimate of the transition probability. Default is 0.
+
+		use_pseudocount : bool, optional
+			Whether to use pseudocounts when updatiing the transition
+			probability parameters. Default is False.
+
+		edge_inertia : bool, optional, range [0, 1]
+			Whether to use inertia when updating the transition probability
+			parameters. Default is 0.0.
+
+		distribution_inertia : double, optional, range [0, 1]
+			Whether to use inertia when updating the distribution parameters.
+			Default is 0.0.
+
+		Returns
+		-------
+		None
+		"""
+
+		self._baum_welch_update( transition_pseudocount, use_pseudocount, 
+			edge_inertia, distribution_inertia )
 
 	cdef void _train_baum_welch_once(self, list sequences, 
 		double transition_pseudocount, bint use_pseudocount, double edge_inertia, 
@@ -2362,7 +2417,6 @@ cdef class HiddenMarkovModel( Model ):
 		Always trains for at least min_iterations.
 		"""
 
-		cdef double* expected_transitions = self.expected_transitions
 		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
 		
 		parallel( delayed( self._baum_welch_summarize, check_pickle=False )(
