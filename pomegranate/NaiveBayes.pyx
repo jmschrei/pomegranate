@@ -1,14 +1,16 @@
 # NaiveBayes.pyx
 # Authors: Jacob Schreiber <jmschreiber91@gmail.com>
 
+"""
+Naive Bayes estimator, for anything with a log_probability method.
+"""
+
 import numpy
 cimport numpy
 
-import json
-
 from libc.math cimport exp as cexp
 
-from .distributions import Distribution
+from .distributions cimport Distribution
 from .hmm import HiddenMarkovModel
 from .utils cimport pair_lse
 
@@ -26,9 +28,9 @@ cdef class NaiveBayes( object ):
         * Initialized : NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
         * Constructor : NaiveBayes(NormalDistribution)
 
-    weights : list or numpy.ndarray or None
+    weights : list or numpy.ndarray or None, default None
         The prior probabilities of the components. If None is passed in then
-        defaults to the uniformly distributed priors. Default is None.
+        defaults to the uniformly distributed priors.
     
     Attributes
     ----------
@@ -59,8 +61,10 @@ cdef class NaiveBayes( object ):
 
     cdef int initialized
     cdef public object models
+    cdef void** models_ptr
     cdef numpy.ndarray summaries
     cdef public numpy.ndarray weights
+    cdef double* weights_ptr
 
     def __init__( self, models=None, weights=None ):
         if not callable(models) and not isinstance(models, list): 
@@ -73,10 +77,15 @@ cdef class NaiveBayes( object ):
             self.initialized = True
             self.summaries = numpy.zeros(len(models))
 
+            self.models = numpy.array( models )
+            self.models_ptr = <void**> (<numpy.ndarray> self.models).data
+
             if weights is None:
                 self.weights = numpy.ones(len(models), dtype='float64') / len(models)
             else:
                 self.weights = numpy.array(weights) / numpy.sum(weights)
+
+            self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
 
         self.models = models
 
@@ -90,15 +99,13 @@ cdef class NaiveBayes( object ):
             on the underlying components.
 
         y : array-like, shape (n_samples,)
-            Array of the known labels as integers.
+            Array of the known labels as integers
 
         weights : array-like, shape (n_samples,) optional
-            Array of the weight of each sample, a positive float. If None is passed
-            in then all samples are equally weighted. Default is None.
+            Array of the weight of each sample, a positive float
 
         inertia : double, optional
-            Inertia used for the training the distributions. Default is
-            0.0. 
+            Inertia used for the training the distributions.
 
         Returns
         -------
@@ -121,11 +128,10 @@ cdef class NaiveBayes( object ):
             on the underlying components.
 
         y : array-like, shape (n_samples,)
-            Array of the known labels as integers.
+            Array of the known labels as integers
 
         weights : array-like, shape (n_samples,) optional
-            Array of the weight of each sample, a positive float.
-            Default is None.
+            Array of the weight of each sample, a positive float
 
         Returns
         -------
@@ -143,10 +149,18 @@ cdef class NaiveBayes( object ):
         if len(X.shape) == 1 and not isinstance(X[0], list):
             X = X.reshape( X.shape[0], 1 )
 
+        n = numpy.unique(y).shape[0]
+
         if not self.initialized:
-            n = numpy.unique(y).shape[0]
             self.models = [self.models] * n
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
+            self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
+            self.summaries = numpy.zeros(n)
+            self.initialized = True
+        elif n != len(self.models):
+            self.models = [self.models[0].__class__] * n
+            self.weights = numpy.ones(n, dtype=numpy.float64) / n
+            self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
             self.summaries = numpy.zeros(n)
             self.initialized = True
 
@@ -154,7 +168,7 @@ cdef class NaiveBayes( object ):
 
         for i in range(n):
             if callable(self.models[i]):
-                self.models[i] = self.models[i].from_samples(X[0:1])
+                self.models[i] = self.models[i].from_samples(X[0:2])
 
             if isinstance( self.models[i], HiddenMarkovModel ):
                 self.models[i].fit( list(X[y==i]) )
@@ -169,8 +183,7 @@ cdef class NaiveBayes( object ):
         Parameters
         ----------
         inertia : double, optional
-            Inertia used for the training the distributions. Default is
-            0.0.
+            Inertia used for the training the distributions.
 
         Returns
         -------
@@ -180,6 +193,9 @@ cdef class NaiveBayes( object ):
 
         n = len(self.models)
         self.summaries /= self.summaries.sum()
+
+        self.models = numpy.array( self.models )
+        self.models_ptr = <void**> (<numpy.ndarray> self.models).data
 
         for i in range(n):
             if not isinstance( self.models[i], HiddenMarkovModel ):
@@ -285,51 +301,22 @@ cdef class NaiveBayes( object ):
         if self.initialized == 0:
             raise ValueError("must fit components to the data before prediction,")
 
-        return self.predict_proba(X).argmax( axis=1 )
+        return self._predict( numpy.array(X) )
 
-    def to_json( self, separators=(',', ' : '), indent=4 ):
-        """Serialize the model to a JSON.
+    cdef numpy.ndarray _predict( self, numpy.ndarray X ):
+        cdef int i, j, m = len(self.models), n = X.shape[0]
+        cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
+        cdef int* y_ptr = <int*> y.data
+        cdef double logp, max_logp
 
-        Parameters
-        ----------
-        separators : tuple, optional 
-            The two separaters to pass to the json.dumps function for formatting.
-            Default is (',', ' : ').
+        for i in range(n):
+            max_logp = NEGINF
 
-        indent : int, optional
-            The indentation to use at each level. Passed to json.dumps for
-            formatting. Default is 4.
-        
-        Returns
-        -------
-        json : str
-            A properly formatted JSON object.
-        """
-        
-        model = { 
-                    'class' : 'NaiveBayes',
-                    'models'  : [ json.loads( m.to_json() ) for m in self.models ],
-                    'weights' : self.weights.tolist()
-                }
+            for j in range(m):
+                logp = self.models[j].log_probability(X[i]) + self.weights_ptr[j]
 
-        return json.dumps( model, separators=separators, indent=indent )
+                if logp > max_logp:
+                    max_logp = logp
+                    y_ptr[i] = j
 
-    @classmethod
-    def from_json( cls, s ):
-        """Read in a serialized model and return the appropriate classifier.
-        
-        Parameters
-        ----------
-        s : str
-            A JSON formatted string containing the file.
-
-        Returns
-        -------
-        model : object
-            A properly initialized and baked model.
-        """
-
-        d = json.loads( s )
-        models = [ Distribution.from_json( json.dumps(j) ) for j in d['models'] ] 
-        model = NaiveBayes( models, numpy.array( d['weights'] ) )
-        return model
+        return y

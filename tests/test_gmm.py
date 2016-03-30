@@ -104,12 +104,12 @@ def test_multivariate_gmm_posterior():
 
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_multivariate_gmm_maximum_a_posteriori():
-	posterior_argmax = np.array([1, 1])
-
 	X = np.array([[ 2., 5., 7., 3., 2. ],
-		          [ 1., 2., 5., 2., 5. ]])
+		          [ 1., 2., 5., 2., 5. ],
+				  [ 2., 1., 8., 2., 1. ],
+				  [ 4., 3., 8., 1., 2. ]])
 
-	assert_almost_equal( gmm.predict(X), posterior_argmax )
+	assert_almost_equal( gmm.predict(X), gmm.predict_proba(X).argmax(axis=1) )
 
 
 def test_multivariate_gmm_train():

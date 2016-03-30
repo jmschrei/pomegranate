@@ -88,7 +88,6 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	cdef double w_sum
 	cdef double* column_sum
 	cdef double* pair_sum
-	cdef void _from_summaries( self, double inertia )
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	cdef dict key_dict
