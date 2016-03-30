@@ -6,10 +6,13 @@ pomegranate
 pomegranate is a package for graphical models and Bayesian statistics for Python, implemented in cython. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components used could be rearranged to do other cool things. It currently supports:
 
 * Probability Distributions
-* Finite State Machines
-* Hidden Markov Models
-* Discrete Bayesian Networks
 * General Mixture Models
+* Hidden Markov Models
+* Naive Bayes
+* Markov Chains
+* Discrete Bayesian Networks
+* Factor Graphs
+* Finite State Machines
 
 See the tutorial below, or the more in depth tutorials in the `tutorials` folder with examples in IPython notebooks. See [the website](http://pomegranate.readthedocs.org/en/latest/) for further information.
 
