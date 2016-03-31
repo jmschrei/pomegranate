@@ -5,10 +5,13 @@ pomegranate/BayesianNetwork.c
 pomegranate/BayesianNetwork.pyx
 pomegranate/FactorGraph.c
 pomegranate/FactorGraph.pyx
+pomegranate/MarkovChain.c
+pomegranate/MarkovChain.pyx
 pomegranate/NaiveBayes.c
 pomegranate/NaiveBayes.pyx
 pomegranate/__init__.py
 pomegranate/__init__.pyc
+pomegranate/__init__.py~
 pomegranate/base.c
 pomegranate/base.pxd
 pomegranate/base.pyx

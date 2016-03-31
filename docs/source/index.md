@@ -51,6 +51,7 @@ Let us know what you want to do just in case we're already working on an impleme
 	probability
 	markovchain
 	naivebayes
+	hmm
 	gmm
 	bayesnet
 	factorgraph
