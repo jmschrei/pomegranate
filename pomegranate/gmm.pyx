@@ -311,7 +311,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		samples = []
 		for i in xrange(n):
-			d = numpy.random.choice( self.distributions, p=numpy.exp(self.weights), size=n )
+			d = numpy.random.choice( self.distributions, p=numpy.exp(self.weights) )
 			samples.append(d.sample())
 
 		return samples if n > 1 else samples[0]
