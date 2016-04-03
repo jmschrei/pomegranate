@@ -942,17 +942,11 @@ cdef class HiddenMarkovModel( Model ):
 		dist = self.states[0].distribution 
 		if isinstance( dist, DiscreteDistribution ):
 			self.discrete = 1
-
-			keys = []
-			for state in self.states[:self.silent_start]:
-				keys.extend( state.distribution.keys() )
-			keys = tuple( set( keys ) )
-
-			self.keymap = { keys[i] : i for i in xrange(len(keys)) }
-
-			for state in self.states:
-				for state in self.states[:self.silent_start]:
-					state.distribution.encode( keys )
+			states = self.states[:self.silent_start]
+			keys = reduce( list.__add__, [s.distribution.keys() for s in states] )
+			self.keymap = { key: i for i, key in enumerate(set(keys)) }
+			for state in states:
+				state.distribution.encode( tuple(set(keys)) )
 
 		if isinstance( dist, MultivariateDistribution ):
 			self.multivariate = 1
@@ -2041,7 +2035,7 @@ cdef class HiddenMarkovModel( Model ):
 			log_sequence_probability = f[ n, self.end_index ]
 		else:
 			log_sequence_probability = NEGINF
-			for i in xrange( self.silent_start ):
+			for i in range( self.silent_start ):
 				log_sequence_probability = pair_lse( 
 					log_sequence_probability, f[ n, i ] )
 		
@@ -2050,9 +2044,9 @@ cdef class HiddenMarkovModel( Model ):
 			print( "Warning: Sequence is impossible." )
 			return ( None, None )
 
-		for k in xrange( m ):				
+		for k in range( m ):				
 			if k < self.silent_start:				  
-				for i in xrange( n ):
+				for i in range( n ):
 					# For each symbol that came out
 					# What's the weight of this symbol for that state?
 					# Probability that we emit index characters and then 
@@ -2131,7 +2125,7 @@ cdef class HiddenMarkovModel( Model ):
 	cdef tuple _maximum_a_posteriori( self, numpy.ndarray sequence ):
 		cdef int i, k, l, li
 		cdef int m=len(self.states), n=len(sequence)
-		cdef double [:,:] emission_weights = self._posterior( sequence )
+		cdef double [:,:] emission_weights = self._predict_log_proba( sequence )
 
 		cdef list path = []
 		cdef double maximum_emission_weight

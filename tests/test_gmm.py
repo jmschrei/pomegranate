@@ -5,6 +5,7 @@ from nose.tools import with_setup
 from nose.tools import assert_true
 from nose.tools import assert_equal
 from nose.tools import assert_greater
+from nose.tools import assert_raises
 from numpy.testing import assert_almost_equal
 import random
 import numpy as np
@@ -150,3 +151,26 @@ def test_multivariate_gmm_train_iterations():
 	gmm = GeneralMixtureModel( mgs )
 
 	assert_greater( improvement, gmm.fit(X, max_iterations=1) )
+
+
+def test_initialization_error():
+	X = numpy.concatenate((numpy.random.randn(100, 5) + 2, numpy.random.randn(100, 5)))
+
+	gmm = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
+	assert_raises( ValueError, gmm.predict, X )
+	assert_raises( ValueError, gmm.predict_proba, X )
+	assert_raises( ValueError, gmm.predict_log_proba, X )
+	assert_raises( ValueError, gmm.log_probability, X )
+
+	gmm.fit(X)
+	gmm.predict(X)
+	gmm.predict_proba(X)
+	gmm.predict_log_proba(X)
+	gmm.log_probability(X)
+
+
+def test_initialization():
+	X = numpy.concatenate((numpy.random.randn(100, 5) + 2, numpy.random.randn(100, 5)))
+	gmm1 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
+	gmm2 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
+	assert_greater( gmm.fit(X), gmm.fit(X, max_iterations=1) )

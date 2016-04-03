@@ -15,6 +15,7 @@ import numpy
 cimport numpy
 
 from .distributions cimport Distribution
+from .distributions import DiscreteDistribution
 from .utils cimport _log
 from .utils cimport pair_lse
 
@@ -28,6 +29,25 @@ from libc.math cimport exp as cexp
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
+
+cpdef numpy.ndarray _check_input( X, keymap ):
+	"""Check the input to make sure that it is a properly formatted array."""
+
+	cdef int n = len(X), d = len(X[0])
+	cdef numpy.ndarray X_ndarray
+
+	if isinstance( X, numpy.ndarray ) and ( X.dtype == 'float64' ):
+		return X
+
+	try:
+		X_ndarray = numpy.array( X, dtype='float64' )
+	except ValueError:
+		X_ndarray = numpy.empty((n, d), dtype='float64')
+		for i in range(n):
+			for j in range(d):
+				X_ndarray[i, j] = keymap[X[i][j]]
+
+	return X_ndarray
 
 cdef double log_probability( Distribution model, double* samples, int n, int d ):
 	cdef double logp = 0.0
@@ -62,14 +82,24 @@ cdef class Kmeans( object ):
 		The means of the centroid points.
 	"""
 
-	cdef public int k
-	cdef public numpy.ndarray centroids_ndarray
-	cdef double* centroids
+	cdef public int k, d
+	cdef public numpy.ndarray centroids
+	cdef double* centroids_ptr
+	cdef int initialized
+	cdef double* summary_sizes
+	cdef double* summary_weights
 
 	def __init__( self, k ):
 		self.k = k
+		self.d = 0
+		self.initialized = False
 
-	cpdef fit( self, X, max_iterations=10 ):
+
+	def __dealloc__( self ):
+		free(self.summary_sizes)
+		free(self.summary_weights)
+
+	cpdef fit( self, X, int max_iterations=10 ):
 		"""Fit the model to the data using k centroids.
 		
 		Parameters
@@ -85,54 +115,97 @@ cdef class Kmeans( object ):
 		None
 		"""
 
-		X = numpy.array(X)
-		n, d = X.shape
-
-		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
-
-		self.centroids_ndarray = numpy.zeros((self.k, d))
-		self.centroids = <double*> self.centroids_ndarray.data
-		self._fit( X_ptr, n, d, self.k, max_iterations )
-
-	cdef void _fit( self, double* X, int n, int d, int k, int max_iterations ) nogil:
-		cdef int i, j, y, l, iterations
-		cdef double* weight = <double*> calloc(k*d, sizeof(double))
-		cdef double* size = <double*> calloc(k, sizeof(double))
-		cdef double min_dist, dist
-
-		for i in range(k):
-			for j in range(d):
-				self.centroids[i*d + j] = X[i*d + j]
-
-		iterations = 0
+		cdef int iterations = 0
 		while iterations < max_iterations:
 			iterations += 1
 
-			# Expectation
-			for i in range(n):
-				min_dist = INF
+			self.summarize( X )
+			self.from_summaries()
 
-				for j in range(k):
-					dist = 0.0
+	cpdef void summarize( self, X ):
+		"""Summarize the points into sufficient statistics for a future update.
 
-					for l in range(d):
-						dist += ( self.centroids[j*d + l] - X[i*d + l] ) ** 2.0
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_dim)
+			The data to fit to.
 
-					if dist < min_dist:
-						min_dist = dist
-						y = j
+		Returns
+		-------
+		None
+		"""
 
-				size[y] += 1
-				for l in range(d):
-					weight[y*d + l] += X[i*d + l]
-		
-			# Maximization
+		cdef numpy.ndarray X_ndarray = numpy.array(X, dtype='float64')
+		cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1], i, j
+		cdef double* X_ptr = <double*> X_ndarray.data
+
+		if not self.initialized:
+			self.d = d
+			self.centroids = numpy.zeros((self.k, d))
+			self.centroids_ptr = <double*> self.centroids.data
+			self.summary_sizes = <double*> calloc(self.k, sizeof(double))
+			self.summary_weights = <double*> calloc(self.k*d, sizeof(double))
+
+			self.initialized = True
+			for i in range(self.k):
+				for j in range(d):
+					self.centroids_ptr[i*d + j] = X_ptr[i*d + j]
+
+		self._summarize( X_ptr, n, d, self.k )
+
+	cdef void _summarize( self, double* X, int n, int d, int k ) nogil:
+		cdef int i, j, l, y
+		cdef double min_dist, dist
+		cdef double* summary_sizes = <double*> calloc(k, sizeof(double))
+		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))
+
+		for i in range(n):
+			min_dist = INF
+
 			for j in range(k):
+				dist = 0.0
+
 				for l in range(d):
-					self.centroids[j*d + l] = weight[j*d + l] / size[j]
-		
-		free(weight)
-		free(size)
+					dist += ( self.centroids_ptr[j*d + l] - X[i*d + l] ) ** 2.0
+
+				if dist < min_dist:
+					min_dist = dist
+					y = j
+
+			summary_sizes[y] += 1
+
+			for l in range(d):
+				summary_weights[y*d + l] += X[i*d + l]
+
+		with gil:
+			for j in range(k):
+				self.summary_sizes[j] += summary_sizes[j]
+
+				for l in range(d):
+					self.summary_weights[j*d + l] += summary_weights[j*d + l]
+
+		free(summary_sizes)
+		free(summary_weights)
+
+	cpdef void from_summaries( self ):
+		"""Fit the model to the sufficient statistics.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
+
+		cdef int l, j, k = self.k, d = self.d
+
+		for j in range(k):
+			for l in range(d):
+				self.centroids_ptr[j*d + l] = self.summary_weights[j*d + l] / self.summary_sizes[j]
+				self.summary_weights[j*d + l] = 0.0
+			self.summary_sizes[j] = 0.0
 
 	cpdef predict( self, X ):
 		"""Predict nearest centroid for each point.
@@ -171,7 +244,7 @@ cdef class Kmeans( object ):
 				dist = 0.0
 
 				for l in range(d):
-					dist += ( self.centroids[j*d + l] - X[i*d + l] ) ** 2.0
+					dist += ( self.centroids_ptr[j*d + l] - X[i*d + l] ) ** 2.0
 
 				if dist < min_dist:
 					min_dist = dist
@@ -258,12 +331,11 @@ cdef class GeneralMixtureModel( Distribution ):
 	cdef void** distributions_ptr
 	cdef double* weights_ptr
 	cdef double* summaries_ptr
+	cdef dict keymap
 	cdef int n
 	cdef int initialized
 
 	def __init__( self, distributions, weights=None, n_components=None ):
-		"""Take in a list of initial distributions."""
-
 		if callable(distributions):
 			self.initialized = False
 			self.n = n_components
@@ -287,6 +359,12 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			self.n = len(distributions)
 			self.d = distributions[0].d
+
+		if self.initialized and isinstance( self.distributions[0], DiscreteDistribution ):
+			keys = reduce( list.__add__, [d.keys() for d in self.distributions] )
+			self.keymap = { key: i for i, key in enumerate(set(keys)) }
+			for d in self.distributions:
+				d.encode( tuple(set(keys)) )
 
 	def sample( self, n=1 ):
 		"""Generate a sample from the model.
@@ -337,6 +415,9 @@ cdef class GeneralMixtureModel( Distribution ):
 		log_probability : double
 			The log probabiltiy of the point under the distribution.
 		"""
+
+		if not self.initialized:
+			raise ValueError("must first fit model before using log probability method.")
 
 		n = len( self.distributions )
 		log_probability_sum = NEGINF
@@ -436,7 +517,10 @@ cdef class GeneralMixtureModel( Distribution ):
 			The normalized probability P(M|D) for each sample. This is the
 			probability that the sample was generated from each component.
 		"""
-		
+
+		if not self.initialized:
+			raise ValueError("must first fit model before using predict proba method.")
+
 		return numpy.exp( self.predict_log_proba( items ) )
 
 	def predict_log_proba( self, items ):
@@ -462,10 +546,13 @@ cdef class GeneralMixtureModel( Distribution ):
 			the probability that the sample was generated from each component.
 		"""
 
-		items = numpy.array( items, dtype='float64' )
-		n, d = items.shape
+		if not self.initialized:
+			raise ValueError("must first fit model before using predict log proba method.")
 
-		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		cdef int n = len(items), d = len(items[0])
+		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+
+		cdef double* items_ptr = <double*> items_ndarray.data
 		cdef numpy.ndarray y = numpy.zeros((n, self.n))
 		cdef double* y_ptr = <double*> y.data
 		self._predict_log_proba( items_ptr, n, d, self.n, y_ptr )
@@ -512,10 +599,13 @@ cdef class GeneralMixtureModel( Distribution ):
 			The index of the component which fits the sample the best.
 		"""
 
-		items = numpy.array( items, dtype='float64' )
-		n, d = items.shape
+		if not self.initialized:
+			raise ValueError("must first fit model before using predict method.")
 
-		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		n, d = len(items), len(items[0])
+		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+
+		cdef double* items_ptr = <double*> items_ndarray.data
 		cdef int* y_ptr = self._predict( items_ptr, n, d, self.n )
 		
 		y = numpy.zeros(n, dtype='int')
@@ -592,15 +682,15 @@ cdef class GeneralMixtureModel( Distribution ):
 			The total improvement in log probability P(D|M)
 		"""
 
-		items = numpy.array(items)
-		n, d = items.shape
+		cdef int n = len(items), d = len(items[0])
+		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
 
 		# If not initialized then we need to do kmeans initialization.
 		if self.initialized == False:
 			kmeans = Kmeans(self.n)
-			kmeans.fit(items, max_iterations=1)
+			kmeans.fit(items_ndarray, max_iterations=1)
 			y = kmeans.predict(items)
-			distributions = [ self.distribution_callable.from_samples( items[y==i] ) for i in range(self.n) ]
+			distributions = [ self.distribution_callable.from_samples( items_ndarray[y==i] ) for i in range(self.n) ]
 
 			self.distributions = numpy.array( distributions )
 			self.distributions_ptr = <void**> self.distributions.data
@@ -615,14 +705,14 @@ cdef class GeneralMixtureModel( Distribution ):
 			self.d = distributions[0].d
 			self.initialized = True
 
-		cdef double* X_ptr = <double*> (<numpy.ndarray> items).data
+		cdef double* X_ptr = <double*> items_ndarray.data
 
 		initial_log_probability_sum = log_probability( self, X_ptr, n, d )
 		last_log_probability_sum = initial_log_probability_sum
 		iteration, improvement = 0, INF 
 
 		while improvement > stop_threshold and iteration < max_iterations:
-			self.summarize( items, weights )
+			self.summarize( items_ndarray, weights )
 			self.from_summaries( inertia )
 
 			trained_log_probability_sum = log_probability( self, X_ptr, n, d )
@@ -660,7 +750,8 @@ cdef class GeneralMixtureModel( Distribution ):
 		None
 		"""
 
-		items = numpy.array(items, dtype='float64')
+		cdef int n = len(items), d = len(items[0])
+		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
 
 		if weights is None:
 			weights = numpy.ones( items.shape[0] )
