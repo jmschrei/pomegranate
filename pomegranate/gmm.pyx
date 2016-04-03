@@ -122,7 +122,7 @@ cdef class Kmeans( object ):
 			self.summarize( X )
 			self.from_summaries()
 
-	cpdef void summarize( self, X ):
+	cpdef summarize( self, X ):
 		"""Summarize the points into sufficient statistics for a future update.
 
 		Parameters
@@ -187,7 +187,7 @@ cdef class Kmeans( object ):
 		free(summary_sizes)
 		free(summary_weights)
 
-	cpdef void from_summaries( self ):
+	cpdef from_summaries( self ):
 		"""Fit the model to the sufficient statistics.
 
 		Parameters
@@ -361,7 +361,9 @@ cdef class GeneralMixtureModel( Distribution ):
 			self.d = distributions[0].d
 
 		if self.initialized and isinstance( self.distributions[0], DiscreteDistribution ):
-			keys = reduce( list.__add__, [d.keys() for d in self.distributions] )
+			keys = []
+			for d in self.distributions:
+				keys.extend( d.keys() )
 			self.keymap = { key: i for i, key in enumerate(set(keys)) }
 			for d in self.distributions:
 				d.encode( tuple(set(keys)) )

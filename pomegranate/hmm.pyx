@@ -943,7 +943,9 @@ cdef class HiddenMarkovModel( Model ):
 		if isinstance( dist, DiscreteDistribution ):
 			self.discrete = 1
 			states = self.states[:self.silent_start]
-			keys = reduce( list.__add__, [s.distribution.keys() for s in states] )
+			keys = []
+			for state in states:
+				keys.extend( state.distribution.keys() )
 			self.keymap = { key: i for i, key in enumerate(set(keys)) }
 			for state in states:
 				state.distribution.encode( tuple(set(keys)) )
