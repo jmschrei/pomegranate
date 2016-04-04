@@ -2416,7 +2416,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 				values[i] = _log( row[-1] )
 
 			self.key_dict = dict(keys)
-			keys = OrderedDict( keys[::-1] )
+			keys = OrderedDict( keys )
 			self.parameters = [ values, parents, keys ]
 
 		self.summaries = [{}, {}]
@@ -2445,6 +2445,34 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 
 		return tuple(set(row[-1] for row in self.parameters[2].keys()))
+
+	def sample( self, parent_values={} ):
+		"""Return a random sample from the conditional probability table."""
+
+		values, parents, keys = self.parameters
+		keys = keys.keys()
+
+		for parent in parents:
+			if parent not in parent_values:
+				parent_values[parent] = parent.sample()
+
+		n = len(keys)
+		idxs = []
+		values_ = []
+
+		for i in range(n):
+			for j, parent in enumerate( parents ):
+				if parent_values[parent] != keys[i][j]:
+					break
+			else:
+				idxs.append(i)
+				values_.append(cexp(values[i]))
+
+		values_ = numpy.cumsum(values_)
+		a = numpy.random.uniform(0, 1)
+		for i in range(len(values_)):
+			if values_[i] > a:
+				return keys[idxs[i]][-1] 
 
 	def log_probability( self, symbol ):
 		"""
@@ -2642,6 +2670,17 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		"""The length of the distribution is the number of keys."""
 
 		return len( self.keys() )
+
+	def sample( self ):
+		"""Return a sample from the table."""
+
+		values, neighbors, keys = self.parameters
+		values = numpy.cumsum(numpy.exp(values))
+
+		a = numpy.random.uniform(0, 1)
+		for i in range(len(values)):
+			if values[i] > a:
+				return keys.keys()[i][-1]
 
 	def keys( self ):
 		"""

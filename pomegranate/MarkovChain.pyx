@@ -78,6 +78,39 @@ cdef class MarkovChain(object):
 
 		return logp
 
+	def sample( self, length ):
+		"""Create a random sample from the model.
+
+		Parameters
+		----------
+		length : int or Distribution
+			Give either the length of the sample you want to generate, or a distribution
+			object which will be randomly sampled for the length. Continuous distributions
+			will have their sample rounded to the nearest integer, minimum 1.
+
+		Returns
+		-------
+		sequence : array-like, shape = (length,)
+			A sequence randomly generated from the markov chain.
+		"""
+
+		if isinstance( length, Distribution ):
+			length = int(length.sample())
+
+		length = max(length, 1)
+
+		sequence = [ self.distributions[0].sample() ]
+		if length > self.k:
+			for j, distribution in enumerate(self.distributions[1:]):
+				parents = { self.distributions[l] : sequence[l] for l in range(j+1)}
+				sequence.append( distribution.sample(parents) )
+			for l in range(length - self.k - 1):
+				parents = { self.distributions[k] : sequence[l+k+1] for k in range(self.k)}
+				sequence.append( self.distributions[-1].sample(parents) )
+
+		return sequence
+
+
 	def fit(self, sequences, weights=None, inertia=0.0):
 		"""Fit the model to new data using MLE.
 
