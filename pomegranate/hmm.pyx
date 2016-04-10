@@ -2368,8 +2368,6 @@ cdef class HiddenMarkovModel( Model ):
 						                                   sequences[i] ) ), 
 					                            dtype=numpy.float64 )
 
-		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
-
 		if parallel is None:
 			parallel = Parallel( n_jobs=n_jobs, backend='threading' )
 
@@ -2405,6 +2403,8 @@ cdef class HiddenMarkovModel( Model ):
 
 		self._baum_welch_update( transition_pseudocount, use_pseudocount, 
 			edge_inertia, distribution_inertia )
+
+		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
 
 	cpdef _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
 		numpy.ndarray distributions_ndarray ):
