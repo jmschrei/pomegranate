@@ -1266,7 +1266,7 @@ cdef class DiscreteDistribution( Distribution ):
 
 		self.dist = characters.copy()
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
-		self.summaries =[ { key: 0 for key in characters.keys() } ]
+		self.summaries =[ { key: 0 for key in characters.keys() }, 0 ]
 
 		self.encoded_summary = 0
 		self.encoded_keys = None
@@ -1396,6 +1396,19 @@ cdef class DiscreteDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
+	def summarize( self, items, weights=None ):
+		"""Reduce a set of obervations to sufficient statistics."""
+
+		if weights is None:
+			weights = numpy.ones(len(items))
+		else:
+			weights = numpy.asarray(weights)
+
+		self.summaries[1] += weights.sum()
+		characters = self.summaries[0]
+		for i in xrange( len(items) ):
+			characters[items[i]] += weights[i]
+
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython version of summarize."""
 
@@ -1411,21 +1424,15 @@ cdef class DiscreteDistribution( Distribution ):
 		with gil:
 			for i in range(self.n):
 				self.encoded_counts[i] += encoded_counts[i]
+				self.summaries[1] += encoded_counts[i]
 
 		free( encoded_counts )
 
-	def summarize( self, items, weights=None ):
-		"""Reduce a set of obervations to sufficient statistics."""
-
-		if weights is None:
-			weights = numpy.ones( len(items) )
-
-		characters = self.summaries[0]
-		for i in xrange( len(items) ):
-			characters[items[i]] += weights[i]
-
 	def from_summaries( self, inertia=0.0 ):
 		"""Use the summaries in order to update the distribution."""
+
+		if self.summaries[1] == 0:
+			return
 
 		if self.encoded_summary == 0:
 			_sum = sum( self.summaries[0].values() )
@@ -1434,21 +1441,19 @@ cdef class DiscreteDistribution( Distribution ):
 				self.dist[key] = self.dist[key]*inertia + (1-inertia)*value / _sum
 				self.log_dist[key] = _log( self.dist[key] )
 
-			self.summaries = [{ key: 0 for key in self.keys() }]
 			self.encode( self.encoded_keys )
 		else:
 			n = len(self.encoded_keys)
-			_sum = 0
-			for i in range(n):
-				_sum += self.encoded_counts[i]
 			for i in range(n):
 				key = self.encoded_keys[i]
 				self.dist[key] = (self.dist[key]*inertia + 
-					(1-inertia)*self.encoded_counts[i] / _sum)
+					(1-inertia)*self.encoded_counts[i] / self.summaries[1])
 				self.log_dist[key] = _log( self.dist[key] )
 				self.encoded_counts[i] = 0
 
 			self.encode( self.encoded_keys )
+
+		self.summaries = [{ key: 0 for key in self.keys() }, 0]
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):

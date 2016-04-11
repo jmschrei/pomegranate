@@ -153,6 +153,7 @@ cdef class HiddenMarkovModel( Model ):
 	cdef bint discrete
 	cdef bint multivariate
 	cdef int d
+	cdef int summaries
 	cdef int* tied_state_count
 	cdef int* tied
 	cdef int* tied_edge_group_size
@@ -201,6 +202,7 @@ cdef class HiddenMarkovModel( Model ):
 		self.out_transition_pseudocounts = NULL
 		self.out_transition_log_probabilities = NULL
 		self.expected_transitions = NULL
+		self.summaries = 0
 
 		self.tied_state_count = NULL
 		self.tied = NULL
@@ -1788,23 +1790,34 @@ cdef class HiddenMarkovModel( Model ):
 
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
-		cdef tuple b
+		cdef double logp
 		cdef int n = len(sequence), m = len(self.states)
 		cdef void** distributions = <void**> self.distributions.data
-		cdef numpy.ndarray b_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
+		cdef int* path = <int*> calloc(n+m, sizeof(int))
+		cdef list vpath = []
 
 		try:
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64 )
 		except ValueError:
-			sequence = list( map( self.keymap.get, sequence, [-1] * len(sequence) ) )
+			sequence = list( map( self.keymap.__getitem__, sequence ) )
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64)
 
 		sequence_data = <double*> sequence_ndarray.data
+		logp = self._viterbi(sequence_data, distributions, path, n, m)
 
-		return self._viterbi( sequence_data, distributions, n )
+		for i in range(n+m):
+			if path[i] == -1:
+				break
 
-	cdef tuple _viterbi(self, double* sequence, void** distributions, int n ):
-		cdef int m = len(self.states)
+			vpath.append((path[i], self.states[path[i]]))
+
+		vpath.reverse()
+
+		free(path)
+		return logp, vpath if logp > NEGINF else None
+
+
+	cdef double _viterbi(self, double* sequence, void** distributions, int* path, int n, int m) nogil:
 		cdef int p = self.silent_start
 		cdef int i, l, k, ki
 		cdef int dim = self.d
@@ -1815,7 +1828,11 @@ cdef class HiddenMarkovModel( Model ):
 		cdef double* e = <double*> calloc( (n*self.silent_start), sizeof(double) )
 
 		cdef double state_log_probability
+		cdef int end_index
+		cdef double log_probability
 		cdef int* in_edges = self.in_edge_count
+
+		memset(path, -1, (n+m)*sizeof(int))
 
 		# Fill in the emission table
 		for l in range( self.silent_start ):
@@ -1917,36 +1934,33 @@ cdef class HiddenMarkovModel( Model ):
 		# log likelihood of ending up in the end state after following the
 		# ML path through the model. If an infinite sequence, find the state
 		# which the ML path ends in, and begin there.
-		cdef int end_index
-		cdef double log_likelihood
-
 		if self.finite == 1:
-			log_likelihood = v[n*m + self.end_index]
+			log_probability = v[n*m + self.end_index]
 			end_index = self.end_index
 		else:
 			end_index = -1
-			log_likelihood = NEGINF
+			log_probability = NEGINF
 			for i in range(m):
-				if v[n*m + i] > log_likelihood:
-					log_likelihood = v[n*m + i]
+				if v[n*m + i] > log_probability:
+					log_probability = v[n*m + i]
 					end_index = i
 
-		if log_likelihood == NEGINF:
-			# The path is impossible, so don't even try a traceback. 
-			return ( log_likelihood, None )
+		if log_probability == NEGINF:
+			return log_probability
 
 		# Otherwise, do the traceback
 		# This holds the path, which we construct in reverse order
-		cdef list path = []
 		cdef int px = n, py = end_index, npx
 
 		# This holds our current position (character, state) AKA (i, k).
 		# We start at the end state
+		i = 0
 		while px != 0 or py != self.start_index:
 			# Until we've traced back to the start...
 			# Put the position in the path, making sure to look up the state
 			# object to use instead of the state index.
-			path.append( ( py, self.states[py] ) )
+			path[i] = py
+			i += 1
 
 			# Go backwards
 			npx = tracebackx[px*m + py]
@@ -1956,13 +1970,9 @@ cdef class HiddenMarkovModel( Model ):
 		# We've now reached the start (if we didn't raise an exception because
 		# we messed up the traceback)
 		# Record that we start at the start
-		path.append( (py, self.states[py] ) )
+		path[i] = py
 
-		# Flip the path the right way around
-		path.reverse()
-
-		# Return the log-likelihood and the right-way-arounded path
-		return ( log_likelihood, path )
+		return log_probability
 
 	def predict_proba( self, sequence ):
 		"""Calculate the state probabilities for each observation in the sequence.
@@ -2280,57 +2290,43 @@ cdef class HiddenMarkovModel( Model ):
 		cdef int iteration = 0
 		cdef double improvement = INF
 		cdef double initial_log_probability_sum
-		cdef double trained_log_probability_sum
+		cdef double log_probability_sum
 		cdef double last_log_probability_sum
-		cdef bint check_input = algorithm.lower() == 'viterbi'
+		cdef str alg = algorithm.lower()
+		cdef bint check_input = alg == 'viterbi'
 
-		if algorithm.lower() == 'viterbi':
-			sequences = list( map( numpy.array, sequences ) )
-		else:
-			for i in range( len(sequences) ):
-				try:
-					sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
-				except: 
-					sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
-						                                   sequences[i] ) ), 
-					                            dtype=numpy.float64 )
+		for i in range( len(sequences) ):
+			try:
+				sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
+			except: 
+				sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
+													   sequences[i] ) ), 
+											dtype=numpy.float64 )
 
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
-			initial_log_probability_sum = log_probability( self, sequences, 
-														   n_jobs, parallel, 
-														   check_input )
-			trained_log_probability_sum = initial_log_probability_sum
+			while improvement > stop_threshold or iteration < min_iterations + 1:
+				self.from_summaries(transition_pseudocount, use_pseudocount,
+									 edge_inertia, distribution_inertia)
 
-			while improvement > stop_threshold or iteration < min_iterations:
 				if iteration >= max_iterations:
 					break 
 
+				log_probability_sum = self.summarize( sequences, alg, n_jobs, parallel, False )
+
+				if iteration == 0:
+					initial_log_probability_sum = log_probability_sum
+				else:
+					improvement = log_probability_sum - last_log_probability_sum
+					if verbose:
+						print( "Training improvement: {}".format(improvement) )
+
 				iteration +=1
-				last_log_probability_sum = trained_log_probability_sum
+				last_log_probability_sum = log_probability_sum
 
-				if algorithm.lower() == 'baum-welch':
-					self.summarize( sequences, n_jobs, parallel, False )
-					self.from_summaries( transition_pseudocount, use_pseudocount,
-										 edge_inertia, distribution_inertia )
-				elif algorithm.lower() == 'viterbi':
-					self._train_viterbi_once( sequences, 
-											  transition_pseudocount,
-						                      use_pseudocount, 
-						                      edge_inertia,
-						                      distribution_inertia, n_jobs, 
-						                      parallel )
+		return log_probability_sum - initial_log_probability_sum
 
-				trained_log_probability_sum = log_probability( self, sequences, 
-															   n_jobs, parallel, 
-															   check_input )
-				improvement = trained_log_probability_sum - last_log_probability_sum
-
-				if verbose:
-					print( "Training improvement: {}".format(improvement) )
-
-		return trained_log_probability_sum - initial_log_probability_sum
-
-	def summarize( self, sequences, n_jobs=1, parallel=None, check_input=True ):
+	def summarize( self, sequences, alg='baum-welch', n_jobs=1, parallel=None, 
+		check_input=True ):
 		"""Summarize data into stored sufficient statistics for out-of-core
 		training. Only implemented for Baum-Welch training since Viterbi
 		is less memory intensive.
@@ -2344,19 +2340,24 @@ cdef class HiddenMarkovModel( Model ):
 			The number of threads to use when performing training. This
 			leads to exact updates. Default is 1.
 
-		parallel : joblib.Parallel 
+		algorithm : 'baum-welch' or 'viterbi', optional
+			The algorithm to use to collect the statistics, either Baum-Welch
+			or Viterbi training. Defaults to Baum-Welch.
+
+		parallel : joblib.Parallel or None, optional
 			The joblib threadpool. Passed between iterations of Baum-Welch so
 			that a new threadpool doesn't have to be created each iteration.
 			Default is None.
 
-		check_input : bool
+		check_input : bool, optional
 			Check the input. This casts the input sequences as numpy arrays,
 			and converts non-numeric inputs into numeric inputs for faster
 			processing later. Default is True.
 
 		Returns
 		-------
-		None
+		logp : double
+			The log probability of the sequences.
 		"""
 
 		if check_input:
@@ -2365,14 +2366,21 @@ cdef class HiddenMarkovModel( Model ):
 					sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
 				except: 
 					sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
-						                                   sequences[i] ) ), 
-					                            dtype=numpy.float64 )
+														   sequences[i] ) ), 
+												dtype=numpy.float64 )
 
 		if parallel is None:
 			parallel = Parallel( n_jobs=n_jobs, backend='threading' )
 
-		parallel([ delayed( self._baum_welch_summarize, check_pickle=False )(
-			sequence, self.distributions ) for sequence in sequences ])
+		self.summaries += len(sequences)
+
+		if alg == 'baum-welch':
+			return sum( parallel([ delayed( self._baum_welch_summarize, check_pickle=False )(
+					sequence, self.distributions ) for sequence in sequences ]) )
+		else:
+			return sum( parallel([ delayed( self._viterbi_summarize, check_pickle=False )(
+					sequence, self.distributions ) for sequence in sequences ]) )		
+
 
 	def from_summaries( self, transition_pseudocount=0, 
 		use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0 ):
@@ -2401,12 +2409,16 @@ cdef class HiddenMarkovModel( Model ):
 		None
 		"""
 
-		self._baum_welch_update( transition_pseudocount, use_pseudocount, 
+		if self.summaries == 0:
+			return
+
+		self._from_summaries( transition_pseudocount, use_pseudocount, 
 			edge_inertia, distribution_inertia )
 
 		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
+		self.summaries = 0
 
-	cpdef _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
+	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
 		numpy.ndarray distributions_ndarray ):
 		"""Python wrapper for the summarization step.
 
@@ -2418,11 +2430,14 @@ cdef class HiddenMarkovModel( Model ):
 		cdef double* sequence = <double*> sequence_ndarray.data
 		cdef void** distributions = <void**> distributions_ndarray.data
 		cdef int n = sequence_ndarray.shape[0]
+		cdef double log_sequence_probability
 
 		with nogil:
-			self.__baum_welch_summarize( sequence, distributions, n)
+			log_sequence_probability = self.__baum_welch_summarize( sequence, distributions, n)
 
-	cdef void __baum_welch_summarize( self, double* sequence, void** distributions, 
+		return log_sequence_probability
+
+	cdef double __baum_welch_summarize( self, double* sequence, void** distributions, 
 		int n ) nogil:
 		"""Collect sufficient statistics on a single sequence."""
 
@@ -2570,14 +2585,127 @@ cdef class HiddenMarkovModel( Model ):
 				for i in range(self.n_edges):
 					self.expected_transitions[i] += expected_transitions[i]
 
-			free(expected_transitions)
-			free(e)
-			free(visited)
-			free(weights)
-			free(f)
-			free(b)
+		free(expected_transitions)
+		free(e)
+		free(visited)
+		free(weights)
+		free(f)
+		free(b)
+		return log_sequence_probability
 
-	cdef void _baum_welch_update(self, double transition_pseudocount, 
+	cpdef double _viterbi_summarize( self, numpy.ndarray sequence_ndarray, 
+		numpy.ndarray distributions_ndarray ):
+		"""Python wrapper for the summarization step.
+
+		This is done to ensure compatibility with joblib's multithreading
+		API. It just calls the cython update, but provides a Python wrapper
+		which joblib can easily wrap.
+		"""
+
+		cdef double* sequence = <double*> sequence_ndarray.data
+		cdef void** distributions = <void**> distributions_ndarray.data
+		cdef int n = sequence_ndarray.shape[0], m = len(self.states)
+		cdef double log_sequence_probability
+
+		with nogil:
+			log_sequence_probability = self.__viterbi_summarize(sequence, distributions, n, m)
+
+		return log_sequence_probability
+
+	cdef double __viterbi_summarize( self, double* sequence, void** distributions,
+		int n, int m ) nogil:
+		"""Perform Viterbi re-estimation on the model parameters.
+		
+		The sequence is tagged using the viterbi algorithm, and both 
+		emissions and transitions are updated based on the probabilities 
+		in the observations.
+		"""
+
+		cdef int* path = <int*> calloc( n+m, sizeof(int) )
+		cdef int* tied_states = self.tied_state_count
+		cdef int* out_edges = self.out_edge_count
+
+		cdef double* transitions = <double*> calloc(m*m, sizeof(double))
+		cdef double* weights = <double*> calloc(n, sizeof(double))
+		cdef int* visited = <int*> calloc( self.silent_start, sizeof(int) )
+		cdef int i, k, l, li, path_length
+
+		memset(visited, 0, self.silent_start*sizeof(int))
+		memset(path, -1, (n+m)*sizeof(int) )
+		memset(transitions, 0, (m*m)*sizeof(double))
+
+		cdef int past, present
+		cdef double log_probability
+		
+		log_probability = self._viterbi(sequence, distributions, path, n, m)
+
+		if log_probability != NEGINF:
+			# Tally up the transitions seen in the Viterbi path
+
+			i = 1
+			while path[i] != -1:
+				past = path[i-1]
+				present = path[i]
+
+				transitions[past*m + present] += 1
+				i += 1
+
+			path_length = i
+
+			with gil:
+				for k in range(m):
+					for l in range( out_edges[k], out_edges[k+1] ):
+						li = self.out_transitions[l]
+						self.expected_transitions[l] += transitions[k*m + li]
+
+			# Calculate emissions, including tied emissions.
+			for k in range(m):
+				# Assign weights to each state based on if they were seen. Primarily 0's.
+				if k < self.silent_start:
+					memset(weights, 0, n*sizeof(double))
+
+					# If another state in the set of tied states has already
+					# been visited, we don't want to retrain.
+					if visited[k] == 1:
+						continue
+
+					# Mark that we've visited this state
+					visited[k] = 1
+
+					# Mark that we've visited all other states in this state
+					# group.
+					for l in range( tied_states[k], tied_states[k+1] ):
+						li = self.tied[l]
+						visited[li] = 1
+
+					for i in range(path_length):
+						# For each symbol that came out
+						# What's the weight of this symbol for that state?
+						# Probability that we emit index characters and then 
+						# transition to state l, and that from state l we  
+						# continue on to emit len(sequence) - (index + 1) 
+						# characters, divided by the probability of the 
+						# sequence under the model.
+						# According to http://www1.icsi.berkeley.edu/Speech/
+						# docs/HTKBook/node7_mn.html, we really should divide by
+						# sequence probability.
+						if path[i] == k:
+							weights[i] = 1
+					
+						for l in range( tied_states[k], tied_states[k+1] ):
+							li = self.tied[l]
+
+							if path[li] == k:
+								weights[i] = 1
+
+					(<Distribution>distributions[k])._summarize(sequence, weights, n)
+
+		free(transitions)
+		free(visited)
+		free(path)
+		return log_probability
+
+	cdef void _from_summaries(self, double transition_pseudocount, 
 		bint use_pseudocount, double edge_inertia, double distribution_inertia ):
 		"""Update the transition matrix and emission distributions."""      
 
@@ -2695,185 +2823,6 @@ cdef class HiddenMarkovModel( Model ):
 		free(norm)
 		free(visited)
 		free(expected_transitions)
-
-	cdef void _train_viterbi_once( self, list sequences, 
-		double transition_pseudocount, int use_pseudocount, 
-		double edge_inertia, double distribution_inertia, int n_jobs,
-		object parallel ):
-		"""Perform Viterbi re-estimation on the model parameters.
-		
-		Each sequence is tagged using the viterbi algorithm, and both 
-		emissions and transitions are updated based on the probabilities 
-		in the observations.
-		"""
-
-		cdef numpy.ndarray sequence
-		cdef numpy.ndarray path
-		cdef list labels = []
-
-		for sequence in sequences:
-			# Run the viterbi decoding on each observed sequence
-			log_sequence_probability, sequence_path = self.viterbi( sequence )
-			path = numpy.empty( len(sequence_path), dtype=object )
-
-			if log_sequence_probability == NEGINF:
-				print( "Warning: skipped impossible sequence {}".format(sequence) )
-				continue
-
-			# Strip off the ID
-			for i, (index, state) in enumerate( sequence_path ):
-				path[i] = state
-
-			labels.append( path )
-
-		self._train_labelled( sequences, labels, transition_pseudocount, use_pseudocount, 
-			edge_inertia, distribution_inertia )
-
-	cdef double _train_labelled( self, list sequences, list sequence_labels,
-		double transition_pseudocount, int use_pseudocount, double edge_inertia, 
-		double distribution_inertia ):
-		"""Perform labelled re-estimation of the model parameters.
-
-		Perform training on a set of sequences where the state path is known,
-		thus, labelled. Pass in a list of tuples, where each tuple is of the
-		form (sequence, labels).
-		"""
-
-		cdef int i, j, m=len(self.states), n, a, b, k, l, li
-		cdef numpy.ndarray sequence 
-		cdef numpy.ndarray labels
-		cdef State label
-		cdef list symbols = [ [] for i in xrange(m) ]
-		cdef int* tied_states = self.tied_state_count
-		cdef double initial_log_probability = log_probability( self, sequences )
-
-		# Define matrices for the transitions between states, and the weight of
-		# each emission for each state for training later.
-		cdef int [:,:] transition_counts
-		transition_counts = numpy.zeros((m,m), dtype=numpy.int32)
-
-		cdef int* in_edges = self.in_edge_count
-		cdef int* out_edges = self.out_edge_count
-
-		# Define a mapping of state objects to index 
-		cdef dict indices = { self.states[i]: i for i in xrange( m ) }
-
-		# Keep track of the log score across all sequences
-		for sequence, labels in izip( sequences, sequence_labels ):
-			n = sequence.shape[0]
-
-			# Keep track of the number of transitions from one state to another
-			transition_counts[ self.start_index, indices[labels[0]] ] += 1
-			for i in xrange( len(labels)-1 ):
-				a = indices[labels[i]]
-				b = indices[labels[i+1]]
-				transition_counts[ a, b ] += 1
-			transition_counts[ indices[labels[-1]], self.end_index ] += 1
-
-			# Indicate whether or not an emission came from a state or not.
-			i = 0
-			for label in labels:
-				if label.is_silent():
-					continue
-				
-				# Add the symbol to the list of symbols emitted from a given
-				# state.
-				k = indices[label]
-				symbols[k].append( sequence[i] )
-
-				# Also add the symbol to the list of symbols emitted from any
-				# tied states to the current state.
-				for l in xrange( tied_states[k], tied_states[k+1] ):
-					li = self.tied[l]
-					symbols[li].append( sequence[i] )
-
-				# Move to the next observation.
-				i += 1
-
-		cdef double [:] norm = numpy.zeros( m )
-		cdef double probability
-
-		cdef int* tied_edges = self.tied_edge_group_size
-		cdef int tied_edge_probability 
-		# Go through the tied state groups and add transitions from each member
-		# in the group to the other members of the group.
-		# For each group defined.
-		for k in xrange( self.n_tied_edge_groups-1 ):
-			tied_edge_probability = 0
-
-			# For edge in this group, get the sum of the edges
-			for l in xrange( tied_edges[k], tied_edges[k+1] ):
-				start = self.tied_edges_starts[l]
-				end = self.tied_edges_ends[l]
-				tied_edge_probability += transition_counts[start, end]
-
-			# Update each entry
-			for l in xrange( tied_edges[k], tied_edges[k+1] ):
-				start = self.tied_edges_starts[l]
-				end = self.tied_edges_ends[l]
-				transition_counts[start, end] = tied_edge_probability
-
-		# Calculate the regularizing norm for each node for normalizing the
-		# transition probabilities.
-		for k in xrange( m ):
-			for l in xrange( out_edges[k], out_edges[k+1] ):
-				li = self.out_transitions[l]
-				norm[k] += transition_counts[k, li] + transition_pseudocount +\
-					self.out_transition_pseudocounts[l] * use_pseudocount
-
-		# For every node, update the transitions appropriately
-		for k in xrange( m ):
-			# Recalculate each transition out from that node and update
-			# the vector of out transitions appropriately
-			if norm[k] > 0:
-				for l in xrange( out_edges[k], out_edges[k+1] ):
-					li = self.out_transitions[l]
-					probability = ( transition_counts[k, li] +
-						transition_pseudocount + 
-						self.out_transition_pseudocounts[l] * use_pseudocount)\
-						/ norm[k]
-					self.out_transition_log_probabilities[l] = _log(
-						cexp( self.out_transition_log_probabilities[l] ) * 
-						edge_inertia + probability * ( 1 - edge_inertia ) )
-
-			# Recalculate each transition in to that node and update the
-			# vector of in transitions appropriately 
-			for l in xrange( in_edges[k], in_edges[k+1] ):
-				li = self.in_transitions[l]
-				if norm[li] > 0:
-					probability = ( transition_counts[li, k] +
-						transition_pseudocount +
-						self.in_transition_pseudocounts[l] * use_pseudocount )\
-						/ norm[li]
-					self.in_transition_log_probabilities[l] = _log( 
-						cexp( self.in_transition_log_probabilities[l] ) *
-						edge_inertia + probability * ( 1 - edge_inertia ) )
-
-		cdef int [:] visited = numpy.zeros( self.silent_start,
-			dtype=numpy.int32 )
-
-		for k in xrange( self.silent_start ):
-			# If this distribution has already been trained because it is tied
-			# to an earlier state, don't bother retraining it as that would
-			# waste time.
-			if visited[k] == 1:
-				continue
-			visited[k] = 1
-
-			# We only want to train each distribution object once, and so we
-			# don't want to visit states where the distribution has already
-			# been retrained.
-			for l in xrange( tied_states[k], tied_states[k+1] ):
-				li = self.tied[l]
-				visited[li] = 1
-
-			# Now train this distribution on the symbols collected. If there
-			# are tied states, this will be done once per set of tied states
-			# in order to save time.
-			self.states[k].distribution.fit( symbols[k], 
-				inertia=distribution_inertia )
-
-		return log_probability( self, sequences ) - initial_log_probability
 
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Serialize the model to a JSON.
