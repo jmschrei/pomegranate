@@ -603,6 +603,9 @@ cdef class HiddenMarkovModel( Model ):
 		None
 		"""
  
+		numpy.random.seed(0)
+		random.seed(0)
+
 		in_edge_count = numpy.zeros( len( self.graph.nodes() ), 
 			dtype=numpy.int32 ) 
 		out_edge_count = numpy.zeros( len( self.graph.nodes() ), 
@@ -741,6 +744,9 @@ cdef class HiddenMarkovModel( Model ):
 			else:
 				normal_states.append(state)
 
+		normal_states = list(sorted( normal_states, key=lambda state: hash(state.name)))
+		silent_states = list(sorted( silent_states, key=lambda state: hash(state.name)))
+
 		# We need the silent states to be in topological sort order: any
 		# transition between silent states must be from a lower-numbered state
 		# to a higher-numbered state. Since we ban loops of silent states, we
@@ -751,7 +757,7 @@ cdef class HiddenMarkovModel( Model ):
 		
 		# Get the sorted silent states. Isn't it convenient how NetworkX has
 		# exactly the algorithm we need?
-		silent_states_sorted = networkx.topological_sort(silent_subgraph)
+		silent_states_sorted = networkx.topological_sort(silent_subgraph, nbunch=silent_states)
 		
 		# What's the index of the first silent state?
 		self.silent_start = len(normal_states)
@@ -1788,6 +1794,9 @@ cdef class HiddenMarkovModel( Model ):
 			Viterbi path.
 		"""
 
+		numpy.random.seed(0)
+		random.seed(0)
+
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
 		cdef double logp
@@ -1799,7 +1808,10 @@ cdef class HiddenMarkovModel( Model ):
 		try:
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64 )
 		except ValueError:
-			sequence = list( map( self.keymap.__getitem__, sequence ) )
+			try:
+				sequence = list( map( self.keymap.__getitem__, sequence ) )
+			except:
+				raise ValueError("sequence contains character not present in model")
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64)
 
 		sequence_data = <double*> sequence_ndarray.data
@@ -2193,12 +2205,11 @@ cdef class HiddenMarkovModel( Model ):
 			The maximum number of iterations to run Baum-Welch training for.
 			Default is 1e8.
 
-		algorithm : 'baum-welch', 'viterbi', 'labelled'
+		algorithm : 'baum-welch', 'viterbi'
 			The training algorithm to use. Baum-Welch uses the forward-backward
 			algorithm to train using a version of structured EM. Viterbi
 			iteratively runs the sequences through the Viterbi algorithm and
 			then uses hard assignments of observations to states using that.
-			Labelled requires the labels be input as well as the sequence.
 			Default is 'baum-welch'.
 
 		verbose : bool, optional
@@ -2231,62 +2242,6 @@ cdef class HiddenMarkovModel( Model ):
 			The total improvement in fitting the model to the data
 		"""
 
-		if isinstance( sequences, numpy.ndarray ):
-			sequences = list(sequences)
-
-		if algorithm.lower() == 'labelled' or algorithm.lower() == 'labeled':
-			labels = []
-			for i, sequence in enumerate(sequences):
-				labels.append( sequence[1] )
-				sequences[i] = numpy.array( sequence[0] )
-
-			# If calling the labelled training algorithm, then sequences is a
-			# list of tuples of sequence, path pairs, not a list of sequences.
-			# The log probability sum is the log-sum-exp of the log
-			# probabilities of all members of the sequence. In this case,
-			# sequences is made up of ( sequence, path ) tuples, instead of
-			# just sequences.
-			improvement = self._train_labelled( sequences, labels, transition_pseudocount, 
-				use_pseudocount, edge_inertia, distribution_inertia )
-
-		else:
-			improvement = self._train_loop( sequences, algorithm.lower(), stop_threshold,
-				min_iterations, max_iterations, verbose, 
-				transition_pseudocount, use_pseudocount, edge_inertia,
-				distribution_inertia, n_jobs )
-
-		for k in range( self.silent_start ):
-			for l in range( self.out_edge_count[k], self.out_edge_count[k+1] ):
-				li = self.out_transitions[l]
-				prob = self.out_transition_log_probabilities[l]
-				self.graph[self.states[k]][self.states[li]]['probability'] = prob
-
-		if verbose:
-			print( "Total Training Improvement: {}".format( improvement ) )
-		return improvement
-
-	cpdef train( self, sequences, stop_threshold=1E-9, min_iterations=0,
-		max_iterations=1e8, algorithm='baum-welch', verbose=True,
-		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
-		distribution_inertia=0.0, n_jobs=1 ):
-
-		raise Warning("Method is depricated. Use `fit` instead.")
-
-	cdef double _train_loop( self, list sequences, str algorithm, double stop_threshold,
-		int min_iterations, int max_iterations, bint verbose, double transition_pseudocount,
-		bint use_pseudocount, double edge_inertia, double distribution_inertia, int n_jobs ):
-		"""Wrapper for the training loop of unsupervised learning.
-
-		This is used for both Viterbi and Baum-Welch training, where Viterbi produces
-		hard assignments of edge transitions and state probabilities, and Baum-Welch
-		uses soft assignments. This is the outer loop which runs until convergence,
-		calling for one iteration of either training algorithm.
-
-		Convergence is defined by running for at least min_iterations and not
-		increasing until the log likelihood of the dataset changes by less than
-		stop_threshold.
-		"""
-
 		cdef int iteration = 0
 		cdef double improvement = INF
 		cdef double initial_log_probability_sum
@@ -2305,11 +2260,11 @@ cdef class HiddenMarkovModel( Model ):
 
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
 			while improvement > stop_threshold or iteration < min_iterations + 1:
-				self.from_summaries(transition_pseudocount, use_pseudocount,
-									 edge_inertia, distribution_inertia)
+				self.from_summaries(transition_pseudocount, use_pseudocount, 
+					edge_inertia, distribution_inertia)
 
-				if iteration >= max_iterations:
-					break 
+				if iteration >= max_iterations + 1:
+					break
 
 				log_probability_sum = self.summarize( sequences, alg, n_jobs, parallel, False )
 
@@ -2323,7 +2278,25 @@ cdef class HiddenMarkovModel( Model ):
 				iteration +=1
 				last_log_probability_sum = log_probability_sum
 
-		return log_probability_sum - initial_log_probability_sum
+		self.clear_summaries()
+		improvement = log_probability_sum - initial_log_probability_sum
+
+		for k in range( self.silent_start ):
+			for l in range( self.out_edge_count[k], self.out_edge_count[k+1] ):
+				li = self.out_transitions[l]
+				prob = self.out_transition_log_probabilities[l]
+				self.graph[self.states[k]][self.states[li]]['probability'] = prob
+
+		if verbose:
+			print( "Total Training Improvement: {}".format( improvement ) )
+		return improvement
+
+	cpdef train( self, sequences, stop_threshold=1E-9, min_iterations=0,
+		max_iterations=1e8, algorithm='baum-welch', verbose=True,
+		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
+		distribution_inertia=0.0, n_jobs=1 ):
+
+		raise Warning("Method is depricated. Use `fit` instead.")
 
 	def summarize( self, sequences, alg='baum-welch', n_jobs=1, parallel=None, 
 		check_input=True ):
@@ -2417,6 +2390,24 @@ cdef class HiddenMarkovModel( Model ):
 
 		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
 		self.summaries = 0
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object.
+
+		Parameters 
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
+
+		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
+		self.summaries = 0
+
+		for state in self.states[:self.silent_start]:
+			state.distribution.clear_summaries()
 
 	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
 		numpy.ndarray distributions_ndarray ):
@@ -2610,7 +2601,7 @@ cdef class HiddenMarkovModel( Model ):
 		with nogil:
 			log_sequence_probability = self.__viterbi_summarize(sequence, distributions, n, m)
 
-		return log_sequence_probability
+		return self.log_probability( sequence_ndarray, check_input=False )
 
 	cdef double __viterbi_summarize( self, double* sequence, void** distributions,
 		int n, int m ) nogil:
@@ -2621,6 +2612,7 @@ cdef class HiddenMarkovModel( Model ):
 		in the observations.
 		"""
 
+		cdef int* rpath = <int*> calloc( n+m, sizeof(int) )
 		cdef int* path = <int*> calloc( n+m, sizeof(int) )
 		cdef int* tied_states = self.tied_state_count
 		cdef int* out_edges = self.out_edge_count
@@ -2628,29 +2620,31 @@ cdef class HiddenMarkovModel( Model ):
 		cdef double* transitions = <double*> calloc(m*m, sizeof(double))
 		cdef double* weights = <double*> calloc(n, sizeof(double))
 		cdef int* visited = <int*> calloc( self.silent_start, sizeof(int) )
-		cdef int i, k, l, li, path_length
+		cdef int i, j, k, l, li, path_length
 
 		memset(visited, 0, self.silent_start*sizeof(int))
-		memset(path, -1, (n+m)*sizeof(int) )
+		memset(rpath, -1, (n+m)*sizeof(int))
+		memset(path, -1, (n+m)*sizeof(int))
 		memset(transitions, 0, (m*m)*sizeof(double))
 
 		cdef int past, present
 		cdef double log_probability
-		
-		log_probability = self._viterbi(sequence, distributions, path, n, m)
 
-		if log_probability != NEGINF:
+		log_probability = self._viterbi(sequence, distributions, rpath, n, m)
+
+		if log_probability != NEGINF or True:
 			# Tally up the transitions seen in the Viterbi path
+			path_length = 0
+			while rpath[path_length] != -1:
+				path_length += 1
 
-			i = 1
-			while path[i] != -1:
+			for i in range(path_length):
+				path[i] = rpath[path_length-i-1]
+
+			for i in range(1, path_length):
 				past = path[i-1]
 				present = path[i]
-
 				transitions[past*m + present] += 1
-				i += 1
-
-			path_length = i
 
 			with gil:
 				for k in range(m):
@@ -2678,31 +2672,29 @@ cdef class HiddenMarkovModel( Model ):
 						li = self.tied[l]
 						visited[li] = 1
 
+					j = 0
 					for i in range(path_length):
-						# For each symbol that came out
-						# What's the weight of this symbol for that state?
-						# Probability that we emit index characters and then 
-						# transition to state l, and that from state l we  
-						# continue on to emit len(sequence) - (index + 1) 
-						# characters, divided by the probability of the 
-						# sequence under the model.
-						# According to http://www1.icsi.berkeley.edu/Speech/
-						# docs/HTKBook/node7_mn.html, we really should divide by
-						# sequence probability.
+						if path[i] >= self.silent_start:
+							continue
+
 						if path[i] == k:
-							weights[i] = 1
+							weights[j] = 1
 					
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
 
 							if path[li] == k:
-								weights[i] = 1
+								weights[j] = 1
+
+						j += 1
 
 					(<Distribution>distributions[k])._summarize(sequence, weights, n)
 
 		free(transitions)
 		free(visited)
 		free(path)
+		free(rpath)
+		free(weights)
 		return log_probability
 
 	cdef void _from_summaries(self, double transition_pseudocount, 
