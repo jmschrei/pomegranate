@@ -292,7 +292,7 @@ cdef class Distribution:
 
 			self.summaries = [ items, weights ]
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 
 		pass
 
@@ -461,7 +461,7 @@ cdef class UniformDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython optimized training."""
 
 		cdef double minimum = INF, maximum = NEGINF 
@@ -568,7 +568,7 @@ cdef class NormalDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia, min_std )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 
 		cdef SIZE_t i
@@ -684,7 +684,7 @@ cdef class LogNormalDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia, min_std )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 		
 		cdef SIZE_t i
@@ -809,7 +809,7 @@ cdef class ExponentialDistribution( Distribution ):
 		with nogil:
 			self._summarize( items_p, weights_p, n )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for an exponential."""
 		
 		cdef double xw_sum = 0, w = 0
@@ -912,7 +912,7 @@ cdef class BetaDistribution( Distribution ):
 		with nogil:
 			self._summarize( items_p, weights_p, n )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython optimized function for summarizing some data."""
 
 		cdef double successes = 0, failures = 0
@@ -1396,7 +1396,7 @@ cdef class DiscreteDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython version of summarize."""
 
 		cdef int i
@@ -1538,7 +1538,7 @@ cdef class PoissonDistribution(Distribution):
 		with nogil:
 			self._summarize( items_p, weights_p, n )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython optimized function to calculate the summary statistics."""
 
 		cdef double x_sum = 0.0, w_sum = 0.0
@@ -2137,7 +2137,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		for i, d in enumerate( self.parameters[0] ):
 			d.summarize( items[:,i], weights=weights )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 
 		cdef SIZE_t i, j, d = self.d
 
@@ -2302,7 +2302,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		with nogil:
 			self._summarize( items_p, weights_p, n )
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Calculate sufficient statistics for a minibatch.
 
 		The sufficient statistics for a multivariate gaussian update is the sum of

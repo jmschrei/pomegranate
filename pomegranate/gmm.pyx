@@ -688,7 +688,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
 
 		# If not initialized then we need to do kmeans initialization.
-		if self.initialized == False:
+		if self.initialized == False or d != self.d:
 			kmeans = Kmeans(self.n)
 			kmeans.fit(items_ndarray, max_iterations=1)
 			y = kmeans.predict(items)
@@ -709,24 +709,28 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		cdef double* X_ptr = <double*> items_ndarray.data
 
-		initial_log_probability_sum = log_probability( self, X_ptr, n, d )
-		last_log_probability_sum = initial_log_probability_sum
+		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF 
 
-		while improvement > stop_threshold and iteration < max_iterations:
-			self.summarize( items_ndarray, weights )
-			self.from_summaries( inertia )
+		while improvement > stop_threshold and iteration < max_iterations + 1:
+			self.from_summaries(inertia)
+			log_probability_sum = self.summarize(items_ndarray, weights)
 
-			trained_log_probability_sum = log_probability( self, X_ptr, n, d )
-			improvement = trained_log_probability_sum - last_log_probability_sum 
+			if iteration == 0:
+				initial_log_probability_sum = log_probability_sum
+			else:
+				improvement = log_probability_sum - last_log_probability_sum
 
-			if verbose:
-				print( "Improvement: {}".format( improvement ) )
+				if verbose:
+					print( "Improvement: {}".format(improvement) )
 
 			iteration += 1
-			last_log_probability_sum = trained_log_probability_sum
+			last_log_probability_sum = log_probability_sum
 
-		return trained_log_probability_sum - initial_log_probability_sum
+		if verbose:
+			print( "Total Improvement: {}".format(last_log_probability_sum - initial_log_probability_sum) )
+
+		return last_log_probability_sum - initial_log_probability_sum
 
 	def summarize( self, items, weights=None ):
 		"""Summarize a batch of data and store sufficient statistics.
@@ -754,43 +758,46 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		cdef int n = len(items), d = len(items[0])
 		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+		cdef numpy.ndarray weights_ndarray
 
 		if weights is None:
-			weights = numpy.ones( items.shape[0] )
+			weights_ndarray = numpy.ones( items.shape[0] )
 		else:
-			weights = numpy.array( weights )
+			weights_ndarray = numpy.array( weights )
 
-		r = self.predict_proba( items )
+		cdef double* items_ptr = <double*> items_ndarray.data
+		cdef double* weights_ptr = <double*> weights_ndarray.data
 
-		for i, distribution in enumerate( self.distributions ):
-			distribution.summarize( items, weights=r[:,i]*weights )
-			self.summaries_ndarray[i] += r[:,i].sum()
+		return self._summarize(items_ptr, weights_ptr, n)
 
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-		cdef double* r = <double*> calloc( self.n * n, sizeof(double) )
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		cdef double* r = <double*> calloc(self.n*n, sizeof(double))
 		cdef int i, j
-		cdef double total
+		cdef double total, logp, log_probability_sum = 0.0, p
 
-		for i in range( n ):
-			total = 0.0
+		for i in range(n):
+			total = NEGINF
 
-			for j in range( self.n ):
+			for j in range(self.n):
 				if self.d == 1:
-					r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._log_probability( items[i] )
+					logp = (<Distribution> self.distributions_ptr[j])._log_probability(items[i])
 				else:
-					r[j*n + i] = ( <Distribution> self.distributions_ptr[j] )._mv_log_probability( items+i*self.d )
+					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(items+i*self.d)
 
-				r[j*n + i] = cexp( r[j*n + i] + self.weights_ptr[j] )
-				self.summaries_ptr[j] += r[j*n + i]
-				total += r[j*n + i]
+				r[j*n + i] = logp + self.weights_ptr[j]
+				total = pair_lse(total, r[j*n + i])
 
 			for j in range( self.n ):
-				r[j*n + i] = weights[i] * r[j*n + i] / total
+				r[j*n + i] = cexp(r[j*n + i] - total)
+				self.summaries_ptr[j] += r[j*n + i]
+
+			log_probability_sum += total 
 
 		for j in range( self.n ):
-			( <Distribution> self.distributions_ptr[j] )._summarize( items, &r[j*n], n )
+			(<Distribution> self.distributions_ptr[j])._summarize(items, &r[j*n], n)
 
 		free(r)
+		return log_probability_sum
 
 	def from_summaries( self, inertia=0.0 ):
 		"""Fit the model to the collected sufficient statistics.
@@ -810,6 +817,9 @@ cdef class GeneralMixtureModel( Distribution ):
 		-------
 		None
 		"""
+
+		if self.summaries_ndarray.sum() == 0:
+			return
 
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
 

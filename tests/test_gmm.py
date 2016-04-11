@@ -131,23 +131,16 @@ def test_multivariate_gmm_train():
 
 
 def test_multivariate_gmm_train_iterations():
-	X = np.array([[1.5, 3.7, 3.0, 4.8, 6.2],
-		          [1.8, 2.1, 3.1, 5.2, 6.5],
-		          [0.9, 2.2, 3.2, 5.0, 5.8],
-		          [1.0, .1, 3.5, 4.3, 5.2],
-		          [1.7, 3.9, 6.1, 7.2, 10.5],
-		          [1.6, 2.9, 6.0, 7.9, 10.7],
-		          [1.8, 6.1, 4.9, 8.2, 9.9],
-		          [1.9, 4.9, 6.9, 7.1, 10.0]])
+	X = numpy.concatenate([ numpy.random.randn(1000, 3) + i for i in range(2) ])
 
-	mu = np.arange(5) * 2
-	cov = np.eye(5)
-	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(5) ]
+	mu = np.ones(3) * 2
+	cov = np.eye(3)
+	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(2) ]
 	gmm = GeneralMixtureModel( mgs )
 
 	improvement = gmm.fit(X)
 
-	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(5) ]
+	mgs = [ MultivariateGaussianDistribution( mu*i, cov ) for i in range(2) ]
 	gmm = GeneralMixtureModel( mgs )
 
 	assert_greater( improvement, gmm.fit(X, max_iterations=1) )

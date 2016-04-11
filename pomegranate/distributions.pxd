@@ -12,7 +12,7 @@ cdef class Distribution:
 	cdef public bint frozen
 	cdef double _log_probability( self, double symbol ) nogil
 	cdef double _mv_log_probability( self, double* symbol ) nogil
-	cdef void _summarize( self, double* items, double* weights, SIZE_t n ) nogil
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil
 	cdef public int d
 
 cdef class UniformDistribution( Distribution ):
