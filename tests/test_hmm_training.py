@@ -112,7 +112,7 @@ def test_viterbi_train():
 									 use_pseudocount=True )
 
 
-	assert_equal( round( total_improvement, 4 ), 66.6407 )
+	assert_equal( round( total_improvement, 4 ), 73.7995 )
 
 
 @with_setup( setup, teardown )
@@ -126,7 +126,7 @@ def test_viterbi_train_no_pseudocount():
 									 verbose=False, 
 									 use_pseudocount=False )
 
-	assert_equal( round( total_improvement, 4 ), 68.831 )
+	assert_equal( round( total_improvement, 4 ), 75.8889 )
 
 
 @with_setup( setup, teardown )
@@ -140,7 +140,7 @@ def test_viterbi_train_w_pseudocount():
 									 verbose=False, 
 									 transition_pseudocount=1. )
 
-	assert_equal( round( total_improvement, 4 ), 61.92 )
+	assert_equal( round( total_improvement, 4 ), 69.8379 )
 
 
 @with_setup( setup, teardown )
@@ -155,7 +155,7 @@ def test_viterbi_train_w_pseudocount_priors():
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True )
 
-	assert_equal( round( total_improvement, 4 ), 64.7591 )
+	assert_equal( round( total_improvement, 4 ), 72.1618 )
 
 
 @with_setup( setup, teardown )
@@ -169,7 +169,7 @@ def test_viterbi_train_w_inertia():
 									 verbose=False, 
 									 edge_inertia=0.193 )
 
-	assert_equal( round( total_improvement, 4 ), 68.831 )
+	assert_equal( round( total_improvement, 4 ), 75.8889 )
 
 
 @with_setup( setup, teardown )
@@ -183,7 +183,7 @@ def test_viterbi_train_w_inertia2():
 									 verbose=False, 
 									 edge_inertia=0.82 )
 
-	assert_equal( round( total_improvement, 4 ), 75.1185 )
+	assert_equal( round( total_improvement, 4 ), 75.8889 )
 
 
 @with_setup( setup, teardown )
@@ -198,7 +198,7 @@ def test_viterbi_train_w_pseudocount_inertia():
 									 edge_inertia=0.23,
 									 use_pseudocount=True ) 
 
-	assert_equal( round( total_improvement, 4 ), 66.6407 )
+	assert_equal( round( total_improvement, 4 ), 73.7995 )
 
 
 @with_setup( setup, teardown )

@@ -8,6 +8,7 @@ from __future__ import print_function
 
 from cython.view cimport array as cvarray
 from libc.math cimport exp as cexp
+from operator import attrgetter
 import math, random, itertools as it, sys, json
 import networkx
 import tempfile
@@ -602,9 +603,6 @@ cdef class HiddenMarkovModel( Model ):
 		-------
 		None
 		"""
- 
-		numpy.random.seed(0)
-		random.seed(0)
 
 		in_edge_count = numpy.zeros( len( self.graph.nodes() ), 
 			dtype=numpy.int32 ) 
@@ -744,8 +742,11 @@ cdef class HiddenMarkovModel( Model ):
 			else:
 				normal_states.append(state)
 
-		normal_states = list(sorted( normal_states, key=lambda state: hash(state.name)))
-		silent_states = list(sorted( silent_states, key=lambda state: hash(state.name)))
+		numpy.random.seed(0)
+		random.seed(0)
+
+		normal_states = list(sorted( normal_states, key=attrgetter('name')))
+		silent_states = list(sorted( silent_states, key=attrgetter('name')))
 
 		# We need the silent states to be in topological sort order: any
 		# transition between silent states must be from a lower-numbered state
@@ -1794,9 +1795,6 @@ cdef class HiddenMarkovModel( Model ):
 			Viterbi path.
 		"""
 
-		numpy.random.seed(0)
-		random.seed(0)
-
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
 		cdef double logp
@@ -2656,8 +2654,6 @@ cdef class HiddenMarkovModel( Model ):
 			for k in range(m):
 				# Assign weights to each state based on if they were seen. Primarily 0's.
 				if k < self.silent_start:
-					memset(weights, 0, n*sizeof(double))
-
 					# If another state in the set of tied states has already
 					# been visited, we don't want to retrain.
 					if visited[k] == 1:
@@ -2665,7 +2661,8 @@ cdef class HiddenMarkovModel( Model ):
 
 					# Mark that we've visited this state
 					visited[k] = 1
-
+					memset(weights, 0, n*sizeof(double))
+					
 					# Mark that we've visited all other states in this state
 					# group.
 					for l in range( tied_states[k], tied_states[k+1] ):
