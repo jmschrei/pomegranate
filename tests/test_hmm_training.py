@@ -9,6 +9,9 @@ import random
 import numpy as np
 import time
 
+random.seed(0)
+np.random.seed(0)
+
 def setup():
 	'''
 	Build a model that we want to use to test sequences. This model will
@@ -17,8 +20,6 @@ def setup():
 	'ACT', with pseudocounts to allow for slight deviations from this
 	reference.
 	'''
-
-	random.seed(0)
 
 	global model
 	global m1, m2, m3
@@ -102,8 +103,8 @@ def teardown():
 @with_setup( setup, teardown )
 def test_viterbi_train():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
-		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
@@ -111,42 +112,42 @@ def test_viterbi_train():
 									 use_pseudocount=True )
 
 
-	assert_equal( round( total_improvement, 4 ), 83.2834 )
+	assert_equal( round( total_improvement, 4 ), 73.7995 )
 
 
 @with_setup( setup, teardown )
 def test_viterbi_train_no_pseudocount():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
-		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 use_pseudocount=False )
 
-	assert_equal( round( total_improvement, 4 ), 84.9318 )
+	assert_equal( round( total_improvement, 4 ), 75.8889 )
 
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
-		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 transition_pseudocount=1. )
 
-	assert_equal( round( total_improvement, 4 ), 79.4713 )
+	assert_equal( round( total_improvement, 4 ), 69.8379 )
 
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount_priors():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
-		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
@@ -154,42 +155,42 @@ def test_viterbi_train_w_pseudocount_priors():
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True )
 
-	assert_equal( round( total_improvement, 4 ), 81.7439 )
+	assert_equal( round( total_improvement, 4 ), 72.1618 )
 
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_inertia():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
-		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.193 )
 
-	assert_equal( round( total_improvement, 4 ), 84.9318 )
+	assert_equal( round( total_improvement, 4 ), 75.8889 )
 
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_inertia2():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
-		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.82 )
 
-	assert_equal( round( total_improvement, 4 ), 84.9318 )
+	assert_equal( round( total_improvement, 4 ), 75.8889 )
 
 
 @with_setup( setup, teardown )
 def test_viterbi_train_w_pseudocount_inertia():
 	seqs = [ list(x) for x in [ 'ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
-		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT' ] ]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='viterbi', 
@@ -197,7 +198,7 @@ def test_viterbi_train_w_pseudocount_inertia():
 									 edge_inertia=0.23,
 									 use_pseudocount=True ) 
 
-	assert_equal( round( total_improvement, 4 ), 83.2834 )
+	assert_equal( round( total_improvement, 4 ), 73.7995 )
 
 
 @with_setup( setup, teardown )
@@ -228,10 +229,10 @@ def test_bw_train_json():
 									 max_iterations=5 )
 
 	assert_equal( round( total_improvement, 4 ), 83.1132 )
-	assert_almost_equal( log_probability( model, seqs ), -42.425389, 4 )
+	assert_almost_equal( log_probability( model, seqs ), -42.2341, 4 )
 
 	hmm = HiddenMarkovModel.from_json( model.to_json() )
-	assert_almost_equal( log_probability( model, seqs ), -42.425389, 4 )
+	assert_almost_equal( log_probability( model, seqs ), -42.2341, 4 )
 
 
 @with_setup( setup, teardown )

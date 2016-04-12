@@ -4,6 +4,7 @@ from pomegranate import *
 from nose.tools import with_setup
 from nose.tools import assert_equal
 from nose.tools import assert_not_equal
+from nose.tools import assert_raises
 import random
 import numpy as np
 import json
@@ -238,7 +239,7 @@ def test_same_length_viterbi():
 	for seq, score in zip( sequences, scores ):
 		assert_equal( model.viterbi( seq )[0], score )
 
-	assert_equal( str( model.viterbi( list('XXX') ) ), "(-inf, None)" )
+	assert_raises( ValueError, model.viterbi, list('XXX') )
 
 
 @with_setup( setup, teardown )

@@ -727,6 +727,8 @@ cdef class GeneralMixtureModel( Distribution ):
 			iteration += 1
 			last_log_probability_sum = log_probability_sum
 
+		self.clear_summaries()
+
 		if verbose:
 			print( "Total Improvement: {}".format(last_log_probability_sum - initial_log_probability_sum) )
 
@@ -827,6 +829,22 @@ cdef class GeneralMixtureModel( Distribution ):
 			distribution.from_summaries( inertia )
 			self.weights[i] = _log( self.summaries_ndarray[i] )
 			self.summaries_ndarray[i] = 0.
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object.
+
+		Parameters 
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
+
+		self.summaries_ndarray *= 0
+		for distribution in self.distributions:
+			distribution.clear_summaries()
 
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Serialize the model to a JSON.

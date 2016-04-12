@@ -383,30 +383,7 @@ def test_uniform_kernel():
 	assert_equal( e.name, "UniformKernelDensity" )
 	assert_equal( round( e.log_probability( 2.2 ), 4 ), -0.4055 )
 	assert_equal( round( e.log_probability( 6.2 ), 4 ), -2.1972 )	
-
-
-@with_setup( setup, teardown )
-def test_mixture():
-	d = MixtureDistribution( [ NormalDistribution( 5, 1 ), 
-							   NormalDistribution( 4, 4 ) ] )
-
-	assert_equal( round( d.log_probability( 6 ), 4 ), -1.8018 )
-	assert_equal( round( d.log_probability( 5 ), 4 ), -1.3951 )
-	assert_equal( round( d.log_probability( 4.5 ), 4 ), -1.4894 )
-
-	d = MixtureDistribution( [ NormalDistribution( 5, 1 ),
-	                           NormalDistribution( 4, 4 ) ],
-	                         weights=[1., 7.] )
-
-	assert_equal( round( d.log_probability( 6 ), 4 ), -2.2325 )
-	assert_equal( round( d.log_probability( 5 ), 4 ), -2.0066 )
-	assert_equal( round( d.log_probability( 4.5 ), 4 ), -2.0356 )
-
-	e = Distribution.from_json( d.to_json() )
-	assert_equal( e.name, "MixtureDistribution" )
-	assert_equal( round( e.log_probability( 6 ), 4 ), -2.2325 )
-	assert_equal( round( e.log_probability( 5 ), 4 ), -2.0066 )
-	assert_equal( round( e.log_probability( 4.5 ), 4 ), -2.0356 )
+	
 
 @with_setup( setup, teardown )
 def test_independent():

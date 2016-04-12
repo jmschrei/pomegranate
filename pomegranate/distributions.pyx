@@ -319,6 +319,20 @@ cdef class Distribution:
 		self.fit( *self.summaries, inertia=inertia )
 		self.summaries = []
 
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object.
+
+		Parameters 
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
+
+		self.summaries = []
+
 	def plot( self, n=1000, **kwargs ):
 		"""Plot the distribution by sampling from it.
 
@@ -512,6 +526,11 @@ cdef class UniformDistribution( Distribution ):
 
 		self.summaries = [INF, NEGINF]
 
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		self.summaries = [INF, NEGINF]
+
 	@classmethod
 	def from_samples( cls, items, weights=None ):
 		"""Fit a distribution to some data without pre-specifying it."""
@@ -626,6 +645,11 @@ cdef class NormalDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 		self.log_sigma_sqrt_2_pi = -_log(sigma * SQRT_2_PI)
 		self.two_sigma_squared = 2 * sigma ** 2
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		self.summaries = [0, 0, 0]
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
@@ -743,6 +767,11 @@ cdef class LogNormalDistribution( Distribution ):
 		self.sigma = self.sigma*inertia + sigma*(1-inertia)
 		self.summaries = [0, 0, 0]
 
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		self.summaries = [0, 0, 0]
+
 	@classmethod
 	def from_samples( cls, items, weights=None ):
 		"""Fit a distribution to some data without pre-specifying it."""
@@ -836,6 +865,11 @@ cdef class ExponentialDistribution( Distribution ):
 			return
 
 		self.rate = self.summaries[0] / self.summaries[1]
+		self.summaries = [0, 0]
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
 		self.summaries = [0, 0]
 
 	@classmethod
@@ -939,6 +973,11 @@ cdef class BetaDistribution( Distribution ):
 
 		self.alpha = self.alpha*inertia + successes*(1-inertia)
 		self.beta = self.beta*inertia + failures*(1-inertia)
+
+		self.summaries = []
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
 
 		self.summaries = []
 
@@ -1230,7 +1269,12 @@ cdef class GammaDistribution( Distribution ):
 		# 1 being to ignore new training data.
 		self.alpha = prior_shape*inertia + shape*(1-inertia) 
 		self.beta =	prior_rate*inertia + rate*(1-inertia)
-		self.summaries = []  	
+		self.summaries = []
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		self.summaries = []	
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
@@ -1266,7 +1310,7 @@ cdef class DiscreteDistribution( Distribution ):
 
 		self.dist = characters.copy()
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
-		self.summaries =[ { key: 0 for key in characters.keys() } ]
+		self.summaries =[ { key: 0 for key in characters.keys() }, 0 ]
 
 		self.encoded_summary = 0
 		self.encoded_keys = None
@@ -1396,6 +1440,19 @@ cdef class DiscreteDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
+	def summarize( self, items, weights=None ):
+		"""Reduce a set of obervations to sufficient statistics."""
+
+		if weights is None:
+			weights = numpy.ones(len(items))
+		else:
+			weights = numpy.asarray(weights)
+
+		self.summaries[1] += weights.sum()
+		characters = self.summaries[0]
+		for i in xrange( len(items) ):
+			characters[items[i]] += weights[i]
+
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython version of summarize."""
 
@@ -1411,21 +1468,15 @@ cdef class DiscreteDistribution( Distribution ):
 		with gil:
 			for i in range(self.n):
 				self.encoded_counts[i] += encoded_counts[i]
+				self.summaries[1] += encoded_counts[i]
 
 		free( encoded_counts )
 
-	def summarize( self, items, weights=None ):
-		"""Reduce a set of obervations to sufficient statistics."""
-
-		if weights is None:
-			weights = numpy.ones( len(items) )
-
-		characters = self.summaries[0]
-		for i in xrange( len(items) ):
-			characters[items[i]] += weights[i]
-
 	def from_summaries( self, inertia=0.0 ):
 		"""Use the summaries in order to update the distribution."""
+
+		if self.summaries[1] == 0:
+			return
 
 		if self.encoded_summary == 0:
 			_sum = sum( self.summaries[0].values() )
@@ -1434,21 +1485,27 @@ cdef class DiscreteDistribution( Distribution ):
 				self.dist[key] = self.dist[key]*inertia + (1-inertia)*value / _sum
 				self.log_dist[key] = _log( self.dist[key] )
 
-			self.summaries = [{ key: 0 for key in self.keys() }]
 			self.encode( self.encoded_keys )
 		else:
 			n = len(self.encoded_keys)
-			_sum = 0
-			for i in range(n):
-				_sum += self.encoded_counts[i]
 			for i in range(n):
 				key = self.encoded_keys[i]
 				self.dist[key] = (self.dist[key]*inertia + 
-					(1-inertia)*self.encoded_counts[i] / _sum)
+					(1-inertia)*self.encoded_counts[i] / self.summaries[1])
 				self.log_dist[key] = _log( self.dist[key] )
 				self.encoded_counts[i] = 0
 
 			self.encode( self.encoded_keys )
+
+		self.summaries = [{ key: 0 for key in self.keys() }, 0]
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		self.summaries = [{ key: 0 for key in self.keys() }, 0]
+		if self.encoded_summary == 1:
+			for i in range(len(self.encoded_keys)):
+				self.encoded_counts[i] = 0
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
@@ -1567,6 +1624,11 @@ cdef class PoissonDistribution(Distribution):
 
 		self.l = mu*(1-inertia) + self.l*inertia
 		self.logl = _log(self.l)
+		self.summaries = [0, 0]
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
 		self.summaries = [0, 0]
 
 	@classmethod
@@ -1850,184 +1912,6 @@ cdef class TriangleKernelDensity( KernelDensity ):
 		d.fit(items, weights)
 		return d
 
-
-cdef class MixtureDistribution( Distribution ):
-	"""
-	Allows you to create an arbitrary mixture of distributions. There can be
-	any number of distributions, include any permutation of types of
-	distributions. Can also specify weights for the distributions.
-	"""
-
-	property parameters:
-		def __get__( self ):
-			return [ self.distributions.tolist(), self.weights.tolist() ]
-		def __set__( self, parameters ):
-			self.distributions = numpy.asarray( parameters[0], dtype=numpy.object_ )
-			self.weights = numpy.array( parameters[1] )
-
-	def __cinit__( self, distributions=[], weights=None, frozen=False ):
-		"""
-		Take in the distributions and appropriate weights. If no weights
-		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1. 
-		"""
-		
-		distributions = numpy.asarray( distributions, dtype=numpy.object_ )
-		n = distributions.shape[0]
-
-		if weights:
-			weights = numpy.array( weights, dtype=numpy.float64 ) / numpy.sum( weights )
-		else: 
-			weights = numpy.ones(n, dtype=numpy.float64 ) / n
-
-		self.n = n
-		self.distributions = distributions
-		self.weights = weights
-		self.weights_p = <double*> (<numpy.ndarray> weights).data
-		self.distributions = distributions
-		self.name = "MixtureDistribution"
-		self.frozen = frozen
-
-	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
-
-		cdef int i, n = self.n
-		cdef double w, prob = 0.0
-
-		for i in range( n ):
-			with gil:
-				w = self.weights_p[i]
-				d = self.distributions[i]
-				prob += cexp( d.log_probability( symbol ) ) * w
-
-		return _log( prob )	
-
-	def sample( self ):
-		"""
-		Sample from the mixture. First, choose a distribution to sample from
-		according to the weights, then sample from that distribution. 
-		"""
-
-		i = random.random()
-		for d, w in izip( *self.parameters ):
-			if w > i:
-				return d.sample()
-			i -= w 
-
-	def fit( self, items, weights=None ):
-		"""
-		Perform EM to estimate the parameters of each distribution
-		which is a part of this mixture.
-		"""
-
-		if weights is None:
-			weights = numpy.ones( len(items) )
-		else:
-			weights = numpy.asarray( weights )
-
-		if weights.sum() == 0:
-			return
-
-		distributions, w = self.parameters
-		n, k = len(items), len(distributions)
-
-		# The responsibility matrix
-		r = numpy.zeros( (n, k) )
-
-		# Calculate the log probabilities of each p
-		for i, distribution in enumerate( distributions ):
-			for j, item in enumerate( items ):
-				r[j, i] = distribution.log_probability( item )
-
-		r = numpy.exp( r )
-
-		# Turn these log probabilities into responsibilities by
-		# normalizing on a row-by-row manner.
-		for i in xrange( n ):
-			r[i] = r[i] / r[i].sum()
-
-		# Weight the responsibilities by the given weights
-		for i in xrange( k ):
-			r[:,i] = r[:,i]*weights
-
-		# Update the emissions of each distribution
-		for i, distribution in enumerate( distributions ):
-			distribution.fit( items, weights=r[:,i] )
-
-		# Update the weight of each distribution
-		self.weights = r.sum( axis=0 ) / r.sum()
-
-	def summarize( self, items, weights=None ):
-		"""
-		Performs the summary step of the EM algorithm to estimate
-		parameters of each distribution which is a part of this mixture.
-		"""
-
-		if weights is None:
-			weights = numpy.ones( len(items) )
-		else:
-			weights = numpy.asarray( weights )
-
-		if weights.sum() == 0:
-			return
-
-		distributions, w = self.parameters
-		n, k = len(items), len(distributions)
-
-		# The responsibility matrix
-		r = numpy.zeros( (n, k) )
-
-		# Calculate the log probabilities of each p
-		for i, distribution in enumerate( distributions ):
-			for j, item in enumerate( items ):
-				r[j, i] = distribution.log_probability( item )
-
-		r = numpy.exp( r )
-
-		# Turn these log probabilities into responsibilities by
-		# normalizing on a row-by-row manner.
-		for i in xrange( n ):
-			r[i] = r[i] / r[i].sum()
-
-		# Weight the responsibilities by the given weights
-		for i in xrange( k ):
-			r[:,i] = r[:,i]*weights
-
-		# Save summary statistics on the emission distributions
-		for i, distribution in enumerate( distributions ):
-			distribution.summarize( items, weights=r[:,i]*weights )
-
-		# Save summary statistics for weight updates
-		self.summaries.append( r.sum( axis=0 ) / r.sum() )
-
-	def from_summaries( self, inertia=0.0 ):
-		"""
-		Performs the actual update step for the EM algorithm.
-		"""
-
-		# If this distribution is frozen, don't do anything.
-		if self.frozen == True:
-			return
-
-		# Update the emission distributions
-		for d in self.distributions:
-			d.from_summaries( inertia=inertia )
-
-		# Update the weights
-		weights = numpy.array( self.summaries )
-		self.weights = weights.sum( axis=0 ) / weights.sum()
-
-	def to_json( self, separators=(',', ' : '), indent=4 ):
-		"""Convert the distribution to JSON format."""
-
-		return json.dumps( {
-								'class' : 'Distribution',
-								'name'  : self.name,
-								'parameters' : [[ json.loads( dist.to_json() ) for dist in self.parameters[0] ],
-								                 self.parameters[1] ],
-								'frozen' : self.frozen
-						   }, separators=separators, indent=indent )
-
 cdef class MultivariateDistribution( Distribution ):
 	"""
 	An object to easily identify multivariate distributions such as tables.
@@ -2157,6 +2041,12 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for d in self.parameters[0]:
 			d.from_summaries( inertia=inertia )
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		for d in self.parameters[0]:
+			d.clear_summaries()
 
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Convert the distribution to JSON format."""
@@ -2379,6 +2269,13 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
 		_, self._log_det = numpy.linalg.slogdet(self.cov)
 
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		memset( self.column_sum, 0, self.d*sizeof(double) )
+		memset( self.pair_sum, 0, self.d*self.d*sizeof(double) )
+		self.w_sum = 0.0
+
 	@classmethod
 	def from_samples( cls, items, weights=None ):
 		"""Fit a distribution to some data without pre-specifying it."""
@@ -2591,6 +2488,11 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
 		self.summaries = [{}, {}]
 
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
+		self.summaries = [{}, {}]
+
 	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""Update the parameters of the table based on the data."""
 
@@ -2782,6 +2684,11 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			values[keys[key]] = self.summaries[0].get( key, 0.0 ) / self.summaries[1]
 
 		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
+		self.summaries = [{}, 0]
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object."""
+
 		self.summaries = [{}, 0]
 
 	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
