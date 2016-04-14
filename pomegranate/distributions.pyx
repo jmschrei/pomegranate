@@ -1358,6 +1358,24 @@ cdef class DiscreteDistribution( Distribution ):
 
 		return True
 
+	def distance( self, other ):
+		"""Return distance between distribution"""
+		if not isinstance( other, DiscreteDistribution ):
+			return None
+
+		if set( self.keys() ) != set( other.keys() ):
+			return None
+
+		return self._distance(other.parameters[0])
+
+	cdef double _distance(self, dict other):
+		cdef double sum = 0.0
+		for k in self.dist.keys():
+			n = self.dist[k] - other[k]
+			sum += n * n
+		return csqrt(sum)
+
+
 	def clamp( self, key ):
 		"""Return a distribution clamped to a particular value."""
 		return DiscreteDistribution( { k : 0. if k != key else 1. for k in self.keys() } )
