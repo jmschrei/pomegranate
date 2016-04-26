@@ -1968,7 +1968,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype( numpy.float64 )
+		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype('float64')
 		cdef double* symbol_ptr = <double*> symbol_ndarray.data
 		cdef double logp
 
@@ -2018,11 +2018,12 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		"""
 
 		items, weights = weight_set( items, weights )
-		for i, d in enumerate( self.parameters[0] ):
-			d.summarize( items[:,i], weights=weights )
+		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
+
+		self._summarize( items_ptr, weights_ptr, items.shape[0] )
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-
 		cdef SIZE_t i, j, d = self.d
 
 		for i in range(n):
