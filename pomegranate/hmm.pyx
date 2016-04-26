@@ -2250,11 +2250,14 @@ cdef class HiddenMarkovModel( Model ):
 
 		for i in range( len(sequences) ):
 			try:
-				sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
+				sequences[i] = numpy.array( sequences[i], dtype='float64' )
 			except: 
 				sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
 													   sequences[i] ) ), 
-											dtype=numpy.float64 )
+											dtype='float64' )
+
+		if isinstance( sequences, numpy.ndarray ):
+			sequences = sequences.astype('float64')
 
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
 			while improvement > stop_threshold or iteration < min_iterations + 1:
@@ -2331,14 +2334,18 @@ cdef class HiddenMarkovModel( Model ):
 			The log probability of the sequences.
 		"""
 
+
 		if check_input:
 			for i in range( len(sequences) ):
 				try:
-					sequences[i] = numpy.array( sequences[i], dtype=numpy.float64 )
+					sequences[i] = numpy.array( sequences[i], dtype='float64' )
 				except: 
 					sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
 														   sequences[i] ) ), 
-												dtype=numpy.float64 )
+												dtype='float64' )
+
+		if isinstance( sequences, numpy.ndarray ):
+			sequences = sequences.astype('float64')
 
 		if parallel is None:
 			parallel = Parallel( n_jobs=n_jobs, backend='threading' )
