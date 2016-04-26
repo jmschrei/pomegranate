@@ -293,12 +293,12 @@ cdef class GeneralMixtureModel( Distribution ):
 	>>> clf = GeneralMixtureModel([NormalDistributon(5, 2), NormalDistribution(1, 1)])
 	>>> clf.log_probability(5)
 	-2.304562194038089
-	>>> clf.predict_proba([5, 7, 1])
+	>>> clf.predict_proba([[5], [7], [1]])
 	array([[ 0.99932952,  0.00067048],
 	       [ 0.99999995,  0.00000005],
 	       [ 0.06337894,  0.93662106]])
-	>>> clf.fit([1, 5, 7, 8, 2])
-	>>> clf.predict_proba([5, 7, 1])
+	>>> clf.fit([[1], [5], [7], [8], [2]])
+	>>> clf.predict_proba([[5], [7], [1]])
 	array([[ 1.        ,  0.        ],
 	       [ 1.        ,  0.        ],
 	       [ 0.00004383,  0.99995617]])
