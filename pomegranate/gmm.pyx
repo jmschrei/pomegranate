@@ -290,7 +290,7 @@ cdef class GeneralMixtureModel( Distribution ):
 	Examples
 	--------
 	>>> from pomegranate import *
-	>>> clf = GeneralMixtureModel([NormalDistributon(5, 2), NormalDistribution(1, 1)])
+	>>> clf = GeneralMixtureModel([NormalDistribution(5, 2), NormalDistribution(1, 1)])
 	>>> clf.log_probability(5)
 	-2.304562194038089
 	>>> clf.predict_proba([[5], [7], [1]])
