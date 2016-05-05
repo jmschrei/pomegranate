@@ -71,7 +71,7 @@ def log_probability( model, samples, n_jobs=1, parallel=None, check_input=True )
 		return sum( parallel( delayed( model.log_probability, check_pickle=False )
 			( sample, check_input ) for sample in samples) )
 	else:
-		return sum( Parallel( n_jobs=n_jobs, backend='threading')( 
+		return sum( Parallel( n_jobs=n_jobs, backend='threading')(
 			delayed( model.log_probability, check_pickle=False )
 				( sample, check_input ) for sample in samples) )
 
@@ -136,11 +136,11 @@ cdef class HiddenMarkovModel( Model ):
 	>>> model.add_transition( s2, s3, 0.10 )
 	>>> model.add_transition( s3, s3, 0.70 )
 	>>> model.add_transition( s3, model.end, 0.30 )
-	>>> model.bake() 
+	>>> model.bake()
 	>>>
 	>>> print model.log_probability(list('ACGACTATTCGAT'))
 	-4.31828085576
-	>>> print ", ".join( state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1] ) 
+	>>> print ", ".join( state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1] )
 	example-start, s1, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s3, example-end
 	"""
 
@@ -180,7 +180,7 @@ cdef class HiddenMarkovModel( Model ):
 		# State objects, so they're guaranteed never to conflict when composing
 		# two distinct models
 		self.graph = networkx.DiGraph()
-		
+
 		# Save the start and end or mae one up
 		self.start = start or State( None, name=self.name + "-start" )
 		self.end = end or State( None, name=self.name + "-end" )
@@ -189,7 +189,7 @@ cdef class HiddenMarkovModel( Model ):
 		self.n_states = 0
 		self.discrete = 0
 		self.multivariate = 0
-		
+
 		# Put start and end in the graph
 		self.graph.add_node(self.start)
 		self.graph.add_node(self.end)
@@ -230,9 +230,9 @@ cdef class HiddenMarkovModel( Model ):
 		free(self.out_transitions)
 
 	def add_state(self, state):
-		"""Add a state to the given model. 
-		
-		The state must not already be in the model, nor may it be part of any 
+		"""Add a state to the given model.
+
+		The state must not already be in the model, nor may it be part of any
 		other model that will eventually be combined with this one.
 
 		Parameters
@@ -244,7 +244,7 @@ cdef class HiddenMarkovModel( Model ):
 		-------
 		None
 		"""
-		
+
 		if state.name in self.state_names:
 			raise ValueError("A state with name '{}' already exists".format(state.name))
 
@@ -253,7 +253,7 @@ cdef class HiddenMarkovModel( Model ):
 
 	def add_states( self, *states ):
 		"""Add multiple states to the model at the same time.
-		
+
 		Parameters
 		----------
 		states : list or generator
@@ -285,7 +285,7 @@ cdef class HiddenMarkovModel( Model ):
 		By specifying a group as a string, you can tie edges together by giving
 		them the same group. This means that a transition across one edge in the
 		group counts as a transition across all edges in terms of training.
-		
+
 		Parameters
 		----------
 		a : State
@@ -311,14 +311,14 @@ cdef class HiddenMarkovModel( Model ):
 		-------
 		None
 		"""
-		
+
 		pseudocount = pseudocount or probability
-		self.graph.add_edge(a, b, probability=log(probability), 
+		self.graph.add_edge(a, b, probability=log(probability),
 			pseudocount=pseudocount, group=group )
 
 	def add_transitions( self, a, b, probabilities, pseudocounts=None,
 		groups=None ):
-		"""Add many transitions at the same time, 
+		"""Add many transitions at the same time,
 
 		Parameters
 		----------
@@ -342,7 +342,7 @@ cdef class HiddenMarkovModel( Model ):
 		None
 
 		Examples
-		-------- 
+		--------
 		>>> model.add_transitions([model.start, s1], [s1, model.end], [1., 1.])
 		>>> model.add_transitions([model.start, s1, s2, s3], s4, [0.2, 0.4, 0.3, 0.9])
 		>>> model.add_transitions(model.start, [s1, s2, s3], [0.6, 0.2, 0.05])
@@ -360,7 +360,7 @@ cdef class HiddenMarkovModel( Model ):
 			for start, end, probability, pseudocount, group in edges:
 				self.add_transition( start, end, probability, pseudocount, group )
 
-		# Allow for multiple transitions to a specific state 
+		# Allow for multiple transitions to a specific state
 		elif isinstance( a, list ) and isinstance( b, State ):
 			edges = izip( a, probabilities, pseudocounts, groups )
 			for start, probability, pseudocount, group in edges:
@@ -374,7 +374,7 @@ cdef class HiddenMarkovModel( Model ):
 
 	def dense_transition_matrix( self ):
 		"""Returns the dense transition matrix.
-		
+
 		Parameters
 		----------
 		None
@@ -394,7 +394,7 @@ cdef class HiddenMarkovModel( Model ):
 				transition_log_probabilities[i, self.out_transitions[n]] = \
 					self.out_transition_log_probabilities[n]
 
-		return transition_log_probabilities 
+		return transition_log_probabilities
 
 	def copy( self ):
 		"""Returns a deep copy of the HMM.
@@ -412,11 +412,11 @@ cdef class HiddenMarkovModel( Model ):
 		return HiddenMarkovModel.from_json( self.to_json() )
 
 	def freeze_distributions( self ):
-		"""Freeze all the distributions in model. 
+		"""Freeze all the distributions in model.
 
-		Upon training only edges will be updated. The parameters of 
+		Upon training only edges will be updated. The parameters of
 		distributions will not be affected.
-		
+
 		Parameters
 		----------
 		None
@@ -431,7 +431,7 @@ cdef class HiddenMarkovModel( Model ):
 				state.distribution.freeze()
 
 	def thaw_distributions( self ):
-		"""Thaw all distributions in the model. 
+		"""Thaw all distributions in the model.
 
 		Upon training distributions will be updated again.
 
@@ -455,13 +455,13 @@ cdef class HiddenMarkovModel( Model ):
 		Parameters
 		----------
 		other : HiddenMarkovModel
-			The other model to add 
+			The other model to add
 
 		Returns
 		-------
 		None
 		"""
-		
+
 		self.graph = networkx.union(self.graph, other.graph)
 
 	def concatenate( self, other, suffix='', prefix='' ):
@@ -470,7 +470,7 @@ cdef class HiddenMarkovModel( Model ):
 		Concatenate this model to another model in such a way that a single
 		probability 1 edge is added between self.end and other.start. Rename
 		all other states appropriately by adding a suffix or prefix if needed.
-		
+
 		Parameters
 		----------
 		other : HiddenMarkovModel
@@ -507,8 +507,8 @@ cdef class HiddenMarkovModel( Model ):
 
 	def draw( self, **kwargs ):
 		"""Draw this model's graph using NetworkX and matplotlib.
-		
-		Note that this relies on networkx's built-in graphing capabilities (and 
+
+		Note that this relies on networkx's built-in graphing capabilities (and
 		not Graphviz) and thus can't draw self-loops.
 
 		See networkx.draw_networkx() for the keywords you can pass in.
@@ -522,7 +522,7 @@ cdef class HiddenMarkovModel( Model ):
 		-------
 		None
 		"""
-		
+
 		if pygraphviz is not None:
 			G = pygraphviz.AGraph(directed=True)
 			done_nodes = set()
@@ -559,16 +559,16 @@ cdef class HiddenMarkovModel( Model ):
 			networkx.draw()
 		pyplot.show()
 
-	def bake( self, verbose=False, merge="All" ): 
+	def bake( self, verbose=False, merge="All" ):
 		"""Finalize the topology of the model.
 
 		Finalize the topology of the model and assign a numerical index to
 		every state. This method must be called before any of the probability-
 		calculating methods.
-		
-		This fills in self.states (a list of all states in order) and 
-		self.transition_log_probabilities (log probabilities for transitions), 
-		as well as self.start_index and self.end_index, and self.silent_start 
+
+		This fills in self.states (a list of all states in order) and
+		self.transition_log_probabilities (log probabilities for transitions),
+		as well as self.start_index and self.end_index, and self.silent_start
 		(the index of the first silent state).
 
 		Parameters
@@ -604,11 +604,11 @@ cdef class HiddenMarkovModel( Model ):
 		None
 		"""
 
-		in_edge_count = numpy.zeros( len( self.graph.nodes() ), 
-			dtype=numpy.int32 ) 
-		out_edge_count = numpy.zeros( len( self.graph.nodes() ), 
+		in_edge_count = numpy.zeros( len( self.graph.nodes() ),
 			dtype=numpy.int32 )
-		
+		out_edge_count = numpy.zeros( len( self.graph.nodes() ),
+			dtype=numpy.int32 )
+
 		merge = merge.lower() if merge else None
 		while merge == 'all':
 			merge_count = 0
@@ -621,7 +621,7 @@ cdef class HiddenMarkovModel( Model ):
 			for a, b in self.graph.edges():
 				out_edge_count[ indices[a] ] += 1
 				in_edge_count[ indices[b] ] += 1
-				
+
 			# Go through each state, and if either in or out edges are 0,
 			# remove the edge.
 			for i in range( len( prestates ) ):
@@ -653,7 +653,7 @@ cdef class HiddenMarkovModel( Model ):
 			for state in self.graph.nodes():
 
 				# Perform log sum exp on the edges to see if they properly sum to 1
-				out_edges = round( sum( numpy.e**x['probability'] 
+				out_edges = round( sum( numpy.e**x['probability']
 					for x in self.graph.edge[state].values() ), 8 )
 
 				# The end state has no out edges, so will be 0
@@ -690,7 +690,7 @@ cdef class HiddenMarkovModel( Model ):
 					# Make sure the transition is an appropriate merger
 					if merge=='all' or ( merge=='partial' and b.is_silent() ):
 
-						# Go through every transition to that state 
+						# Go through every transition to that state
 						for x, y, d in self.graph.edges( data=True ):
 
 							# Make sure that the edge points to the current node
@@ -722,7 +722,7 @@ cdef class HiddenMarkovModel( Model ):
 		if merge in ['all', 'partial']:
 			# Detect whether or not there are loops of silent states by going
 			# through every pair of edges, and ensure that there is not a cycle
-			# of silent states.		
+			# of silent states.
 			for a, b, e in self.graph.edges( data=True ):
 				for x, y, d in self.graph.edges( data=True ):
 					if a is y and b is x and a.is_silent() and b.is_silent():
@@ -752,22 +752,22 @@ cdef class HiddenMarkovModel( Model ):
 		# transition between silent states must be from a lower-numbered state
 		# to a higher-numbered state. Since we ban loops of silent states, we
 		# can get away with this.
-		
+
 		# Get the subgraph of all silent states
 		silent_subgraph = self.graph.subgraph(silent_states)
-		
+
 		# Get the sorted silent states. Isn't it convenient how NetworkX has
 		# exactly the algorithm we need?
 		silent_states_sorted = networkx.topological_sort(silent_subgraph, nbunch=silent_states)
-		
+
 		# What's the index of the first silent state?
 		self.silent_start = len(normal_states)
 
 		# Save the master state ordering. Silent states are last and in
 		# topological order, so when calculationg forward algorithm
 		# probabilities we can just go down the list of states.
-		self.states = normal_states + silent_states_sorted 
-		
+		self.states = normal_states + silent_states_sorted
+
 		# We need a good way to get transition probabilities by state index that
 		# isn't N^2 to build or store. So we will need a reverse of the above
 		# mapping. It's awkward but asymptotically fine.
@@ -780,7 +780,7 @@ cdef class HiddenMarkovModel( Model ):
 		for i in range( self.silent_start+1 ):
 			self.tied_state_count[i] = 0
 
-		for i in range( self.silent_start ): 
+		for i in range( self.silent_start ):
 			for j in range( self.silent_start ):
 				if i == j:
 					continue
@@ -798,7 +798,7 @@ cdef class HiddenMarkovModel( Model ):
 			for j in range( self.silent_start ):
 				if i == j:
 					continue
-					
+
 				if self.states[i].distribution is self.states[j].distribution:
 					# Begin at the first index which belongs to state i...
 					start = self.tied_state_count[i]
@@ -816,21 +816,21 @@ cdef class HiddenMarkovModel( Model ):
 		for i in range( self.silent_start ):
 			self.state_weights[i] = _log( self.states[i].weight )
 
-		# This holds numpy array indexed [a, b] to transition log probabilities 
+		# This holds numpy array indexed [a, b] to transition log probabilities
 		# from a to b, where a and b are state indices. It starts out saying all
 		# transitions are impossible.
 		self.in_transitions = <int*> calloc( m, sizeof(int) )
 		self.in_edge_count = <int*> calloc( n+1, sizeof(int) )
 		self.in_transition_pseudocounts = <double*> calloc( m,
 			sizeof(double) )
-		self.in_transition_log_probabilities = <double*> calloc( m, 
+		self.in_transition_log_probabilities = <double*> calloc( m,
 			sizeof(double) )
 
 		self.out_transitions = <int*> calloc( m, sizeof(int) )
 		self.out_edge_count = <int*> calloc( n+1, sizeof(int) )
 		self.out_transition_pseudocounts = <double*> calloc( m,
 			sizeof(double) )
-		self.out_transition_log_probabilities = <double*> calloc( m, 
+		self.out_transition_log_probabilities = <double*> calloc( m,
 			sizeof(double) )
 
 		self.expected_transitions =  <double*> calloc( self.n_edges, sizeof(double) )
@@ -844,7 +844,7 @@ cdef class HiddenMarkovModel( Model ):
 		memset( self.out_edge_count, 0, (n+1)*sizeof(int) )
 		memset( self.out_transition_pseudocounts, 0, m*sizeof(double) )
 		memset( self.out_transition_log_probabilities, 0, m*sizeof(double) )
-		
+
 		# Now we need to find a way of storing in-edges for a state in a manner
 		# that can be called in the cythonized methods below. This is basically
 		# an inversion of the graph. We will do this by having two lists, one
@@ -907,11 +907,11 @@ cdef class HiddenMarkovModel( Model ):
 
 			self.out_transition_log_probabilities[start] = <double>data['probability']
 			self.out_transition_pseudocounts[start] = data['pseudocount']
-			self.out_transitions[start] = <int>indices[b]  
+			self.out_transitions[start] = <int>indices[b]
 
 			# If this edge belongs to a group, we need to add it to the
 			# dictionary. We only care about forward representations of
-			# the edges. 
+			# the edges.
 			group = data['group']
 			if group != None:
 				if group in edge_groups:
@@ -948,7 +948,7 @@ cdef class HiddenMarkovModel( Model ):
 				self.tied_edges_starts[n+j] = start
 				self.tied_edges_ends[n+j] = end
 
-		dist = self.states[0].distribution 
+		dist = self.states[0].distribution
 		if isinstance( dist, DiscreteDistribution ):
 			self.discrete = 1
 			states = self.states[:self.silent_start]
@@ -984,9 +984,9 @@ cdef class HiddenMarkovModel( Model ):
 				model with no end. Please ensure it has an end." )
 
 	def sample( self, length=0, path=False ):
-		"""Generate a sequence from the model. 
+		"""Generate a sequence from the model.
 
-		Returns the sequence generated, as a list of emitted items. The 
+		Returns the sequence generated, as a list of emitted items. The
 		model must have been baked first in order to run this method.
 
 		If a length is specified and the HMM is infinite (no edges to the
@@ -996,7 +996,7 @@ cdef class HiddenMarkovModel( Model ):
 		itself to not take an end transition unless that is the only path,
 		making it not a true random sample on a finite model.
 
-		WARNING: If the HMM has no explicit end state, must specify a length 
+		WARNING: If the HMM has no explicit end state, must specify a length
 		to use.
 
 		Parameters
@@ -1015,7 +1015,7 @@ cdef class HiddenMarkovModel( Model ):
 			If path is true, return a tuple of (sample, path), otherwise return
 			just the samples.
 		"""
-		
+
 		return self._sample( length, path )
 
 	cdef list _sample( self, int length, int path ):
@@ -1029,14 +1029,14 @@ cdef class HiddenMarkovModel( Model ):
 		for k in range( m ):
 			cumulative_probability = 0.
 			for l in range( out_edges[k], out_edges[k+1] ):
-				cumulative_probability += cexp( 
+				cumulative_probability += cexp(
 					self.out_transition_log_probabilities[l] )
-				cum_probabilities[l] = cumulative_probability 
+				cum_probabilities[l] = cumulative_probability
 
 		# This holds the numerical index of the state we are currently in.
 		# Start in the start state
 		i = self.start_index
-		
+
 		# Record the number of samples
 		cdef int n = 0
 		# Define the list of emissions, and the path of hidden states taken
@@ -1050,7 +1050,7 @@ cdef class HiddenMarkovModel( Model ):
 
 			# Add the state to the growing path
 			sequence_path.append( state )
-			
+
 			if not state.is_silent():
 				# There's an emission distribution, so sample from it
 				emissions.append( state.distribution.sample() )
@@ -1067,7 +1067,7 @@ cdef class HiddenMarkovModel( Model ):
 			# Generate a number between 0 and 1 to make a weighted decision
 			# as to which state to jump to next.
 			sample = random.random()
-			
+
 			# Save the last state id we were in
 			j = i
 
@@ -1105,7 +1105,7 @@ cdef class HiddenMarkovModel( Model ):
 					if cum_probabilities[k] > sample:
 						i = self.out_transitions[k]
 						break
-		
+
 		# Done! Return either emissions, or emissions and path.
 		if path:
 			sequence_path.append( self.end )
@@ -1113,7 +1113,7 @@ cdef class HiddenMarkovModel( Model ):
 		return emissions
 
 	cpdef double log_probability( self, sequence, check_input=True ):
-		"""Calculate the log probability of a single sequence. 
+		"""Calculate the log probability of a single sequence.
 
 		If a path is provided, calculate the log probability of that sequence
 		given the path.
@@ -1130,7 +1130,7 @@ cdef class HiddenMarkovModel( Model ):
 		Returns
 		-------
 		logp : double
-			The log probability of the sequence 
+			The log probability of the sequence
 		"""
 
 		cdef numpy.ndarray sequence_ndarray
@@ -1172,27 +1172,27 @@ cdef class HiddenMarkovModel( Model ):
 		"""Run the forward algorithm on the sequence.
 
 		Calculate the probability of each observation being aligned to each
-		state by going forward through a sequence. Returns the full forward 
-		matrix. Each index i, j corresponds to the sum-of-all-paths log 
-		probability of starting at the beginning of the sequence, and aligning 
-		observations to hidden states in such a manner that observation i was 
-		aligned to hidden state j. Uses row normalization to dynamically scale 
+		state by going forward through a sequence. Returns the full forward
+		matrix. Each index i, j corresponds to the sum-of-all-paths log
+		probability of starting at the beginning of the sequence, and aligning
+		observations to hidden states in such a manner that observation i was
+		aligned to hidden state j. Uses row normalization to dynamically scale
 		each row to prevent underflow errors.
 
 		If the sequence is impossible, will return a matrix of nans.
 
-		See also: 
+		See also:
 			- Silent state handling taken from p. 71 of "Biological
 		Sequence Analysis" by Durbin et al., and works for anything which
 		does not have loops of silent states.
-			- Row normalization technique explained by 
+			- Row normalization technique explained by
 		http://www.cs.sjsu.edu/~stamp/RUA/HMM.pdf on p. 14.
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
-		
+
 		Returns
 		-------
 		matrix : array-like, shape (len(sequence), n_states)
@@ -1225,7 +1225,7 @@ cdef class HiddenMarkovModel( Model ):
 		free(f)
 		return f_ndarray
 
-	cdef double* _forward( self, double* sequence, void** distributions, 
+	cdef double* _forward( self, double* sequence, void** distributions,
 		int n, double* emissions ) nogil:
 		cdef int i, k, ki, l, li
 		cdef int p = self.silent_start, m = self.n_states
@@ -1244,15 +1244,15 @@ cdef class HiddenMarkovModel( Model ):
 			for l in range( self.silent_start ):
 				for i in range( n ):
 					if self.multivariate:
-						e[l*n + i] = (( <Distribution> distributions[l] )._mv_log_probability( sequence+i*dim ) + 
-							self.state_weights[l] ) 
+						e[l*n + i] = (( <Distribution> distributions[l] )._mv_log_probability( sequence+i*dim ) +
+							self.state_weights[l] )
 					else:
-						e[l*n + i] = (( <Distribution> distributions[l] )._log_probability( sequence[i] ) + 
+						e[l*n + i] = (( <Distribution> distributions[l] )._log_probability( sequence[i] ) +
 							self.state_weights[l] )
 		else:
 			e = emissions
 
-		# We must start in the start state, having emitted 0 symbols        
+		# We must start in the start state, having emitted 0 symbols
 		for i in range(m):
 			f[i] = NEGINF
 		f[self.start_index] = 0.
@@ -1265,9 +1265,9 @@ cdef class HiddenMarkovModel( Model ):
 				# Start state log-probability is already right. Don't touch it.
 				continue
 
-			# This holds the log total transition probability in from 
-			# all current-step silent states that can have transitions into 
-			# this state.  
+			# This holds the log total transition probability in from
+			# all current-step silent states that can have transitions into
+			# this state.
 			log_probability = NEGINF
 			for k in range( in_edges[l], in_edges[l+1] ):
 				ki = self.in_transitions[k]
@@ -1284,7 +1284,7 @@ cdef class HiddenMarkovModel( Model ):
 		for i in range( n ):
 			for l in range( self.silent_start ):
 				# Do the recurrence for non-silent states l
-				# This holds the log total transition probability in from 
+				# This holds the log total transition probability in from
 				# all previous states
 
 				log_probability = NEGINF
@@ -1295,13 +1295,13 @@ cdef class HiddenMarkovModel( Model ):
 					log_probability = pair_lse( log_probability,
 						f[i*m + ki] + self.in_transition_log_probabilities[k] )
 
-				# Now set the table entry for log probability of emitting 
+				# Now set the table entry for log probability of emitting
 				# index+1 characters and ending in state l
 				f[(i+1)*m + l] = log_probability + e[i + l*n]
 
 			for l in range( self.silent_start, m ):
 				# Now do the first pass over the silent states
-				# This holds the log total transition probability in from 
+				# This holds the log total transition probability in from
 				# all current-step non-silent states
 				log_probability = NEGINF
 				for k in range( in_edges[l], in_edges[l+1] ):
@@ -1320,8 +1320,8 @@ cdef class HiddenMarkovModel( Model ):
 				# Now the second pass through silent states, where we account
 				# for transitions between silent states.
 
-				# This holds the log total transition probability in from 
-				# all current-step silent states that can have transitions into 
+				# This holds the log total transition probability in from
+				# all current-step silent states that can have transitions into
 				# this state.
 				log_probability = NEGINF
 				for k in range( in_edges[l], in_edges[l+1] ):
@@ -1343,27 +1343,27 @@ cdef class HiddenMarkovModel( Model ):
 		"""Run the backward algorithm on the sequence.
 
 		Calculate the probability of each observation being aligned to each
-		state by going backward through a sequence. Returns the full backward 
-		matrix. Each index i, j corresponds to the sum-of-all-paths log 
-		probability of starting at the end of the sequence, and aligning 
-		observations to hidden states in such a manner that observation i was 
-		aligned to hidden state j. Uses row normalization to dynamically scale 
+		state by going backward through a sequence. Returns the full backward
+		matrix. Each index i, j corresponds to the sum-of-all-paths log
+		probability of starting at the end of the sequence, and aligning
+		observations to hidden states in such a manner that observation i was
+		aligned to hidden state j. Uses row normalization to dynamically scale
 		each row to prevent underflow errors.
 
 		If the sequence is impossible, will return a matrix of nans.
 
-		See also: 
+		See also:
 			- Silent state handling taken from p. 71 of "Biological
 		Sequence Analysis" by Durbin et al., and works for anything which
 		does not have loops of silent states.
-			- Row normalization technique explained by 
+			- Row normalization technique explained by
 		http://www.cs.sjsu.edu/~stamp/RUA/HMM.pdf on p. 14.
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
-		
+
 		Returns
 		-------
 		matrix : array-like, shape (len(sequence), n_states)
@@ -1396,7 +1396,7 @@ cdef class HiddenMarkovModel( Model ):
 		free(b)
 		return b_ndarray
 
-	cdef double* _backward( self, double* sequence, void** distributions, 
+	cdef double* _backward( self, double* sequence, void** distributions,
 		int n, double* emissions ) nogil:
 		cdef int i, ir, k, kr, l, li
 		cdef int p = self.silent_start, m = self.n_states
@@ -1415,10 +1415,10 @@ cdef class HiddenMarkovModel( Model ):
 			for l in range( self.silent_start ):
 				for i in range( n ):
 					if self.multivariate:
-						e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
+						e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
 							self.state_weights[l])
 					else:
-						e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
+						e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
 							self.state_weights[l])
 		else:
 			e = emissions
@@ -1442,9 +1442,9 @@ cdef class HiddenMarkovModel( Model ):
 			k = m - kr - 1
 
 			# Do the silent states' dependencies on each other.
-			# Doing it in reverse order ensures that anything we can 
+			# Doing it in reverse order ensures that anything we can
 			# possibly transition to is already done.
-			
+
 			if k == self.end_index:
 				# We already set the log-probability for this, so skip it
 				continue
@@ -1472,7 +1472,7 @@ cdef class HiddenMarkovModel( Model ):
 				break
 			# Do the non-silent states in the last step, which depend on
 			# current-step silent states.
-			
+
 			# This holds the total accumulated log probability of going
 			# to such states and continuing from there to the end.
 			log_probability = NEGINF
@@ -1503,7 +1503,7 @@ cdef class HiddenMarkovModel( Model ):
 
 				# Do the silent states' dependency on subsequent non-silent
 				# states, iterating backwards to match the order we use later.
-				
+
 				# This holds the log total probability that we go to some
 				# subsequent state that emits the right thing, and then continue
 				# from there to finish the sequence.
@@ -1528,9 +1528,9 @@ cdef class HiddenMarkovModel( Model ):
 				k = m - kr - 1
 
 				# Do the silent states' dependencies on each other.
-				# Doing it in reverse order ensures that anything we can 
+				# Doing it in reverse order ensures that anything we can
 				# possibly transition to is already done.
-				
+
 				# This holds the log total probability that we go to
 				# current-step silent states and then continue from there to
 				# finish the sequence.
@@ -1552,7 +1552,7 @@ cdef class HiddenMarkovModel( Model ):
 			for k in range( self.silent_start ):
 				# Do the non-silent states in the current step, which depend on
 				# subsequent non-silent states and current-step silent states.
-				
+
 				# This holds the total accumulated log probability of going
 				# to such states and continuing from there to the end.
 				log_probability = NEGINF
@@ -1588,7 +1588,7 @@ cdef class HiddenMarkovModel( Model ):
 
 	def forward_backward( self, sequence ):
 		"""Run the forward-backward algorithm on the sequence.
-		
+
 		This algorithm returns an emission matrix and a transition matrix. The
 		emission matrix returns the normalized probability that each each state
 		generated that emission given both the symbol and the entire sequence.
@@ -1597,17 +1597,17 @@ cdef class HiddenMarkovModel( Model ):
 
 		If the sequence is impossible, will return (None, None)
 
-		See also: 
+		See also:
 			- Forward and backward algorithm implementations. A comprehensive
 			description of the forward, backward, and forward-background
-			algorithm is here: 
+			algorithm is here:
 			http://en.wikipedia.org/wiki/Forward%E2%80%93backward_algorithm
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
-		
+
 		Returns
 		-------
 		emissions : array-like, shape (len(sequence), n_nonsilent_states)
@@ -1656,10 +1656,10 @@ cdef class HiddenMarkovModel( Model ):
 		for l in range( self.silent_start ):
 			for i in range( n ):
 				if self.multivariate:
-					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
+					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
 						self.state_weights[l])
 				else:
-					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
+					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
 
 		f = self._forward( sequence, distributions, n, e )
@@ -1670,9 +1670,9 @@ cdef class HiddenMarkovModel( Model ):
 		else:
 			log_sequence_probability = NEGINF
 			for i in range( self.silent_start ):
-				log_sequence_probability = pair_lse( 
+				log_sequence_probability = pair_lse(
 					log_sequence_probability, f[n*m + i] )
-		
+
 		# Is the sequence impossible? If so, don't bother calculating any more.
 		if log_sequence_probability == NEGINF:
 			print( "Warning: Sequence is impossible." )
@@ -1686,25 +1686,25 @@ cdef class HiddenMarkovModel( Model ):
 					continue
 
 				# For each state we could go to (and emit a character)
-				# Sum up probabilities that we later normalize by 
+				# Sum up probabilities that we later normalize by
 				# probability of sequence.
 				log_transition_emission_probability_sum = NEGINF
 
 				for i in range( n ):
 					# For each character in the sequence
-					# Add probability that we start and get up to state k, 
+					# Add probability that we start and get up to state k,
 					# and go k->l, and emit the symbol from l, and go from l
 					# to the end.
-					log_transition_emission_probability_sum = pair_lse( 
-						log_transition_emission_probability_sum, 
+					log_transition_emission_probability_sum = pair_lse(
+						log_transition_emission_probability_sum,
 						f[i*m + k] + self.out_transition_log_probabilities[l] +
 						e[i + li*n] + b[(i+1)*m + li] )
 
 				# Now divide by probability of the sequence to make it given
-				# this sequence, and add as this sequence's contribution to 
+				# this sequence, and add as this sequence's contribution to
 				# the expected transitions matrix's k, l entry.
 				expected_transitions[k*m + li] += cexp(
-					log_transition_emission_probability_sum - 
+					log_transition_emission_probability_sum -
 					log_sequence_probability )
 
 			for l in range( out_edges[k], out_edges[k+1] ):
@@ -1713,42 +1713,42 @@ cdef class HiddenMarkovModel( Model ):
 					continue
 
 				# For each silent state we can go to on the same character
-				# Sum up probabilities that we later normalize by 
+				# Sum up probabilities that we later normalize by
 				# probability of sequence.
 
 				log_transition_emission_probability_sum = NEGINF
 				for i in range( n+1 ):
 					# For each row in the forward DP table (where we can
-					# have transitions to silent states) of which we have 1 
+					# have transitions to silent states) of which we have 1
 					# more than we have symbols...
-						
-					# Add probability that we start and get up to state k, 
-					# and go k->l, and go from l to the end. In this case, 
-					# we use forward and backward entries from the same DP 
+
+					# Add probability that we start and get up to state k,
+					# and go k->l, and go from l to the end. In this case,
+					# we use forward and backward entries from the same DP
 					# table row, since no character is being emitted.
-					log_transition_emission_probability_sum = pair_lse( 
-						log_transition_emission_probability_sum, 
+					log_transition_emission_probability_sum = pair_lse(
+						log_transition_emission_probability_sum,
 						f[i*m + k] + self.out_transition_log_probabilities[l]
 						+ b[i*m + li] )
-					
+
 				# Now divide by probability of the sequence to make it given
-				# this sequence, and add as this sequence's contribution to 
+				# this sequence, and add as this sequence's contribution to
 				# the expected transitions matrix's k, l entry.
 				expected_transitions[k*m + li] += cexp(
 					log_transition_emission_probability_sum -
 					log_sequence_probability )
-				
+
 			if k < self.silent_start:
 				# Now think about emission probabilities from this state
-						  
+
 				for i in xrange( n ):
 					# For each symbol that came out
-		   
+
 					# What's the weight of this symbol for that state?
-					# Probability that we emit index characters and then 
-					# transition to state l, and that from state l we  
-					# continue on to emit len(sequence) - (index + 1) 
-					# characters, divided by the probability of the 
+					# Probability that we emit index characters and then
+					# transition to state l, and that from state l we
+					# continue on to emit len(sequence) - (index + 1)
+					# characters, divided by the probability of the
 					# sequence under the model.
 					# According to http://www1.icsi.berkeley.edu/Speech/
 					# docs/HTKBook/node7_mn.html, we really should divide by
@@ -1776,18 +1776,18 @@ cdef class HiddenMarkovModel( Model ):
 		silent states in the current step can trace back to other silent states
 		in the current step as well as states in the previous step.
 
-		See also: 
+		See also:
 			- Viterbi implementation described well in the wikipedia article
 			http://en.wikipedia.org/wiki/Viterbi_algorithm
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
 
 		Returns
 		-------
-		logp : double 
+		logp : double
 			The log probability of the sequence under the Viterbi path
 
 		path : list of tuples
@@ -1848,10 +1848,10 @@ cdef class HiddenMarkovModel( Model ):
 		for l in range( self.silent_start ):
 			for i in range( n ):
 				if self.multivariate:
-					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
+					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
 						self.state_weights[l])
 				else:
-					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
+					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
 
 		for i in range( m ):
@@ -1885,7 +1885,7 @@ cdef class HiddenMarkovModel( Model ):
 				# Do the recurrence for non-silent states l
 				# Start out saying the best likelihood we have is -inf
 				v[(i+1)*m + l] = NEGINF
-				
+
 				for k in range( in_edges[l], in_edges[l+1] ):
 					ki = self.in_transitions[k]
 
@@ -1981,29 +1981,32 @@ cdef class HiddenMarkovModel( Model ):
 		# we messed up the traceback)
 		# Record that we start at the start
 		path[i] = py
-
+		free(tracebackx)
+		free(tracebacky)
+		free(v)
+		free(e)
 		return log_probability
 
 	def predict_proba( self, sequence ):
 		"""Calculate the state probabilities for each observation in the sequence.
 
-		Run the forward-backward algorithm on the sequence and return the emission 
+		Run the forward-backward algorithm on the sequence and return the emission
 		matrix. This is the normalized probability that each each state
 		generated that emission given both the symbol and the entire sequence.
 
 		This is a sklearn wrapper for the forward backward algorithm.
 
-		See also: 
+		See also:
 			- Forward and backward algorithm implementations. A comprehensive
 			description of the forward, backward, and forward-background
-			algorithm is here: 
+			algorithm is here:
 			http://en.wikipedia.org/wiki/Forward%E2%80%93backward_algorithm
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
-		
+
 		Returns
 		-------
 		emissions : array-like, shape (len(sequence), n_nonsilent_states)
@@ -2015,23 +2018,23 @@ cdef class HiddenMarkovModel( Model ):
 	def predict_log_proba( self, sequence ):
 		"""Calculate the state log probabilities for each observation in the sequence.
 
-		Run the forward-backward algorithm on the sequence and return the emission 
+		Run the forward-backward algorithm on the sequence and return the emission
 		matrix. This is the log normalized probability that each each state
 		generated that emission given both the symbol and the entire sequence.
 
 		This is a sklearn wrapper for the forward backward algorithm.
 
-		See also: 
+		See also:
 			- Forward and backward algorithm implementations. A comprehensive
 			description of the forward, backward, and forward-background
-			algorithm is here: 
+			algorithm is here:
 			http://en.wikipedia.org/wiki/Forward%E2%80%93backward_algorithm
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
-		
+
 		Returns
 		-------
 		emissions : array-like, shape (len(sequence), n_nonsilent_states)
@@ -2058,23 +2061,23 @@ cdef class HiddenMarkovModel( Model ):
 		else:
 			log_sequence_probability = NEGINF
 			for i in range( self.silent_start ):
-				log_sequence_probability = pair_lse( 
+				log_sequence_probability = pair_lse(
 					log_sequence_probability, f[ n, i ] )
-		
+
 		# Is the sequence impossible? If so, don't bother calculating any more.
 		if log_sequence_probability == NEGINF:
 			print( "Warning: Sequence is impossible." )
 			return ( None, None )
 
-		for k in range( m ):				
-			if k < self.silent_start:				  
+		for k in range( m ):
+			if k < self.silent_start:
 				for i in range( n ):
 					# For each symbol that came out
 					# What's the weight of this symbol for that state?
-					# Probability that we emit index characters and then 
-					# transition to state l, and that from state l we  
-					# continue on to emit len(sequence) - (index + 1) 
-					# characters, divided by the probability of the 
+					# Probability that we emit index characters and then
+					# transition to state l, and that from state l we
+					# continue on to emit len(sequence) - (index + 1)
+					# characters, divided by the probability of the
 					# sequence under the model.
 					# According to http://www1.icsi.berkeley.edu/Speech/
 					# docs/HTKBook/node7_mn.html, we really should divide by
@@ -2095,7 +2098,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
 
 		algorithm : "map", "viterbi"
@@ -2103,12 +2106,12 @@ cdef class HiddenMarkovModel( Model ):
 
 		Returns
 		-------
-		logp : double 
+		logp : double
 			The log probability of the sequence under the Viterbi path
 
 		path : list of tuples
 			Tuples of (state index, state object) of the states along the
-			Viterbi path.	
+			Viterbi path.
 		"""
 
 		if algorithm == 'map':
@@ -2125,15 +2128,15 @@ cdef class HiddenMarkovModel( Model ):
 		notes/lecture5.pdf
 
 		WARNING: This may produce impossible sequences.
-		
+
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
 
 		Returns
 		-------
-		logp : double 
+		logp : double
 			The log probability of the sequence under the Viterbi path
 
 		path : list of tuples
@@ -2143,7 +2146,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		return self._maximum_a_posteriori( numpy.array( sequence ) )
 
-	
+
 	cdef tuple _maximum_a_posteriori( self, numpy.ndarray sequence ):
 		cdef int i, k, l, li
 		cdef int m=len(self.states), n=len(sequence)
@@ -2169,7 +2172,7 @@ cdef class HiddenMarkovModel( Model ):
 					maximum_index = l
 
 			path.append( ( maximum_index, self.states[maximum_index] ) )
-			log_probability_sum += maximum_emission_weight 
+			log_probability_sum += maximum_emission_weight
 
 		return log_probability_sum, path
 
@@ -2188,7 +2191,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
 
 		stop_threshold : double, optional
@@ -2251,9 +2254,9 @@ cdef class HiddenMarkovModel( Model ):
 		for i in range( len(sequences) ):
 			try:
 				sequences[i] = numpy.array( sequences[i], dtype='float64' )
-			except: 
-				sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
-													   sequences[i] ) ), 
+			except:
+				sequences[i] = numpy.array( list( map( self.keymap.__getitem__,
+													   sequences[i] ) ),
 											dtype='float64' )
 
 		if isinstance( sequences, numpy.ndarray ):
@@ -2261,7 +2264,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
 			while improvement > stop_threshold or iteration < min_iterations + 1:
-				self.from_summaries(transition_pseudocount, use_pseudocount, 
+				self.from_summaries(transition_pseudocount, use_pseudocount,
 					edge_inertia, distribution_inertia)
 
 				if iteration >= max_iterations + 1:
@@ -2299,7 +2302,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		raise Warning("Method is depricated. Use `fit` instead.")
 
-	def summarize( self, sequences, alg='baum-welch', n_jobs=1, parallel=None, 
+	def summarize( self, sequences, alg='baum-welch', n_jobs=1, parallel=None,
 		check_input=True ):
 		"""Summarize data into stored sufficient statistics for out-of-core
 		training. Only implemented for Baum-Welch training since Viterbi
@@ -2307,7 +2310,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		Parameters
 		----------
-		sequence : array-like 
+		sequence : array-like
 			An array (or list) of observations.
 
 		n_jobs : int, optional
@@ -2339,9 +2342,9 @@ cdef class HiddenMarkovModel( Model ):
 			for i in range( len(sequences) ):
 				try:
 					sequences[i] = numpy.array( sequences[i], dtype='float64' )
-				except: 
-					sequences[i] = numpy.array( list( map( self.keymap.__getitem__, 
-														   sequences[i] ) ), 
+				except:
+					sequences[i] = numpy.array( list( map( self.keymap.__getitem__,
+														   sequences[i] ) ),
 												dtype='float64' )
 
 		if isinstance( sequences, numpy.ndarray ):
@@ -2357,10 +2360,10 @@ cdef class HiddenMarkovModel( Model ):
 					sequence, self.distributions ) for sequence in sequences ]) )
 		else:
 			return sum( parallel([ delayed( self._viterbi_summarize, check_pickle=False )(
-					sequence, self.distributions ) for sequence in sequences ]) )		
+					sequence, self.distributions ) for sequence in sequences ]) )
 
 
-	def from_summaries( self, transition_pseudocount=0, 
+	def from_summaries( self, transition_pseudocount=0,
 		use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0 ):
 		"""Fit the model to the stored summary statistics.
 
@@ -2390,7 +2393,7 @@ cdef class HiddenMarkovModel( Model ):
 		if self.summaries == 0:
 			return
 
-		self._from_summaries( transition_pseudocount, use_pseudocount, 
+		self._from_summaries( transition_pseudocount, use_pseudocount,
 			edge_inertia, distribution_inertia )
 
 		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
@@ -2399,7 +2402,7 @@ cdef class HiddenMarkovModel( Model ):
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object.
 
-		Parameters 
+		Parameters
 		----------
 		None
 
@@ -2414,7 +2417,7 @@ cdef class HiddenMarkovModel( Model ):
 		for state in self.states[:self.silent_start]:
 			state.distribution.clear_summaries()
 
-	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, 
+	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray,
 		numpy.ndarray distributions_ndarray ):
 		"""Python wrapper for the summarization step.
 
@@ -2433,7 +2436,7 @@ cdef class HiddenMarkovModel( Model ):
 
 		return log_sequence_probability
 
-	cdef double __baum_welch_summarize( self, double* sequence, void** distributions, 
+	cdef double __baum_welch_summarize( self, double* sequence, void** distributions,
 		int n ) nogil:
 		"""Collect sufficient statistics on a single sequence."""
 
@@ -2442,7 +2445,7 @@ cdef class HiddenMarkovModel( Model ):
 		cdef int dim = self.d
 
 		cdef double log_sequence_probability
-		cdef double log_transition_emission_probability_sum 
+		cdef double log_transition_emission_probability_sum
 
 		cdef double* expected_transitions = <double*> calloc(self.n_edges, sizeof(double))
 		cdef double* f
@@ -2460,10 +2463,10 @@ cdef class HiddenMarkovModel( Model ):
 		for l in range( self.silent_start ):
 			for i in range( n ):
 				if self.multivariate:
-					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) + 
+					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
 						self.state_weights[l])
 				else:
-					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) + 
+					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
 
 		f = self._forward( sequence, distributions, n, e )
@@ -2477,7 +2480,7 @@ cdef class HiddenMarkovModel( Model ):
 				log_sequence_probability = pair_lse( f[n*m + i],
 					log_sequence_probability )
 
-		# Is the sequence impossible? If so, we can't train on it, so skip 
+		# Is the sequence impossible? If so, we can't train on it, so skip
 		# it
 		if log_sequence_probability != NEGINF:
 			for k in range( m ):
@@ -2488,25 +2491,25 @@ cdef class HiddenMarkovModel( Model ):
 						continue
 
 					# For each state we could go to (and emit a character)
-					# Sum up probabilities that we later normalize by 
+					# Sum up probabilities that we later normalize by
 					# probability of sequence.
 					log_transition_emission_probability_sum = NEGINF
 					for i in range( n ):
 						# For each character in the sequence
-						# Add probability that we start and get up to state k, 
+						# Add probability that we start and get up to state k,
 						# and go k->l, and emit the symbol from l, and go from l
 						# to the end.
-						log_transition_emission_probability_sum = pair_lse( 
-							log_transition_emission_probability_sum, 
-							f[i*m + k] + 
-							self.out_transition_log_probabilities[l] + 
+						log_transition_emission_probability_sum = pair_lse(
+							log_transition_emission_probability_sum,
+							f[i*m + k] +
+							self.out_transition_log_probabilities[l] +
 							e[i + li*n] + b[(i+1)*m + li] )
 
 					# Now divide by probability of the sequence to make it given
-					# this sequence, and add as this sequence's contribution to 
+					# this sequence, and add as this sequence's contribution to
 					# the expected transitions matrix's k, l entry.
 					expected_transitions[l] += cexp(
-						log_transition_emission_probability_sum - 
+						log_transition_emission_probability_sum -
 						log_sequence_probability)
 
 				for l in range( out_edges[k], out_edges[k+1] ):
@@ -2514,25 +2517,25 @@ cdef class HiddenMarkovModel( Model ):
 					if li < self.silent_start:
 						continue
 					# For each silent state we can go to on the same character
-					# Sum up probabilities that we later normalize by 
+					# Sum up probabilities that we later normalize by
 					# probability of sequence.
 					log_transition_emission_probability_sum = NEGINF
 					for i in range( n+1 ):
 						# For each row in the forward DP table (where we can
-						# have transitions to silent states) of which we have 1 
+						# have transitions to silent states) of which we have 1
 						# more than we have symbols...
 
-						# Add probability that we start and get up to state k, 
-						# and go k->l, and go from l to the end. In this case, 
-						# we use forward and backward entries from the same DP 
+						# Add probability that we start and get up to state k,
+						# and go k->l, and go from l to the end. In this case,
+						# we use forward and backward entries from the same DP
 						# table row, since no character is being emitted.
-						log_transition_emission_probability_sum = pair_lse( 
-							log_transition_emission_probability_sum, 
-							f[i*m + k] + self.out_transition_log_probabilities[l] 
+						log_transition_emission_probability_sum = pair_lse(
+							log_transition_emission_probability_sum,
+							f[i*m + k] + self.out_transition_log_probabilities[l]
 							+ b[i*m + li] )
 
 					# Now divide by probability of the sequence to make it given
-					# this sequence, and add as this sequence's contribution to 
+					# this sequence, and add as this sequence's contribution to
 					# the expected transitions matrix's k, l entry.
 					expected_transitions[l] += cexp(
 						log_transition_emission_probability_sum -
@@ -2557,17 +2560,17 @@ cdef class HiddenMarkovModel( Model ):
 					for i in range( n ):
 						# For each symbol that came out
 						# What's the weight of this symbol for that state?
-						# Probability that we emit index characters and then 
-						# transition to state l, and that from state l we  
-						# continue on to emit len(sequence) - (index + 1) 
-						# characters, divided by the probability of the 
+						# Probability that we emit index characters and then
+						# transition to state l, and that from state l we
+						# continue on to emit len(sequence) - (index + 1)
+						# characters, divided by the probability of the
 						# sequence under the model.
 						# According to http://www1.icsi.berkeley.edu/Speech/
 						# docs/HTKBook/node7_mn.html, we really should divide by
 						# sequence probability.
-						weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] - 
+						weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] -
 							log_sequence_probability )
-					
+
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
 							weights[i] += cexp( f[(i+1)*m + li] + b[(i+1)*m + li] -
@@ -2589,7 +2592,7 @@ cdef class HiddenMarkovModel( Model ):
 		free(b)
 		return log_sequence_probability
 
-	cpdef double _viterbi_summarize( self, numpy.ndarray sequence_ndarray, 
+	cpdef double _viterbi_summarize( self, numpy.ndarray sequence_ndarray,
 		numpy.ndarray distributions_ndarray ):
 		"""Python wrapper for the summarization step.
 
@@ -2611,9 +2614,9 @@ cdef class HiddenMarkovModel( Model ):
 	cdef double __viterbi_summarize( self, double* sequence, void** distributions,
 		int n, int m ) nogil:
 		"""Perform Viterbi re-estimation on the model parameters.
-		
-		The sequence is tagged using the viterbi algorithm, and both 
-		emissions and transitions are updated based on the probabilities 
+
+		The sequence is tagged using the viterbi algorithm, and both
+		emissions and transitions are updated based on the probabilities
 		in the observations.
 		"""
 
@@ -2669,7 +2672,7 @@ cdef class HiddenMarkovModel( Model ):
 					# Mark that we've visited this state
 					visited[k] = 1
 					memset(weights, 0, n*sizeof(double))
-					
+
 					# Mark that we've visited all other states in this state
 					# group.
 					for l in range( tied_states[k], tied_states[k+1] ):
@@ -2683,7 +2686,7 @@ cdef class HiddenMarkovModel( Model ):
 
 						if path[i] == k:
 							weights[j] = 1
-					
+
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
 
@@ -2701,9 +2704,9 @@ cdef class HiddenMarkovModel( Model ):
 		free(weights)
 		return log_probability
 
-	cdef void _from_summaries(self, double transition_pseudocount, 
+	cdef void _from_summaries(self, double transition_pseudocount,
 		bint use_pseudocount, double edge_inertia, double distribution_inertia ):
-		"""Update the transition matrix and emission distributions."""      
+		"""Update the transition matrix and emission distributions."""
 
 		cdef int k, i, l, li, m = len( self.states ), n, idx
 		cdef int* in_edges = self.in_edge_count
@@ -2730,7 +2733,7 @@ cdef class HiddenMarkovModel( Model ):
 			# We now have expected_transitions taking into account all sequences.
 			# And a list of all emissions, and a weighting of each emission for each
 			# state
-			# Normalize transition expectations per row (so it becomes transition 
+			# Normalize transition expectations per row (so it becomes transition
 			# probabilities)
 			# See http://stackoverflow.com/a/8904762/402891
 			# Only modifies transitions for states a transition was observed from.
@@ -2770,15 +2773,15 @@ cdef class HiddenMarkovModel( Model ):
 					for l in range( out_edges[k], out_edges[k+1] ):
 						li = self.out_transitions[l]
 						probability = ( expected_transitions[k*m + li] +
-							transition_pseudocount + 
+							transition_pseudocount +
 							self.out_transition_pseudocounts[l] * use_pseudocount)\
 							/ norm[k]
 						self.out_transition_log_probabilities[l] = _log(
-							cexp( self.out_transition_log_probabilities[l] ) * 
+							cexp( self.out_transition_log_probabilities[l] ) *
 							edge_inertia + probability * ( 1 - edge_inertia ) )
 
 				# Recalculate each transition in to that node and update the
-				# vector of in transitions appropriately 
+				# vector of in transitions appropriately
 				for l in range( in_edges[k], in_edges[k+1] ):
 					li = self.in_transitions[l]
 					if norm[li] > 0:
@@ -2786,7 +2789,7 @@ cdef class HiddenMarkovModel( Model ):
 							transition_pseudocount +
 							self.in_transition_pseudocounts[l] * use_pseudocount )\
 							/ norm[li]
-						self.in_transition_log_probabilities[l] = _log( 
+						self.in_transition_log_probabilities[l] = _log(
 							cexp( self.in_transition_log_probabilities[l] ) *
 							edge_inertia + probability * ( 1 - edge_inertia ) )
 
@@ -2797,7 +2800,7 @@ cdef class HiddenMarkovModel( Model ):
 				# waste time.
 				if visited[k] == 1:
 					continue
-				
+
 				# Mark that we've visited this state
 				visited[k] = 1
 
@@ -2807,13 +2810,13 @@ cdef class HiddenMarkovModel( Model ):
 					visited[li] = 1
 
 				# Re-estimate the emission distribution for every non-silent state.
-				# Take each emission weighted by the probability that we were in 
-				# this state when it came out, given that the model generated the 
+				# Take each emission weighted by the probability that we were in
+				# this state when it came out, given that the model generated the
 				# sequence that the symbol was part of. Take into account tied
 				# states by only training that distribution one time, since many
 				# states are pointing to the same distribution object.
 				with gil:
-					self.states[k].distribution.from_summaries( 
+					self.states[k].distribution.from_summaries(
 						inertia=distribution_inertia )
 
 		free(norm)
@@ -2825,20 +2828,20 @@ cdef class HiddenMarkovModel( Model ):
 
 		Parameters
 		----------
-		separators : tuple, optional 
+		separators : tuple, optional
 			The two separaters to pass to the json.dumps function for formatting.
 
 		indent : int, optional
 			The indentation to use at each level. Passed to json.dumps for
 			formatting.
-		
+
 		Returns
 		-------
 		json : str
 			A properly formatted JSON object.
 		"""
-		
-		model = { 
+
+		model = {
 					'class' : 'HiddenMarkovModel',
 					'name'  : self.name,
 					'start' : json.loads( self.start.to_json() ),
@@ -2854,7 +2857,7 @@ cdef class HiddenMarkovModel( Model ):
 		# Get the number of groups of edges which are tied
 		groups = []
 		n = self.n_tied_edge_groups-1
-		
+
 		# Go through each group one at a time
 		for i in xrange(n):
 			# Create an empty list for that group
@@ -2894,11 +2897,11 @@ cdef class HiddenMarkovModel( Model ):
 		model['distribution ties'] = ties
 		return json.dumps( model, separators=separators, indent=indent )
 
-			
+
 	@classmethod
 	def from_json( cls, s, verbose=False ):
 		"""Read in a serialized model and return the appropriate classifier.
-		
+
 		Parameters
 		----------
 		s : str
@@ -2938,13 +2941,13 @@ cdef class HiddenMarkovModel( Model ):
 
 		# Add all the edges to the model
 		for start, end, probability, pseudocount, group in d['edges']:
-			model.add_transition( states[start], states[end], probability, 
+			model.add_transition( states[start], states[end], probability,
 				pseudocount, group )
 
 		# Bake the model
 		model.bake( verbose=verbose )
 		return model
-	
+
 	@classmethod
 	def from_matrix( cls, transition_probabilities, distributions, starts, ends=None,
 		state_names=None, name=None, verbose=False, merge='All' ):
@@ -3001,7 +3004,7 @@ cdef class HiddenMarkovModel( Model ):
 		ends = [ .1., .1 ]
 		state_names= [ "A", "B" ]
 
-		model = Model.from_matrix( matrix, distributions, starts, ends, 
+		model = Model.from_matrix( matrix, distributions, starts, ends,
 			state_names, name="test_model" )
 		"""
 
@@ -3031,7 +3034,7 @@ cdef class HiddenMarkovModel( Model ):
 					model.add_transition( states[i], states[j], prob )
 
 		if ends is not None:
-			# Connect states to the end of the model if a non-zero probability 
+			# Connect states to the end of the model if a non-zero probability
 			for i, prob in enumerate( ends ):
 				if prob != 0:
 					model.add_transition( states[j], model.end, prob )
