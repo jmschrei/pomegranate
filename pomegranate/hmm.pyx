@@ -1202,10 +1202,10 @@ cdef class HiddenMarkovModel( Model ):
 
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
-		cdef double* f
 		cdef int n = len(sequence), m = len(self.states)
 		cdef void** distributions = <void**> self.distributions.data
 		cdef numpy.ndarray f_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
+		cdef double* f
 
 		try:
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64 )
@@ -1216,7 +1216,7 @@ cdef class HiddenMarkovModel( Model ):
 		sequence_data = <double*> sequence_ndarray.data
 
 		with nogil:
-			f = self._forward( sequence_data, distributions, n, NULL )
+			f = <double*> self._forward( sequence_data, distributions, n, NULL )
 
 		for i in range(n+1):
 			for j in range(m):

@@ -482,10 +482,11 @@ cdef class UniformDistribution( Distribution ):
 		cdef int i
 
 		for i in range(n):
-			if items[i] < minimum:
-				minimum = items[i]
-			if items[i] > maximum:
-				maximum = items[i]
+			if weights[i] > 0:
+				if items[i] < minimum:
+					minimum = items[i]
+				if items[i] > maximum:
+					maximum = items[i]
 
 		with gil:
 			if maximum > self.summaries[1]:
@@ -504,7 +505,7 @@ cdef class UniformDistribution( Distribution ):
 			return
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = NULL
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
 		cdef SIZE_t n = items.shape[0]
 
 		with nogil:
@@ -753,7 +754,7 @@ cdef class LogNormalDistribution( Distribution ):
 		"""
 
 		# If no summaries stored or the summary is frozen, don't do anything.
-		if len( self.summaries ) == 0 or self.frozen == True:
+		if self.summaries[0] == 0 or self.frozen == True:
 			return
 
 		mu = self.summaries[1] / self.summaries[0]
@@ -963,6 +964,9 @@ cdef class BetaDistribution( Distribution ):
 
 	def from_summaries( self, inertia=0.0 ):
 		"""Use the summaries in order to update the distribution."""
+
+		if self.frozen == True:
+			return
 
 		summaries = numpy.array( self.summaries )
 
@@ -1475,7 +1479,7 @@ cdef class DiscreteDistribution( Distribution ):
 	def from_summaries( self, inertia=0.0 ):
 		"""Use the summaries in order to update the distribution."""
 
-		if self.summaries[1] == 0:
+		if self.summaries[1] == 0 or self.frozen == True:
 			return
 
 		if self.encoded_summary == 0:
@@ -1551,7 +1555,7 @@ cdef class PoissonDistribution(Distribution):
 		cdef double factorial = 1.0
 		cdef int i
 
-		if symbol < 0:
+		if symbol < 0 or self.l == 0:
 			return NEGINF
 
 		elif symbol > 1:
@@ -1616,7 +1620,7 @@ cdef class PoissonDistribution(Distribution):
 		"""
 
 		# If the distribution is frozen, don't bother with any calculation
-		if self.frozen == True:
+		if self.frozen == True or self.summaries[0] < 1e-7:
 			return
 
 		x_sum, w_sum = self.summaries
