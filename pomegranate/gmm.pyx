@@ -16,6 +16,7 @@ cimport numpy
 
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
+from .utils import _convert
 from .utils cimport _log
 from .utils cimport pair_lse
 
@@ -221,7 +222,7 @@ cdef class Kmeans( object ):
 			The index of the nearest centroid.
 		"""
 
-		X = numpy.array(X)
+		X = _convert( X )
 		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 		cdef int n, d
 
@@ -338,15 +339,26 @@ cdef class GeneralMixtureModel( Distribution ):
 	def __init__( self, distributions, weights=None, n_components=None ):
 		if callable(distributions):
 			self.initialized = False
+			self.d = 0
 			self.n = n_components
 			self.distribution_callable = distributions
 		else:
 			self.initialized = True
+			if callable(distributions[0]):
+				raise TypeError("must have initialized models in list")
+			else:
+				self.d = distributions[0].d
+
+			for dist in distributions:
+				if callable(dist):
+					raise TypeError("must have initialized models in list")
+				elif self.d != dist.d:
+					raise TypeError("mis-matching dimensions between models in list")
 
 			if weights is None:
 				weights = numpy.ones_like(distributions, dtype=float) / len( distributions )
 			else:
-				weights = numpy.asarray(weights) / weights.sum()
+				weights = numpy.asarray(weights) / sum(weights)
 
 			self.weights = numpy.log( weights )
 			self.weights_ptr = <double*> self.weights.data
@@ -358,15 +370,14 @@ cdef class GeneralMixtureModel( Distribution ):
 			self.summaries_ptr = <double*> self.summaries_ndarray.data
 
 			self.n = len(distributions)
-			self.d = distributions[0].d
 
 		if self.initialized and isinstance( self.distributions[0], DiscreteDistribution ):
 			keys = []
-			for d in self.distributions:
-				keys.extend( d.keys() )
+			for dist in self.distributions:
+				keys.extend( dist.keys() )
 			self.keymap = { key: i for i, key in enumerate(set(keys)) }
-			for d in self.distributions:
-				d.encode( tuple(set(keys)) )
+			for dist in self.distributions:
+				dist.encode( tuple(set(keys)) )
 
 	def sample( self, n=1 ):
 		"""Generate a sample from the model.
@@ -421,13 +432,19 @@ cdef class GeneralMixtureModel( Distribution ):
 		if not self.initialized:
 			raise ValueError("must first fit model before using log probability method.")
 
+		if (type(point) is float or type(point) is int) and self.d != 1:
+			raise ValueError("input point does not match model dimension")
+
+		if type(point) is list and len(point) != self.d:
+			raise ValueError("input point does not match model dimension")
+
 		n = len( self.distributions )
 		log_probability_sum = NEGINF
 
 		for i in xrange( n ):
 			d = self.distributions[i]
 			log_probability = d.log_probability( point ) + self.weights[i]
-			log_probability_sum = pair_lse( log_probability_sum,log_probability )
+			log_probability_sum = pair_lse( log_probability_sum, log_probability )
 
 		return log_probability_sum
 
@@ -553,6 +570,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		cdef int n = len(items), d = len(items[0])
 		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+		
+		if d != self.d:
+			raise ValueError("input data rows do not match model dimension")
 
 		cdef double* items_ptr = <double*> items_ndarray.data
 		cdef numpy.ndarray y = numpy.zeros((n, self.n))
@@ -606,6 +626,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		n, d = len(items), len(items[0])
 		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+
+		if d != self.d:
+			raise ValueError("input data rows do not match model dimension")
 
 		cdef double* items_ptr = <double*> items_ndarray.data
 		cdef int* y_ptr = self._predict( items_ptr, n, d, self.n )
