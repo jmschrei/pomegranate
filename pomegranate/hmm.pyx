@@ -1956,6 +1956,10 @@ cdef class HiddenMarkovModel( Model ):
 					end_index = i
 
 		if log_probability == NEGINF:
+			free(tracebackx)
+			free(tracebacky)
+			free(v)
+			free(e)
 			return log_probability
 
 		# Otherwise, do the traceback
