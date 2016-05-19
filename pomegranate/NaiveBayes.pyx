@@ -13,6 +13,7 @@ from libc.math cimport exp as cexp
 from .distributions cimport Distribution
 from .hmm import HiddenMarkovModel
 from .utils cimport pair_lse
+from .utils import _convert
 
 cdef double NEGINF = float("-inf")
 
@@ -58,23 +59,35 @@ cdef class NaiveBayes( object ):
            [-0.26751248, -1.4493653 ],
            [-1.09861229, -0.40546511]])
     """
-
+    
     cdef int initialized
     cdef public object models
     cdef void** models_ptr
     cdef numpy.ndarray summaries
     cdef public numpy.ndarray weights
     cdef double* weights_ptr
+    # dimension of inputs, 0 is dimensionless, -1 if uninitialized
+    cdef public int d
 
     def __init__( self, models=None, weights=None ):
         if not callable(models) and not isinstance(models, list): 
             raise ValueError("must either give initial models or constructor")
 
         self.summaries = None
-        self.initialized = False
+        self.d = 0
+        
+        if type(models) is list:
+            for model in models:
+                if callable(model):
+                    raise TypeError("must have initialized models in list")
+                elif self.d == 0 and not isinstance( model, HiddenMarkovModel ):
+                    self.d = model.d
+                elif not isinstance( model, HiddenMarkovModel ) and self.d != model.d:
+                    raise TypeError("mis-matching dimensions between models in list")
 
-        if not callable(models):
-            self.initialized = True
+            if self.d == 0:
+                self.d = 1
+            
             self.summaries = numpy.zeros(len(models))
 
             self.models = numpy.array( models )
@@ -117,7 +130,6 @@ cdef class NaiveBayes( object ):
         self.from_summaries( inertia )
         return self
 
-
     def summarize( self, X, y, weights=None ):
         """Summarize data into stored sufficient statistics for out-of-core training.
 
@@ -138,8 +150,14 @@ cdef class NaiveBayes( object ):
         None
         """
 
-        X = numpy.array(X)
-        y = numpy.array(y)
+        X = _convert(X)
+        y = _convert(y)
+
+        if not isinstance( self.models[0], HiddenMarkovModel ):
+            if X.ndim > 2:
+                raise ValueError("input data has too many dimensions")
+            elif X.ndim == 2 and self.d != X.shape[1]:
+                raise ValueError("input data rows do not match model dimension")
 
         if weights is None:
             weights = numpy.ones(X.shape[0]) / X.shape[0]
@@ -151,18 +169,24 @@ cdef class NaiveBayes( object ):
 
         n = numpy.unique(y).shape[0]
 
-        if not self.initialized:
+        if self.d == 0:
             self.models = [self.models] * n
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
             self.summaries = numpy.zeros(n)
-            self.initialized = True
+            if isinstance(self.models[0], HiddenMarkovModel):
+                self.d = 0
+            else:
+                self.d = self.models[0].d
         elif n != len(self.models):
             self.models = [self.models[0].__class__] * n
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
             self.summaries = numpy.zeros(n)
-            self.initialized = True
+            if isinstance(self.models[0], HiddenMarkovModel):
+                self.d = 0
+            else:
+                self.d = self.models[0].d
 
         n = len(self.models)
 
@@ -223,10 +247,17 @@ cdef class NaiveBayes( object ):
             log of the posterior probability P(M|D) from Bayes rule.
         """
 
-        X = numpy.array(X)
+        X = _convert(X)
 
-        if self.initialized == 0:
+        if self.d == 0:
             raise ValueError("must fit components to the data before prediction,")
+
+        if not isinstance( self.models[0], HiddenMarkovModel ):
+            if X.ndim > 2:
+                raise ValueError("input data has too many dimensions")
+            elif ( X.ndim == 1 and self.d != 1 ) or ( X.ndim == 2 and self.d != X.shape[1] ):
+                raise ValueError("input data rows do not match model dimension")
+
 
         n, m = X.shape[0], len(self.models)
         r = numpy.zeros( (n, m), dtype=numpy.float64 )
@@ -261,10 +292,16 @@ cdef class NaiveBayes( object ):
             posterior probability P(M|D) from Bayes rule.
         """
 
-        X = numpy.array(X)
+        X = _convert( X )
 
-        if self.initialized == 0:
+        if self.d == 0:
             raise ValueError("must fit components to the data before prediction,")
+
+        if not isinstance( self.models[0], HiddenMarkovModel ):
+            if X.ndim > 2:
+                raise ValueError("input data has too many dimensions")
+            elif ( X.ndim == 1 and self.d != 1 ) or ( X.ndim == 2 and self.d != X.shape[1] ):
+                raise ValueError("input data rows do not match model dimension")
 
         n, m = X.shape[0], len(self.models)
         r = numpy.zeros( (n, m), dtype=numpy.float64 )
@@ -298,10 +335,18 @@ cdef class NaiveBayes( object ):
             posterior probability P(M|D) from Bayes rule.
         """
 
-        if self.initialized == 0:
+        X = _convert( X )
+
+        if self.d == 0:
             raise ValueError("must fit components to the data before prediction,")
 
-        return self._predict( numpy.array(X) )
+        if not isinstance( self.models[0], HiddenMarkovModel ):
+            if X.ndim > 2:
+                raise ValueError("input data has too many dimensions")
+            elif ( X.ndim == 1 and self.d != 1 ) or ( X.ndim == 2 and self.d != X.shape[1] ):
+                raise ValueError("input data rows do not match model dimension")
+
+        return self._predict( X )
 
     cdef numpy.ndarray _predict( self, numpy.ndarray X ):
         cdef int i, j, m = len(self.models), n = X.shape[0]
