@@ -1956,6 +1956,10 @@ cdef class HiddenMarkovModel( Model ):
 					end_index = i
 
 		if log_probability == NEGINF:
+			free(tracebackx)
+			free(tracebacky)
+			free(v)
+			free(e)
 			return log_probability
 
 		# Otherwise, do the traceback
@@ -1981,7 +1985,10 @@ cdef class HiddenMarkovModel( Model ):
 		# we messed up the traceback)
 		# Record that we start at the start
 		path[i] = py
-
+		free(tracebackx)
+		free(tracebacky)
+		free(v)
+		free(e)
 		return log_probability
 
 	def predict_proba( self, sequence ):
