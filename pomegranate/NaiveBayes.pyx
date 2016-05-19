@@ -14,6 +14,7 @@ from .distributions cimport Distribution
 from .hmm import HiddenMarkovModel
 from .utils cimport pair_lse
 from .utils import _convert
+import json
 
 cdef double NEGINF = float("-inf")
 
@@ -365,3 +366,29 @@ cdef class NaiveBayes( object ):
                     y_ptr[i] = j
 
         return y
+
+    def to_json( self, separators=(',', ' : '), indent=4 ):
+        nb = {
+            'class' : 'NaiveBayes',
+            'models' : [ json.loads( model.to_json() ) for model in self.models ],
+            'weights' : self.weights.tolist()
+        }
+
+        return json.dumps( nb, separators=separators, indent=indent )
+
+    def from_json( cls, s ):
+        try:
+            d = json.loads( s )
+        except:
+            try:
+                with open( s, 'r' ) as f:
+                    d = json.load( f )
+            except:
+                raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
+                
+        models = [ Distribution.from_json( json.dumps(j) ) for j in d['models'] ]
+        nb = NaiveBayes(models, numpy.array( d['weights'] ))
+        return nb
+
+    def __str__( self ):
+        return self.to_json()
