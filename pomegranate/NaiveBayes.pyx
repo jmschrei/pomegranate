@@ -377,7 +377,15 @@ cdef class NaiveBayes( object ):
         return json.dumps( nb, separators=separators, indent=indent )
 
     def from_json( cls, s ):
-        d = json.loads( s )
+        try:
+            d = json.loads( s )
+        except:
+            try:
+                with open( s, 'r' ) as f:
+                    d = json.load( f )
+            except:
+                raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
+                
         models = [ Distribution.from_json( json.dumps(j) ) for j in d['models'] ]
         nb = NaiveBayes(models, numpy.array( d['weights'] ))
         return nb
