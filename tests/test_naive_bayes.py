@@ -62,6 +62,12 @@ def setup_bayesnet():
 	# TODO: create test cases for bayesian networks
 	pass
 
+def setup_all():
+	setup_univariate()
+	setup_multivariate()
+	setup_hmm()
+	setup_bayesnet()
+
 def teardown():
 	pass
 
@@ -81,6 +87,8 @@ def test_univariate_distributions():
 	assert_almost_equal( uniform.log_probability( 0 ), -2.3025850929940455 )
 	assert_almost_equal( uniform.log_probability( -1 ), -float('inf') )
 
+	assert_equal( univariate.d, 1 )
+
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_distributions():
 	assert_almost_equal( multi.log_probability([ 11, 11 ]), -20.531024246969945 )
@@ -96,6 +104,8 @@ def test_multivariate_distributions():
 	assert_almost_equal( indie.log_probability([ 5, 5 ]), -4.605170185988091 )
 	assert_almost_equal( indie.log_probability([ 0, 0 ]), -4.605170185988091 )
 	assert_almost_equal( indie.log_probability([ -1, -1 ]), -float('inf') )
+
+	assert_equal( multivariate.d, 2 )
 
 @with_setup( setup_hmm, teardown )
 def test_hmms():
@@ -119,6 +129,8 @@ def test_hmms():
 	assert_almost_equal( smart.log_probability( list('THTHTHTHTHTH') ), -8.883630243546788 )
 	assert_almost_equal( smart.log_probability( list('THTHHHHHTHTH') ), -7.645551826734343 )
 
+	assert_equal( hmms.d, 1 )
+
 def test_constructors():
 	# check for value error when supplied no information
 	assert_raises( ValueError, NaiveBayes )
@@ -129,11 +141,9 @@ def test_constructors():
 	NaiveBayes( HiddenMarkovModel )
 
 	# check if error is thrown
-	#NaiveBayes([ normal, multi ])
-	#NaiveBayes([ indie, dumb ])
-	#NaiveBayes([ fait, uniform ])
+	assert_raises( TypeError, NaiveBayes, [ normal, multi ] )
+	assert_raises( TypeError, NaiveBayes, [ NormalDistribution, normal ] )
 
-	# TODO:nick check for proper error if two distributions with mismatching inputs are used
 	# TODO:nick check that predict throws error if input is mismatched and not hmms
 
 @with_setup( setup_univariate, teardown )
@@ -418,13 +428,44 @@ def test_hmm_fit():
 	assert_equal( predicts[3], 1 )
 	assert_equal( predicts[4], 1 )
 
+@with_setup( setup_all, teardown )
 def test_raise_errors():
-	# run on all other cases that should raise errors in combination
-	# example, constructing with objects with no parameters,
-	#	then running predict methods before fit
-	
 	# check if fit first ValueError is thrown
 	train_error = NaiveBayes( MultivariateGaussianDistribution )
 	assert_raises( ValueError, train_error.predict, [ 1, 2, 3 ] )
 	assert_raises( ValueError, train_error.predict_proba, [ 1, 2, 3 ] )
 	assert_raises( ValueError, train_error.predict_log_proba, [ 1, 2, 3 ] )
+
+	# check raises no errors when converting values
+	univariate.predict_log_proba( 5 )
+	univariate.predict_log_proba( 4.5 )
+	univariate.predict_log_proba([ 5, 6 ])
+	univariate.predict_log_proba( np.array([ 5, 6 ]) )
+
+	univariate.predict_proba( 5 )
+	univariate.predict_proba( 4.5 )
+	univariate.predict_proba([ 5, 6 ])
+	univariate.predict_proba( np.array([ 5, 6 ]) )
+
+	univariate.predict( 5 )
+	univariate.predict( 4.5 )
+	univariate.predict([ 5, 6 ])
+	univariate.predict( np.array([ 5, 6 ]) )
+
+	# check raises error when wrong dimension data is input
+	assert_raises( ValueError, multivariate.predict_log_proba, 5 )
+	assert_raises( ValueError, multivariate.predict_log_proba, [ 5 ] )
+	assert_raises( ValueError, multivariate.predict_log_proba, [[ 1 ], [ 2 ], [ 3 ], [ 4 ]] )
+	assert_raises( ValueError, multivariate.predict_log_proba, [[ 1, 2, 3 ], [ 4, 5, 6 ]] )
+
+	assert_raises( ValueError, multivariate.predict_proba, 5 )
+	assert_raises( ValueError, multivariate.predict_proba, [ 5 ] )
+	assert_raises( ValueError, multivariate.predict_proba, [[ 1 ], [ 2 ], [ 3 ], [ 4 ]] )
+	assert_raises( ValueError, multivariate.predict_proba, [[ 1, 2, 3 ],[ 4, 5, 6 ]] )
+
+	assert_raises( ValueError, multivariate.predict, 5 )
+	assert_raises( ValueError, multivariate.predict, [ 5 ] )
+	assert_raises( ValueError, multivariate.predict, [[ 1 ], [ 2 ], [ 3 ], [ 4 ]] )
+	assert_raises( ValueError, multivariate.predict, [[ 1, 2, 3 ], [ 4, 5, 6 ]] )
+
+	# special case for hmm's
