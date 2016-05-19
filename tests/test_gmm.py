@@ -32,7 +32,6 @@ def teardown():
 	"""
 	Teardown the model, so delete it.
 	"""
-
 	pass
 
 
@@ -167,3 +166,7 @@ def test_initialization():
 	gmm1 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
 	gmm2 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
 	assert_greater( gmm.fit(X), gmm.fit(X, max_iterations=1) )
+
+	assert_raises( TypeError, GeneralMixtureModel, [NormalDistribution, NormalDistribution(5, 2)] )
+	assert_raises( TypeError, GeneralMixtureModel, [NormalDistribution(5, 2), NormalDistribution] )
+	assert_raises( TypeError, GeneralMixtureModel, [NormalDistribution(5, 2), MultivariateGaussianDistribution([5, 2], [[1, 0], [0, 1]])] )

@@ -8,6 +8,7 @@ from libc.math cimport floor
 from libc.math cimport fabs
 
 cimport numpy
+import numpy
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -15,6 +16,16 @@ DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 DEF GAMMA = 0.577215664901532860606512090
 DEF HALF_LOG2_PI = 0.91893853320467274178032973640562
+
+cpdef numpy.ndarray _convert( data ):
+	if type(data) is numpy.ndarray:
+		return data
+	if type(data) is int:
+		return numpy.array( [data] )
+	if type(data) is float:
+		return numpy.array( [data] )
+	if type(data) is list:
+		return numpy.array( data )
 
 # Useful speed optimized functions
 cdef double _log(double x) nogil:
