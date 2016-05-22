@@ -74,6 +74,8 @@ cdef class BayesianNetwork( Model ):
 	[['B', 'A']]
 	"""
 
+	cdef public int d
+
 	def bake( self ): 
 		"""Finalize the topology of the model.
 
@@ -106,10 +108,17 @@ cdef class BayesianNetwork( Model ):
 		d_mapping = {}
 		fa_mapping = {}
 
+		self.d = 0
+
 		# Go through each state and add in the state if it is a marginal
 		# distribution, otherwise add in the appropriate marginal and
 		# conditional distribution as separate nodes.
 		for i, state in enumerate( self.states ):
+			if self.d == 0:
+				self.d = state.distribution.d
+			elif self.d != state.distribution.d:
+				raise TypeError("states do not have the same number of inputs")
+
 			# For every state (ones with conditional distributions or those
 			# encoding marginals) we need to create a marginal node in the
 			# underlying factor graph. 

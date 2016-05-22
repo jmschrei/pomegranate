@@ -153,7 +153,7 @@ cdef class HiddenMarkovModel( Model ):
 	cdef double [:] state_weights
 	cdef bint discrete
 	cdef bint multivariate
-	cdef int d
+	cdef public int d
 	cdef int summaries
 	cdef int* tied_state_count
 	cdef int* tied
@@ -185,6 +185,7 @@ cdef class HiddenMarkovModel( Model ):
 		self.start = start or State( None, name=self.name + "-start" )
 		self.end = end or State( None, name=self.name + "-end" )
 
+		self.d = 0
 		self.n_edges = 0
 		self.n_states = 0
 		self.discrete = 0
@@ -959,13 +960,8 @@ cdef class HiddenMarkovModel( Model ):
 			for state in states:
 				state.distribution.encode( tuple(set(keys)) )
 
-		if isinstance( dist, MultivariateDistribution ):
-			self.multivariate = 1
-			self.d = dist.d
-		if isinstance( dist, GeneralMixtureModel ) and dist.d > 1:
-			self.multivariate = 1
-			self.d = dist.d
-
+		self.d = dist.d
+		
 		self.distributions = numpy.empty(self.silent_start, dtype='object')
 		for i in range(self.silent_start):
 			self.distributions[i] = self.states[i].distribution

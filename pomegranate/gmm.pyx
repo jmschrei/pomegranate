@@ -92,8 +92,6 @@ cdef class Kmeans( object ):
 	def __init__( self, k ):
 		self.k = k
 		self.d = 0
-		self.initialized = False
-
 
 	def __dealloc__( self ):
 		free(self.summary_sizes)
@@ -139,14 +137,13 @@ cdef class Kmeans( object ):
 		cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1], i, j
 		cdef double* X_ptr = <double*> X_ndarray.data
 
-		if not self.initialized:
+		if self.d == 0:
 			self.d = d
 			self.centroids = numpy.zeros((self.k, d))
 			self.centroids_ptr = <double*> self.centroids.data
 			self.summary_sizes = <double*> calloc(self.k, sizeof(double))
 			self.summary_weights = <double*> calloc(self.k*d, sizeof(double))
 
-			self.initialized = True
 			for i in range(self.k):
 				for j in range(d):
 					self.centroids_ptr[i*d + j] = X_ptr[i*d + j]
@@ -323,7 +320,6 @@ cdef class GeneralMixtureModel( Distribution ):
 	}], dtype=object)
 	"""
 
-
 	cdef public numpy.ndarray distributions
 	cdef object distribution_callable
 	cdef public numpy.ndarray weights
@@ -333,15 +329,27 @@ cdef class GeneralMixtureModel( Distribution ):
 	cdef double* summaries_ptr
 	cdef dict keymap
 	cdef int n
-	cdef int initialized
-
+	
 	def __init__( self, distributions, weights=None, n_components=None ):
+		if not callable(distributions) and not isinstance(distributions, list):
+			raise ValueError("must either give initial distributions or constructor")
+
+		self.d = 0
+
 		if callable(distributions):
-			self.initialized = False
 			self.n = n_components
 			self.distribution_callable = distributions
 		else:
-			self.initialized = True
+			if len(distributions) < 2:
+				raise ValueError("must have at least two distributions for general mixture models")
+
+			for dist in distributions:
+				if callable(dist):
+					raise TypeError("must have initialized distributions in list")
+				elif self.d == 0:
+					self.d = dist.d
+				elif self.d != dist.d:
+					raise TypeError("mis-matching dimensions between distributions in list")
 
 			if weights is None:
 				weights = numpy.ones_like(distributions, dtype=float) / len( distributions )
@@ -358,9 +366,8 @@ cdef class GeneralMixtureModel( Distribution ):
 			self.summaries_ptr = <double*> self.summaries_ndarray.data
 
 			self.n = len(distributions)
-			self.d = distributions[0].d
 
-		if self.initialized and isinstance( self.distributions[0], DiscreteDistribution ):
+		if self.d > 0 and isinstance( self.distributions[0], DiscreteDistribution ):
 			keys = []
 			for d in self.distributions:
 				keys.extend( d.keys() )
@@ -418,7 +425,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			The log probabiltiy of the point under the distribution.
 		"""
 
-		if not self.initialized:
+		if self.d == 0:
 			raise ValueError("must first fit model before using log probability method.")
 
 		n = len( self.distributions )
@@ -520,7 +527,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			probability that the sample was generated from each component.
 		"""
 
-		if not self.initialized:
+		if self.d == 0:
 			raise ValueError("must first fit model before using predict proba method.")
 
 		return numpy.exp( self.predict_log_proba( items ) )
@@ -548,7 +555,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			the probability that the sample was generated from each component.
 		"""
 
-		if not self.initialized:
+		if self.d == 0:
 			raise ValueError("must first fit model before using predict log proba method.")
 
 		cdef int n = len(items), d = len(items[0])
@@ -601,7 +608,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			The index of the component which fits the sample the best.
 		"""
 
-		if not self.initialized:
+		if self.d == 0:
 			raise ValueError("must first fit model before using predict method.")
 
 		n, d = len(items), len(items[0])
@@ -688,7 +695,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
 
 		# If not initialized then we need to do kmeans initialization.
-		if self.initialized == False or d != self.d:
+		if self.d == 0 or d != self.d:
 			kmeans = Kmeans(self.n)
 			kmeans.fit(items_ndarray, max_iterations=1)
 			y = kmeans.predict(items)
@@ -705,7 +712,6 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			self.n = len(distributions)
 			self.d = distributions[0].d
-			self.initialized = True
 
 		cdef double* X_ptr = <double*> items_ndarray.data
 

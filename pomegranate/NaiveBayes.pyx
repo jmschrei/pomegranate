@@ -61,16 +61,14 @@ cdef class NaiveBayes( object ):
            [-1.09861229, -0.40546511]])
     """
     
-    cdef int initialized
     cdef public object models
     cdef void** models_ptr
     cdef numpy.ndarray summaries
     cdef public numpy.ndarray weights
     cdef double* weights_ptr
-    # dimension of inputs, 0 is dimensionless, -1 if uninitialized
     cdef public int d
 
-    def __init__( self, models=None, weights=None ):
+    def __init__( self, models, weights=None ):
         if not callable(models) and not isinstance(models, list): 
             raise ValueError("must either give initial models or constructor")
 
@@ -78,6 +76,9 @@ cdef class NaiveBayes( object ):
         self.d = 0
         
         if type(models) is list:
+            if len(models) < 2:
+                raise ValueError("must have at least two models for comparison")
+
             for model in models:
                 if callable(model):
                     raise TypeError("must have initialized models in list")
@@ -85,9 +86,13 @@ cdef class NaiveBayes( object ):
                     self.d = model.d
                 elif not isinstance( model, HiddenMarkovModel ) and self.d != model.d:
                     raise TypeError("mis-matching dimensions between models in list")
+                elif self.d > 0 and isinstance( model, HiddenMarkovModel ) and model.d != 1:
+                    raise TypeError("can only compare multi-dimensional hmms with other multi-dimensional hmms")
 
             if self.d == 0:
-                self.d = 1
+                self.d = models[0].d
+                if sum([self.d == model.d for model in models]) != len(models):
+                    raise TypeError("mis-matching dimensions between hidden markov models")
             
             self.summaries = numpy.zeros(len(models))
 
