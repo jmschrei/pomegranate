@@ -892,3 +892,10 @@ cdef class GeneralMixtureModel( Distribution ):
 		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ] 
 		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
 		return model
+
+	def __str__( self ):
+		try:
+			return self.to_json()
+		except:
+			return self.__repr__()
+

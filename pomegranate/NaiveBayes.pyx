@@ -339,7 +339,7 @@ cdef class NaiveBayes( object ):
         X = _convert( X )
 
         if self.d == 0:
-            raise ValueError("must fit components to the data before prediction,")
+            raise ValueError("must fit components to the data before prediction")
 
         if not isinstance( self.models[0], HiddenMarkovModel ):
             if X.ndim > 2:
@@ -368,6 +368,9 @@ cdef class NaiveBayes( object ):
         return y
 
     def to_json( self, separators=(',', ' : '), indent=4 ):
+        if self.model == 0:
+            raise ValueError("must fit componenets to the data before prediction")
+
         nb = {
             'class' : 'NaiveBayes',
             'models' : [ json.loads( model.to_json() ) for model in self.models ],
@@ -385,10 +388,13 @@ cdef class NaiveBayes( object ):
                     d = json.load( f )
             except:
                 raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-                
+
         models = [ Distribution.from_json( json.dumps(j) ) for j in d['models'] ]
         nb = NaiveBayes(models, numpy.array( d['weights'] ))
         return nb
 
     def __str__( self ):
-        return self.to_json()
+        try:
+            return self.to_json()
+        except:
+            return self.__repr__()
