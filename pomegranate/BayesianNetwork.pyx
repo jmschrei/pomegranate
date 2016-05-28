@@ -74,8 +74,6 @@ cdef class BayesianNetwork( Model ):
 	[['B', 'A']]
 	"""
 
-	cdef public int d
-
 	def bake( self ): 
 		"""Finalize the topology of the model.
 
@@ -107,8 +105,6 @@ cdef class BayesianNetwork( Model ):
 		f_mapping, m_mapping = {}, {}
 		d_mapping = {}
 		fa_mapping = {}
-
-		self.d = 0
 
 		# Go through each state and add in the state if it is a marginal
 		# distribution, otherwise add in the appropriate marginal and
@@ -184,6 +180,9 @@ cdef class BayesianNetwork( Model ):
 			The log probability of that sample.
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before computing probability")
+
 		indices = { state.distribution: i for i, state in enumerate( self.states ) }
 		logp = 0.0
 
@@ -216,6 +215,9 @@ cdef class BayesianNetwork( Model ):
 			An array of univariate distribution objects showing the marginal
 			probabilities of that variable.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before computing marginal")
 
 		return self.graph.marginal()
 
@@ -255,6 +257,9 @@ cdef class BayesianNetwork( Model ):
 			of each variable.
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before prediction")
+
 		return self.forward_backward( data, max_iterations, check_input )
 
 	def forward_backward( self, data={}, max_iterations=100, check_input=True ):
@@ -290,6 +295,9 @@ cdef class BayesianNetwork( Model ):
 			An array of univariate distribution objects showing the probabilities
 			of each variable.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using forward-backward algorithm")
 
 		if check_input:
 			indices = { state.name: state.distribution for state in self.states }
@@ -328,6 +336,9 @@ cdef class BayesianNetwork( Model ):
 		self : object
 			The fit Bayesian network object.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before fitting")
 
 		indices = { state.distribution: i for i, state in enumerate( self.states ) }
 
@@ -368,6 +379,9 @@ cdef class BayesianNetwork( Model ):
 		items : array-like, shape (n_samples, n_nodes)
 			This is the data matrix with the missing values imputed.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using impute")
 
 		for i in range( len(items) ):
 			obs = {}
