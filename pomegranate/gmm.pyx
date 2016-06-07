@@ -16,6 +16,8 @@ cimport numpy
 
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
+from .hmm import HiddenMarkovModel
+from .BayesianNetwork import BayesianNetwork
 from .utils cimport _log
 from .utils cimport pair_lse
 
@@ -889,7 +891,18 @@ cdef class GeneralMixtureModel( Distribution ):
 		"""
 
 		d = json.loads( s )
-		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ] 
+		
+		distributions = list()
+		for j in d['distributions']:
+			if j['class'] == 'Distribution':
+				distributions.append( Distribution.from_json( json.dumps(j) ) )
+			elif j['class'] == 'GeneralMixtureModel':
+				distributions.append( GeneralMixtureModel.from_json( json.dumps(j) ) )
+			elif j['class'] == 'HiddenMarkovModel':
+				distributions.append( HiddenMarkovModel.from_json( json.dumps(j) ) )
+			elif j['class'] == 'BayesianNetwork':
+				distributions.append( BayesianNetwork.from_json( json.dumps(j) ) )
+
 		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
 		return model
 

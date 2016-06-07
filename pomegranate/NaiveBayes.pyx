@@ -11,7 +11,9 @@ cimport numpy
 from libc.math cimport exp as cexp
 
 from .distributions cimport Distribution
+from .gmm import GeneralMixtureModel
 from .hmm import HiddenMarkovModel
+from .BayesianNetwork import BayesianNetwork
 from .utils cimport pair_lse
 from .utils import _convert
 import json
@@ -368,7 +370,7 @@ cdef class NaiveBayes( object ):
         return y
 
     def to_json( self, separators=(',', ' : '), indent=4 ):
-        if self.model == 0:
+        if self.d == 0:
             raise ValueError("must fit componenets to the data before prediction")
 
         nb = {
@@ -389,8 +391,18 @@ cdef class NaiveBayes( object ):
             except:
                 raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
-        models = [ Distribution.from_json( json.dumps(j) ) for j in d['models'] ]
-        nb = NaiveBayes(models, numpy.array( d['weights'] ))
+        models = list()
+        for j in d['models']:
+            if j['class'] == 'Distribution':
+                models.append( Distribution.from_json( json.dumps(j) ) )
+            elif j['class'] == 'GeneralMixtureModel':
+                models.append( GeneralMixtureModel.from_json( json.dumps(j) ) )
+            elif j['class'] == 'HiddenMarkovModel':
+                models.append( HiddenMarkovModel.from_json( json.dumps(j) ) )
+            elif j['class'] == 'BayesianNetwork':
+                models.append( BayesianNetwork.from_json( json.dumps(j) ) )
+
+        nb = NaiveBayes( models, numpy.array( d['weights'] ) )
         return nb
 
     def __str__( self ):
