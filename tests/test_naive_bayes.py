@@ -89,7 +89,6 @@ def test_univariate_distributions():
 
 	assert_equal( normal.d, 1 )
 	assert_equal( uniform.d, 1 )
-	assert_equal( univariate.d, 1 )
 
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_distributions():
@@ -109,7 +108,6 @@ def test_multivariate_distributions():
 
 	assert_equal( multi.d, 2 )
 	assert_equal( indie.d, 2 )
-	assert_equal( multivariate.d, 2 )
 
 @with_setup( setup_hmm, teardown )
 def test_hmms():
@@ -136,7 +134,6 @@ def test_hmms():
 	assert_equal( dumb.d, 1 )
 	assert_equal( fair.d, 1 )
 	assert_equal( smart.d, 1 )
-	assert_equal( hmms.d, 1 )
 
 @with_setup( setup_all, teardown )
 def test_initialization():
@@ -151,8 +148,6 @@ def test_initialization():
 	# check if error is thrown
 	assert_raises( TypeError, NaiveBayes, [ normal, multi ] )
 	assert_raises( TypeError, NaiveBayes, [ NormalDistribution, normal ] )
-
-	# TODO:nick check that predict throws error if input is mismatched and not hmms
 
 @with_setup( setup_univariate, teardown )
 def test_univariate_log_proba():
@@ -476,4 +471,21 @@ def test_raise_errors():
 	assert_raises( ValueError, multivariate.predict, [[ 1 ], [ 2 ], [ 3 ], [ 4 ]] )
 	assert_raises( ValueError, multivariate.predict, [[ 1, 2, 3 ], [ 4, 5, 6 ]] )
 
-	# special case for hmm's
+@with_setup( setup_all, teardown )
+def test_dimension():
+	assert_equal( univariate.d, 1 )
+	assert_equal( multivariate.d, 2 )
+	assert_equal( hmms.d, 1 )
+
+	nb1 = NaiveBayes(NormalDistribution)
+	nb2 = NaiveBayes(TriangleKernelDensity)
+
+	assert_equal( nb1.d, 0 )
+	assert_equal( nb2.d, 0 )
+
+	# check 1-d hmms work with any other distribution
+	nb3 = NaiveBayes([ DiscreteDistribution( {'H' : 0.5, 'T' : 0.5} ), smart ])
+	nb4 = NaiveBayes([ smart, IndependentComponentsDistribution([ UniformDistribution(0, 10), UniformDistribution(0, 10), UniformDistribution(0, 10)] ) ])
+
+	assert_equal( nb3.d, 1 )
+	assert_equal( nb4.d, 3 )

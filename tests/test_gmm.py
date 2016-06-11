@@ -177,3 +177,16 @@ def test_initialization():
 	
 	assert_equal( gmm1.d, 5 )
 	assert_equal( gmm2.d, 5 )
+
+@with_setup( setup_multivariate_gaussian, teardown )
+def test_dimension():
+	gmm1 = GeneralMixtureModel([ NormalDistribution(0, 1), UniformDistribution(0, 10) ])
+
+	assert_equal( gmm.d, 5 )
+	assert_equal( gmm1.d, 1 )
+
+	gmm1 = GeneralMixtureModel( TriangleKernelDensity, n_components=3 )
+	gmm2 = GeneralMixtureModel( NormalDistribution, n_components=5 )
+
+	assert_equal( gmm2.d, 0 )
+	assert_equal( gmm2.d, 0 )

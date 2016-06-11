@@ -960,10 +960,12 @@ cdef class HiddenMarkovModel( Model ):
 				state.distribution.encode( tuple(set(keys)) )
 
 		self.d = dist.d
-		
+
 		self.distributions = numpy.empty(self.silent_start, dtype='object')
-		for i in range(self.silent_start):
+		for i in range(self.silent_start):	
 			self.distributions[i] = self.states[i].distribution
+			if self.d != self.distributions[i].d:
+				raise ValueError("mis-matching inputs for states")
 
 		# This holds the index of the start state
 		try:
