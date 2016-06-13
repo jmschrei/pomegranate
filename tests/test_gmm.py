@@ -161,9 +161,32 @@ def test_initialization_error():
 	gmm.predict_log_proba(X)
 	gmm.log_probability(X)
 
-
 def test_initialization():
+	assert_raises( ValueError, GeneralMixtureModel, [] )
+
+	GeneralMixtureModel( NormalDistribution, n_components=2 )
+	GeneralMixtureModel( MultivariateGaussianDistribution, n_components=5 )
+
+	assert_raises( TypeError, GeneralMixtureModel, [ NormalDistribution( 5, 2 ), MultivariateGaussianDistribution([5, 2], [[1, 0], [0, 1]]) ] )
+	assert_raises( TypeError, GeneralMixtureModel, [ NormalDistribution( 5, 2 ), NormalDistribution ] )
+	
 	X = numpy.concatenate((numpy.random.randn(100, 5) + 2, numpy.random.randn(100, 5)))
 	gmm1 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
 	gmm2 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
-	assert_greater( gmm.fit(X), gmm.fit(X, max_iterations=1) )
+	assert_greater( gmm1.fit(X), gmm2.fit(X, max_iterations=1) )
+	
+	assert_equal( gmm1.d, 5 )
+	assert_equal( gmm2.d, 5 )
+
+@with_setup( setup_multivariate_gaussian, teardown )
+def test_dimension():
+	gmm1 = GeneralMixtureModel([ NormalDistribution(0, 1), UniformDistribution(0, 10) ])
+
+	assert_equal( gmm.d, 5 )
+	assert_equal( gmm1.d, 1 )
+
+	gmm1 = GeneralMixtureModel( TriangleKernelDensity, n_components=3 )
+	gmm2 = GeneralMixtureModel( NormalDistribution, n_components=5 )
+
+	assert_equal( gmm2.d, 0 )
+	assert_equal( gmm2.d, 0 )

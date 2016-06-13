@@ -153,7 +153,6 @@ cdef class HiddenMarkovModel( Model ):
 	cdef double [:] state_weights
 	cdef bint discrete
 	cdef bint multivariate
-	cdef int d
 	cdef int summaries
 	cdef int* tied_state_count
 	cdef int* tied
@@ -185,6 +184,7 @@ cdef class HiddenMarkovModel( Model ):
 		self.start = start or State( None, name=self.name + "-start" )
 		self.end = end or State( None, name=self.name + "-end" )
 
+		self.d = 0
 		self.n_edges = 0
 		self.n_states = 0
 		self.discrete = 0
@@ -959,16 +959,13 @@ cdef class HiddenMarkovModel( Model ):
 			for state in states:
 				state.distribution.encode( tuple(set(keys)) )
 
-		if isinstance( dist, MultivariateDistribution ):
-			self.multivariate = 1
-			self.d = dist.d
-		if isinstance( dist, GeneralMixtureModel ) and dist.d > 1:
-			self.multivariate = 1
-			self.d = dist.d
+		self.d = dist.d
 
 		self.distributions = numpy.empty(self.silent_start, dtype='object')
-		for i in range(self.silent_start):
+		for i in range(self.silent_start):	
 			self.distributions[i] = self.states[i].distribution
+			if self.d != self.distributions[i].d:
+				raise ValueError("mis-matching inputs for states")
 
 		# This holds the index of the start state
 		try:
@@ -1016,6 +1013,9 @@ cdef class HiddenMarkovModel( Model ):
 			just the samples.
 		"""
 		
+		if self.d == 0:
+			raise ValueError("must bake model before sampling")
+
 		return self._sample( length, path )
 
 	cdef list _sample( self, int length, int path ):
@@ -1133,6 +1133,9 @@ cdef class HiddenMarkovModel( Model ):
 			The log probability of the sequence 
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before computing probability")
+
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
 		cdef double* f
@@ -1199,6 +1202,9 @@ cdef class HiddenMarkovModel( Model ):
 			The probability of aligning the sequences to states in a forward
 			fashion.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using forward algorithm")
 
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
@@ -1370,6 +1376,9 @@ cdef class HiddenMarkovModel( Model ):
 			The probability of aligning the sequences to states in a backward
 			fashion.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using backward algorithm")
 
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
@@ -1617,6 +1626,9 @@ cdef class HiddenMarkovModel( Model ):
 			The expected number of transitions across each edge in the model.
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before using forward-backward algorithm")
+
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
 		cdef int n = len(sequence), m = len(self.states)
@@ -1794,6 +1806,9 @@ cdef class HiddenMarkovModel( Model ):
 			Tuples of (state index, state object) of the states along the
 			Viterbi path.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using Viterbi algorithm")
 
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
@@ -2017,6 +2032,9 @@ cdef class HiddenMarkovModel( Model ):
 			The normalized probabilities of each state generating each emission.
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before prediction")
+
 		return numpy.exp( self.predict_log_proba( sequence ) )
 
 	def predict_log_proba( self, sequence ):
@@ -2044,6 +2062,9 @@ cdef class HiddenMarkovModel( Model ):
 		emissions : array-like, shape (len(sequence), n_nonsilent_states)
 			The log normalized probabilities of each state generating each emission.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before prediction")
 
 		return numpy.array( self._predict_log_proba( numpy.array(sequence) ) )
 
@@ -2118,6 +2139,9 @@ cdef class HiddenMarkovModel( Model ):
 			Viterbi path.	
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before prediction")
+
 		if algorithm == 'map':
 			return [ state_id for state_id, state in self.maximum_a_posteriori( sequence )[1] ]
 		return [ state_id for state_id, state in self.viterbi( sequence )[1] ]
@@ -2147,6 +2171,9 @@ cdef class HiddenMarkovModel( Model ):
 			Tuples of (state index, state object) of the states along the
 			posterior path.
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using MAP decoding")
 
 		return self._maximum_a_posteriori( numpy.array( sequence ) )
 
@@ -2247,6 +2274,9 @@ cdef class HiddenMarkovModel( Model ):
 			The total improvement in fitting the model to the data
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before fitting")
+
 		cdef int iteration = 0
 		cdef double improvement = INF
 		cdef double initial_log_probability_sum
@@ -2341,6 +2371,8 @@ cdef class HiddenMarkovModel( Model ):
 			The log probability of the sequences.
 		"""
 
+		if self.d == 0:
+			raise ValueError("must bake model before summarizing data")
 
 		if check_input:
 			for i in range( len(sequences) ):
@@ -2393,6 +2425,9 @@ cdef class HiddenMarkovModel( Model ):
 		-------
 		None
 		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using from summaries")
 
 		if self.summaries == 0:
 			return

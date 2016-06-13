@@ -152,6 +152,7 @@ cdef class Model( object ):
 		self.edges = []
 		self.n_edges = 0
 		self.n_states = 0
+		self.d = 0
 	
 	def __str__(self):
 		"""
