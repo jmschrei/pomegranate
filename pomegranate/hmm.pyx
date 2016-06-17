@@ -960,6 +960,7 @@ cdef class HiddenMarkovModel( Model ):
 				state.distribution.encode( tuple(set(keys)) )
 
 		self.d = dist.d
+		self.multivariate = self.d > 1
 
 		self.distributions = numpy.empty(self.silent_start, dtype='object')
 		for i in range(self.silent_start):	
