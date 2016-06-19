@@ -469,3 +469,22 @@ def test_raise_errors():
 	assert_raises( ValueError, multivariate.predict, [[ 1, 2, 3 ], [ 4, 5, 6 ]] )
 
 	# special case for hmm's
+
+@with_setup( setup_all, teardown )
+def test_json():
+	j_univ = univariate.to_json()
+	j_multi = multivariate.to_json()
+
+	new_univ = univariate.from_json( j_univ )
+	assert isinstance( new_univ.models[0], NormalDistribution )
+	assert isinstance( new_univ.models[1], UniformDistribution )
+	numpy.testing.assert_array_equal( univariate.weights, new_univ.weights )
+	assert isinstance( new_univ, NaiveBayes )
+
+	new_multi = multivariate.from_json( j_multi )
+	assert isinstance( new_multi.models[0], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.models[1], IndependentComponentsDistribution )
+	numpy.testing.assert_array_equal( multivariate.weights, new_multi.weights )
+	assert isinstance( new_multi, NaiveBayes )
+
+	# hmms throw an error if the same hmm is recreated in the same space
