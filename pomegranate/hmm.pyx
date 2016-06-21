@@ -1772,6 +1772,8 @@ cdef class HiddenMarkovModel( Model ):
 
 
 		free(e)
+		free(b)
+		free(f)
 
 		return expected_transitions_ndarray, emission_weights_ndarray
 
