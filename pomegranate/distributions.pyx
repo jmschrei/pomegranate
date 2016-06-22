@@ -1396,6 +1396,10 @@ cdef class DiscreteDistribution( Distribution ):
 
 		n = len(encoded_keys)
 		self.encoded_keys = encoded_keys
+
+		free(self.encoded_counts)
+		free(self.encoded_log_probability)
+
 		self.encoded_counts = <double*> calloc( n, sizeof(double) )
 		self.encoded_log_probability = <double*> calloc( n, sizeof(double) )
 		self.n = n

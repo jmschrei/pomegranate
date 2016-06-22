@@ -214,6 +214,9 @@ cdef class HiddenMarkovModel( Model ):
 		self.state_names = set()
 
 	def __dealloc__(self):
+		self.free_bake_buffers()
+
+	def free_bake_buffers(self):
 		free(self.in_transition_pseudocounts)
 		free(self.out_transition_pseudocounts)
 		free(self.tied_state_count)
@@ -228,6 +231,7 @@ cdef class HiddenMarkovModel( Model ):
 		free(self.in_transitions)
 		free(self.out_edge_count)
 		free(self.out_transitions)
+
 
 	def add_state(self, state):
 		"""Add a state to the given model. 
@@ -603,6 +607,8 @@ cdef class HiddenMarkovModel( Model ):
 		-------
 		None
 		"""
+
+		self.free_bake_buffers()
 
 		in_edge_count = numpy.zeros( len( self.graph.nodes() ), 
 			dtype=numpy.int32 ) 
@@ -980,6 +986,7 @@ cdef class HiddenMarkovModel( Model ):
 		except KeyError:
 			raise SyntaxError( "Model.end has been deleted, leaving the \
 				model with no end. Please ensure it has an end." )
+
 
 	def sample( self, length=0, path=False ):
 		"""Generate a sequence from the model. 
