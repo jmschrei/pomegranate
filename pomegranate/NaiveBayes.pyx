@@ -11,7 +11,10 @@ cimport numpy
 from libc.math cimport exp as cexp
 
 from .distributions cimport Distribution
+from .gmm import GeneralMixtureModel
 from .hmm import HiddenMarkovModel
+from .BayesianNetwork import BayesianNetwork
+
 from .utils cimport pair_lse
 from .utils import _convert
 import json
@@ -68,7 +71,7 @@ cdef class NaiveBayes( object ):
     cdef double* weights_ptr
     cdef public int d
 
-    def __init__( self, models, weights=None ):
+    def __init__( self, models=None, weights=None ):
         if not callable(models) and not isinstance(models, list): 
             raise ValueError("must either give initial models or constructor")
 
@@ -107,6 +110,12 @@ cdef class NaiveBayes( object ):
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
 
         self.models = models
+
+    def __str__( self ):
+        try:
+            return self.to_json()
+        except:
+            return self.__repr__()
 
     def fit( self, X, y, weights=None, inertia=0.0 ):
         """Fit the Naive Bayes model to the data by passing data to their components.
@@ -344,7 +353,7 @@ cdef class NaiveBayes( object ):
         X = _convert( X )
 
         if self.d == 0:
-            raise ValueError("must fit components to the data before prediction,")
+            raise ValueError("must fit components to the data before prediction")
 
         if not isinstance( self.models[0], HiddenMarkovModel ):
             if X.ndim > 2:
@@ -373,6 +382,9 @@ cdef class NaiveBayes( object ):
         return y
 
     def to_json( self, separators=(',', ' : '), indent=4 ):
+        if self.d == 0:
+            raise ValueError("must fit components to the data before prediction")
+
         nb = {
             'class' : 'NaiveBayes',
             'models' : [ json.loads( model.to_json() ) for model in self.models ],
@@ -390,10 +402,17 @@ cdef class NaiveBayes( object ):
                     d = json.load( f )
             except:
                 raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-                
-        models = [ Distribution.from_json( json.dumps(j) ) for j in d['models'] ]
-        nb = NaiveBayes(models, numpy.array( d['weights'] ))
-        return nb
 
-    def __str__( self ):
-        return self.to_json()
+        models = list()
+        for j in d['models']:
+            if j['class'] == 'Distribution':
+                models.append( Distribution.from_json( json.dumps(j) ) )
+            elif j['class'] == 'GeneralMixtureModel':
+                models.append( GeneralMixtureModel.from_json( json.dumps(j) ) )
+            elif j['class'] == 'HiddenMarkovModel':
+                models.append( HiddenMarkovModel.from_json( json.dumps(j) ) )
+            elif j['class'] == 'BayesianNetwork':
+                models.append( BayesianNetwork.from_json( json.dumps(j) ) )
+
+        nb = NaiveBayes( models, numpy.array( d['weights'] ) )
+        return nb

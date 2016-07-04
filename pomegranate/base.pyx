@@ -2,6 +2,7 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 from .distributions cimport Distribution
+from .gmm import GeneralMixtureModel
 from .utils cimport *
 
 import itertools as it
@@ -129,9 +130,14 @@ cdef class State( object ):
 			return cls( None, str(d['name']), d['weight'] )
 
 		# Otherwise it has a distribution, so decode that
-		return cls( Distribution.from_json( json.dumps( d['distribution'] ) ),
-					name=str(d['name']), weight=d['weight'] )
+		name = str(d['name'])
+		weight = d['weight']
+		if d['distribution']['class'] == 'Distribution':
+			dist = Distribution.from_json( json.dumps( d['distribution'] ) )
+		elif d['distribution']['class'] == 'GeneralMixtureModel':
+			dist = GeneralMixtureModel.from_json( json.dumps( d['distribution'] ) )
 
+		return cls( dist, name, weight )
 
 Node = State
 

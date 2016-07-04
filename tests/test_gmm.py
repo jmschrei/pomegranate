@@ -190,3 +190,26 @@ def test_dimension():
 
 	assert_equal( gmm2.d, 0 )
 	assert_equal( gmm2.d, 0 )
+
+@with_setup( setup_multivariate_gaussian, teardown )
+def test_json():
+	univariate = GeneralMixtureModel([ NormalDistribution( 5, 2 ), UniformDistribution(0, 10) ])
+
+	j_univ = univariate.to_json()
+	j_multi = gmm.to_json()
+
+	new_univ = univariate.from_json( j_univ )
+	assert isinstance( new_univ.distributions[0], NormalDistribution )
+	assert isinstance( new_univ.distributions[1], UniformDistribution )
+	numpy.testing.assert_array_equal( univariate.weights, new_univ.weights )
+	assert isinstance( new_univ, GeneralMixtureModel )
+
+	new_multi = gmm.from_json( j_multi )
+	assert isinstance( new_multi.distributions[0], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[1], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[2], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[3], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[4], MultivariateGaussianDistribution )
+	numpy.testing.assert_array_almost_equal( gmm.weights, new_multi.weights )
+	assert isinstance( new_multi, GeneralMixtureModel )
+	

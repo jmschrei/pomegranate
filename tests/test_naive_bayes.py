@@ -87,8 +87,7 @@ def test_univariate_distributions():
 	assert_almost_equal( uniform.log_probability( 0 ), -2.3025850929940455 )
 	assert_almost_equal( uniform.log_probability( -1 ), -float('inf') )
 
-	assert_equal( normal.d, 1 )
-	assert_equal( uniform.d, 1 )
+	assert_equal( univariate.d, 1 )
 
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_distributions():
@@ -106,8 +105,7 @@ def test_multivariate_distributions():
 	assert_almost_equal( indie.log_probability([ 0, 0 ]), -4.605170185988091 )
 	assert_almost_equal( indie.log_probability([ -1, -1 ]), -float('inf') )
 
-	assert_equal( multi.d, 2 )
-	assert_equal( indie.d, 2 )
+	assert_equal( multivariate.d, 2 )
 
 @with_setup( setup_hmm, teardown )
 def test_hmms():
@@ -131,14 +129,11 @@ def test_hmms():
 	assert_almost_equal( smart.log_probability( list('THTHTHTHTHTH') ), -8.883630243546788 )
 	assert_almost_equal( smart.log_probability( list('THTHHHHHTHTH') ), -7.645551826734343 )
 
-	assert_equal( dumb.d, 1 )
-	assert_equal( fair.d, 1 )
-	assert_equal( smart.d, 1 )
+	assert_equal( hmms.d, 1 )
 
-@with_setup( setup_all, teardown )
-def test_initialization():
+def test_constructors():
 	# check for value error when supplied no information
-	assert_raises( ValueError, NaiveBayes, [] )
+	assert_raises( ValueError, NaiveBayes )
 
 	# check error is not thrown
 	NaiveBayes( NormalDistribution )
@@ -148,6 +143,8 @@ def test_initialization():
 	# check if error is thrown
 	assert_raises( TypeError, NaiveBayes, [ normal, multi ] )
 	assert_raises( TypeError, NaiveBayes, [ NormalDistribution, normal ] )
+
+	# TODO:nick check that predict throws error if input is mismatched and not hmms
 
 @with_setup( setup_univariate, teardown )
 def test_univariate_log_proba():
@@ -471,21 +468,23 @@ def test_raise_errors():
 	assert_raises( ValueError, multivariate.predict, [[ 1 ], [ 2 ], [ 3 ], [ 4 ]] )
 	assert_raises( ValueError, multivariate.predict, [[ 1, 2, 3 ], [ 4, 5, 6 ]] )
 
+	# special case for hmm's
+
 @with_setup( setup_all, teardown )
-def test_dimension():
-	assert_equal( univariate.d, 1 )
-	assert_equal( multivariate.d, 2 )
-	assert_equal( hmms.d, 1 )
+def test_json():
+	j_univ = univariate.to_json()
+	j_multi = multivariate.to_json()
 
-	nb1 = NaiveBayes(NormalDistribution)
-	nb2 = NaiveBayes(TriangleKernelDensity)
+	new_univ = univariate.from_json( j_univ )
+	assert isinstance( new_univ.models[0], NormalDistribution )
+	assert isinstance( new_univ.models[1], UniformDistribution )
+	numpy.testing.assert_array_equal( univariate.weights, new_univ.weights )
+	assert isinstance( new_univ, NaiveBayes )
 
-	assert_equal( nb1.d, 0 )
-	assert_equal( nb2.d, 0 )
+	new_multi = multivariate.from_json( j_multi )
+	assert isinstance( new_multi.models[0], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.models[1], IndependentComponentsDistribution )
+	numpy.testing.assert_array_equal( multivariate.weights, new_multi.weights )
+	assert isinstance( new_multi, NaiveBayes )
 
-	# check 1-d hmms work with any other distribution
-	nb3 = NaiveBayes([ DiscreteDistribution( {'H' : 0.5, 'T' : 0.5} ), smart ])
-	nb4 = NaiveBayes([ smart, IndependentComponentsDistribution([ UniformDistribution(0, 10), UniformDistribution(0, 10), UniformDistribution(0, 10)] ) ])
-
-	assert_equal( nb3.d, 1 )
-	assert_equal( nb4.d, 3 )
+	# hmms throw an error if the same hmm is recreated in the same space
