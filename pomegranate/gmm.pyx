@@ -14,6 +14,9 @@ if sys.version_info[0] > 2:
 import numpy
 cimport numpy
 
+from joblib import Parallel
+from joblib import delayed
+
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
 from .utils cimport _log
@@ -30,22 +33,25 @@ from libc.math cimport exp as cexp
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
-cpdef numpy.ndarray _check_input( X, keymap ):
+cpdef numpy.ndarray _check_input(X, dict keymap):
 	"""Check the input to make sure that it is a properly formatted array."""
 
-	cdef int n = len(X), d = len(X[0])
 	cdef numpy.ndarray X_ndarray
-
-	if isinstance( X, numpy.ndarray ) and ( X.dtype == 'float64' ):
+	if isinstance(X, numpy.ndarray) and (X.dtype == 'float64'):
 		return X
 
 	try:
-		X_ndarray = numpy.array( X, dtype='float64' )
+		X_ndarray = numpy.array(X, dtype='float64')
 	except ValueError:
-		X_ndarray = numpy.empty((n, d), dtype='float64')
-		for i in range(n):
-			for j in range(d):
-				X_ndarray[i, j] = keymap[X[i][j]]
+		X_ndarray = numpy.empty(X.shape, dtype='float64')
+
+		if X.ndim == 1:
+			for i in range(X.shape[0]):
+				X_ndarray[i] = keymap[X[i]]
+		else:
+			for i in range(X.shape[0]):
+				for j in range(X.shape[1]):
+					X_ndarray[i, j] = keymap[X[i][j]]
 
 	return X_ndarray
 
@@ -403,7 +409,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		return samples if n > 1 else samples[0]
 
-	def log_probability( self, point ):
+	cpdef log_probability( self, X ):
 		"""Calculate the log probability of a point under the distribution.
 
 		The probability of a point is the sum of the probabilities of each
@@ -414,10 +420,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Parameters
 		----------
-		point : object
-			The sample to calculate the log probability of. This is usually an
-			integer, but can also be an array of size (n_dims,) or any
-			object.
+		X : numpy.ndarray, shape=(n, d)
+			The samples to calculate the log probability of. Each row is a
+			sample and each column is a dimension.
 
 		Returns
 		-------
@@ -428,82 +433,56 @@ cdef class GeneralMixtureModel( Distribution ):
 		if self.d == 0:
 			raise ValueError("must first fit model before using log probability method.")
 
-		n = len( self.distributions )
-		log_probability_sum = NEGINF
+		cdef int i, j, n, d, m
 
-		for i in xrange( n ):
-			d = self.distributions[i]
-			log_probability = d.log_probability( point ) + self.weights[i]
-			log_probability_sum = pair_lse( log_probability_sum,log_probability )
+		if self.d == 1:
+			n, d = X.shape[0], 1
+		elif self.d > 1 and X.ndim == 1:
+			n, d = 1, len(X)
+		else:
+			n, d = X.shape
 
-		return log_probability_sum
+		m = len(self.distributions)
+		
+		cdef numpy.ndarray logp_ndarray = numpy.zeros(n)
+		cdef double* logp = <double*> logp_ndarray.data
 
-	cdef double _log_probability( self, double symbol ) nogil:
-		"""Calculate the log probability of a point under the distribution.
+		cdef numpy.ndarray X_ndarray = numpy.array(X)
+		cdef double* X_ptr = <double*> X_ndarray.data
 
-		The probability of a point is the sum of the probabilities of each
-		distribution multiplied by the weights. Thus, the log probability
-		is the sum of the log probability plus the log prior.
+		with nogil:
+			for i in range(n):
+				if d == 1:
+					logp[i] = self._log_probability(X_ptr[i])
+				else:
+					logp[i] = self._mv_log_probability(X_ptr+i*d)
 
-		This is the cython nogil interface for univariate emissions.
+		return logp_ndarray
 
-		Parameters
-		----------
-		point : object
-			The sample to calculate the log probability of. This is usually an
-			integer, but can also be an array of size (n_components,) or any
-			object.
-
-		Returns
-		-------
-		log_probability : double
-			The log probabiltiy of the point under the distribution.
-		"""
-
+	cdef double _log_probability(self, double X) nogil:
 		cdef int i
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
 		for i in range( self.n ):
-			log_probability = ( <Distribution> self.distributions_ptr[i] )._log_probability( symbol ) + self.weights_ptr[i]
+			log_probability = ( <Distribution> self.distributions_ptr[i] )._log_probability(X) + self.weights_ptr[i]
 			log_probability_sum = pair_lse( log_probability_sum, log_probability )
 
 		return log_probability_sum
 
-	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		"""Calculate the log probability of a point under the distribution.
-
-		The probability of a point is the sum of the probabilities of each
-		distribution multiplied by the weights. Thus, the log probability
-		is the sum of the log probability plus the log prior.
-
-		This is the cython nogil interface for multivariate emissions.
-
-		Parameters
-		----------
-		point : object
-			The sample to calculate the log probability of. This is usually an
-			integer, but can also be an array of size (n_components,) or any
-			object.
-
-		Returns
-		-------
-		log_probability : double
-			The log probabiltiy of the point under the distribution.
-		"""
-
+	cdef double _mv_log_probability(self, double* X) nogil:
 		cdef int i
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
 		for i in range( self.n ):
-			log_probability = ( <Distribution> self.distributions_ptr[i] )._mv_log_probability( symbol ) + self.weights_ptr[i]
+			log_probability = ( <Distribution> self.distributions_ptr[i] )._mv_log_probability(X) + self.weights_ptr[i]
 			log_probability_sum = pair_lse( log_probability_sum, log_probability )
 
 		return log_probability_sum
 
 
-	def predict_proba( self, items ):
+	def predict_proba(self, X):
 		"""Calculate the posterior P(M|D) for data.
 
 		Calculate the probability of each item having been generated from
@@ -515,7 +494,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_dimensions)
+		X : array-like, shape (n_samples, n_dimensions)
 			The samples to do the prediction on. Each sample is a row and each
 			column corresponds to a dimension in that sample. For univariate
 			distributions, a single array may be passed in.
@@ -530,9 +509,9 @@ cdef class GeneralMixtureModel( Distribution ):
 		if self.d == 0:
 			raise ValueError("must first fit model before using predict proba method.")
 
-		return numpy.exp( self.predict_log_proba( items ) )
+		return numpy.exp( self.predict_log_proba(X) )
 
-	def predict_log_proba( self, items ):
+	def predict_log_proba( self, X ):
 		"""Calculate the posterior log P(M|D) for data.
 
 		Calculate the log probability of each item having been generated from
@@ -543,7 +522,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_dimensions)
+		X : array-like, shape (n_samples, n_dimensions)
 			The samples to do the prediction on. Each sample is a row and each
 			column corresponds to a dimension in that sample. For univariate
 			distributions, a single array may be passed in.
@@ -558,16 +537,19 @@ cdef class GeneralMixtureModel( Distribution ):
 		if self.d == 0:
 			raise ValueError("must first fit model before using predict log proba method.")
 
-		cdef int n = len(items), d = len(items[0])
-		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+		cdef int n = len(X), d = len(X[0])
+		cdef numpy.ndarray X_ndarray = _check_input( X, self.keymap )
 
-		cdef double* items_ptr = <double*> items_ndarray.data
+		cdef double* X_ptr = <double*> X_ndarray.data
 		cdef numpy.ndarray y = numpy.zeros((n, self.n))
 		cdef double* y_ptr = <double*> y.data
-		self._predict_log_proba( items_ptr, n, d, self.n, y_ptr )
+
+		with nogil:
+			self._predict_log_proba( X_ptr, y_ptr, n, d, self.n )
+
 		return y
 
-	cdef void _predict_log_proba( self, double* items, int n, int d, int m, double* y) nogil:
+	cdef void _predict_log_proba( self, double* X, double* y, int n, int d, int m ) nogil:
 		cdef double y_sum, logp
 		cdef int i, j
 
@@ -576,9 +558,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			for j in range(m):
 				if d > 1:
-					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(items + i*d)
+					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X + i*d)
 				else:
-					logp = (<Distribution> self.distributions_ptr[j])._log_probability(items[i])
+					logp = (<Distribution> self.distributions_ptr[j])._log_probability(X[i])
 
 				y[i*m + j] = logp + self.weights_ptr[j]
 				y_sum = pair_lse(y_sum, y[i*m + j])
@@ -586,7 +568,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			for j in range(m):
 				y[i*m + j] = y[i*m + j] - y_sum
 
-	cpdef predict( self, items ):
+	cpdef predict( self, X ):
 		"""Predict the most likely component which generated each sample.
 
 		Calculate the posterior P(M|D) for each sample and return the index
@@ -597,36 +579,42 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_dimensions)
+		X : array-like, shape (n_samples, n_dimensions)
 			The samples to do the prediction on. Each sample is a row and each
 			column corresponds to a dimension in that sample. For univariate
 			distributions, a single array may be passed in.
 
 		Returns
 		-------
-		indexes : array-like, shape (n_samples,)
-			The index of the component which fits the sample the best.
+		y : array-like, shape (n_samples,)
+			The predicted component which fits the sample the best.
 		"""
+
+		cdef int n, d
 
 		if self.d == 0:
 			raise ValueError("must first fit model before using predict method.")
 
-		n, d = len(items), len(items[0])
-		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+		if X.ndim == 1 and self.d > 1:
+			n, d = 1, X.shape[0]
+		elif X.ndim == 1 and self.d == 1:
+			n, d = X.shape[0], 1
+		else:
+			n, d = X.shape
 
-		cdef double* items_ptr = <double*> items_ndarray.data
-		cdef int* y_ptr = self._predict( items_ptr, n, d, self.n )
-		
-		y = numpy.zeros(n, dtype='int')
-		for i in range(n):
-			y[i] = y_ptr[i]
+		cdef numpy.ndarray X_ndarray = _check_input(X, self.keymap)
+		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
 
-		free(y_ptr)
+		cdef double* X_ptr = <double*> X_ndarray.data
+		cdef int* y_ptr = <int*> y.data
+
+		with nogil:
+			self._predict(X_ptr, y_ptr, n, d, self.n)
+
 		return y
 
-	cdef int* _predict( self, double* items, int n, int d, int m ) nogil:
+	cdef void _predict( self, double* X, int* y, int n, int d, int m ) nogil:
 		cdef int i, j
-		cdef int* y = <int*> calloc(n, sizeof(int))
 		cdef double max_logp, logp
 
 		for i in range(n):
@@ -634,17 +622,15 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			for j in range(m):
 				if d > 1:
-					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(items + i*d) + self.weights_ptr[j]
+					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X + i*d) + self.weights_ptr[j]
 				else:
-					logp = (<Distribution> self.distributions_ptr[j])._log_probability(items[i]) + self.weights_ptr[j]
+					logp = (<Distribution> self.distributions_ptr[j])._log_probability(X[i]) + self.weights_ptr[j]
 
 				if logp > max_logp:
 					max_logp = logp
 					y[i] = j
 
-		return y
-
-	def fit( self, items, weights=None, inertia=0.0, stop_threshold=0.1, 
+	def fit( self, X, weights=None, inertia=0.0, stop_threshold=0.1, 
 		max_iterations=1e8, verbose=False ):
 		"""Fit the model to new data using EM.
 
@@ -656,7 +642,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_dimensions)
+		X : array-like, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on.
 
@@ -691,15 +677,15 @@ cdef class GeneralMixtureModel( Distribution ):
 			The total improvement in log probability P(D|M)
 		"""
 
-		cdef int n = len(items), d = len(items[0])
-		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+		cdef int n = len(X), d = len(X[0])
+		cdef numpy.ndarray X_ndarray = _check_input( X, self.keymap )
 
 		# If not initialized then we need to do kmeans initialization.
 		if self.d == 0 or d != self.d:
 			kmeans = Kmeans(self.n)
-			kmeans.fit(items_ndarray, max_iterations=1)
-			y = kmeans.predict(items)
-			distributions = [ self.distribution_callable.from_samples( items_ndarray[y==i] ) for i in range(self.n) ]
+			kmeans.fit(X_ndarray, max_iterations=1)
+			y = kmeans.predict(X)
+			distributions = [ self.distribution_callable.from_samples( X_ndarray[y==i] ) for i in range(self.n) ]
 
 			self.distributions = numpy.array( distributions )
 			self.distributions_ptr = <void**> self.distributions.data
@@ -713,14 +699,14 @@ cdef class GeneralMixtureModel( Distribution ):
 			self.n = len(distributions)
 			self.d = distributions[0].d
 
-		cdef double* X_ptr = <double*> items_ndarray.data
+		cdef double* X_ptr = <double*> X_ndarray.data
 
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF 
 
 		while improvement > stop_threshold and iteration < max_iterations + 1:
 			self.from_summaries(inertia)
-			log_probability_sum = self.summarize(items_ndarray, weights)
+			log_probability_sum = self.summarize(X_ndarray, weights)
 
 			if iteration == 0:
 				initial_log_probability_sum = log_probability_sum
@@ -740,7 +726,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		return last_log_probability_sum - initial_log_probability_sum
 
-	def summarize( self, items, weights=None ):
+	def summarize( self, X, weights=None ):
 		"""Summarize a batch of data and store sufficient statistics.
 
 		This will run the expectation step of EM and store sufficient
@@ -750,7 +736,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_dimensions)
+		X : array-like, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on.
 
@@ -764,21 +750,21 @@ cdef class GeneralMixtureModel( Distribution ):
 		None
 		"""
 
-		cdef int n = len(items), d = len(items[0])
-		cdef numpy.ndarray items_ndarray = _check_input( items, self.keymap )
+		cdef int n = len(X), d = len(X[0])
+		cdef numpy.ndarray X_ndarray = _check_input(X, self.keymap)
 		cdef numpy.ndarray weights_ndarray
 
 		if weights is None:
-			weights_ndarray = numpy.ones( items.shape[0] )
+			weights_ndarray = numpy.ones(X.shape[0])
 		else:
-			weights_ndarray = numpy.array( weights )
+			weights_ndarray = numpy.array(weights)
 
-		cdef double* items_ptr = <double*> items_ndarray.data
+		cdef double* X_ptr = <double*> X_ndarray.data
 		cdef double* weights_ptr = <double*> weights_ndarray.data
 
-		return self._summarize(items_ptr, weights_ptr, n)
+		return self._summarize(X_ptr, weights_ptr, n)
 
-	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+	cdef double _summarize( self, double* X, double* weights, SIZE_t n ) nogil:
 		cdef double* r = <double*> calloc(self.n*n, sizeof(double))
 		cdef int i, j
 		cdef double total, logp, log_probability_sum = 0.0, p
@@ -788,11 +774,11 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			for j in range(self.n):
 				if self.d == 1:
-					logp = (<Distribution> self.distributions_ptr[j])._log_probability(items[i])
+					logp = (<Distribution> self.distributions_ptr[j])._log_probability(X[i])
 				else:
-					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(items+i*self.d)
+					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X+i*self.d)
 
-				r[j*n + i] = logp + self.weights_ptr[j]
+				r[j*n + i] = logp + self.weights_ptr[j] + weights[i]
 				total = pair_lse(total, r[j*n + i])
 
 			for j in range( self.n ):
@@ -802,7 +788,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			log_probability_sum += total 
 
 		for j in range( self.n ):
-			(<Distribution> self.distributions_ptr[j])._summarize(items, &r[j*n], n)
+			(<Distribution> self.distributions_ptr[j])._summarize(X, &r[j*n], n)
 
 		free(r)
 		return log_probability_sum
