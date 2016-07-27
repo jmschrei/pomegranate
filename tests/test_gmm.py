@@ -8,6 +8,7 @@ from nose.tools import assert_greater
 from nose.tools import assert_raises
 from numpy.testing import assert_almost_equal
 import random
+import pickle
 import numpy as np
 
 np.random.seed(0)
@@ -169,12 +170,12 @@ def test_initialization():
 
 	assert_raises( TypeError, GeneralMixtureModel, [ NormalDistribution( 5, 2 ), MultivariateGaussianDistribution([5, 2], [[1, 0], [0, 1]]) ] )
 	assert_raises( TypeError, GeneralMixtureModel, [ NormalDistribution( 5, 2 ), NormalDistribution ] )
-	
+
 	X = numpy.concatenate((numpy.random.randn(100, 5) + 2, numpy.random.randn(100, 5)))
 	gmm1 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
 	gmm2 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
 	assert_greater( gmm1.fit(X), gmm2.fit(X, max_iterations=1) )
-	
+
 	assert_equal( gmm1.d, 5 )
 	assert_equal( gmm2.d, 5 )
 
@@ -212,4 +213,25 @@ def test_json():
 	assert isinstance( new_multi.distributions[4], MultivariateGaussianDistribution )
 	numpy.testing.assert_array_almost_equal( gmm.weights, new_multi.weights )
 	assert isinstance( new_multi, GeneralMixtureModel )
-	
+
+@with_setup( setup_multivariate_gaussian, teardown )
+def test_pickling():
+	univariate = GeneralMixtureModel([ NormalDistribution( 5, 2 ), UniformDistribution(0, 10) ])
+
+	j_univ = pickle.dumps( univariate )
+	j_multi = pickle.dumps( gmm )
+
+	new_univ = pickle.loads( j_univ )
+	assert isinstance( new_univ.distributions[0], NormalDistribution )
+	assert isinstance( new_univ.distributions[1], UniformDistribution )
+	numpy.testing.assert_array_equal( univariate.weights, new_univ.weights )
+	assert isinstance( new_univ, GeneralMixtureModel )
+
+	new_multi = pickle.loads( j_multi )
+	assert isinstance( new_multi.distributions[0], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[1], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[2], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[3], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[4], MultivariateGaussianDistribution )
+	numpy.testing.assert_array_almost_equal( gmm.weights, new_multi.weights )
+	assert isinstance( new_multi, GeneralMixtureModel )

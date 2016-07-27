@@ -9,7 +9,7 @@ from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 from libc.math cimport fabs
-from libc.math cimport sqrt as csqrt 
+from libc.math cimport sqrt as csqrt
 
 import itertools as it
 import json
@@ -48,7 +48,7 @@ def log(value):
 	return _log( value )
 
 def weight_set( items, weights ):
-	"""Converts both items and weights to appropriate numpy arrays. 
+	"""Converts both items and weights to appropriate numpy arrays.
 
 	Convert the items into a numpy array with 64-bit floats, and the weight
 	array to the same. If no weights are passed in, then return a numpy array
@@ -62,7 +62,7 @@ def weight_set( items, weights ):
 	else:
 		# Force whatever we have to be a Numpy array
 		weights = numpy.array(weights, dtype=numpy.float64)
-	
+
 	return items, weights
 
 cdef class Distribution:
@@ -100,7 +100,7 @@ cdef class Distribution:
 
 	def __str__( self ):
 		"""Represent this distribution in JSON."""
-		
+
 		return self.to_json()
 
 	def __repr__( self ):
@@ -123,7 +123,7 @@ cdef class Distribution:
 		-------
 		distribution : Distribution
 			The marginal distribution. If this is a multivariate distribution
-			then this method is filled in. Otherwise returns self. 
+			then this method is filled in. Otherwise returns self.
 		"""
 
 		return self
@@ -144,7 +144,7 @@ cdef class Distribution:
 			A copy of the distribution with the same parameters.
 		"""
 
-		return self.__class__( *self.parameters ) 
+		return self.__class__( *self.parameters )
 
 	def freeze( self ):
 		"""Freeze the distribution, preventing updates from occuring.
@@ -172,7 +172,7 @@ cdef class Distribution:
 		None
 		"""
 
-		self.frozen = False 
+		self.frozen = False
 
 	def log_probability( self, double symbol ):
 		"""Return the log probability of the given symbol under this distribution.
@@ -182,15 +182,15 @@ cdef class Distribution:
 		symbol : double
 			The symbol to calculate the log probability of (overriden for
 			DiscreteDistributions)
-		
+
 		Returns
 		-------
 		logp : double
 			The log probability of that point under the distribution.
 		"""
-		
+
 		cdef double logp
-		with nogil: 
+		with nogil:
 			logp = self._log_probability( symbol )
 		return logp
 
@@ -215,9 +215,9 @@ cdef class Distribution:
 			Returns a sample from the distribution of a type in the support
 			of the distribution.
 		"""
-		
+
 		raise NotImplementedError
-	
+
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""Fit the distribution to new data using MLE estimates.
 
@@ -235,7 +235,7 @@ cdef class Distribution:
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
@@ -247,13 +247,13 @@ cdef class Distribution:
 		if self.frozen == True:
 			return
 		raise NotImplementedError
-		
+
 
 	def train( self, items, weights=None, inertia=0.0 ):
 		"""A wrapper for from_sample in order to homogenize calls more."""
 
 		raise Warning("Deprecated. Use fit instead")
-	
+
 
 	def summarize( self, items, weights=None ):
 		"""Summarize a batch of data into sufficient statistics for a later update.
@@ -303,7 +303,7 @@ cdef class Distribution:
 		----------
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
@@ -322,7 +322,7 @@ cdef class Distribution:
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object.
 
-		Parameters 
+		Parameters
 		----------
 		None
 
@@ -362,14 +362,14 @@ cdef class Distribution:
 
 		Parameters
 		----------
-		separators : tuple, optional 
+		separators : tuple, optional
 			The two separaters to pass to the json.dumps function for formatting.
 			Default is (',', ' : ').
 
 		indent : int, optional
 			The indentation to use at each level. Passed to json.dumps for
 			formatting. Default is 4.
-		
+
 		Returns
 		-------
 		json : str
@@ -386,7 +386,7 @@ cdef class Distribution:
 	@classmethod
 	def from_json( cls, s ):
 		"""Read in a serialized distribution and return the appropriate object.
-		
+
 		Parameters
 		----------
 		s : str
@@ -435,16 +435,20 @@ cdef class UniformDistribution( Distribution ):
 
 	def __cinit__( UniformDistribution self, double start, double end, bint frozen=False ):
 		"""
-		Make a new Uniform distribution over floats between start and end, 
+		Make a new Uniform distribution over floats between start and end,
 		inclusive. Start and end must not be equal.
 		"""
-		
+
 		# Store the parameters
 		self.start = start
 		self.end = end
 		self.summaries = [INF, NEGINF]
 		self.name = "UniformDistribution"
 		self.frozen = frozen
+
+	def __reduce__( self ):
+		"""Serialize distribution for pickling."""
+		return self.__class__, (self.start, self.end, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
@@ -457,18 +461,18 @@ cdef class UniformDistribution( Distribution ):
 		if symbol >= start and symbol <= end:
 			return _log( 1.0 / ( end - start ) )
 		return NEGINF
-			
+
 	def sample( self ):
 		"""Sample from this uniform distribution and return the value sampled."""
 		return random.uniform(self.start, self.end)
-		
+
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -478,7 +482,7 @@ cdef class UniformDistribution( Distribution ):
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython optimized training."""
 
-		cdef double minimum = INF, maximum = NEGINF 
+		cdef double minimum = INF, maximum = NEGINF
 		cdef int i
 
 		for i in range(n):
@@ -493,7 +497,7 @@ cdef class UniformDistribution( Distribution ):
 				self.summaries[1] = maximum
 			if minimum < self.summaries[0]:
 				self.summaries[0] = minimum
-	
+
 	def summarize( self, items, weights=None ):
 		"""
 		Take in a series of items and their weights and reduce it down to a
@@ -510,7 +514,7 @@ cdef class UniformDistribution( Distribution ):
 
 		with nogil:
 			self._summarize( items_p, weights_p, n )
-		
+
 	def from_summaries( self, inertia=0.0 ):
 		"""
 		Takes in a series of summaries, consisting of the minimum and maximum
@@ -553,7 +557,7 @@ cdef class NormalDistribution( Distribution ):
 
 	def __cinit__( self, double mean, double std, bint frozen=False ):
 		"""
-		Make a new Normal distribution with the given mean mean and standard 
+		Make a new Normal distribution with the given mean mean and standard
 		deviation std.
 		"""
 
@@ -565,6 +569,10 @@ cdef class NormalDistribution( Distribution ):
 		self.log_sigma_sqrt_2_pi = -_log(std * SQRT_2_PI)
 		self.two_sigma_squared = 2 * std ** 2
 
+	def __reduce__( self ):
+		"""Serialize distribution for pickling."""
+		return self.__class__, (self.mu, self.sigma, self.frozen)
+
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 
@@ -574,14 +582,14 @@ cdef class NormalDistribution( Distribution ):
 	def sample( self ):
 		"""Sample from this normal distribution and return the value sampled."""
 		return random.normalvariate( self.mu, self.sigma )
-		
+
 	def fit( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -604,7 +612,7 @@ cdef class NormalDistribution( Distribution ):
 			self.summaries[0] += w_sum
 			self.summaries[1] += x_sum
 			self.summaries[2] += x2_sum
-		
+
 	def summarize( self, items, weights=None ):
 		"""
 		Take in a series of items and their weights and reduce it down to a
@@ -621,7 +629,7 @@ cdef class NormalDistribution( Distribution ):
 
 		with nogil:
 			self._summarize( items_p, weights_p, n )
-		
+
 	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
 		Takes in a series of summaries, represented as a mean, a variance, and
@@ -684,6 +692,10 @@ cdef class LogNormalDistribution( Distribution ):
 		self.name = "LogNormalDistribution"
 		self.frozen = frozen
 
+	def __reduce__( self ):
+		"""Serialize distribution for pickling."""
+		return self.__class__, (self.mu, self.sigma, self.frozen)
+
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 
@@ -698,11 +710,11 @@ cdef class LogNormalDistribution( Distribution ):
 
 	def fit( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -711,7 +723,7 @@ cdef class LogNormalDistribution( Distribution ):
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
-		
+
 		cdef SIZE_t i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 		cdef double log_item
@@ -727,7 +739,7 @@ cdef class LogNormalDistribution( Distribution ):
 			self.summaries[0] += w_sum
 			self.summaries[1] += x_sum
 			self.summaries[2] += x2_sum
-		
+
 	def summarize( self, items, weights=None ):
 		"""
 		Take in a series of items and their weights and reduce it down to a
@@ -744,7 +756,7 @@ cdef class LogNormalDistribution( Distribution ):
 
 		with nogil:
 			self._summarize( items_p, weights_p, n )
-		
+
 	def from_summaries( self, inertia=0.0, min_std=0.01 ):
 		"""
 		Takes in a series of summaries, represented as a mean, a variance, and
@@ -785,7 +797,7 @@ cdef class ExponentialDistribution( Distribution ):
 	"""
 	Represents an exponential distribution on non-negative floats.
 	"""
-	
+
 	property parameters:
 		def __get__( self ):
 			return [ self.rate ]
@@ -794,7 +806,7 @@ cdef class ExponentialDistribution( Distribution ):
 
 	def __cinit__( self, double rate, bint frozen=False ):
 		"""
-		Make a new inverse gamma distribution. The parameter is called "rate" 
+		Make a new inverse gamma distribution. The parameter is called "rate"
 		because lambda is taken.
 		"""
 
@@ -803,21 +815,25 @@ cdef class ExponentialDistribution( Distribution ):
 		self.name = "ExponentialDistribution"
 		self.frozen = frozen
 
+	def __reduce__( self ):
+		"""Serialize distribution for pickling."""
+		return self.__class__, (self.rate, self.frozen)
+
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 		return _log(self.rate) - self.rate * symbol
-		
+
 	def sample( self ):
 		"""Sample from this exponential distribution."""
 		return random.expovariate(*self.parameters)
-		
+
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -841,7 +857,7 @@ cdef class ExponentialDistribution( Distribution ):
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython function to get the MLE estimate for an exponential."""
-		
+
 		cdef double xw_sum = 0, w = 0
 		cdef SIZE_t i
 
@@ -849,7 +865,7 @@ cdef class ExponentialDistribution( Distribution ):
 		for i in range(n):
 			xw_sum += items[i] * weights[i]
 			w += weights[i]
-		
+
 		with gil:
 			self.summaries[0] += w
 			self.summaries[1] += xw_sum
@@ -906,12 +922,16 @@ cdef class BetaDistribution( Distribution ):
 		self.name = "BetaDistribution"
 		self.frozen = frozen
 
+	def __reduce__( self ):
+		"""Serialize distribution for pickling."""
+		return self.__class__, (self.alpha, self.beta, self.frozen)
+
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 
 		cdef double a = self.alpha, b = self.beta
 
-		return ( _log(lgamma(a+b)) - _log(lgamma(a)) - 
+		return ( _log(lgamma(a+b)) - _log(lgamma(a)) -
 			_log(lgamma(b)) + (a-1)*_log(symbol) +
 			(b-1)*_log(1.-symbol) )
 
@@ -921,11 +941,11 @@ cdef class BetaDistribution( Distribution ):
 
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -996,13 +1016,13 @@ cdef class BetaDistribution( Distribution ):
 
 cdef class GammaDistribution( Distribution ):
 	"""
-	This distribution represents a gamma distribution, parameterized in the 
-	alpha/beta (shape/rate) parameterization. ML estimation for a gamma 
-	distribution, taking into account weights on the data, is nontrivial, and I 
-	was unable to find a good theoretical source for how to do it, so I have 
+	This distribution represents a gamma distribution, parameterized in the
+	alpha/beta (shape/rate) parameterization. ML estimation for a gamma
+	distribution, taking into account weights on the data, is nontrivial, and I
+	was unable to find a good theoretical source for how to do it, so I have
 	cobbled together a solution here from less-reputable sources.
 	"""
-	
+
 	property parameters:
 		def __get__( self ):
 			return [ self.alpha, self.beta ]
@@ -1011,7 +1031,7 @@ cdef class GammaDistribution( Distribution ):
 
 	def __cinit__( self, double alpha, double beta, bint frozen=False ):
 		"""
-		Make a new gamma distribution. Alpha is the shape parameter and beta is 
+		Make a new gamma distribution. Alpha is the shape parameter and beta is
 		the rate parameter.
 		"""
 
@@ -1021,47 +1041,51 @@ cdef class GammaDistribution( Distribution ):
 		self.name = "GammaDistribution"
 		self.frozen = frozen
 
+	def __reduce__( self ):
+		"""Serialize distribution for pickling."""
+		return self.__class__, (self.alpha, self.beta, self.frozen)
+
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 
 		cdef double alpha = self.alpha, beta = self.beta
-		
-		return (_log(beta) * alpha - lgamma(alpha) + _log(symbol) 
+
+		return (_log(beta) * alpha - lgamma(alpha) + _log(symbol)
 			* (alpha - 1) - beta * symbol)
-		
+
 	def sample( self ):
 		"""
 		Sample from this gamma distribution and return the value sampled.
 		"""
-		
-		# We have a handy sample from gamma function. Unfortunately, while we 
-		# use the alpha, beta parameterization, and this function uses the 
+
+		# We have a handy sample from gamma function. Unfortunately, while we
+		# use the alpha, beta parameterization, and this function uses the
 		# alpha, beta parameterization, our alpha/beta are shape/rate, while its
 		# alpha/beta are shape/scale. So we have to mess with the parameters.
 		return random.gammavariate(self.parameters[0], 1.0 / self.parameters[1])
-		
-	def fit( self, items, weights=None, inertia=0.0, epsilon=1E-9, 
+
+	def fit( self, items, weights=None, inertia=0.0, epsilon=1E-9,
 		iteration_limit=1000 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
-		
-		In the Gamma case, likelihood maximization is necesarily numerical, and 
+
+		In the Gamma case, likelihood maximization is necesarily numerical, and
 		the extension to weighted values is not trivially obvious. The algorithm
 		used here includes a Newton-Raphson step for shape parameter estimation,
-		and analytical calculation of the rate parameter. The extension to 
-		weights is constructed using vital information found way down at the 
+		and analytical calculation of the rate parameter. The extension to
+		weights is constructed using vital information found way down at the
 		bottom of an Experts Exchange page.
-		
-		Newton-Raphson continues until the change in the parameter is less than 
+
+		Newton-Raphson continues until the change in the parameter is less than
 		epsilon, or until iteration_limit is reached
-		
+
 		See:
 		http://en.wikipedia.org/wiki/Gamma_distribution
 		http://www.experts-exchange.com/Other/Math_Science/Q_23943764.html
 		"""
-		
+
 		# If the distribution is frozen, don't bother with any calculation
 		if len(items) == 0 or self.frozen == True:
 			# No sample, so just ignore it and keep our old parameters.
@@ -1069,7 +1093,7 @@ cdef class GammaDistribution( Distribution ):
 
 		# Make it be a numpy array
 		items = numpy.asarray(items)
-		
+
 		if weights is None:
 			# Weight everything 1 if no weights specified
 			weights = numpy.ones_like(items)
@@ -1083,23 +1107,23 @@ cdef class GammaDistribution( Distribution ):
 			return
 
 		# First, do Newton-Raphson for shape parameter.
-		
-		# Calculate the sufficient statistic s, which is the log of the average 
-		# minus the average log. When computing the average log, we weight 
-		# outside the log function. (In retrospect, this is actually pretty 
+
+		# Calculate the sufficient statistic s, which is the log of the average
+		# minus the average log. When computing the average log, we weight
+		# outside the log function. (In retrospect, this is actually pretty
 		# obvious.)
-		statistic = (log(numpy.average(items, weights=weights)) - 
+		statistic = (log(numpy.average(items, weights=weights)) -
 			numpy.average(log(items), weights=weights))
 
-		# Start our Newton-Raphson at what Wikipedia claims a 1969 paper claims 
+		# Start our Newton-Raphson at what Wikipedia claims a 1969 paper claims
 		# is a good approximation.
 		# Really, start with new_shape set, and shape set to be far away from it
 		shape = float("inf")
-		
+
 		if statistic != 0:
 			# Not going to have a divide by 0 problem here, so use the good
 			# estimate
-			new_shape =  (3 - statistic + csqrt((statistic - 3) ** 2 + 24 * 
+			new_shape =  (3 - statistic + csqrt((statistic - 3) ** 2 + 24 *
 				statistic)) / (12 * statistic)
 		if statistic == 0 or new_shape <= 0:
 			# Try the current shape parameter
@@ -1107,33 +1131,33 @@ cdef class GammaDistribution( Distribution ):
 
 		# Count the iterations we take
 		iteration = 0
-			
+
 		# Now do the update loop.
-		# We need the digamma (gamma derivative over gamma) and trigamma 
+		# We need the digamma (gamma derivative over gamma) and trigamma
 		# (digamma derivative) functions. Luckily, scipy.special.polygamma(0, x)
-		# is the digamma function (0th derivative of the digamma), and 
+		# is the digamma function (0th derivative of the digamma), and
 		# scipy.special.polygamma(1, x) is the trigamma function.
 		while abs(shape - new_shape) > epsilon and iteration < iteration_limit:
 			shape = new_shape
-			
-			new_shape = shape - (log(shape) - 
+
+			new_shape = shape - (log(shape) -
 				scipy.special.polygamma(0, shape) -
 				statistic) / (1.0 / shape - scipy.special.polygamma(1, shape))
-			
+
 			# Don't let shape escape from valid values
 			if abs(new_shape) == float("inf") or new_shape == 0:
 				# Hack the shape parameter so we don't stop the loop if we land
 				# near it.
 				shape = new_shape
-				
+
 				# Re-start at some random place.
 				new_shape = random.random()
-				
+
 			iteration += 1
-			
+
 		# Might as well grab the new value
 		shape = new_shape
-				
+
 		# Now our iterative estimation of the shape parameter has converged.
 		# Calculate the rate parameter
 		rate = 1.0 / (1.0 / (shape * weights.sum()) * items.dot(weights) )
@@ -1159,7 +1183,7 @@ cdef class GammaDistribution( Distribution ):
 
 		# Make it be a numpy array
 		items = numpy.asarray(items)
-		
+
 		if weights is None:
 			# Weight everything 1 if no weights specified
 			weights = numpy.ones_like(items)
@@ -1179,20 +1203,20 @@ cdef class GammaDistribution( Distribution ):
 								 items.dot( weights ),
 								 weights.sum() ] )
 
-	def from_summaries( self, inertia=0.0, epsilon=1E-9, 
+	def from_summaries( self, inertia=0.0, epsilon=1E-9,
 		iteration_limit=1000 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
+		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample given the summaries which have been stored.
-		
-		In the Gamma case, likelihood maximization is necesarily numerical, and 
+
+		In the Gamma case, likelihood maximization is necesarily numerical, and
 		the extension to weighted values is not trivially obvious. The algorithm
 		used here includes a Newton-Raphson step for shape parameter estimation,
-		and analytical calculation of the rate parameter. The extension to 
-		weights is constructed using vital information found way down at the 
+		and analytical calculation of the rate parameter. The extension to
+		weights is constructed using vital information found way down at the
 		bottom of an Experts Exchange page.
-		
-		Newton-Raphson continues until the change in the parameter is less than 
+
+		Newton-Raphson continues until the change in the parameter is less than
 		epsilon, or until iteration_limit is reached
 
 		See:
@@ -1205,27 +1229,27 @@ cdef class GammaDistribution( Distribution ):
 			return
 
 		# First, do Newton-Raphson for shape parameter.
-		
-		# Calculate the sufficient statistic s, which is the log of the average 
-		# minus the average log. When computing the average log, we weight 
-		# outside the log function. (In retrospect, this is actually pretty 
+
+		# Calculate the sufficient statistic s, which is the log of the average
+		# minus the average log. When computing the average log, we weight
+		# outside the log function. (In retrospect, this is actually pretty
 		# obvious.)
 		summaries = numpy.array( self.summaries )
 
-		statistic = _log( numpy.average( summaries[:,0], 
+		statistic = _log( numpy.average( summaries[:,0],
 											 weights=summaries[:,3] ) ) - \
-					numpy.average( summaries[:,1], 
+					numpy.average( summaries[:,1],
 								   weights=summaries[:,3] )
 
-		# Start our Newton-Raphson at what Wikipedia claims a 1969 paper claims 
+		# Start our Newton-Raphson at what Wikipedia claims a 1969 paper claims
 		# is a good approximation.
 		# Really, start with new_shape set, and shape set to be far away from it
 		shape = float("inf")
-		
+
 		if statistic != 0:
 			# Not going to have a divide by 0 problem here, so use the good
 			# estimate
-			new_shape =  (3 - statistic + csqrt((statistic - 3) ** 2 + 24 * 
+			new_shape =  (3 - statistic + csqrt((statistic - 3) ** 2 + 24 *
 				statistic)) / (12 * statistic)
 		if statistic == 0 or new_shape <= 0:
 			# Try the current shape parameter
@@ -1233,33 +1257,33 @@ cdef class GammaDistribution( Distribution ):
 
 		# Count the iterations we take
 		iteration = 0
-			
+
 		# Now do the update loop.
-		# We need the digamma (gamma derivative over gamma) and trigamma 
+		# We need the digamma (gamma derivative over gamma) and trigamma
 		# (digamma derivative) functions. Luckily, scipy.special.polygamma(0, x)
-		# is the digamma function (0th derivative of the digamma), and 
+		# is the digamma function (0th derivative of the digamma), and
 		# scipy.special.polygamma(1, x) is the trigamma function.
 		while abs(shape - new_shape) > epsilon and iteration < iteration_limit:
 			shape = new_shape
-			
-			new_shape = shape - (_log(shape) - 
+
+			new_shape = shape - (_log(shape) -
 				scipy.special.polygamma(0, shape) -
 				statistic) / (1.0 / shape - scipy.special.polygamma(1, shape))
-			
+
 			# Don't let shape escape from valid values
 			if abs(new_shape) == float("inf") or new_shape == 0:
 				# Hack the shape parameter so we don't stop the loop if we land
 				# near it.
 				shape = new_shape
-				
+
 				# Re-start at some random place.
 				new_shape = random.random()
-				
+
 			iteration += 1
-			
+
 		# Might as well grab the new value
 		shape = new_shape
-				
+
 		# Now our iterative estimation of the shape parameter has converged.
 		# Calculate the rate parameter
 		rate = 1.0 / (1.0 / (shape * summaries[:,3].sum()) * \
@@ -1271,14 +1295,14 @@ cdef class GammaDistribution( Distribution ):
 		# Calculate the new parameters, respecting inertia, with an inertia
 		# of 0 being completely replacing the parameters, and an inertia of
 		# 1 being to ignore new training data.
-		self.alpha = prior_shape*inertia + shape*(1-inertia) 
+		self.alpha = prior_shape*inertia + shape*(1-inertia)
 		self.beta =	prior_rate*inertia + rate*(1-inertia)
 		self.summaries = []
 
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object."""
 
-		self.summaries = []	
+		self.summaries = []
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
@@ -1292,7 +1316,7 @@ cdef class GammaDistribution( Distribution ):
 cdef class DiscreteDistribution( Distribution ):
 	"""
 	A discrete distribution, made up of characters and their probabilities,
-	assuming that these probabilities will sum to 1.0. 
+	assuming that these probabilities will sum to 1.0.
 	"""
 
 	property parameters:
@@ -1300,7 +1324,7 @@ cdef class DiscreteDistribution( Distribution ):
 			return [ self.dist ]
 		def __set__( self, parameters ):
 			self.dist = parameters[0]
-			
+
 	def __cinit__( self, dict characters, bint frozen=False ):
 		"""
 		Make a new discrete distribution with a dictionary of discrete
@@ -1308,7 +1332,7 @@ cdef class DiscreteDistribution( Distribution ):
 		sum to 1.0. Each discrete character can be modelled as a
 		Bernoulli distribution.
 		"""
-		
+
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
 
@@ -1325,6 +1349,10 @@ cdef class DiscreteDistribution( Distribution ):
 		if self.encoded_keys is not None:
 			free( self.encoded_counts )
 			free( self.encoded_log_probability )
+
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		return self.__class__, (self.dist, self.frozen)
 
 	def __len__( self ):
 		"""Return the length of the underlying dictionary"""
@@ -1428,20 +1456,20 @@ cdef class DiscreteDistribution( Distribution ):
 
 	def sample( self ):
 		"""Sample randomly from the discrete distribution."""
-		
+
 		rand = random.random()
 		for key, value in self.items():
 			if value >= rand:
 				return key
 			rand -= value
-	
+
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -1498,7 +1526,7 @@ cdef class DiscreteDistribution( Distribution ):
 			n = len(self.encoded_keys)
 			for i in range(n):
 				key = self.encoded_keys[i]
-				self.dist[key] = (self.dist[key]*inertia + 
+				self.dist[key] = (self.dist[key]*inertia +
 					(1-inertia)*self.encoded_counts[i] / self.summaries[1])
 				self.log_dist[key] = _log( self.dist[key] )
 				self.encoded_counts[i] = 0
@@ -1535,7 +1563,7 @@ cdef class DiscreteDistribution( Distribution ):
 
 cdef class PoissonDistribution(Distribution):
 	"""
-	A discrete probability distribution which expresses the probability of a 
+	A discrete probability distribution which expresses the probability of a
 	number of events occuring in a fixed time window. It assumes these events
 	occur with at a known rate, and independently of each other.
 	"""
@@ -1552,6 +1580,10 @@ cdef class PoissonDistribution(Distribution):
 		self.name = "PoissonDistribution"
 		self.summaries = [0, 0]
 		self.frozen = frozen
+
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		return self.__class__, (self.l, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
@@ -1628,7 +1660,7 @@ cdef class PoissonDistribution(Distribution):
 			return
 
 		x_sum, w_sum = self.summaries
-		mu = x_sum / w_sum 
+		mu = x_sum / w_sum
 
 		self.l = mu*(1-inertia) + self.l*inertia
 		self.logl = _log(self.l)
@@ -1661,7 +1693,7 @@ cdef class LambdaDistribution(Distribution):
 	This assumes the lambda function returns the log probability, not the
 	untransformed probability.
 	"""
-	
+
 	def __init__(self, lambda_funct=None, frozen=True ):
 		"""
 		Takes in a lambda function and stores it. This function should return
@@ -1672,7 +1704,12 @@ cdef class LambdaDistribution(Distribution):
 		self.parameters = [lambda_funct]
 		self.name = "LambdaDistribution"
 		self.frozen = frozen
-		
+
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		lambda_funct = self.parameters[0]
+		return self.__class__, (lambda_funct, self.frozen)
+
 	def log_probability(self, symbol):
 		"""
 		What's the probability of the given float under this distribution?
@@ -1699,21 +1736,21 @@ cdef class KernelDensity( Distribution ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1. 
+		Weights are scaled so that they sum to 1.
 		"""
 
 		points = numpy.asarray( points, dtype=numpy.float64 )
 		n = points.shape[0]
-		
+
 		if weights is not None:
 			weights = numpy.array(weights, dtype=numpy.float64) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n
 
 		self.n = n
 		self.points_ndarray = points
 		self.points = <double*> self.points_ndarray.data
-		
+
 		self.weights_ndarray = weights
 		self.weights = <double*> self.weights_ndarray.data
 
@@ -1721,6 +1758,10 @@ cdef class KernelDensity( Distribution ):
 		self.summaries = []
 		self.name = "KernelDensity"
 		self.frozen = frozen
+
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		return self.__class__, (self.points_ndarray, self.bandwidth, self.weights_ndarray, self.frozen)
 
 	def fit( self, points, weights=None, inertia=0.0 ):
 		"""Replace the points, allowing for inertia if specified."""
@@ -1736,7 +1777,7 @@ cdef class KernelDensity( Distribution ):
 		if weights is not None:
 			weights = numpy.array( weights, dtype=numpy.float64 ) / numpy.sum(weights)
 		else:
-			weights = numpy.ones( n, dtype=numpy.float64 ) / n 
+			weights = numpy.ones( n, dtype=numpy.float64 ) / n
 
 		# If no inertia, get rid of the previous points
 		if inertia == 0.0:
@@ -1745,7 +1786,7 @@ cdef class KernelDensity( Distribution ):
 			self.n = points.shape[0]
 
 		# Otherwise adjust weights appropriately
-		else: 
+		else:
 			self.points_ndarray = numpy.concatenate( ( self.points_ndarray, points ) )
 			self.weights_ndarray = numpy.concatenate( ( self.weights_ndarray*inertia, weights*(1-inertia) ) )
 			self.n = points.shape[0]
@@ -1773,7 +1814,7 @@ cdef class GaussianKernelDensity( KernelDensity ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1. 
+		Weights are scaled so that they sum to 1.
 		"""
 
 		self.name = "GaussianKernelDensity"
@@ -1815,7 +1856,7 @@ cdef class UniformKernelDensity( KernelDensity ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1. 
+		Weights are scaled so that they sum to 1.
 		"""
 
 		self.name = "UniformKernelDensity"
@@ -1827,7 +1868,7 @@ cdef class UniformKernelDensity( KernelDensity ):
 		cdef double mu, w
 
 		cdef int i, n = self.n
-		cdef double prob = 0.0 
+		cdef double prob = 0.0
 
 		for i in range( n ):
 			# Go through each point sequentially
@@ -1842,7 +1883,7 @@ cdef class UniformKernelDensity( KernelDensity ):
 
 		# Return the log of the sum of probabilities
 		return _log( prob )
-	
+
 	def sample( self ):
 		"""
 		Generate a random sample from this distribution. This is done by first
@@ -1874,7 +1915,7 @@ cdef class TriangleKernelDensity( KernelDensity ):
 		"""
 		Take in points, bandwidth, and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1. 
+		Weights are scaled so that they sum to 1.
 		"""
 
 		self.name = "TriangleKernelDensity"
@@ -1894,9 +1935,9 @@ cdef class TriangleKernelDensity( KernelDensity ):
 			w = self.weights[i]
 
 			# Calculate the probability for each point
-			hinge = bandwidth - fabs( mu - symbol ) 
+			hinge = bandwidth - fabs( mu - symbol )
 			if hinge > 0:
-				prob += hinge * w 
+				prob += hinge * w
 
 		# Return the log of the sum of probabilities
 		return _log( prob )
@@ -1935,7 +1976,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	represent the mean of that event. Observations must now be tuples of
 	a length equal to the number of distributions passed in.
 
-	s1 = IndependentComponentsDistribution([ ExponentialDistribution( 0.1 ), 
+	s1 = IndependentComponentsDistribution([ ExponentialDistribution( 0.1 ),
 									NormalDistribution( 5, 2 ) ])
 	s1.log_probability( (5, 2 ) )
 	"""
@@ -1951,7 +1992,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		"""
 		Take in the distributions and appropriate weights. If no weights
 		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1. 
+		Weights are scaled so that they sum to 1.
 		"""
 
 		self.distributions = numpy.array( distributions )
@@ -1959,7 +2000,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		self.d = len(distributions)
 
-		if weights:
+		if weights is not None:
 			weights = numpy.array( weights, dtype=numpy.float64 )
 		else:
 			weights = numpy.ones( self.d, dtype=numpy.float64 )
@@ -1968,6 +2009,10 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		self.weights_ptr = <double*> self.weights.data
 		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
+
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		return self.__class__, (self.distributions, numpy.exp(self.weights), self.frozen)
 
 	def log_probability( self, symbol ):
 		"""
@@ -2000,18 +2045,18 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	def sample( self ):
 		"""
 		Sample from the mixture. First, choose a distribution to sample from
-		according to the weights, then sample from that distribution. 
+		according to the weights, then sample from that distribution.
 		"""
 
 		return [ d.sample() for d in self.parameters[0] ]
 
 	def fit( self, items, weights=None, inertia=0 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -2079,7 +2124,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 	def __cinit__( self, means=[], covariance=[], frozen=False ):
 		"""
-		Take in the mean vector and the covariance matrix. 
+		Take in the mean vector and the covariance matrix.
 		"""
 
 		self.name = "MultivariateGaussianDistribution"
@@ -2095,7 +2140,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 			raise ValueError("covariance is not a square matrix, dimensions are ({}, {})".format( self.cov.shape[0], self.cov.shape[1] ) )
 		if det == 0:
 			raise ValueError("covariance matrix is not invertible.")
-		
+
 		d = self.mu.shape[0]
 		self.d = d
 
@@ -2113,6 +2158,10 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		self._mu_new = <double*> calloc( d, sizeof(double) )
 		self._cov_new = <double*> calloc( d*d, sizeof(double) )
+
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		return self.__class__, (self.mu, self.cov, self.frozen)
 
 	def __dealloc__(self):
 		free(self._mu_new)
@@ -2151,19 +2200,19 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	def sample( self ):
 		"""
 		Sample from the mixture. First, choose a distribution to sample from
-		according to the weights, then sample from that distribution. 
+		according to the weights, then sample from that distribution.
 		"""
 
-		return numpy.random.multivariate_normal( self.parameters[0], 
+		return numpy.random.multivariate_normal( self.parameters[0],
 			self.parameters[1] )
 
 	def fit( self, items, weights=None, inertia=0 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-	
+
 		if self.frozen:
 			return
 
@@ -2180,7 +2229,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		
+
 		cdef SIZE_t n = items.shape[0]
 		d = items.shape[1]
 
@@ -2222,7 +2271,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 				column_sum[j] += items[i*d + j] * weights[i]
 
 				for k in range(d):
-					pair_sum[j*d + k] += (weights[i] * items[i*d + j] * 
+					pair_sum[j*d + k] += (weights[i] * items[i*d + j] *
 						items[i*d + k])
 
 		with gil:
@@ -2239,8 +2288,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
-		Set the parameters of this Distribution to maximize the likelihood of 
-		the given sample. Items holds some sort of sequence. If weights is 
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
 
@@ -2266,7 +2315,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		for j in range(d):
 			for k in range(d):
-				self._cov_new[j*d + k] = (pair_sum[j*d + k] - column_sum[j]*u[k] 
+				self._cov_new[j*d + k] = (pair_sum[j*d + k] - column_sum[j]*u[k]
 					- column_sum[k]*u[j] + self.w_sum*u[j]*u[k]) / self.w_sum
 				self._cov[j*d + k] = self._cov[j*d + k] * inertia + self._cov_new[j*d +k] * (1-inertia)
 
@@ -2327,15 +2376,20 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		self.summaries = [{}, {}]
 
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		values, neighbors, keys = self.parameters
+		return self.__class__, (values, neighbors, keys, self.frozen)
+
 	def __str__( self ):
 		"""
 		Regenerate the table.
 		"""
 
 		values, parents, keys = self.parameters
-		return "\n".join( 
+		return "\n".join(
 					"\t".join( map( str, key + (cexp( values[idx] ),) ) )
-							for key, idx in keys.items() ) 
+							for key, idx in keys.items() )
 
 	def __len__( self ):
 		"""
@@ -2378,7 +2432,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		a = numpy.random.uniform(0, 1)
 		for i in range(len(values_)):
 			if values_[i] > a:
-				return keys[idxs[i]][-1] 
+				return keys[idxs[i]][-1]
 
 	def log_probability( self, symbol ):
 		"""
@@ -2391,7 +2445,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# Return the array element with that identity
 		return values[ keys[symbol] ]
-		
+
 	def joint( self, neighbor_values=None ):
 		"""
 		This will turn a conditional probability table into a joint
@@ -2446,7 +2500,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 		Calculate the marginal of the CPT. This involves normalizing to turn it
 		into a joint probability table, and then summing over the desired
-		value. 
+		value.
 		"""
 
 		# Convert from a dictionary to a list if necessary
@@ -2513,7 +2567,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		Parameters
 		----------
-		separators : tuple, optional 
+		separators : tuple, optional
 		    The two separaters to pass to the json.dumps function for formatting.
 		    Default is (',', ' : ').
 
@@ -2527,7 +2581,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		    A properly formatted JSON object.
 		"""
 
-		model = { 
+		model = {
 					'class' : 'Distribution',
 		            'name' : 'ConditionalProbabilityTable',
 		            'values' : self.parameters[0].tolist(),
@@ -2569,13 +2623,18 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			keys = OrderedDict( keys[::-1] )
 			self.parameters = [ values, neighbors, keys ]
 
+	def __reduce__( self ):
+		"""Serialize the distribution for pickle."""
+		values, neighbors, keys = self.parameters
+		return self.__class__, (values, neighbors, keys, self.frozen)
+
 	def __str__( self ):
 		"""Regenerate the table."""
 
 		values, parents, keys = self.parameters
-		return "\n".join( 
+		return "\n".join(
 					"\t".join( map( str, key + (cexp( values[idx] ),) ) )
-							for key, idx in keys.items() ) 
+							for key, idx in keys.items() )
 
 	def __len__( self ):
 		"""The length of the distribution is the number of keys."""
@@ -2618,7 +2677,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		Determine the marginal of this table with respect to the index of one
 		variable. The parents are index 0..n-1 for n parents, and the final
 		variable is either the appropriate value or -1. For example:
-		table = 
+		table =
 		A    B    C    p(C)
 		... data ...
 		table.marginal(0) gives the marginal wrt A
@@ -2656,7 +2715,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		for key, value in d.items():
 			d[key] = value / total
-		
+
 		return DiscreteDistribution( d )
 
 	def summarize( self, items, weights=None ):
@@ -2711,7 +2770,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		Parameters
 		----------
-		separators : tuple, optional 
+		separators : tuple, optional
 		    The two separaters to pass to the json.dumps function for formatting.
 		    Default is (',', ' : ').
 
@@ -2725,7 +2784,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		    A properly formatted JSON object.
 		"""
 
-		model = { 
+		model = {
 					'class' : 'Distribution',
 		            'name' : 'JointProbabilityTable',
 		            'values' : self.parameters[0].tolist(),

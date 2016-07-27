@@ -8,6 +8,7 @@ from nose.tools import assert_not_equal
 from nose.tools import assert_less_equal
 from nose.tools import assert_raises
 import random
+import pickle
 import numpy as np
 
 def setup():
@@ -57,7 +58,7 @@ def setup():
 		 [ 'D', 'B', 'A', 0.35 ], [ 'D', 'B', 'B', 0.5 ], [ 'D', 'B', 'C', 0.1 ], [ 'D', 'B', 'D', 0.05 ],
 		 [ 'D', 'C', 'A', 0.1 ], [ 'D', 'C', 'B', 0.45 ], [ 'D', 'C', 'C', 0.0 ], [ 'D', 'C', 'D', 0.45 ],
 		 [ 'D', 'D', 'A', 0.2 ], [ 'D', 'D', 'B', 0.1 ], [ 'D', 'D', 'C', 0.1 ], [ 'D', 'D', 'D', 0.6 ]],
-		 [ zeroth_dist, first_dist ] ) 
+		 [ zeroth_dist, first_dist ] )
 
 def teardown():
 	pass
@@ -90,37 +91,37 @@ def test_second_dist():
 	assert_almost_equal( second_dist.log_probability( ('A', 'A', 'A') ), -2.99573227355 )
 	assert_almost_equal( second_dist.log_probability( ('A', 'B', 'A') ), -2.99573227355 )
 	assert_almost_equal( second_dist.log_probability( ('A', 'B', 'C') ), -0.162518929498 )
-	
+
 	assert_almost_equal( second_dist.log_probability( ('A', 'C', 'C') ), -2.30258509299 )
 	assert_almost_equal( second_dist.log_probability( ('A', 'C', 'D') ), -2.30258509299 )
 	assert_almost_equal( second_dist.log_probability( ('A', 'D', 'B') ), -0.916290731874 )
 	assert_almost_equal( second_dist.log_probability( ('A', 'D', 'D') ), -2.99573227355 )
-	
+
 	assert_almost_equal( second_dist.log_probability( ('B', 'A', 'B') ), -2.99573227355 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'A', 'D') ), -0.69314718056 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'B', 'B') ), -2.30258509299 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'B', 'D') ), -float('inf') )
-	
+
 	assert_almost_equal( second_dist.log_probability( ('B', 'C', 'A') ), -2.30258509299 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'C', 'B') ), -1.0498221245 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'D', 'D') ), -0.916290731874 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'D', 'B') ), -2.30258509299 )
-	
+
 	assert_almost_equal( second_dist.log_probability( ('C', 'A', 'A') ), -1.60943791243 )
 	assert_almost_equal( second_dist.log_probability( ('C', 'A', 'B') ), -1.20397280433 )
 	assert_almost_equal( second_dist.log_probability( ('C', 'B', 'C') ), -float('inf') )
 	assert_almost_equal( second_dist.log_probability( ('C', 'B', 'A') ), -1.0498221245 )
-	
+
 	assert_almost_equal( second_dist.log_probability( ('C', 'C', 'D') ), -1.89711998489 )
 	assert_almost_equal( second_dist.log_probability( ('C', 'C', 'B') ), -float('inf') )
 	assert_almost_equal( second_dist.log_probability( ('C', 'D', 'A') ), -0.223143551314 )
 	assert_almost_equal( second_dist.log_probability( ('C', 'D', 'C') ), -2.99573227355 )
-	
+
 	assert_almost_equal( second_dist.log_probability( ('D', 'A', 'D') ), -float('inf') )
 	assert_almost_equal( second_dist.log_probability( ('D', 'A', 'A') ), -0.69314718056 )
 	assert_almost_equal( second_dist.log_probability( ('D', 'B', 'D') ), -2.99573227355 )
 	assert_almost_equal( second_dist.log_probability( ('D', 'B', 'C') ), -2.30258509299 )
-	
+
 	assert_almost_equal( second_dist.log_probability( ('D', 'C', 'A') ), -2.30258509299 )
 	assert_almost_equal( second_dist.log_probability( ('D', 'C', 'D') ), -0.798507696218 )
 	assert_almost_equal( second_dist.log_probability( ('D', 'D', 'D') ), -0.510825623766 )
@@ -183,9 +184,9 @@ def test_first_log_probability():
 
 	assert_almost_equal( second_chain.log_probability( list('ABDBCCDC') ), -18.9960448889 )
 	assert_almost_equal( second_chain.log_probability( list('DACCBDCB') ), -float('inf') )
-	
+
 	assert_almost_equal( second_chain.log_probability( list('BCCCACBDBDBABACD') ), -29.1792463442 )
-	
+
 	assert_almost_equal( second_chain.log_probability( list('DABBCBDACAAADCBDCDBCBDCACBDABBAA') ), -float('inf') )
 
 # if summarize and from summaries work, so does fit
@@ -326,19 +327,28 @@ def test_summarize_with_weights_with_inertia():
 	assert_almost_equal( first_chain.log_probability( list('CB') ), -2.70099965753 )
 	assert_almost_equal( first_chain.log_probability( list('DB') ), -2.596587547 )
 	assert_almost_equal( first_chain.log_probability( list('DC') ), -2.43824119019 )
-	
+
 	assert_almost_equal( first_chain.log_probability( list('ABDD') ), -6.77853581842 )
 	assert_almost_equal( first_chain.log_probability( list('CCCB') ), -5.75946483735 )
 	assert_almost_equal( first_chain.log_probability( list('CCBD') ), -6.05149283556 )
 	assert_almost_equal( first_chain.log_probability( list('ACAC') ), -6.10013721195 )
-	
+
 	assert_almost_equal( first_chain.log_probability( list('ABDBCCDC') ), -11.2181867683 )
 	assert_almost_equal( first_chain.log_probability( list('DACCBDCB') ), -11.6681121956 )
-	
+
 	assert_almost_equal( first_chain.log_probability( list('BCCCACBDBDBABACD') ), -25.0365515667 )
-	
+
 	assert_almost_equal( first_chain.log_probability( list('DABBCBDACAAADCBDCDBCBDCACBDABBAA') ), -45.1660985662 )
 
 @with_setup( setup, teardown )
 def test_raise_errors():
 	pass
+
+@with_setup( setup, teardown )
+def test_pickling():
+	chain1 = MarkovChain([ zeroth_dist, first_dist ])
+
+	chain2 = pickle.loads( pickle.dumps( chain1 ) )
+
+	assert_almost_equal( chain1.log_probability( list('BCCCACBDBDBABACD') ),
+	                     chain2.log_probability( list('BCCCACBDBDBABACD') ) )

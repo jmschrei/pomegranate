@@ -48,13 +48,16 @@ cdef class MarkovChain(object):
 		self.k = len(distributions) - 1
 		self.distributions = distributions
 
+	def __reduce__(self):
+		return self.__class__, (self.distributions,)
+
 	def log_probability(self, sequence):
 		"""Calculate the log probability of the sequence under the model.
 
 		This calculates the first slices of increasing size under the
 		corresponding first few components of the model until size k is reached,
-		at which all slices are evaluated under the final component. 
-		
+		at which all slices are evaluated under the final component.
+
 		Parameters
 		----------
 		sequence : array-like
@@ -124,12 +127,12 @@ cdef class MarkovChain(object):
 			a sequence of variable length
 
 		weights : array-like, shape (n_samples,), optional
-			The initial weights of each sample. If nothing is passed in then 
+			The initial weights of each sample. If nothing is passed in then
 			each sample is assumed to be the same weight. Default is None.
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
@@ -154,7 +157,7 @@ cdef class MarkovChain(object):
 			a sequence of variable length
 
 		weights : array-like, shape (n_samples,), optional
-			The initial weights of each sample. If nothing is passed in then 
+			The initial weights of each sample. If nothing is passed in then
 			each sample is assumed to be the same weight. Default is None.
 
 		Returns
@@ -180,7 +183,7 @@ cdef class MarkovChain(object):
 				symbols = [ sequence[j] for sequence in sequences if len(sequence) > j+self.k ]
 			else:
 				symbols = [ sequence[j:j+self.k+1] for sequence in sequences if len(sequence) > j+self.k ]
-			
+
 			self.distributions[-1].summarize(symbols, weights)
 
 	def from_summaries(self, inertia=0.0):
@@ -188,12 +191,12 @@ cdef class MarkovChain(object):
 
 		Fit the parameters of the model to the sufficient statistics gathered
 		during the summarize calls. This should return an exact update.
-		
+
 		Parameters
 		----------
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
@@ -210,7 +213,7 @@ cdef class MarkovChain(object):
 
 		Parameters
 		----------
-		separators : tuple, optional 
+		separators : tuple, optional
 		    The two separaters to pass to the json.dumps function for formatting.
 		    Default is (',', ' : ').
 
@@ -224,7 +227,7 @@ cdef class MarkovChain(object):
 		    A properly formatted JSON object.
 		"""
 
-		model = { 
+		model = {
 		            'class' : 'MarkovChain',
 		            'distributions'  : [ json.loads( d.to_json() ) for d in self.distributions ]
 		        }
@@ -247,6 +250,6 @@ cdef class MarkovChain(object):
 		"""
 
 		d = json.loads( s )
-		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ] 
+		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ]
 		model = MarkovChain( distributions )
 		return model

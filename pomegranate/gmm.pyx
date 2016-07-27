@@ -65,7 +65,7 @@ cdef double log_probability( Distribution model, double* samples, int n, int d )
 		else:
 			logp += model._log_probability( samples[i] )
 
-	return logp 
+	return logp
 
 cdef class Kmeans( object ):
 	"""A kmeans model.
@@ -105,7 +105,7 @@ cdef class Kmeans( object ):
 
 	cpdef fit( self, X, int max_iterations=10 ):
 		"""Fit the model to the data using k centroids.
-		
+
 		Parameters
 		----------
 		X : array-like, shape (n_samples, n_dim)
@@ -229,7 +229,7 @@ cdef class Kmeans( object ):
 		cdef int n, d
 
 		n, d = X.shape
-		
+
 		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
 		cdef int* y_ptr = <int*> y.data
 
@@ -335,7 +335,7 @@ cdef class GeneralMixtureModel( Distribution ):
 	cdef double* summaries_ptr
 	cdef dict keymap
 	cdef int n
-	
+
 	def __init__( self, distributions, weights=None, n_components=None ):
 		if not callable(distributions) and not isinstance(distributions, list):
 			raise ValueError("must either give initial distributions or constructor")
@@ -381,12 +381,16 @@ cdef class GeneralMixtureModel( Distribution ):
 			for d in self.distributions:
 				d.encode( tuple(set(keys)) )
 
+	def __reduce__( self ):
+		"""Serialize model for pickling."""
+		return self.__class__, (self.distributions.tolist(), self.weights, self.n)
+
 	def sample( self, n=1 ):
 		"""Generate a sample from the model.
 
 		First, randomly select a component weighted by the prior probability,
 		Then, use the sample method from that component to generate a sample.
-		
+
 		Parameters
 		----------
 		n : int, optional
@@ -443,7 +447,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			n, d = X.shape
 
 		m = len(self.distributions)
-		
+
 		cdef numpy.ndarray logp_ndarray = numpy.zeros(n)
 		cdef double* logp = <double*> logp_ndarray.data
 
@@ -573,7 +577,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Calculate the posterior P(M|D) for each sample and return the index
 		of the component most likely to fit it. This corresponds to a simple
-		argmax over the responsibility matrix. 
+		argmax over the responsibility matrix.
 
 		This is a sklearn wrapper for the maximum_a_posteriori method.
 
@@ -630,7 +634,7 @@ cdef class GeneralMixtureModel( Distribution ):
 					max_logp = logp
 					y[i] = j
 
-	def fit( self, X, weights=None, inertia=0.0, stop_threshold=0.1, 
+	def fit( self, X, weights=None, inertia=0.0, stop_threshold=0.1,
 		max_iterations=1e8, verbose=False ):
 		"""Fit the model to new data using EM.
 
@@ -653,7 +657,7 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
@@ -702,7 +706,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		cdef double* X_ptr = <double*> X_ndarray.data
 
 		initial_log_probability_sum = NEGINF
-		iteration, improvement = 0, INF 
+		iteration, improvement = 0, INF
 
 		while improvement > stop_threshold and iteration < max_iterations + 1:
 			self.from_summaries(inertia)
@@ -755,7 +759,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		cdef numpy.ndarray weights_ndarray
 
 		if weights is None:
-			weights_ndarray = numpy.ones(X.shape[0])
+			weights_ndarray = numpy.ones(X.shape[0], dtype='float64')
 		else:
 			weights_ndarray = numpy.array(weights)
 
@@ -767,7 +771,7 @@ cdef class GeneralMixtureModel( Distribution ):
 	cdef double _summarize( self, double* X, double* weights, SIZE_t n ) nogil:
 		cdef double* r = <double*> calloc(self.n*n, sizeof(double))
 		cdef int i, j
-		cdef double total, logp, log_probability_sum = 0.0, p
+		cdef double total, logp, log_probability_sum = 0.0
 
 		for i in range(n):
 			total = NEGINF
@@ -778,14 +782,14 @@ cdef class GeneralMixtureModel( Distribution ):
 				else:
 					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X+i*self.d)
 
-				r[j*n + i] = logp + self.weights_ptr[j] + weights[i]
+				r[j*n + i] = logp + self.weights_ptr[j]
 				total = pair_lse(total, r[j*n + i])
 
-			for j in range( self.n ):
-				r[j*n + i] = cexp(r[j*n + i] - total)
+			for j in range(self.n):
+				r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
 				self.summaries_ptr[j] += r[j*n + i]
 
-			log_probability_sum += total 
+			log_probability_sum += total * weights[i]
 
 		for j in range( self.n ):
 			(<Distribution> self.distributions_ptr[j])._summarize(X, &r[j*n], n)
@@ -798,12 +802,12 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Fit the parameters of the model to the sufficient statistics gathered
 		during the summarize calls. This should return an exact update.
-		
+
 		Parameters
 		----------
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia), 
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
@@ -825,7 +829,7 @@ cdef class GeneralMixtureModel( Distribution ):
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object.
 
-		Parameters 
+		Parameters
 		----------
 		None
 
@@ -843,21 +847,21 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Parameters
 		----------
-		separators : tuple, optional 
+		separators : tuple, optional
 			The two separaters to pass to the json.dumps function for formatting.
 			Default is (',', ' : ').
 
 		indent : int, optional
 			The indentation to use at each level. Passed to json.dumps for
 			formatting. Default is 4.
-		
+
 		Returns
 		-------
 		json : str
 			A properly formatted JSON object.
 		"""
-		
-		model = { 
+
+		model = {
 					'class' : 'GeneralMixtureModel',
 					'distributions'  : [ json.loads( dist.to_json() ) for dist in self.distributions ],
 					'weights' : self.weights.tolist()
@@ -868,12 +872,11 @@ cdef class GeneralMixtureModel( Distribution ):
 	@classmethod
 	def from_json( cls, s ):
 		"""Read in a serialized model and return the appropriate classifier.
-		
+
 		Parameters
 		----------
 		s : str
 			A JSON formatted string containing the file.
-
 		Returns
 		-------
 		model : object
@@ -881,6 +884,6 @@ cdef class GeneralMixtureModel( Distribution ):
 		"""
 
 		d = json.loads( s )
-		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ] 
+		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ]
 		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
 		return model

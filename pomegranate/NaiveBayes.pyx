@@ -36,7 +36,7 @@ cdef class NaiveBayes( object ):
     weights : list or numpy.ndarray or None, default None
         The prior probabilities of the components. If None is passed in then
         defaults to the uniformly distributed priors.
-    
+
     Attributes
     ----------
     models : list
@@ -63,7 +63,7 @@ cdef class NaiveBayes( object ):
            [-0.26751248, -1.4493653 ],
            [-1.09861229, -0.40546511]])
     """
-    
+
     cdef public object models
     cdef void** models_ptr
     cdef numpy.ndarray summaries
@@ -72,12 +72,12 @@ cdef class NaiveBayes( object ):
     cdef public int d
 
     def __init__( self, models=None, weights=None ):
-        if not callable(models) and not isinstance(models, list): 
+        if not callable(models) and not isinstance(models, list):
             raise ValueError("must either give initial models or constructor")
 
         self.summaries = None
         self.d = 0
-        
+
         if type(models) is list:
             if len(models) < 2:
                 raise ValueError("must have at least two models for comparison")
@@ -96,7 +96,7 @@ cdef class NaiveBayes( object ):
                 self.d = models[0].d
                 if sum([self.d == model.d for model in models]) != len(models):
                     raise TypeError("mis-matching dimensions between hidden markov models")
-            
+
             self.summaries = numpy.zeros(len(models))
 
             self.models = numpy.array( models )
@@ -110,6 +110,9 @@ cdef class NaiveBayes( object ):
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
 
         self.models = models
+
+    def __reduce__( self ):
+        return self.__class__, (self.models, self.weights)
 
     def __str__( self ):
         try:
@@ -138,7 +141,7 @@ cdef class NaiveBayes( object ):
         Returns
         -------
         self : object
-            Returns the fitted model 
+            Returns the fitted model
         """
 
         self.summarize( X, y, weights )
@@ -227,7 +230,7 @@ cdef class NaiveBayes( object ):
         Returns
         -------
         self : object
-            Returns the fitted model 
+            Returns the fitted model
         """
 
         n = len(self.models)
@@ -244,7 +247,7 @@ cdef class NaiveBayes( object ):
 
         self.summaries = numpy.zeros(n)
         return self
-    
+
     cpdef predict_log_proba( self, X ):
         """Return the normalized log probability of samples under the model.
 
@@ -280,7 +283,7 @@ cdef class NaiveBayes( object ):
 
         for i in range(n):
             total = NEGINF
-            
+
             for j in range(m):
                 r[i, j] = self.models[j].log_probability( X[i] ) + logw[j]
                 total = pair_lse( total, r[i, j] )
@@ -323,7 +326,7 @@ cdef class NaiveBayes( object ):
 
         for i in range(n):
             total = 0.
-            
+
             for j in range(m):
                 r[i, j] = cexp(self.models[j].log_probability( X[i] )) * self.weights[j]
                 total += r[i, j]

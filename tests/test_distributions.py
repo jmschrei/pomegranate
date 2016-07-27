@@ -7,6 +7,7 @@ from nose.tools import assert_equal
 from nose.tools import assert_not_equal
 from nose.tools import assert_less_equal
 import random
+import pickle
 import numpy as np
 
 def setup():
@@ -85,13 +86,18 @@ def test_normal():
 
 	d.thaw()
 	d.fit( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
-	assert_equal( round( d.parameters[0], 4 ), 4.9167 ) 
+	assert_equal( round( d.parameters[0], 4 ), 4.9167 )
 	assert_equal( round( d.parameters[1], 4 ), 0.7592 )
 
 	e = Distribution.from_json( d.to_json() )
 	assert_equal( e.name, "NormalDistribution" )
-	assert_equal( round( e.parameters[0], 4 ), 4.9167 ) 
+	assert_equal( round( e.parameters[0], 4 ), 4.9167 )
 	assert_equal( round( e.parameters[1], 4 ), 0.7592 )
+
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "NormalDistribution" )
+	assert_equal( round( f.parameters[0], 4 ), 4.9167 )
+	assert_equal( round( f.parameters[1], 4 ), 0.7592 )
 
 @with_setup( setup, teardown )
 def test_uniform():
@@ -107,7 +113,7 @@ def test_uniform():
 	for i in xrange( 10 ):
 		data = np.random.randn( 100 ) * 100
 		d.fit( data )
-		assert_equal( d.parameters[0], data.min() ) 
+		assert_equal( d.parameters[0], data.min() )
 		assert_equal( d.parameters[1], data.max() )
 
 	minimum, maximum = data.min(), data.max()
@@ -153,6 +159,10 @@ def test_uniform():
 	assert_equal( e.name, "UniformDistribution" )
 	assert_equal( e.parameters, [ 0, 8 ] )
 
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "UniformDistribution" )
+	assert_equal( f.parameters, [ 0, 8 ] )
+
 @with_setup( setup, teardown )
 def test_discrete():
 	d = DiscreteDistribution( { 'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25 } )
@@ -191,7 +201,7 @@ def test_discrete():
 	d.summarize( list( "BABABABABABABABABA" ) )
 	d.from_summaries( inertia=0.75 )
 	assert_equal( d.parameters[0], { 'A': 0.125, 'B': 0.875 } )
- 
+
 	d = DiscreteDistribution( { 'A': 0.0, 'B': 1.0 } )
 	d.summarize( list( "ABABABAB" ) )
 	d.summarize( list( "ABAB" ) )
@@ -206,6 +216,10 @@ def test_discrete():
 	e = Distribution.from_json( d.to_json() )
 	assert_equal( e.name, "DiscreteDistribution" )
 	assert_equal( e.parameters[0], { 'A': 0.25, 'B': 0.75 } )
+
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "DiscreteDistribution" )
+	assert_equal( f.parameters[0], { 'A': 0.25, 'B': 0.75 } )
 
 @with_setup( setup, teardown )
 def test_lognormal():
@@ -228,6 +242,11 @@ def test_lognormal():
 	assert_equal( e.name, "LogNormalDistribution" )
 	assert_equal( round( e.parameters[0], 4 ), 1.6167 )
 	assert_equal( round( e.parameters[1], 4 ), 0.0237 )
+
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "LogNormalDistribution" )
+	assert_equal( round( f.parameters[0], 4 ), 1.6167 )
+	assert_equal( round( f.parameters[1], 4 ), 0.0237 )
 
 @with_setup( setup, teardown )
 def test_gamma():
@@ -252,7 +271,12 @@ def test_gamma():
 	e = Distribution.from_json( d.to_json() )
 	assert_equal( e.name, "GammaDistribution" )
 	assert_equal( round( e.parameters[0], 4 ), 31.8806 )
-	assert_equal( round( e.parameters[1], 4 ), 10.5916 )	
+	assert_equal( round( e.parameters[1], 4 ), 10.5916 )
+
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "GammaDistribution" )
+	assert_equal( round( f.parameters[0], 4 ), 31.8806 )
+	assert_equal( round( f.parameters[1], 4 ), 10.5916 )
 
 @with_setup( setup, teardown )
 def test_exponential():
@@ -275,6 +299,10 @@ def test_exponential():
 	e = Distribution.from_json( d.to_json() )
 	assert_equal( e.name, "ExponentialDistribution" )
 	assert_equal( round( e.parameters[0], 4 ), 0.4545 )
+
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "ExponentialDistribution" )
+	assert_equal( round( f.parameters[0], 4 ), 0.4545 )
 
 @with_setup( setup, teardown )
 def test_poisson():
@@ -302,7 +330,11 @@ def test_poisson():
 	assert_almost_equal( d.log_probability(5), -1.7403021806115442 )
 	assert_almost_equal( d.log_probability(10), -4.0100334487345126 )
 	assert_almost_equal( d.log_probability(1), -3.3905620875658995 )
-	assert_equal( d.log_probability(-1), float("-inf") )	
+	assert_equal( d.log_probability(-1), float("-inf") )
+
+	e = pickle.loads( pickle.dumps( d ) )
+	assert_equal( e.name, "PoissonDistribution" )
+	assert_equal( e.parameters[0], 5 )
 
 @with_setup( setup, teardown )
 def test_gaussian_kernel():
@@ -337,6 +369,10 @@ def test_gaussian_kernel():
 	assert_equal( round( e.log_probability( 110 ), 4 ), -2.9368 )
 	assert_equal( round( e.log_probability( 0 ), 4 ), -5.1262 )
 
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "GaussianKernelDensity" )
+	assert_equal( round( f.log_probability( 110 ), 4 ), -2.9368 )
+	assert_equal( round( f.log_probability( 0 ), 4 ), -5.1262 )
 
 @with_setup( setup, teardown )
 def test_triangular_kernel():
@@ -360,6 +396,9 @@ def test_triangular_kernel():
 	assert_equal( e.name, "TriangleKernelDensity" )
 	assert_equal( round( e.log_probability( 6.5 ), 4 ), -2.4849 )
 
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( f.name, "TriangleKernelDensity" )
+	assert_equal( round( f.log_probability( 6.5 ), 4 ), -2.4849 )
 
 @with_setup( setup, teardown )
 def test_uniform_kernel():
@@ -382,8 +421,12 @@ def test_uniform_kernel():
 	e = Distribution.from_json( d.to_json() )
 	assert_equal( e.name, "UniformKernelDensity" )
 	assert_equal( round( e.log_probability( 2.2 ), 4 ), -0.4055 )
-	assert_equal( round( e.log_probability( 6.2 ), 4 ), -2.1972 )	
-	
+	assert_equal( round( e.log_probability( 6.2 ), 4 ), -2.1972 )
+
+	f = pickle.loads( pickle.dumps( e ) )
+	assert_equal( e.name, "UniformKernelDensity" )
+	assert_equal( round( f.log_probability( 2.2 ), 4 ), -0.4055 )
+	assert_equal( round( f.log_probability( 6.2 ), 4 ), -2.1972 )
 
 @with_setup( setup, teardown )
 def test_independent():
@@ -410,7 +453,7 @@ def test_independent():
 				     ( 3, 0 ), ( 4, 0 ), ( 5, 0 ), ( 2, 20) ], inertia=0.5 )
 
 	assert_equal( round( d.parameters[0][0].parameters[0], 4 ), 4.3889 )
-	assert_equal( round( d.parameters[0][0].parameters[1], 4 ), 1.9655 ) 
+	assert_equal( round( d.parameters[0][0].parameters[1], 4 ), 1.9655 )
 
 	assert_equal( d.parameters[0][1].parameters[0], -2.5 )
 	assert_equal( d.parameters[0][1].parameters[1], 15 )
@@ -456,6 +499,14 @@ def test_independent():
 	assert_equal( e.parameters[0][1].parameters[0], -2.5 )
 	assert_equal( e.parameters[0][1].parameters[1], 15 )
 
+	f = pickle.loads( pickle.dumps ( e ) )
+	assert_equal( e.name, "IndependentComponentsDistribution" )
+
+	assert_equal( round( f.parameters[0][0].parameters[0], 4 ), 4.3889 )
+	assert_equal( round( f.parameters[0][0].parameters[1], 4 ), 1.9655 )
+
+	assert_equal( f.parameters[0][1].parameters[0], -2.5 )
+	assert_equal( f.parameters[0][1].parameters[1], 15 )
 
 def test_conditional():
 	phditis = DiscreteDistribution({ True : 0.01, False : 0.99 })
@@ -474,7 +525,7 @@ def test_monty():
 	# The actual prize is independent of the other distributions
 	prize = DiscreteDistribution( { 'A': 1./3, 'B': 1./3, 'C': 1./3 } )
 
-	# Monty is dependent on both the guest and the prize. 
+	# Monty is dependent on both the guest and the prize.
 	monty = ConditionalProbabilityTable(
 		[[ 'A', 'A', 'A', 0.0 ],
 		 [ 'A', 'A', 'B', 0.5 ],
@@ -502,7 +553,7 @@ def test_monty():
 		 [ 'C', 'B', 'C', 0.0 ],
 		 [ 'C', 'C', 'A', 0.5 ],
 		 [ 'C', 'C', 'B', 0.5 ],
-		 [ 'C', 'C', 'C', 0.0 ]], [guest, prize] ) 
+		 [ 'C', 'C', 'C', 0.0 ]], [guest, prize] )
 
 	assert_equal( monty.log_probability( ('A', 'B', 'C') ), 0. )
 	assert_equal( monty.log_probability( ('C', 'B', 'A') ), 0. )

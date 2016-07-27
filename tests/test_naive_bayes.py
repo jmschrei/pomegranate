@@ -8,6 +8,7 @@ from nose.tools import assert_not_equal
 from nose.tools import assert_less_equal
 from nose.tools import assert_raises
 import random
+import pickle
 import numpy as np
 
 def setup_univariate():
@@ -16,7 +17,7 @@ def setup_univariate():
 	global univariate
 
 	normal = NormalDistribution( 5, 2 )
-	uniform = UniformDistribution( 0, 10 )	
+	uniform = UniformDistribution( 0, 10 )
 	univariate = NaiveBayes([ normal, uniform ])
 
 def setup_multivariate():
@@ -33,10 +34,10 @@ def setup_hmm():
 	global dumb
 	global fair
 	global smart
-	
+
 	rigged = State( DiscreteDistribution({ 'H': 0.8, 'T': 0.2 }) )
 	unrigged = State( DiscreteDistribution({ 'H': 0.5, 'T':0.5 }) )
-	
+
 	dumb = HiddenMarkovModel()
 	dumb.start = rigged
 	dumb.add_transition( rigged, rigged, 1 )
@@ -114,7 +115,7 @@ def test_hmms():
 	assert_almost_equal( dumb.log_probability( list('HHHH') ), -0.8925742052568388 )
 	assert_almost_equal( dumb.log_probability( list('THHH') ), -2.2788685663767296 )
 	assert_almost_equal( dumb.log_probability( list('TTTT') ), -6.437751649736401 )
-	
+
 	assert_almost_equal( fair.log_probability( list('H') ), -0.6931471805599453 )
 	assert_almost_equal( fair.log_probability( list('T') ), -0.6931471805599453 )
 	assert_almost_equal( fair.log_probability( list('HHHH') ), -2.772588722239781 )
@@ -152,29 +153,29 @@ def test_univariate_log_proba():
 
 	assert_almost_equal( logs[0][0], -0.40634848776410526 )
 	assert_almost_equal( logs[0][1], -1.0968478669939319 )
-	
+
 	assert_almost_equal( logs[1][0], -0.60242689998689203 )
 	assert_almost_equal( logs[1][1], -0.79292627921671865 )
-	
+
 	assert_almost_equal( logs[2][0], -1.5484819556996032 )
 	assert_almost_equal( logs[2][1], -0.23898133492942986 )
-	
+
 	assert_almost_equal( logs[3][0], 0.0 )
 	assert_almost_equal( logs[3][1], -float('inf') )
-	
+
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_log_proba():
 	logs = multivariate.predict_log_proba(np.array([[ 5, 5 ], [ 2, 9 ], [ 10, 7 ], [ -1 ,7 ]]))
 
 	assert_almost_equal( logs[0][0], -0.11837282271439786 )
 	assert_almost_equal( logs[0][1], -2.1925187617325435 )
-	
+
 	assert_almost_equal( logs[1][0], -4.1910993250497741 )
 	assert_almost_equal( logs[1][1], -0.015245264067919706 )
-	
+
 	assert_almost_equal( logs[2][0], -5.1814895400206806 )
 	assert_almost_equal( logs[2][1], -0.0056354790388262188 )
-	
+
 	assert_almost_equal( logs[3][0], 0.0 )
 	assert_almost_equal( logs[3][1], -float('inf') )
 
@@ -185,19 +186,19 @@ def test_hmm_log_proba():
 	assert_almost_equal( logs[0][0], -0.89097292388986515 )
 	assert_almost_equal( logs[0][1], -1.3609765531356006 )
 	assert_almost_equal( logs[0][2], -1.0986122886681096 )
-	
+
 	assert_almost_equal( logs[1][0], -0.93570553121744293 )
 	assert_almost_equal( logs[1][1], -1.429425687080494 )
 	assert_almost_equal( logs[1][2], -0.9990078376167526 )
-	
+
 	assert_almost_equal( logs[2][0], -3.9007882563128864 )
 	assert_almost_equal( logs[2][1], -0.23562532881626597 )
 	assert_almost_equal( logs[2][2], -1.6623251045711958 )
-	
+
 	assert_almost_equal( logs[3][0], -3.1703366478831185 )
 	assert_almost_equal( logs[3][1], -0.49261403211260379 )
 	assert_almost_equal( logs[3][2], -1.058478108940049 )
-	
+
 	assert_almost_equal( logs[4][0], -1.3058441172130273 )
 	assert_almost_equal( logs[4][1], -1.4007102236822906 )
 	assert_almost_equal( logs[4][2], -0.7284958836972919 )
@@ -208,29 +209,29 @@ def test_univariate_proba():
 
 	assert_almost_equal( probs[0][0], 0.66607800693933361 )
 	assert_almost_equal( probs[0][1], 0.33392199306066628 )
-	
+
 	assert_almost_equal( probs[1][0], 0.54748134004225524 )
 	assert_almost_equal( probs[1][1], 0.45251865995774476 )
-	
+
 	assert_almost_equal( probs[2][0], 0.21257042033580209 )
 	assert_almost_equal( probs[2][1], 0.78742957966419791 )
-	
+
 	assert_almost_equal( probs[3][0], 1.0 )
 	assert_almost_equal( probs[3][1], 0.0 )
-	
+
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_proba():
 	probs = multivariate.predict_proba(np.array([[ 5, 5 ], [ 2, 9 ], [ 10, 7 ], [ -1, 7 ]]))
 
 	assert_almost_equal( probs[0][0], 0.88836478829527532 )
 	assert_almost_equal( probs[0][1], 0.11163521170472469 )
-	
+
 	assert_almost_equal( probs[1][0], 0.015129643331582699 )
 	assert_almost_equal( probs[1][1], 0.98487035666841727 )
-	
+
 	assert_almost_equal( probs[2][0], 0.0056196295140261846 )
 	assert_almost_equal( probs[2][1], 0.99438037048597383 )
-	
+
 	assert_almost_equal( probs[3][0], 1.0 )
 	assert_almost_equal( probs[3][1], 0.0 )
 
@@ -241,19 +242,19 @@ def test_hmm_proba():
 	assert_almost_equal( probs[0][0], 0.41025641025641024 )
 	assert_almost_equal( probs[0][1], 0.25641025641025639 )
 	assert_almost_equal( probs[0][2], 0.33333333333333331 )
-	
+
 	assert_almost_equal( probs[1][0], 0.39230898163446098 )
 	assert_almost_equal( probs[1][1], 0.23944639992337707 )
 	assert_almost_equal( probs[1][2], 0.36824461844216183 )
-	
+
 	assert_almost_equal( probs[2][0], 0.020225961918306088 )
 	assert_almost_equal( probs[2][1], 0.79007663743383105 )
 	assert_almost_equal( probs[2][2], 0.18969740064786292 )
-	
+
 	assert_almost_equal( probs[3][0], 0.041989459861032523 )
 	assert_almost_equal( probs[3][1], 0.61102706038265642 )
 	assert_almost_equal( probs[3][2], 0.346983479756311 )
-	
+
 	assert_almost_equal( probs[4][0], 0.27094373022369794 )
 	assert_almost_equal( probs[4][1], 0.24642188711704707 )
 	assert_almost_equal( probs[4][2], 0.48263438265925512 )
@@ -266,7 +267,7 @@ def test_univariate_prediction():
 	assert_equal( predicts[1], 0 )
 	assert_equal( predicts[2], 1 )
 	assert_equal( predicts[3], 0 )
-	
+
 @with_setup( setup_multivariate, teardown )
 def test_multivariate_prediction():
 	predicts = multivariate.predict(np.array([[ 5, 5 ], [ 2, 9 ], [ 10, 7 ], [ -1, 7 ]]))
@@ -285,7 +286,7 @@ def test_hmm_prediction():
 	assert_equal( predicts[2], 1 )
 	assert_equal( predicts[3], 1 )
 	assert_equal( predicts[4], 2 )
-	
+
 @with_setup( setup_univariate, teardown )
 def test_univariate_fit():
 	X = np.array([ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 1, 9, 8, 2, 0, 1, 1, 8, 10, 0 ])
@@ -306,7 +307,7 @@ def test_univariate_fit():
 	assert_almost_equal( logs[2][1], -8.7356310092268075e-06 )
 	assert_almost_equal( logs[3][0], 0.0 )
 	assert_almost_equal( logs[3][1], -float('inf') )
-	
+
 	# test univariate probabilities
 	probs = univariate.predict_proba( data )
 
@@ -469,6 +470,25 @@ def test_raise_errors():
 	assert_raises( ValueError, multivariate.predict, [[ 1, 2, 3 ], [ 4, 5, 6 ]] )
 
 	# special case for hmm's
+
+@with_setup( setup_all, teardown )
+def test_pickling():
+	j_univ = pickle.dumps(univariate)
+	j_multi = pickle.dumps(multivariate)
+
+	new_univ = pickle.loads( j_univ )
+	assert isinstance( new_univ.models[0], NormalDistribution )
+	assert isinstance( new_univ.models[1], UniformDistribution )
+	numpy.testing.assert_array_equal( univariate.weights, new_univ.weights )
+	assert isinstance( new_univ, NaiveBayes )
+
+	new_multi = pickle.loads( j_multi )
+	assert isinstance( new_multi.models[0], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.models[1], IndependentComponentsDistribution )
+	numpy.testing.assert_array_equal( multivariate.weights, new_multi.weights )
+	assert isinstance( new_multi, NaiveBayes )
+
+	# hmms throw an error if the same hmm is recreated in the same space
 
 @with_setup( setup_all, teardown )
 def test_json():
