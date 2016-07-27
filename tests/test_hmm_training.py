@@ -1,7 +1,7 @@
 from __future__ import  division
 
 from pomegranate import *
-from pomegranate.hmm import log_probability
+from pomegranate.parallel import log_probability
 from nose.tools import with_setup
 from nose.tools import assert_equal
 from nose.tools import assert_almost_equal
@@ -229,10 +229,10 @@ def test_bw_train_json():
 									 max_iterations=5 )
 
 	assert_equal( round( total_improvement, 4 ), 83.1132 )
-	assert_almost_equal( log_probability( model, seqs ), -42.2341, 4 )
+	assert_almost_equal( sum(model.log_probability(seq) for seq in seqs), -42.2341, 4 )
 
 	hmm = HiddenMarkovModel.from_json( model.to_json() )
-	assert_almost_equal( log_probability( model, seqs ), -42.2341, 4 )
+	assert_almost_equal( sum(model.log_probability(seq) for seq in seqs), -42.2341, 4 )
 
 
 @with_setup( setup, teardown )

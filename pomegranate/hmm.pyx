@@ -64,17 +64,6 @@ def log(value):
 		return to_return
 	return _log( value )
 
-def log_probability( model, samples, n_jobs=1, parallel=None, check_input=True ):
-	"""Return the log probability of samples given a model."""
-
-	if parallel is not None:
-		return sum( parallel( delayed( model.log_probability, check_pickle=False )
-			( sample, check_input ) for sample in samples) )
-	else:
-		return sum( Parallel( n_jobs=n_jobs, backend='threading')( 
-			delayed( model.log_probability, check_pickle=False )
-				( sample, check_input ) for sample in samples) )
-
 cdef class HiddenMarkovModel( Model ):
 	"""A Hidden Markov Model
 
