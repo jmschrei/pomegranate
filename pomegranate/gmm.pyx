@@ -755,7 +755,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		cdef numpy.ndarray weights_ndarray
 
 		if weights is None:
-			weights_ndarray = numpy.ones(X.shape[0])
+			weights_ndarray = numpy.ones(X.shape[0], dtype='float64')
 		else:
 			weights_ndarray = numpy.array(weights)
 
@@ -767,11 +767,10 @@ cdef class GeneralMixtureModel( Distribution ):
 	cdef double _summarize( self, double* X, double* weights, SIZE_t n ) nogil:
 		cdef double* r = <double*> calloc(self.n*n, sizeof(double))
 		cdef int i, j
-		cdef double total, logp, logw, log_probability_sum = 0.0, p
+		cdef double total, logp, log_probability_sum = 0.0
 
 		for i in range(n):
 			total = NEGINF
-			logw = _log(weights[i])
 
 			for j in range(self.n):
 				if self.d == 1:
@@ -782,11 +781,11 @@ cdef class GeneralMixtureModel( Distribution ):
 				r[j*n + i] = logp + self.weights_ptr[j]
 				total = pair_lse(total, r[j*n + i])
 
-			for j in range( self.n ):
-				r[j*n + i] = cexp(r[j*n + i] - total + logw)
+			for j in range(self.n):
+				r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
 				self.summaries_ptr[j] += r[j*n + i]
 
-			log_probability_sum += total * logw
+			log_probability_sum += total * weights[i]
 
 		for j in range( self.n ):
 			(<Distribution> self.distributions_ptr[j])._summarize(X, &r[j*n], n)
