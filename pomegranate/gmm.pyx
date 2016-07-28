@@ -767,10 +767,11 @@ cdef class GeneralMixtureModel( Distribution ):
 	cdef double _summarize( self, double* X, double* weights, SIZE_t n ) nogil:
 		cdef double* r = <double*> calloc(self.n*n, sizeof(double))
 		cdef int i, j
-		cdef double total, logp, log_probability_sum = 0.0, p
+		cdef double total, logp, logw, log_probability_sum = 0.0, p
 
 		for i in range(n):
 			total = NEGINF
+			logw = _log(weights[i])
 
 			for j in range(self.n):
 				if self.d == 1:
@@ -778,14 +779,14 @@ cdef class GeneralMixtureModel( Distribution ):
 				else:
 					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X+i*self.d)
 
-				r[j*n + i] = logp + self.weights_ptr[j] + weights[i]
+				r[j*n + i] = logp + self.weights_ptr[j]
 				total = pair_lse(total, r[j*n + i])
 
 			for j in range( self.n ):
-				r[j*n + i] = cexp(r[j*n + i] - total)
+				r[j*n + i] = cexp(r[j*n + i] - total + logw)
 				self.summaries_ptr[j] += r[j*n + i]
 
-			log_probability_sum += total 
+			log_probability_sum += total * logw
 
 		for j in range( self.n ):
 			(<Distribution> self.distributions_ptr[j])._summarize(X, &r[j*n], n)
