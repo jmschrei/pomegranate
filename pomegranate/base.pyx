@@ -10,6 +10,7 @@ import json
 import numpy
 import networkx
 import sys
+import uuid
 
 if sys.version_info[0] > 2:
 	# Set up for Python 3
@@ -40,20 +41,23 @@ cdef class State( object ):
 
 	def __init__( self, distribution, name=None, weight=None ):
 		"""
-		Make a new State emitting from the given distribution. If distribution 
-		is None, this state does not emit anything. A name, if specified, will 
-		be the state's name when presented in output. Name may not contain 
+		Make a new State emitting from the given distribution. If distribution
+		is None, this state does not emit anything. A name, if specified, will
+		be the state's name when presented in output. Name may not contain
 		spaces or newlines, and must be unique within a model.
 		"""
-		
+
 		# Save the distribution
 		self.distribution = distribution
-		
+
 		# Save the name
-		self.name = name or str(id(name))
+		self.name = name or str(uuid.uuid4())
 
 		# Save the weight, or default to the unit weight
 		self.weight = weight or 1.
+
+	def __reduce__( self ):
+		return self.__class__, (self.distribution, self.name, self.weight)
 
 	def __str__( self ):
 		"""
@@ -79,10 +83,10 @@ cdef class State( object ):
 
 	def is_silent( self ):
 		"""
-		Return True if this state is silent (distribution is None) and False 
+		Return True if this state is silent (distribution is None) and False
 		otherwise.
 		"""
-		
+
 		return self.distribution is None
 
 	def tied_copy( self ):
@@ -92,24 +96,24 @@ cdef class State( object ):
 		"""
 
 		return State( distribution=self.distribution, name=self.name+'-tied' )
-		
+
 	def copy( self ):
 		"""
 		Return a hard copy of this state.
 		"""
 
 		return State( **self.__dict__ )
-	
+
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""
 		Convert this state to JSON format.
 		"""
 
-		return json.dumps( { 
+		return json.dumps( {
 							    'class' : 'State',
 								'distribution' : None if self.is_silent() else json.loads( self.distribution.to_json() ),
 								'name' : self.name,
-								'weight' : self.weight  
+								'weight' : self.weight
 							}, separators=separators, indent=indent )
 
 	@classmethod
@@ -151,7 +155,7 @@ cdef class Model( object ):
 		Make a new graphical model. Name is an optional string used to name
 		the model when output. Name may not contain spaces or newlines.
 		"""
-		
+
 		# Save the name or make up a name.
 		self.name = name or str( id(self) )
 		self.states = []
@@ -159,12 +163,12 @@ cdef class Model( object ):
 		self.n_edges = 0
 		self.n_states = 0
 		self.d = 0
-	
+
 	def __str__(self):
 		"""
 		Represent this model with it's name and states.
 		"""
-		
+
 		return "{}:{}".format(self.name, "".join(map(str, self.states)))
 
 	def add_node( self, n ):
@@ -200,7 +204,7 @@ cdef class Model( object ):
 	def add_edge( self, a, b ):
 		"""
 		Add a transition from state a to state b which indicates that B is
-		dependent on A in ways specified by the distribution. 
+		dependent on A in ways specified by the distribution.
 		"""
 
 		# Add the transition
@@ -249,14 +253,14 @@ cdef class Model( object ):
 				transition_log_probabilities[i, self.out_transitions[n]] = \
 					self.out_transition_log_probabilities[n]
 
-		return transition_log_probabilities 
+		return transition_log_probabilities
 
-	def bake( self, verbose=False ): 
+	def bake( self, verbose=False ):
 		"""
 		Finalize the topology of the model, and assign a numerical index to
 		every node. This method must be called before any of the probability-
 		calculating or sampling methods.
-		
+
 		This fills in self.states (a list of all states in order), the sparse
 		matrices of transitions and their weights, and also will merge silent
 		states.
@@ -270,11 +274,11 @@ cdef class Model( object ):
 		indices = { self.states[i]: i for i in xrange(n) }
 		self.edges = [ ( indices[a], indices[b] ) for a, b in self.edges ]
 
-		# This holds numpy array indexed [a, b] to transition log probabilities 
+		# This holds numpy array indexed [a, b] to transition log probabilities
 		# from a to b, where a and b are state indices. It starts out saying all
 		# transitions are impossible.
 		self.in_transitions = numpy.zeros( m, dtype=numpy.int32 ) - 1
-		self.in_edge_count = numpy.zeros( n+1, dtype=numpy.int32 ) 
+		self.in_edge_count = numpy.zeros( n+1, dtype=numpy.int32 )
 		self.out_transitions = numpy.zeros( m, dtype=numpy.int32 ) - 1
 		self.out_edge_count = numpy.zeros( n+1, dtype=numpy.int32 )
 
@@ -296,9 +300,9 @@ cdef class Model( object ):
 
 		# Take the cumulative sum so that we can associate array indices with
 		# in or out transitions
-		self.in_edge_count = numpy.cumsum(self.in_edge_count, 
+		self.in_edge_count = numpy.cumsum(self.in_edge_count,
 			dtype=numpy.int32)
-		self.out_edge_count = numpy.cumsum(self.out_edge_count, 
+		self.out_edge_count = numpy.cumsum(self.out_edge_count,
 			dtype=numpy.int32 )
 
 		# Now we go through the edges again in order to both fill in the
