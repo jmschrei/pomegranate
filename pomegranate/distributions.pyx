@@ -2344,6 +2344,98 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		return d
 
 
+cdef class DirichletDistribution( MultivariateDistribution ):
+	"""A Dirichlet distribution, usually a prior for multivariate distributions."""
+
+	def __init__(self, alphas, frozen=False):
+		self.name = "DirichletDistribution"
+		self.frozen = frozen
+		self.d = len(alphas)
+		
+		self.alphas = numpy.array(alphas, dtype='float64')
+		self.alphas_ptr = <double*> self.alphas.data
+		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alphas[i]) for i in range(len(alphas))])
+		self.summaries_ndarray = numpy.zeros(self.d, dtype='float64')
+		self.summaries_ptr = <double*> self.summaries_ndarray.data
+
+	def log_probability( self, symbol ):
+		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol, dtype='float64')
+		cdef double* symbol_ptr = <double*> symbol_ndarray.data
+		cdef double logp
+
+		with nogil:
+			logp = self._mv_log_probability(symbol_ptr)
+		return logp
+
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
+		"""Cython optimized function for log probability calculation."""
+
+		cdef SIZE_t i, d = self.d
+		cdef double logp = self.beta_norm
+
+		for i in range(d):
+			logp += self.alphas_ptr[i] * _log(symbol[i])
+
+		return logp
+
+	def summarize( self, items, weights=None ):
+		"""
+		Take in a series of items and their weights and reduce it down to a
+		summary statistic to be used in training later.
+		"""
+
+		items, weights = weight_set( items, weights )
+
+		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
+
+		cdef SIZE_t n = items.shape[0]
+
+		with nogil:
+			self._summarize( items_ptr, weights_ptr, n )
+
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		"""Calculate sufficient statistics for a minibatch.
+
+		The sufficient statistics for a dirichlet distribution is just the
+		weighted count of the times each thing appears.
+		"""
+
+		cdef int i, j, d = self.d
+
+		for i in range(n):
+			for j in range(d):
+				self.summaries_ptr[j] += items[i*d + j] * weights[i]
+
+	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
+		"""Update the internal parameters of the distribution."""
+
+		if self.frozen == True:
+			return
+
+		self.summaries_ndarray += pseudocount
+		alphas = self.summaries_ndarray * (1-inertia) + self.alphas * inertia 
+		
+		self.alphas = alphas
+		self.alphas_ptr = <double*> self.alphas.data
+		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alphas[i]) for i in range(len(alphas))])
+		self.summaries_ndarray *= 0
+
+	def clear_summaries( self ):
+		self.summaries_ndarray *= 0
+
+	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+		self.summarize(items, weights)
+		self.from_summaries(inertia, pseudocount)
+
+	@classmethod
+	def from_samples( cls, items, weights=None ):
+		d = len(items[0])
+		dist = DirichletDistribution(numpy.zeros(d))
+		dist.fit(items, weights)
+		return dist
+
+
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	"""
 	A conditional probability table, which is dependent on values from at

@@ -89,6 +89,13 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 	cdef double* column_sum
 	cdef double* pair_sum
 
+cdef class DirichletDistribution( MultivariateDistribution ):
+	cdef public numpy.ndarray alphas
+	cdef double* alphas_ptr
+	cdef double beta_norm
+	cdef numpy.ndarray summaries_ndarray
+	cdef double* summaries_ptr
+
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	cdef dict key_dict
 	cdef public list parameters
