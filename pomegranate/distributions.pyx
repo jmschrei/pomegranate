@@ -413,9 +413,9 @@ cdef class Distribution:
 			parents = [ Distribution.from_json( json.dumps(j) ) for j in d['parents'] ]
 			keys = [ (tuple(c), b) for c, b in d['keys'] ]
 			if d['name'] == 'ConditionalProbabilityTable':
-				model = ConditionalProbabilityTable( d['values'], parents, OrderedDict(keys) )
+				model = ConditionalProbabilityTable( numpy.log(d['values']), parents, OrderedDict(keys) )
 			elif d['name'] == 'JointProbabilityTable':
-				model = JointProbabilityTable( d['values'], parents, OrderedDict(keys) )
+				model = JointProbabilityTable( numpy.log(d['values']), parents, OrderedDict(keys) )
 			return model
 		else:
 			dist = eval( "{}( {}, frozen={} )".format( d['name'],
@@ -2676,9 +2676,9 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		model = {
 					'class' : 'Distribution',
 		            'name' : 'ConditionalProbabilityTable',
-		            'values' : self.parameters[0].tolist(),
+		            'values' : numpy.exp(self.parameters[0].tolist()),
 		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
-		            'keys' : self.parameters[2].items()
+		            'keys' : self.parameters[2]
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
@@ -2879,9 +2879,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		model = {
 					'class' : 'Distribution',
 		            'name' : 'JointProbabilityTable',
-		            'values' : self.parameters[0].tolist(),
+		            'values' : numpy.exp(self.parameters[0].tolist()),
 		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
-		            'keys' : self.parameters[2].items()
+		            'keys' : self.parameters[2]
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
