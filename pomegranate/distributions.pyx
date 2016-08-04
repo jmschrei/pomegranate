@@ -2345,7 +2345,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 
 cdef class DirichletDistribution( MultivariateDistribution ):
-	"""A Dirichlet distribution, usually a prior for multivariate distributions."""
+	"""A Dirichlet distribution, usually a prior for the multinomial distributions."""
 
 	def __init__(self, alphas, frozen=False):
 		self.name = "DirichletDistribution"
