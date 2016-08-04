@@ -2676,9 +2676,9 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		model = {
 					'class' : 'Distribution',
 		            'name' : 'ConditionalProbabilityTable',
-		            'values' : numpy.exp(self.parameters[0].tolist()),
+		            'values' : numpy.exp(self.parameters[0]).tolist(),
 		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
-		            'keys' : self.parameters[2]
+		            'keys' : list(self.parameters[2].items())
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
@@ -2879,9 +2879,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		model = {
 					'class' : 'Distribution',
 		            'name' : 'JointProbabilityTable',
-		            'values' : numpy.exp(self.parameters[0].tolist()),
+		            'values' : numpy.exp(self.parameters[0]).tolist(),
 		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
-		            'keys' : self.parameters[2]
+		            'keys' : list(self.parameters[2].items())
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
