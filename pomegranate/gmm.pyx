@@ -751,7 +751,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		Returns
 		-------
-		None
+		logp : double
+			The log probability of the data given the current model. This is
+			used to speed up EM.
 		"""
 
 		cdef int n = len(X), d = len(X[0])

@@ -308,6 +308,65 @@ cdef class BayesianNetwork( Model ):
 
 		return self.graph.forward_backward( data, max_iterations )
 
+	def summarize(self, items, weights=None):
+		"""Summarize a batch of data and store the sufficient statistics.
+
+		This will partition the dataset into columns which belong to their
+		appropriate distribution. If the distribution has parents, then multiple
+		columns are sent to the distribution. This relies mostly on the summarize
+		function of the underlying distribution.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_nodes)
+			The data to train on, where each row is a sample and each column
+			corresponds to the associated variable.
+
+		weights : array-like, shape (n_nodes), optional
+			The weight of each sample as a positive double. Default is None.
+
+
+		Returns
+		-------
+		None
+		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before summarizing data")
+
+		indices = { state.distribution: i for i, state in enumerate( self.states ) }
+
+		# Go through each state and pass in the appropriate data for the
+		# update to the states
+		for i, state in enumerate( self.states ):
+			if isinstance( state.distribution, ConditionalProbabilityTable ):
+				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
+				data = [ [ item[i] for i in idx ] for item in items ]
+				state.distribution.summarize( data, weights )
+			else:
+				state.distribution.summarize( [ item[i] for item in items ], weights )
+
+	def from_summaries( self, inertia=0.0 ):
+		"""Use MLE on the stored sufficient statistics to train the model.
+
+		This uses MLE estimates on the stored sufficient statistics to train
+		the model.
+
+		Parameters
+		----------
+		inertia : double, optional
+			The inertia for updating the distributions, passed along to the
+			distribution method. Default is 0.0.
+
+		Returns
+		-------
+		None
+		"""
+
+		for state in self.states:
+			state.distribution.from_summaries(inertia)
+
+
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""Fit the model to data using MLE estimates.
 
@@ -316,7 +375,7 @@ cdef class BayesianNetwork( Model ):
 		MLE estimate to update the distributions according to their summarize or
 		fit methods.
 
-		sklearn wrapper for the train method.
+		This is a wrapper for the summarize and from_summaries methods.
 
 		Parameters
 		----------
@@ -333,27 +392,12 @@ cdef class BayesianNetwork( Model ):
 
 		Returns
 		-------
-		self : object
-			The fit Bayesian network object.
+		None
 		"""
 
-		if self.d == 0:
-			raise ValueError("must bake model before fitting")
-
-		indices = { state.distribution: i for i, state in enumerate( self.states ) }
-
-		# Go through each state and pass in the appropriate data for the
-		# update to the states
-		for i, state in enumerate( self.states ):
-			if isinstance( state.distribution, ConditionalProbabilityTable ):
-				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
-				data = [ [ item[i] for i in idx ] for item in items ]
-				state.distribution.fit( data, weights, inertia )
-			else:
-				state.distribution.fit( [ item[i] for item in items ], weights, inertia )
-
+		self.summarize(items, weights)
+		self.from_summaries(inertia)
 		self.bake()
-		return self
 
 	def impute( self, items, max_iterations=100 ):
 		"""Impute missing values of a data matrix using MLE.
