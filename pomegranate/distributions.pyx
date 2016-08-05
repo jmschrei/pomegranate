@@ -202,12 +202,14 @@ cdef class Distribution:
 		"""Placeholder for log probability calculation of a vector."""
 		return NEGINF
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Return a random item sampled from this distribution.
 
 		Parameters
 		----------
-		None
+		n : int or None, optional
+			The number of samples to return. Default is None, which is to generate
+			a single sample.
 
 		Returns
 		-------
@@ -462,9 +464,9 @@ cdef class UniformDistribution( Distribution ):
 			return _log( 1.0 / ( end - start ) )
 		return NEGINF
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Sample from this uniform distribution and return the value sampled."""
-		return random.uniform(self.start, self.end)
+		return numpy.random.uniform(self.start, self.end, n)
 
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
@@ -579,9 +581,9 @@ cdef class NormalDistribution( Distribution ):
 		return self.log_sigma_sqrt_2_pi - ((symbol - self.mu) ** 2) /\
 			self.two_sigma_squared
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Sample from this normal distribution and return the value sampled."""
-		return random.normalvariate( self.mu, self.sigma )
+		return numpy.random.normal(self.mu, self.sigma, n)
 
 	def fit( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
@@ -704,9 +706,9 @@ cdef class LogNormalDistribution( Distribution ):
 		return -_log( symbol * sigma * SQRT_2_PI ) \
 			- 0.5 * ( ( _log( symbol ) - mu ) / sigma ) ** 2
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Return a sample from this distribution."""
-		return numpy.random.lognormal( self.mu, self.sigma )
+		return numpy.random.lognormal( self.mu, self.sigma, n )
 
 	def fit( self, items, weights=None, inertia=0.0, min_std=0.01 ):
 		"""
@@ -823,9 +825,9 @@ cdef class ExponentialDistribution( Distribution ):
 		"""Cython optimized function for log probability calculation."""
 		return _log(self.rate) - self.rate * symbol
 
-	def sample( self ):
+	def sample( self, n ):
 		"""Sample from this exponential distribution."""
-		return random.expovariate(*self.parameters)
+		return numpy.random.exponential( self.parameters[0], n )
 
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
@@ -935,9 +937,9 @@ cdef class BetaDistribution( Distribution ):
 			_log(lgamma(b)) + (a-1)*_log(symbol) +
 			(b-1)*_log(1.-symbol) )
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Return a random sample from the beta distribution."""
-		return random.betavariate( self.alpha, self.beta )
+		return numpy.random.beta( self.alpha, self.beta, n )
 
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
@@ -1053,16 +1055,9 @@ cdef class GammaDistribution( Distribution ):
 		return (_log(beta) * alpha - lgamma(alpha) + _log(symbol)
 			* (alpha - 1) - beta * symbol)
 
-	def sample( self ):
-		"""
-		Sample from this gamma distribution and return the value sampled.
-		"""
-
-		# We have a handy sample from gamma function. Unfortunately, while we
-		# use the alpha, beta parameterization, and this function uses the
-		# alpha, beta parameterization, our alpha/beta are shape/rate, while its
-		# alpha/beta are shape/scale. So we have to mess with the parameters.
-		return random.gammavariate(self.parameters[0], 1.0 / self.parameters[1])
+	def sample( self, n=None ):
+		"""Sample from this gamma distribution and return the value sampled."""
+		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1])
 
 	def fit( self, items, weights=None, inertia=0.0, epsilon=1E-9,
 		iteration_limit=1000 ):
@@ -1454,14 +1449,19 @@ cdef class DiscreteDistribution( Distribution ):
 			return NEGINF
 		return self.encoded_log_probability[<SIZE_t> symbol]
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Sample randomly from the discrete distribution."""
 
-		rand = random.random()
-		for key, value in self.items():
-			if value >= rand:
-				return key
-			rand -= value
+		if n is None:
+			rand = random.random()
+			for key, value in self.items():
+				if value >= rand:
+					return key
+				rand -= value		
+		else:
+			samples = [self.sample() for i in range(n)]
+			return numpy.array(samples)
+			
 
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
@@ -1600,10 +1600,9 @@ cdef class PoissonDistribution(Distribution):
 
 		return symbol * self.logl - self.l - _log(factorial)
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Sample from the poisson distribution."""
-
-		return numpy.random.poisson( self.l )
+		return numpy.random.poisson( self.l, n )
 
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
@@ -1835,15 +1834,22 @@ cdef class GaussianKernelDensity( KernelDensity ):
 
 		return _log( prob )
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""
 		Generate a random sample from this distribution. This is done by first
 		selecting a random point, weighted by weights if the points are weighted
 		or uniformly if not, and then randomly sampling from that point's PDF.
 		"""
 
-		mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
-		return random.gauss( mu, self.parameters[1] )
+		sigma = self.parameters[1]
+		if n is None:
+			mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
+			return numpy.random.normal( mu, sigma )
+		else:
+			mus = numpy.random.choice( self.parameters[0], n, p=self.parameters[2])
+			samples = [numpy.random.normal(mu, sigma) for mu in mus]
+			return numpy.array(samples)
+
 
 cdef class UniformKernelDensity( KernelDensity ):
 	"""
@@ -1884,16 +1890,21 @@ cdef class UniformKernelDensity( KernelDensity ):
 		# Return the log of the sum of probabilities
 		return _log( prob )
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""
 		Generate a random sample from this distribution. This is done by first
 		selecting a random point, weighted by weights if the points are weighted
 		or uniformly if not, and then randomly sampling from that point's PDF.
 		"""
 
-		mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
-		bandwidth = self.parameters[1]
-		return random.uniform( mu-bandwidth, mu+bandwidth )
+		band = self.parameters[1]
+		if n is None:
+			mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
+			return numpy.random.uniform( mu-band, mu+band )
+		else:
+			mus = numpy.random.choice( self.parameters[0], n, p=self.parameters[2])
+			samples = [numpy.random.uniform(mu-band, mu+band) for mu in mus]
+			return numpy.array(samples)
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
@@ -1942,16 +1953,21 @@ cdef class TriangleKernelDensity( KernelDensity ):
 		# Return the log of the sum of probabilities
 		return _log( prob )
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""
 		Generate a random sample from this distribution. This is done by first
 		selecting a random point, weighted by weights if the points are weighted
 		or uniformly if not, and then randomly sampling from that point's PDF.
 		"""
 
-		mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
-		bandwidth = self.parameters[1]
-		return random.triangular( mu-bandwidth, mu+bandwidth, mu )
+		band = self.parameters[1]
+		if n is None:
+			mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
+			return numpy.random.triangular( mu-band, mu+band, mu )
+		else:
+			mus = numpy.random.choice( self.parameters[0], n, p=self.parameters[2])
+			samples = [numpy.random.triangular(mu-band, mu+band, mu) for mu in mus]
+			return numpy.array(samples)
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
@@ -2042,13 +2058,16 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		return logp
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""
 		Sample from the mixture. First, choose a distribution to sample from
 		according to the weights, then sample from that distribution.
 		"""
 
-		return [ d.sample() for d in self.parameters[0] ]
+		if n is None:
+			return numpy.array([ d.sample() for d in self.parameters[0] ])
+		else:
+			return numpy.array([self.sample() for i in range(n)])
 
 	def fit( self, items, weights=None, inertia=0 ):
 		"""
@@ -2197,14 +2216,14 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		return -0.5 * (d * LOG_2_PI + log_det + logp)
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""
 		Sample from the mixture. First, choose a distribution to sample from
 		according to the weights, then sample from that distribution.
 		"""
 
 		return numpy.random.multivariate_normal( self.parameters[0],
-			self.parameters[1] )
+			self.parameters[1], n )
 
 	def fit( self, items, weights=None, inertia=0 ):
 		"""
@@ -2377,6 +2396,10 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 			logp += self.alphas_ptr[i] * _log(symbol[i])
 
 		return logp
+
+	def sample( self, n=None ):
+		"""Sample from the underlying dirichlet distribution."""
+		return numpy.random.dirichlet(self.alphas, n)
 
 	def summarize( self, items, weights=None ):
 		"""
@@ -2733,7 +2756,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		return len( self.keys() )
 
-	def sample( self ):
+	def sample( self, n=None ):
 		"""Return a sample from the table."""
 
 		values, neighbors, keys = self.parameters
