@@ -171,7 +171,7 @@ cdef class NaiveBayes( object ):
         X = _convert(X)
         y = _convert(y)
 
-        if not isinstance( self.models[0], HiddenMarkovModel ):
+        if self.d > 0 and not isinstance( self.models[0], HiddenMarkovModel ):
             if X.ndim > 2:
                 raise ValueError("input data has too many dimensions")
             elif X.ndim == 2 and self.d != X.shape[1]:
@@ -189,24 +189,17 @@ cdef class NaiveBayes( object ):
 
         if self.d == 0:
             self.models = [self.models] * n
+            self.d = X.shape[1]
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
             self.summaries = numpy.zeros(n)
-            if isinstance(self.models[0], HiddenMarkovModel):
-                self.d = 0
-            else:
-                self.d = self.models[0].d
+
         elif n != len(self.models):
             self.models = [self.models[0].__class__] * n
+            self.d = X.shape[1]
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
             self.summaries = numpy.zeros(n)
-            if isinstance(self.models[0], HiddenMarkovModel):
-                self.d = 0
-            else:
-                self.d = self.models[0].d
-
-        n = len(self.models)
 
         for i in range(n):
             if callable(self.models[i]):

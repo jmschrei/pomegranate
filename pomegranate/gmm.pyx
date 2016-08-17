@@ -682,13 +682,21 @@ cdef class GeneralMixtureModel( Distribution ):
 		"""
 
 		cdef int n = len(X), d = len(X[0])
-		cdef numpy.ndarray X_ndarray = _check_input( X, self.keymap )
+		cdef numpy.ndarray X_ndarray
+
 
 		# If not initialized then we need to do kmeans initialization.
 		if self.d == 0 or d != self.d:
-			kmeans = Kmeans(self.n)
-			kmeans.fit(X_ndarray, max_iterations=1)
-			y = kmeans.predict(X)
+			if self.distribution_callable == DiscreteDistribution:
+				y = numpy.random.choice(self.n, size=n)
+				self.keymap = { key: i for i, key in enumerate(numpy.unique(X)) }
+				X_ndarray = _check_input( X[:,0], self.keymap )
+			else:
+				X_ndarray = _check_input( X, self.keymap )
+				kmeans = Kmeans(self.n)
+				kmeans.fit(X_ndarray, max_iterations=1)
+				y = kmeans.predict(X)
+
 			distributions = [ self.distribution_callable.from_samples( X_ndarray[y==i] ) for i in range(self.n) ]
 
 			self.distributions = numpy.array( distributions )
@@ -702,6 +710,8 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			self.n = len(distributions)
 			self.d = distributions[0].d
+		else:
+			X_ndarray = _check_input( X, self.keymap )
 
 		cdef double* X_ptr = <double*> X_ndarray.data
 
@@ -823,9 +833,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
 
-		for i, distribution in enumerate( self.distributions ):
-			distribution.from_summaries( inertia )
-			self.weights[i] = _log( self.summaries_ndarray[i] )
+		for i, distribution in enumerate(self.distributions):
+			distribution.from_summaries(inertia)
+			self.weights[i] = _log(self.summaries_ndarray[i])
 			self.summaries_ndarray[i] = 0.
 
 	def clear_summaries( self ):

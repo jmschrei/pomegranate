@@ -28,7 +28,7 @@ cdef class ExponentialDistribution( Distribution ):
 	cdef double rate
 
 cdef class BetaDistribution( Distribution ):
-	cdef double alpha, beta
+	cdef double alpha, beta, beta_norm
 
 cdef class GammaDistribution( Distribution ):
 	cdef double alpha, beta

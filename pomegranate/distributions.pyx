@@ -356,8 +356,7 @@ cdef class Distribution:
 		"""
 
 		import matplotlib.pyplot as plt
-		samples = [ self.sample() for i in xrange( n ) ]
-		plt.hist( samples, **kwargs )
+		plt.hist( self.sample(n), **kwargs )
 
 	def to_json( self, separators=(',', ' :'), indent=4 ):
 		"""Serialize the distribution to a JSON.
@@ -604,7 +603,6 @@ cdef class NormalDistribution( Distribution ):
 		cdef SIZE_t i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 
-		# Calculate sufficient statistics for an update.
 		for i in range(n):
 			w_sum += weights[i]
 			x_sum += weights[i] * items[i]
@@ -825,9 +823,9 @@ cdef class ExponentialDistribution( Distribution ):
 		"""Cython optimized function for log probability calculation."""
 		return _log(self.rate) - self.rate * symbol
 
-	def sample( self, n ):
+	def sample( self, n=None ):
 		"""Sample from this exponential distribution."""
-		return numpy.random.exponential( self.parameters[0], n )
+		return numpy.random.exponential( 1. / self.parameters[0], n )
 
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""
@@ -910,9 +908,11 @@ cdef class BetaDistribution( Distribution ):
 		def __get__( self ):
 			return [ self.alpha, self.beta ]
 		def __set__( self, parameters ):
-			self.alpha, self.beta = parameters
+			alpha, beta = parameters
+			self.alpha, self.beta = alpha, beta
+			self.beta_norm = lgamma(alpha+beta) - lgamma(alpha) - lgamma(beta)
 
-	def __init__( self, alpha=1, beta=1, frozen=False ):
+	def __init__( self, alpha, beta, frozen=False ):
 		"""
 		Make a new beta distribution. Both alpha and beta are both shape
 		parameters.
@@ -920,7 +920,8 @@ cdef class BetaDistribution( Distribution ):
 
 		self.alpha = alpha
 		self.beta = beta
-		self.summaries = []
+		self.beta_norm = lgamma(alpha+beta) - lgamma(alpha) - lgamma(beta)
+		self.summaries = [0, 0]
 		self.name = "BetaDistribution"
 		self.frozen = frozen
 
@@ -931,11 +932,8 @@ cdef class BetaDistribution( Distribution ):
 	cdef double _log_probability( self, double symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 
-		cdef double a = self.alpha, b = self.beta
-
-		return ( _log(lgamma(a+b)) - _log(lgamma(a)) -
-			_log(lgamma(b)) + (a-1)*_log(symbol) +
-			(b-1)*_log(1.-symbol) )
+		cdef double alpha = self.alpha, beta = self.beta
+		return self.beta_norm + (alpha-1)*_log(symbol) + (beta-1)*_log(1-symbol)
 
 	def sample( self, n=None ):
 		"""Return a random sample from the beta distribution."""
@@ -972,17 +970,18 @@ cdef class BetaDistribution( Distribution ):
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython optimized function for summarizing some data."""
 
-		cdef double successes = 0, failures = 0
+		cdef double alpha = 0, beta = 0
 		cdef SIZE_t i
 
 		for i in range(n):
 			if items[i] == 1:
-				successes += weights[i]
+				alpha += weights[i]
 			else:
-				failures += weights[i]
+				beta += weights[i]
 
 		with gil:
-			self.summaries.append( (successes, failures) )
+			self.summaries[0] += alpha
+			self.summaries[1] += beta
 
 	def from_summaries( self, inertia=0.0 ):
 		"""Use the summaries in order to update the distribution."""
@@ -990,22 +989,18 @@ cdef class BetaDistribution( Distribution ):
 		if self.frozen == True:
 			return
 
-		summaries = numpy.array( self.summaries )
+		alpha, beta = self.summaries
 
-		successes, failures = 0, 0
-		for alpha, beta in self.summaries:
-			successes += alpha
-			failures += beta
+		self.alpha = self.alpha*inertia + alpha*(1-inertia)
+		self.beta = self.beta*inertia + beta*(1-inertia)
+		self.beta_norm = lgamma(self.alpha+self.beta) - lgamma(self.alpha) - lgamma(self.beta)
 
-		self.alpha = self.alpha*inertia + successes*(1-inertia)
-		self.beta = self.beta*inertia + failures*(1-inertia)
-
-		self.summaries = []
+		self.summaries = [0, 0]
 
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object."""
 
-		self.summaries = []
+		self.summaries = [0, 0]
 
 	@classmethod
 	def from_samples( cls, items, weights=None ):
@@ -2097,6 +2092,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		cdef SIZE_t i, j, d = self.d
+		cdef double logp = 0.0
 
 		for i in range(n):
 			for j in range(d):
@@ -2366,6 +2362,14 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 cdef class DirichletDistribution( MultivariateDistribution ):
 	"""A Dirichlet distribution, usually a prior for the multinomial distributions."""
 
+	property parameters:
+		def __get__( self ):
+			return [ self.alphas.tolist() ]
+		def __set__( self, alphas ):
+			self.alphas = numpy.array(alphas, dtype='float64')
+			self.alphas_ptr = <double*> self.alphas.data
+			self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alpha) for alpha in alphas])
+
 	def __init__(self, alphas, frozen=False):
 		self.name = "DirichletDistribution"
 		self.frozen = frozen
@@ -2373,9 +2377,10 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 		
 		self.alphas = numpy.array(alphas, dtype='float64')
 		self.alphas_ptr = <double*> self.alphas.data
-		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alphas[i]) for i in range(len(alphas))])
+		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alpha) for alpha in alphas])
 		self.summaries_ndarray = numpy.zeros(self.d, dtype='float64')
 		self.summaries_ptr = <double*> self.summaries_ndarray.data
+		print self.alphas, self.beta_norm
 
 	def log_probability( self, symbol ):
 		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol, dtype='float64')
@@ -2441,7 +2446,7 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 		
 		self.alphas = alphas
 		self.alphas_ptr = <double*> self.alphas.data
-		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alphas[i]) for i in range(len(alphas))])
+		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alpha) for alpha in alphas])
 		self.summaries_ndarray *= 0
 
 	def clear_summaries( self ):
