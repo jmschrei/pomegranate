@@ -17,6 +17,8 @@ cimport numpy
 from joblib import Parallel
 from joblib import delayed
 
+from .base cimport Model
+
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
 from .utils cimport _log
@@ -254,7 +256,7 @@ cdef class Kmeans( object ):
 					y[i] = j
 
 
-cdef class GeneralMixtureModel( Distribution ):
+cdef class GeneralMixtureModel( Model ):
 	"""A General Mixture Model.
 
 	This mixture model can be a mixture of any distribution as long as
@@ -469,7 +471,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		cdef double log_probability
 
 		for i in range( self.n ):
-			log_probability = ( <Distribution> self.distributions_ptr[i] )._log_probability(X) + self.weights_ptr[i]
+			log_probability = ( <Model> self.distributions_ptr[i] )._log_probability(X) + self.weights_ptr[i]
 			log_probability_sum = pair_lse( log_probability_sum, log_probability )
 
 		return log_probability_sum
@@ -480,7 +482,7 @@ cdef class GeneralMixtureModel( Distribution ):
 		cdef double log_probability
 
 		for i in range( self.n ):
-			log_probability = ( <Distribution> self.distributions_ptr[i] )._mv_log_probability(X) + self.weights_ptr[i]
+			log_probability = ( <Model> self.distributions_ptr[i] )._mv_log_probability(X) + self.weights_ptr[i]
 			log_probability_sum = pair_lse( log_probability_sum, log_probability )
 
 		return log_probability_sum
@@ -562,9 +564,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			for j in range(m):
 				if d > 1:
-					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X + i*d)
+					logp = (<Model> self.distributions_ptr[j])._mv_log_probability(X + i*d)
 				else:
-					logp = (<Distribution> self.distributions_ptr[j])._log_probability(X[i])
+					logp = (<Model> self.distributions_ptr[j])._log_probability(X[i])
 
 				y[i*m + j] = logp + self.weights_ptr[j]
 				y_sum = pair_lse(y_sum, y[i*m + j])
@@ -626,9 +628,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			for j in range(m):
 				if d > 1:
-					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X + i*d) + self.weights_ptr[j]
+					logp = (<Model> self.distributions_ptr[j])._mv_log_probability(X + i*d) + self.weights_ptr[j]
 				else:
-					logp = (<Distribution> self.distributions_ptr[j])._log_probability(X[i]) + self.weights_ptr[j]
+					logp = (<Model> self.distributions_ptr[j])._log_probability(X[i]) + self.weights_ptr[j]
 
 				if logp > max_logp:
 					max_logp = logp
@@ -790,9 +792,9 @@ cdef class GeneralMixtureModel( Distribution ):
 
 			for j in range(self.n):
 				if self.d == 1:
-					logp = (<Distribution> self.distributions_ptr[j])._log_probability(X[i])
+					logp = (<Model> self.distributions_ptr[j])._log_probability(X[i])
 				else:
-					logp = (<Distribution> self.distributions_ptr[j])._mv_log_probability(X+i*self.d)
+					logp = (<Model> self.distributions_ptr[j])._mv_log_probability(X+i*self.d)
 
 				r[j*n + i] = logp + self.weights_ptr[j]
 				total = pair_lse(total, r[j*n + i])
@@ -804,7 +806,7 @@ cdef class GeneralMixtureModel( Distribution ):
 			log_probability_sum += total * weights[i]
 
 		for j in range( self.n ):
-			(<Distribution> self.distributions_ptr[j])._summarize(X, &r[j*n], n)
+			(<Model> self.distributions_ptr[j])._summarize(X, &r[j*n], n)
 
 		free(r)
 		return log_probability_sum
