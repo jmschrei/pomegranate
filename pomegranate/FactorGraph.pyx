@@ -5,6 +5,7 @@ cimport numpy
 import numpy
 import sys
 
+from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
 from .distributions cimport Distribution
@@ -13,7 +14,7 @@ from .distributions cimport MultivariateDistribution
 if sys.version_info[0] > 2:
 	xrange = range
 
-cdef class FactorGraph( Model ):
+cdef class FactorGraph( GraphModel ):
 	"""A Factor Graph model.
 
 	A biparte graph where conditional probability tables are on one side,
@@ -37,24 +38,6 @@ cdef class FactorGraph( Model ):
 		self.name = name or str( id(self) )
 		self.states = []
 		self.edges = []
-
-	def add_node( self, n ):
-		"""Add a node to the given model. 
-		
-		The node must not already be in the model, nor may it be part of any 
-		other model that will eventually be combined with this one.
-
-		Parameters
-		----------
-		state : Node
-			A node object to be added to the model.
-
-		Returns
-		-------
-		None
-		"""
-
-		self.states.append( n )
 
 	def bake( self ): 
 		"""Finalize the topology of the model.

@@ -1,9 +1,10 @@
 # base.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-from .distributions cimport Distribution
-from .gmm import GeneralMixtureModel
 from .utils cimport *
+
+from .distributions import Distribution
+from .gmm import GeneralMixtureModel
 
 import itertools as it
 import json
@@ -20,135 +21,249 @@ if sys.version_info[0] > 2:
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
-def log(value):
-	"""
-	Return the natural log of the given value, or - infinity if the value is 0.
-	Can handle both scalar floats and numpy arrays.
-	"""
+cdef class Model( object ):
+	"""The abstract building block for all distributions."""
 
-	if isinstance( value, numpy.ndarray ):
-		to_return = numpy.zeros(( value.shape ))
-		to_return[ value > 0 ] = numpy.log( value[ value > 0 ] )
-		to_return[ value == 0 ] = NEGINF
-		return to_return
-	return _log( value )
-
-cdef class State( object ):
-	"""
-	Represents a state in an HMM. Holds emission distribution, but not
-	transition distribution, because that's stored in the graph edges.
-	"""
-
-	def __init__( self, distribution, name=None, weight=None ):
-		"""
-		Make a new State emitting from the given distribution. If distribution
-		is None, this state does not emit anything. A name, if specified, will
-		be the state's name when presented in output. Name may not contain
-		spaces or newlines, and must be unique within a model.
-		"""
-
-		# Save the distribution
-		self.distribution = distribution
-
-		# Save the name
-		self.name = name or str(uuid.uuid4())
-
-		# Save the weight, or default to the unit weight
-		self.weight = weight or 1.
-
-	def __reduce__( self ):
-		return self.__class__, (self.distribution, self.name, self.weight)
+	def __cinit__( self ):
+		self.name = "Model"
+		self.frozen = False
+		self.d = 0
 
 	def __str__( self ):
-		"""
-		The string representation of a state is the json, so call that format.
-		"""
-
 		return self.to_json()
 
 	def __repr__( self ):
-		"""
-		The string representation of a state is the json, so call that format.
-		"""
-
-		return self.__str__()
-
-	def tie( self, state ):
-		"""
-		Tie this state to another state by just setting the distribution of the
-		other state to point to this states distribution.
-		"""
-
-		state.distribution = self.distribution
-
-	def is_silent( self ):
-		"""
-		Return True if this state is silent (distribution is None) and False
-		otherwise.
-		"""
-
-		return self.distribution is None
-
-	def tied_copy( self ):
-		"""
-		Return a copy of this state where the distribution is tied to the
-		distribution of this state.
-		"""
-
-		return State( distribution=self.distribution, name=self.name+'-tied' )
+		return self.to_json()
 
 	def copy( self ):
-		"""
-		Return a hard copy of this state.
-		"""
+		"""Return a deep copy of this distribution object.
 
-		return State( **self.__dict__ )
+		This object will not be tied to any other distribution or connected
+		in any form.
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
-		"""
-		Convert this state to JSON format.
-		"""
+		Paramters
+		---------
+		None
 
-		return json.dumps( {
-							    'class' : 'State',
-								'distribution' : None if self.is_silent() else json.loads( self.distribution.to_json() ),
-								'name' : self.name,
-								'weight' : self.weight
-							}, separators=separators, indent=indent )
-
-	@classmethod
-	def from_json( cls, s ):
-		"""
-		Read a State from a given string formatted in JSON.
+		Returns
+		-------
+		distribution : Distribution
+			A copy of the distribution with the same parameters.
 		"""
 
-		# Load a dictionary from a JSON formatted string
-		d = json.loads( s )
+		return self.__class__.from_json( self.to_json() )
 
-		# If we're not decoding a state, we're decoding the wrong thing
-		if d['class'] != 'State':
-			raise IOError( "State object attempting to decode {} object".format( d['class'] ) )
+	def freeze( self ):
+		"""Freeze the distribution, preventing updates from occuring.
 
-		# If this is a silent state, don't decode the distribution
-		if d['distribution'] is None:
-			return cls( None, str(d['name']), d['weight'] )
+		Parameters
+		----------
+		None
 
-		# Otherwise it has a distribution, so decode that
-		name = str(d['name'])
-		weight = d['weight']
-		if d['distribution']['class'] == 'Distribution':
-			dist = Distribution.from_json( json.dumps( d['distribution'] ) )
-		elif d['distribution']['class'] == 'GeneralMixtureModel':
-			dist = GeneralMixtureModel.from_json( json.dumps( d['distribution'] ) )
+		Returns
+		-------
+		None
+		"""
 
-		return cls( dist, name, weight )
+		self.frozen = True
 
-Node = State
+	def thaw( self ):
+		"""Thaw the distribution, re-allowing updates to occur.
 
-cdef class Model( object ):
-	"""
-	Represents an generic graphical model.
-	"""
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
+
+		self.frozen = False
+
+	def log_probability( self, double symbol ):
+		"""Return the log probability of the given symbol under this distribution.
+
+		Parameters
+		----------
+		symbol : double
+			The symbol to calculate the log probability of (overriden for
+			DiscreteDistributions)
+
+		Returns
+		-------
+		logp : double
+			The log probability of that point under the distribution.
+		"""
+
+		return NotImplementedError
+
+	def copy( self ):
+		"""Return a deep copy of this distribution object.
+
+		This object will not be tied to any other distribution or connected
+		in any form.
+
+		Paramters
+		---------
+		None
+
+		Returns
+		-------
+		distribution : Distribution
+			A copy of the distribution with the same parameters.
+		"""
+
+		return self.__class__( *self.parameters )
+
+	def sample( self, n=None ):
+		"""Return a random item sampled from this distribution.
+
+		Parameters
+		----------
+		n : int or None, optional
+			The number of samples to return. Default is None, which is to generate
+			a single sample.
+
+		Returns
+		-------
+		sample : double or object
+			Returns a sample from the distribution of a type in the support
+			of the distribution.
+		"""
+
+		raise NotImplementedError
+
+	def log_probability( self, double symbol ):
+		"""Return the log probability of the given symbol under this distribution.
+
+		Parameters
+		----------
+		symbol : double
+			The symbol to calculate the log probability of (overriden for
+			DiscreteDistributions)
+
+		Returns
+		-------
+		logp : double
+			The log probability of that point under the distribution.
+		"""
+
+		raise NotImplementedError
+
+	def sample( self, n=None ):
+		"""Return a random item sampled from this distribution.
+
+		Parameters
+		----------
+		n : int or None, optional
+			The number of samples to return. Default is None, which is to generate
+			a single sample.
+
+		Returns
+		-------
+		sample : double or object
+			Returns a sample from the distribution of a type in the support
+			of the distribution.
+		"""
+
+		raise NotImplementedError
+
+	def fit( self, items, weights=None, inertia=0.0 ):
+		"""Fit the distribution to new data using MLE estimates.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on. For univariate distributions an array
+			is used, while for multivariate distributions a 2d matrix is used.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+			Default is None.
+
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters. Default is 0.0.
+
+		Returns
+		-------
+		None
+		"""
+
+		raise NotImplementedError
+
+	def summarize( self, items, weights=None ):
+		"""Summarize a batch of data into sufficient statistics for a later update.
+
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on. For univariate distributions an array
+			is used, while for multivariate distributions a 2d matrix is used.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+			Default is None.
+
+		Returns
+		-------
+		None
+		"""
+
+		return NotImplementedError
+
+	def from_summaries( self, inertia=0.0 ):
+		"""Fit the distribution to the stored sufficient statistics.
+
+		Parameters
+		----------
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be old_param*inertia + new_param*(1-inertia),
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters. Default is 0.0.
+
+		Returns
+		-------
+		None
+		"""
+
+		return NotImplementedError
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
+
+		return NotImplementedError
+
+	cdef double _log_probability( self, double symbol ) nogil:
+		return NEGINF
+
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
+		return NEGINF
+
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		pass
+
+
+cdef class GraphModel( Model ):
+	"""Represents an generic graphical model."""
 
 	def __init__( self, name=None ):
 		"""
@@ -255,84 +370,113 @@ cdef class Model( object ):
 
 		return transition_log_probabilities
 
-	def bake( self, verbose=False ):
+
+cdef class State( object ):
+	"""
+	Represents a state in an HMM. Holds emission distribution, but not
+	transition distribution, because that's stored in the graph edges.
+	"""
+
+	def __init__( self, distribution, name=None, weight=None ):
 		"""
-		Finalize the topology of the model, and assign a numerical index to
-		every node. This method must be called before any of the probability-
-		calculating or sampling methods.
-
-		This fills in self.states (a list of all states in order), the sparse
-		matrices of transitions and their weights, and also will merge silent
-		states.
+		Make a new State emitting from the given distribution. If distribution
+		is None, this state does not emit anything. A name, if specified, will
+		be the state's name when presented in output. Name may not contain
+		spaces or newlines, and must be unique within a model.
 		"""
 
-		n, m = len(self.states), len(self.edges)
+		# Save the distribution
+		self.distribution = distribution
 
-		# We need a good way to get transition probabilities by state index that
-		# isn't N^2 to build or store. So we will need a reverse of the above
-		# mapping. It's awkward but asymptotically fine.
-		indices = { self.states[i]: i for i in xrange(n) }
-		self.edges = [ ( indices[a], indices[b] ) for a, b in self.edges ]
+		# Save the name
+		self.name = name or str(uuid.uuid4())
 
-		# This holds numpy array indexed [a, b] to transition log probabilities
-		# from a to b, where a and b are state indices. It starts out saying all
-		# transitions are impossible.
-		self.in_transitions = numpy.zeros( m, dtype=numpy.int32 ) - 1
-		self.in_edge_count = numpy.zeros( n+1, dtype=numpy.int32 )
-		self.out_transitions = numpy.zeros( m, dtype=numpy.int32 ) - 1
-		self.out_edge_count = numpy.zeros( n+1, dtype=numpy.int32 )
+		# Save the weight, or default to the unit weight
+		self.weight = weight or 1.
 
-		# Now we need to find a way of storing in-edges for a state in a manner
-		# that can be called in the cythonized methods below. This is basically
-		# an inversion of the graph. We will do this by having two lists, one
-		# list size number of nodes + 1, and one list size number of edges.
-		# The node size list will store the beginning and end values in the
-		# edge list that point to that node. The edge list will be ordered in
-		# such a manner that all edges pointing to the same node are grouped
-		# together. This will allow us to run the algorithms in time
-		# nodes*edges instead of nodes*nodes.
+	def __reduce__( self ):
+		return self.__class__, (self.distribution, self.name, self.weight)
 
-		for a, b in self.edges:
-			# Increment the total number of edges going to node b.
-			self.in_edge_count[ indices[b]+1 ] += 1
-			# Increment the total number of edges leaving node a.
-			self.out_edge_count[ indices[a]+1 ] += 1
+	def __str__( self ):
+		"""
+		The string representation of a state is the json, so call that format.
+		"""
 
-		# Take the cumulative sum so that we can associate array indices with
-		# in or out transitions
-		self.in_edge_count = numpy.cumsum(self.in_edge_count,
-			dtype=numpy.int32)
-		self.out_edge_count = numpy.cumsum(self.out_edge_count,
-			dtype=numpy.int32 )
+		return self.to_json()
 
-		# Now we go through the edges again in order to both fill in the
-		# transition probability matrix, and also to store the indices sorted
-		# by the end-node.
-		for a, b in self.edges:
-			# Put the edge in the dict. Its weight is log-probability
-			start = self.in_edge_count[ indices[b] ]
+	def __repr__( self ):
+		"""
+		The string representation of a state is the json, so call that format.
+		"""
 
-			# Start at the beginning of the section marked off for node b.
-			# If another node is already there, keep walking down the list
-			# until you find a -1 meaning a node hasn't been put there yet.
-			while self.in_transitions[ start ] != -1:
-				if start == self.in_edge_count[ indices[b]+1 ]:
-					break
-				start += 1
+		return self.__str__()
 
+	def tie( self, state ):
+		"""
+		Tie this state to another state by just setting the distribution of the
+		other state to point to this states distribution.
+		"""
 
-			# Store transition info in an array where the in_edge_count shows
-			# the mapping stuff.
-			self.in_transitions[ start ] = indices[a]
+		state.distribution = self.distribution
 
-			# Now do the same for out edges
-			start = self.out_edge_count[ indices[a] ]
+	def is_silent( self ):
+		"""
+		Return True if this state is silent (distribution is None) and False
+		otherwise.
+		"""
 
-			while self.out_transitions[ start ] != -1:
-				if start == self.out_edge_count[ indices[a]+1 ]:
-					break
-				start += 1
+		return self.distribution is None
 
-			self.out_transitions[ start ] = indices[b]
+	def tied_copy( self ):
+		"""
+		Return a copy of this state where the distribution is tied to the
+		distribution of this state.
+		"""
 
-		self.edges = []
+		return State( distribution=self.distribution, name=self.name+'-tied' )
+
+	def copy( self ):
+		"""
+		Return a hard copy of this state.
+		"""
+
+		return State( **self.__dict__ )
+
+	def to_json( self, separators=(',', ' : '), indent=4 ):
+		"""
+		Convert this state to JSON format.
+		"""
+
+		return json.dumps( {
+							    'class' : 'State',
+								'distribution' : None if self.is_silent() else json.loads( self.distribution.to_json() ),
+								'name' : self.name,
+								'weight' : self.weight
+							}, separators=separators, indent=indent )
+
+	@classmethod
+	def from_json( cls, s ):
+		"""
+		Read a State from a given string formatted in JSON.
+		"""
+
+		# Load a dictionary from a JSON formatted string
+		d = json.loads( s )
+
+		# If we're not decoding a state, we're decoding the wrong thing
+		if d['class'] != 'State':
+			raise IOError( "State object attempting to decode {} object".format( d['class'] ) )
+
+		# If this is a silent state, don't decode the distribution
+		if d['distribution'] is None:
+			return cls( None, str(d['name']), d['weight'] )
+
+		# Otherwise it has a distribution, so decode that
+		name = str(d['name'])
+		weight = d['weight']
+
+		c = d['distribution']['class']
+		dist = eval(c).from_json( json.dumps( d['distribution'] ) )
+		return cls( dist, name, weight )
+
+Node = State

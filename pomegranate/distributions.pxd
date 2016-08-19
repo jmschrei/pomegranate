@@ -3,17 +3,13 @@
 
 cimport numpy
 
+from .base cimport Model
+
 ctypedef numpy.npy_float64 DOUBLE_t 
 ctypedef numpy.npy_intp SIZE_t  
 
-cdef class Distribution:
-	cdef public str name
+cdef class Distribution( Model ):
 	cdef public list summaries
-	cdef public bint frozen
-	cdef double _log_probability( self, double symbol ) nogil
-	cdef double _mv_log_probability( self, double* symbol ) nogil
-	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil
-	cdef public int d
 
 cdef class UniformDistribution( Distribution ):
 	cdef double start, end
