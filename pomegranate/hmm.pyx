@@ -14,6 +14,7 @@ import networkx
 import tempfile
 import warnings
 
+from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
 from .distributions cimport Distribution
@@ -64,7 +65,7 @@ def log(value):
 		return to_return
 	return _log( value )
 
-cdef class HiddenMarkovModel( Model ):
+cdef class HiddenMarkovModel( GraphModel ):
 	"""A Hidden Markov Model
 
 	A Hidden Markov Model (HMM) is a directed graphical model where nodes are
@@ -1038,7 +1039,11 @@ cdef class HiddenMarkovModel( Model ):
 				self.tied_edges_starts[n+j] = start
 				self.tied_edges_ends[n+j] = end
 
-		dist = self.states[0].distribution
+		for state in self.states:
+			if not state.is_silent():
+				dist = state.distribution
+				break
+
 		if isinstance( dist, DiscreteDistribution ):
 			self.discrete = 1
 			states = self.states[:self.silent_start]
@@ -1765,6 +1770,8 @@ cdef class HiddenMarkovModel( Model ):
 				else:
 					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
+
+					print(l*n+i, e[l*n+i])
 
 		f = self._forward( sequence, distributions, n, e )
 		b = self._backward( sequence, distributions, n, e )

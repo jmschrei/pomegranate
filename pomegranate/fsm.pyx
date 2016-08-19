@@ -9,10 +9,11 @@ import json
 import numpy
 import sys
 
+from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
 
-cdef class FiniteStateMachine( Model ):
+cdef class FiniteStateMachine( GraphModel ):
 	"""A Finite State Machine
 
 	A finite state machine is a model which can be in one of many 'states',

@@ -65,7 +65,7 @@ def weight_set( items, weights ):
 
 	return items, weights
 
-cdef class Distribution:
+cdef class Distribution( Model ):
 	"""A probability distribution.
 
 	Represents a probability distribution over the defined support. This is
@@ -97,16 +97,6 @@ cdef class Distribution:
 		self.frozen = False
 		self.summaries = []
 		self.d = 1
-
-	def __str__( self ):
-		"""Represent this distribution in JSON."""
-
-		return self.to_json()
-
-	def __repr__( self ):
-		"""Represent this distribution in the same format as string."""
-
-		return self.to_json()
 
 	def marginal( self, *args, **kwargs ):
 		"""Return the marginal of the distribution.
@@ -146,34 +136,6 @@ cdef class Distribution:
 
 		return self.__class__( *self.parameters )
 
-	def freeze( self ):
-		"""Freeze the distribution, preventing updates from occuring.
-
-		Parameters
-		----------
-		None
-
-		Returns
-		-------
-		None
-		"""
-
-		self.frozen = True
-
-	def thaw( self ):
-		"""Thaw the distribution, re-allowing updates to occur.
-
-		Parameters
-		----------
-		None
-
-		Returns
-		-------
-		None
-		"""
-
-		self.frozen = False
-
 	def log_probability( self, double symbol ):
 		"""Return the log probability of the given symbol under this distribution.
 
@@ -194,85 +156,18 @@ cdef class Distribution:
 			logp = self._log_probability( symbol )
 		return logp
 
-	cdef double _log_probability( self, double symbol ) nogil:
-		"""Placeholder for the log probability calculation."""
-		return NEGINF
-
-	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		"""Placeholder for log probability calculation of a vector."""
-		return NEGINF
-
-	def sample( self, n=None ):
-		"""Return a random item sampled from this distribution.
-
-		Parameters
-		----------
-		n : int or None, optional
-			The number of samples to return. Default is None, which is to generate
-			a single sample.
-
-		Returns
-		-------
-		sample : double or object
-			Returns a sample from the distribution of a type in the support
-			of the distribution.
-		"""
-
-		raise NotImplementedError
-
-	def fit( self, items, weights=None, inertia=0.0 ):
-		"""Fit the distribution to new data using MLE estimates.
-
-		Parameters
-		----------
-		items : array-like, shape (n_samples, n_dimensions)
-			This is the data to train on. Each row is a sample, and each column
-			is a dimension to train on. For univariate distributions an array
-			is used, while for multivariate distributions a 2d matrix is used.
-
-		weights : array-like, shape (n_samples,), optional
-			The initial weights of each sample in the matrix. If nothing is
-			passed in then each sample is assumed to be the same weight.
-			Default is None.
-
-		inertia : double, optional
-			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia),
-			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters. Default is 0.0.
-
-		Returns
-		-------
-		None
-		"""
-
-		if self.frozen == True:
-			return
-		raise NotImplementedError
-
-
-	def train( self, items, weights=None, inertia=0.0 ):
-		"""A wrapper for from_sample in order to homogenize calls more."""
-
-		raise Warning("Deprecated. Use fit instead")
-
-
 	def summarize( self, items, weights=None ):
 		"""Summarize a batch of data into sufficient statistics for a later update.
-
-
 		Parameters
 		----------
 		items : array-like, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on. For univariate distributions an array
 			is used, while for multivariate distributions a 2d matrix is used.
-
 		weights : array-like, shape (n_samples,), optional
 			The initial weights of each sample in the matrix. If nothing is
 			passed in then each sample is assumed to be the same weight.
 			Default is None.
-
 		Returns
 		-------
 		None
@@ -300,7 +195,6 @@ cdef class Distribution:
 
 	def from_summaries( self, inertia=0.0 ):
 		"""Fit the distribution to the stored sufficient statistics.
-
 		Parameters
 		----------
 		inertia : double, optional
@@ -308,7 +202,6 @@ cdef class Distribution:
 			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
-
 		Returns
 		-------
 		None
@@ -323,11 +216,9 @@ cdef class Distribution:
 
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object.
-
 		Parameters
 		----------
 		None
-
 		Returns
 		-------
 		None

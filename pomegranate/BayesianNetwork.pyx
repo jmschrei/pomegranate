@@ -3,6 +3,7 @@
 
 import numpy
 
+from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
 from .distributions cimport DiscreteDistribution
@@ -11,7 +12,7 @@ from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 
-cdef class BayesianNetwork( Model ):
+cdef class BayesianNetwork( GraphModel ):
 	"""A Bayesian Network Model.
 
 	A Bayesian network is a directed graph where nodes represent variables, edges
