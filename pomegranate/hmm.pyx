@@ -18,9 +18,8 @@ from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
 from .distributions cimport Distribution
-from .distributions cimport MultivariateDistribution
 from .distributions cimport DiscreteDistribution
-from .gmm import GeneralMixtureModel
+
 from .utils cimport _log
 from .utils cimport pair_lse
 
@@ -1347,10 +1346,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 			for l in range( self.silent_start ):
 				for i in range( n ):
 					if self.multivariate:
-						e[l*n + i] = (( <Distribution> distributions[l] )._mv_log_probability( sequence+i*dim ) +
+						e[l*n + i] = (( <Model> distributions[l] )._mv_log_probability( sequence+i*dim ) +
 							self.state_weights[l] )
 					else:
-						e[l*n + i] = (( <Distribution> distributions[l] )._log_probability( sequence[i] ) +
+						e[l*n + i] = (( <Model> distributions[l] )._log_probability( sequence[i] ) +
 							self.state_weights[l] )
 		else:
 			e = emissions
@@ -1521,10 +1520,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 			for l in range( self.silent_start ):
 				for i in range( n ):
 					if self.multivariate:
-						e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
+						e[l*n + i] = ((<Model>distributions[l])._mv_log_probability( sequence+i*dim ) +
 							self.state_weights[l])
 					else:
-						e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
+						e[l*n + i] = ((<Model>distributions[l])._log_probability( sequence[i] ) +
 							self.state_weights[l])
 		else:
 			e = emissions
@@ -1765,13 +1764,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 		for l in range( self.silent_start ):
 			for i in range( n ):
 				if self.multivariate:
-					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
+					e[l*n + i] = ((<Model>distributions[l])._mv_log_probability( sequence+i*dim ) +
 						self.state_weights[l])
 				else:
-					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
+					e[l*n + i] = ((<Model>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
-
-					print(l*n+i, e[l*n+i])
 
 		f = self._forward( sequence, distributions, n, e )
 		b = self._backward( sequence, distributions, n, e )
@@ -1964,10 +1961,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 		for l in range( self.silent_start ):
 			for i in range( n ):
 				if self.multivariate:
-					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
+					e[l*n + i] = ((<Model>distributions[l])._mv_log_probability( sequence+i*dim ) +
 						self.state_weights[l])
 				else:
-					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
+					e[l*n + i] = ((<Model>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
 
 		for i in range( m ):
@@ -2603,10 +2600,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 		for l in range( self.silent_start ):
 			for i in range( n ):
 				if self.multivariate:
-					e[l*n + i] = ((<Distribution>distributions[l])._mv_log_probability( sequence+i*dim ) +
+					e[l*n + i] = ((<Model>distributions[l])._mv_log_probability( sequence+i*dim ) +
 						self.state_weights[l])
 				else:
-					e[l*n + i] = ((<Distribution>distributions[l])._log_probability( sequence[i] ) +
+					e[l*n + i] = ((<Model>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
 
 		f = self._forward( sequence, distributions, n, e )
@@ -2717,7 +2714,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 								log_sequence_probability )
 
 
-					(<Distribution>distributions[k])._summarize(sequence, weights, n)
+					(<Model>distributions[k])._summarize(sequence, weights, n)
 
 			# Update the master expected transitions vector representing the sparse matrix.
 			with gil:
@@ -2835,7 +2832,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 						j += 1
 
-					(<Distribution>distributions[k])._summarize(sequence, weights, n)
+					(<Model>distributions[k])._summarize(sequence, weights, n)
 
 		free(transitions)
 		free(visited)
