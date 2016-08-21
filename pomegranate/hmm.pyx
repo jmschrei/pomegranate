@@ -2748,7 +2748,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		return log_sequence_probability * weight
 
 	cpdef double _viterbi_summarize( self, numpy.ndarray sequence_ndarray,
-		numpy.ndarray distributions_ndarray ):
+		double weight, numpy.ndarray distributions_ndarray ):
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
@@ -2762,11 +2762,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef double log_sequence_probability
 
 		with nogil:
-			log_sequence_probability = self.__viterbi_summarize(sequence, distributions, n, m)
+			log_sequence_probability = self.__viterbi_summarize(sequence, weight, distributions, n, m)
 
 		return self.log_probability( sequence_ndarray, check_input=False )
 
-	cdef double __viterbi_summarize( self, double* sequence, void** distributions,
+	cdef double __viterbi_summarize( self, double* sequence, double weight, void** distributions,
 		int n, int m ) nogil:
 		"""Perform Viterbi re-estimation on the model parameters.
 
@@ -2813,7 +2813,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				for k in range(m):
 					for l in range( out_edges[k], out_edges[k+1] ):
 						li = self.out_transitions[l]
-						self.expected_transitions[l] += transitions[k*m + li]
+						self.expected_transitions[l] += transitions[k*m + li] * weight
 
 			# Calculate emissions, including tied emissions.
 			for k in range(m):
@@ -2840,13 +2840,13 @@ cdef class HiddenMarkovModel( GraphModel ):
 							continue
 
 						if path[i] == k:
-							weights[j] = 1
+							weights[j] = weight
 
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
 
 							if path[li] == k:
-								weights[j] = 1
+								weights[j] = weight
 
 						j += 1
 
@@ -2857,7 +2857,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		free(path)
 		free(rpath)
 		free(weights)
-		return log_probability
+		return log_probability * weight
 
 	cdef void _from_summaries(self, double transition_pseudocount,
 		bint use_pseudocount, double edge_inertia, double distribution_inertia ):
