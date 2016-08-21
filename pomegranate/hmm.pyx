@@ -2305,7 +2305,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		return log_probability_sum, path
 
-	def fit( self, sequences, stop_threshold=1E-9, min_iterations=0,
+	def fit( self, sequences, weights=None, stop_threshold=1E-9, min_iterations=0,
 		max_iterations=1e8, algorithm='baum-welch', verbose=True,
 		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
 		distribution_inertia=0.0, n_jobs=1  ):
@@ -2320,8 +2320,15 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		Parameters
 		----------
-		sequence : array-like
-			An array (or list) of observations.
+		sequences : array-like
+			An array of some sort (list, numpy.ndarray, tuple..) of sequences,
+			where each sequence is a numpy array, which is 1 dimensional if
+			the HMM is a one dimensional array, or multidimensional of the HMM
+			supports multiple dimensions.
+
+		weights : array-like or None, optional
+			An array of weights, one for each sequence to train on. If None,
+			all sequences are equaly weighted. Default is None.
 
 		stop_threshold : double, optional
 			The threshold the improvement ratio of the models log probability
@@ -2394,6 +2401,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 		if isinstance( sequences, numpy.ndarray ):
 			sequences = sequences.astype('float64')
 
+		if weights is None:
+			weights = numpy.ones(len(sequences), dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
 			while improvement > stop_threshold or iteration < min_iterations + 1:
 				self.from_summaries(transition_pseudocount, use_pseudocount,
@@ -2402,7 +2414,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				if iteration >= max_iterations + 1:
 					break
 
-				log_probability_sum = self.summarize( sequences, alg, n_jobs, parallel, False )
+				log_probability_sum = self.summarize( sequences, weights, alg, n_jobs, parallel, False )
 
 				if iteration == 0:
 					initial_log_probability_sum = log_probability_sum
@@ -2427,14 +2439,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 			print( "Total Training Improvement: {}".format( improvement ) )
 		return improvement
 
-	cpdef train( self, sequences, stop_threshold=1E-9, min_iterations=0,
-		max_iterations=1e8, algorithm='baum-welch', verbose=True,
-		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
-		distribution_inertia=0.0, n_jobs=1 ):
-
-		raise Warning("Method is depricated. Use `fit` instead.")
-
-	def summarize( self, sequences, alg='baum-welch', n_jobs=1, parallel=None,
+	def summarize( self, sequences, weights=None, alg='baum-welch', n_jobs=1, parallel=None,
 		check_input=True ):
 		"""Summarize data into stored sufficient statistics for out-of-core
 		training. Only implemented for Baum-Welch training since Viterbi
@@ -2442,8 +2447,15 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		Parameters
 		----------
-		sequence : array-like
-			An array (or list) of observations.
+		sequences : array-like
+			An array of some sort (list, numpy.ndarray, tuple..) of sequences,
+			where each sequence is a numpy array, which is 1 dimensional if
+			the HMM is a one dimensional array, or multidimensional of the HMM
+			supports multiple dimensions.
+
+		weights : array-like or None, optional
+			An array of weights, one for each sequence to train on. If None,
+			all sequences are equaly weighted. Default is None.
 
 		n_jobs : int, optional
 			The number of threads to use when performing training. This
@@ -2473,6 +2485,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 			raise ValueError("must bake model before summarizing data")
 
 		if check_input:
+			if weights is None:
+				weights_ndarray = numpy.ones(len(sequences), dtype='float64')
+			else:
+				weights_ndarray = numpy.array(weights, dtype='float64')
+			
 			for i in range( len(sequences) ):
 				try:
 					sequences[i] = numpy.array( sequences[i], dtype='float64' )
@@ -2491,10 +2508,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		if alg == 'baum-welch':
 			return sum( parallel([ delayed( self._baum_welch_summarize, check_pickle=False )(
-					sequence, self.distributions ) for sequence in sequences ]) )
+					sequence, weight, self.distributions ) for sequence, weight in zip(sequences, weights) ]) )
 		else:
 			return sum( parallel([ delayed( self._viterbi_summarize, check_pickle=False )(
-					sequence, self.distributions ) for sequence in sequences ]) )
+					sequence, weight, self.distributions ) for sequence, weight in zip(sequences, weights) ]) )
 
 
 	def from_summaries( self, transition_pseudocount=0,
@@ -2555,7 +2572,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 			state.distribution.clear_summaries()
 
 	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray,
-		numpy.ndarray distributions_ndarray ):
+		double weight, numpy.ndarray distributions_ndarray ):
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
@@ -2569,12 +2586,13 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef double log_sequence_probability
 
 		with nogil:
-			log_sequence_probability = self.__baum_welch_summarize( sequence, distributions, n)
+			log_sequence_probability = self.__baum_welch_summarize( sequence, 
+				weight, distributions, n)
 
 		return log_sequence_probability
 
-	cdef double __baum_welch_summarize( self, double* sequence, void** distributions,
-		int n ) nogil:
+	cdef double __baum_welch_summarize( self, double* sequence, double weight,
+		void** distributions, int n ) nogil:
 		"""Collect sufficient statistics on a single sequence."""
 
 		cdef int i, k, l, li
@@ -2706,7 +2724,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 						# docs/HTKBook/node7_mn.html, we really should divide by
 						# sequence probability.
 						weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] -
-							log_sequence_probability )
+							log_sequence_probability ) * weight
 
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
@@ -2719,7 +2737,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 			# Update the master expected transitions vector representing the sparse matrix.
 			with gil:
 				for i in range(self.n_edges):
-					self.expected_transitions[i] += expected_transitions[i]
+					self.expected_transitions[i] += expected_transitions[i] * weight
 
 		free(expected_transitions)
 		free(e)
@@ -2727,10 +2745,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 		free(weights)
 		free(f)
 		free(b)
-		return log_sequence_probability
+		return log_sequence_probability * weight
 
 	cpdef double _viterbi_summarize( self, numpy.ndarray sequence_ndarray,
-		numpy.ndarray distributions_ndarray ):
+		double weight, numpy.ndarray distributions_ndarray ):
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
@@ -2744,11 +2762,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef double log_sequence_probability
 
 		with nogil:
-			log_sequence_probability = self.__viterbi_summarize(sequence, distributions, n, m)
+			log_sequence_probability = self.__viterbi_summarize(sequence, weight, distributions, n, m)
 
 		return self.log_probability( sequence_ndarray, check_input=False )
 
-	cdef double __viterbi_summarize( self, double* sequence, void** distributions,
+	cdef double __viterbi_summarize( self, double* sequence, double weight, void** distributions,
 		int n, int m ) nogil:
 		"""Perform Viterbi re-estimation on the model parameters.
 
@@ -2795,7 +2813,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				for k in range(m):
 					for l in range( out_edges[k], out_edges[k+1] ):
 						li = self.out_transitions[l]
-						self.expected_transitions[l] += transitions[k*m + li]
+						self.expected_transitions[l] += transitions[k*m + li] * weight
 
 			# Calculate emissions, including tied emissions.
 			for k in range(m):
@@ -2822,13 +2840,13 @@ cdef class HiddenMarkovModel( GraphModel ):
 							continue
 
 						if path[i] == k:
-							weights[j] = 1
+							weights[j] = weight
 
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
 
 							if path[li] == k:
-								weights[j] = 1
+								weights[j] = weight
 
 						j += 1
 
@@ -2839,7 +2857,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		free(path)
 		free(rpath)
 		free(weights)
-		return log_probability
+		return log_probability * weight
 
 	cdef void _from_summaries(self, double transition_pseudocount,
 		bint use_pseudocount, double edge_inertia, double distribution_inertia ):
