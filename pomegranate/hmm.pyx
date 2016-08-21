@@ -159,10 +159,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 	cdef dict keymap
 	cdef object state_names
 	cdef numpy.ndarray distributions
+	cdef void** distributions_ptr
 
 	def __init__( self, name=None, start=None, end=None ):
 		# Save the name or make up a name.
 		self.name = str(name) or str( id(self) )
+		self.model = "HiddenMarkovModel"
 
 		# This holds a directed graph between states. Nodes in that graph are
 		# State objects, so they're guaranteed never to conflict when composing
@@ -584,14 +586,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 		self.graph = networkx.union( self.graph, other.graph )
 		self.add_transition( self.end, other.start, 1.00 )
 		self.end = other.end
-
-
-	def concatenate_model( self, other ):
-		"""Deprecated. Use concatenate.
-		"""
-
-		raise Warning("Deprecated. Use concatenate.")
-
 
 	def draw( self, **kwargs ):
 		"""Draw this model's graph using NetworkX and matplotlib.
@@ -1062,6 +1056,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 			if self.d != self.distributions[i].d:
 				raise ValueError("mis-matching inputs for states")
 
+		self.distributions_ptr = <void**> self.distributions.data
+
 		# This holds the index of the start state
 		try:
 			self.start_index = indices[self.start]
@@ -1233,13 +1229,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 			raise ValueError("must bake model before computing probability")
 
 		cdef numpy.ndarray sequence_ndarray
-		cdef double* sequence_data
-		cdef double* f
-		cdef double log_probability_sum
-		cdef int n = len(sequence), m = len(self.states)
-		cdef void** distributions = <void**> self.distributions.data
+		cdef double* sequence_ptr
+		cdef double log_probability
+		cdef int n = len(sequence)
 		cdef int mv = self.multivariate
-		cdef int is_str_type
 
 		if check_input:
 			if mv and not isinstance( sequence[0][0], str ):
@@ -1252,20 +1245,27 @@ cdef class HiddenMarkovModel( GraphModel ):
 		else:
 			sequence_ndarray = sequence
 
-		sequence_data = <double*> sequence_ndarray.data
+		sequence_ptr = <double*> sequence_ndarray.data
 
 		with nogil:
-			f = self._forward( sequence_data, distributions, n, NULL )
+			log_probability = self._vl_log_probability(sequence_ptr, n)
+
+		return log_probability
+
+	cdef double _vl_log_probability(self, double* sequence, int n) nogil:
+		cdef double* f = self._forward(sequence, n, NULL)
+		cdef double log_probability
+		cdef int i, m = self.n_states
 
 		if self.finite == 1:
-			log_probability_sum = f[n*m + self.end_index]
+			log_probability = f[n*m + self.end_index]
 		else:
-			log_probability_sum = NEGINF
+			log_probability = NEGINF
 			for i in range( self.silent_start ):
-				log_probability_sum = pair_lse( log_probability_sum, f[n*m + i] )
+				log_probability = pair_lse( log_probability, f[n*m + i] )
 
 		free(f)
-		return log_probability_sum
+		return log_probability
 
 	cpdef numpy.ndarray forward( self, sequence ):
 		"""Run the forward algorithm on the sequence.
@@ -1318,7 +1318,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		sequence_data = <double*> sequence_ndarray.data
 
 		with nogil:
-			f = <double*> self._forward( sequence_data, distributions, n, NULL )
+			f = <double*> self._forward( sequence_data, n, NULL )
 
 		for i in range(n+1):
 			for j in range(m):
@@ -1327,11 +1327,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 		free(f)
 		return f_ndarray
 
-	cdef double* _forward( self, double* sequence, void** distributions,
-		int n, double* emissions ) nogil:
+	cdef double* _forward( self, double* sequence, int n, double* emissions ) nogil:
 		cdef int i, k, ki, l, li
 		cdef int p = self.silent_start, m = self.n_states
 		cdef int dim = self.d
+
+		cdef void** distributions = <void**> self.distributions_ptr
 
 		cdef double log_probability
 		cdef int* in_edges = self.in_edge_count
@@ -1492,7 +1493,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		sequence_data = <double*> sequence_ndarray.data
 
 		with nogil:
-			b = self._backward( sequence_data, distributions, n, NULL )
+			b = self._backward( sequence_data, n, NULL )
 
 		for i in range(n+1):
 			for j in range(m):
@@ -1501,11 +1502,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 		free(b)
 		return b_ndarray
 
-	cdef double* _backward( self, double* sequence, void** distributions,
-		int n, double* emissions ) nogil:
+	cdef double* _backward( self, double* sequence, int n, double* emissions ) nogil:
 		cdef int i, ir, k, kr, l, li
 		cdef int p = self.silent_start, m = self.n_states
 		cdef int dim = self.d
+
+		cdef void** distributions = <void**> self.distributions_ptr
 
 		cdef double log_probability
 		cdef int* out_edges = self.out_edge_count
@@ -1738,15 +1740,17 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		sequence_data = <double*> sequence_ndarray.data
 
-		return self._forward_backward( sequence_data, distributions, n )
+		return self._forward_backward( sequence_data, n )
 
-	cdef tuple _forward_backward( self, double* sequence, void** distributions, int n ):
+	cdef tuple _forward_backward( self, double* sequence, int n ):
 		cdef int i, k, j, l, ki, li
 		cdef int m=len(self.states)
 		cdef int dim = self.d
 		cdef double* e = <double*> calloc(n*self.silent_start, sizeof(double))
 		cdef double* f
 		cdef double* b
+
+		cdef void** distributions = <void**> self.distributions_ptr
 
 		cdef numpy.ndarray expected_transitions_ndarray = numpy.zeros((m, m))
 		cdef double* expected_transitions = <double*> expected_transitions_ndarray.data
@@ -1770,8 +1774,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 					e[l*n + i] = ((<Model>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
 
-		f = self._forward( sequence, distributions, n, e )
-		b = self._backward( sequence, distributions, n, e )
+		f = self._forward( sequence, n, e )
+		b = self._backward( sequence, n, e )
 
 		if self.finite == 1:
 			log_sequence_probability = f[n*m + self.end_index]
@@ -1926,7 +1930,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64)
 
 		sequence_data = <double*> sequence_ndarray.data
-		logp = self._viterbi(sequence_data, distributions, path, n, m)
+		logp = self._viterbi(sequence_data, path, n, m)
 
 		for i in range(n+m):
 			if path[i] == -1:
@@ -1940,10 +1944,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 		return logp, vpath if logp > NEGINF else None
 
 
-	cdef double _viterbi(self, double* sequence, void** distributions, int* path, int n, int m) nogil:
+	cdef double _viterbi(self, double* sequence, int* path, int n, int m) nogil:
 		cdef int p = self.silent_start
 		cdef int i, l, k, ki
 		cdef int dim = self.d
+
+		cdef void** distributions = <void**> self.distributions_ptr
 
 		cdef int* tracebackx = <int*> calloc( (n+1)*m, sizeof(int) )
 		cdef int* tracebacky = <int*> calloc( (n+1)*m, sizeof(int) )
@@ -2307,7 +2313,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 	def fit( self, sequences, weights=None, stop_threshold=1E-9, min_iterations=0,
 		max_iterations=1e8, algorithm='baum-welch', verbose=True,
-		transition_pseudocount=0, use_pseudocount=False, edge_inertia=0.0,
+		transition_pseudocount=0, use_pseudocount=False, inertia=None, edge_inertia=0.0,
 		distribution_inertia=0.0, n_jobs=1  ):
 		"""Fit the model to data using either Baum-Welch or Viterbi training.
 
@@ -2361,6 +2367,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 			Whether to use pseudocounts when updatiing the transition
 			probability parameters. Default is False.
 
+		inertia : double or None, optional, range [0, 1]
+			If double, will set both edge_inertia and distribution_inertia to
+			be that value. If None, will not override those values. Default is
+			None.
+
 		edge_inertia : bool, optional, range [0, 1]
 			Whether to use inertia when updating the transition probability
 			parameters. Default is 0.0.
@@ -2390,6 +2401,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef str alg = algorithm.lower()
 		cdef bint check_input = alg == 'viterbi'
 
+		if inertia is not None:
+			edge_inertia = inertia
+			distribution_inertia = inertia
+
 		for i in range( len(sequences) ):
 			try:
 				sequences[i] = numpy.array( sequences[i], dtype='float64' )
@@ -2408,7 +2423,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
 			while improvement > stop_threshold or iteration < min_iterations + 1:
-				self.from_summaries(transition_pseudocount, use_pseudocount,
+				self.from_summaries(inertia, transition_pseudocount, use_pseudocount,
 					edge_inertia, distribution_inertia)
 
 				if iteration >= max_iterations + 1:
@@ -2439,7 +2454,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 			print( "Total Training Improvement: {}".format( improvement ) )
 		return improvement
 
-	def summarize( self, sequences, weights=None, alg='baum-welch', n_jobs=1, parallel=None,
+	def summarize( self, sequences, weights=None, algorithm='baum-welch', n_jobs=1, parallel=None,
 		check_input=True ):
 		"""Summarize data into stored sufficient statistics for out-of-core
 		training. Only implemented for Baum-Welch training since Viterbi
@@ -2504,75 +2519,14 @@ cdef class HiddenMarkovModel( GraphModel ):
 		if parallel is None:
 			parallel = Parallel( n_jobs=n_jobs, backend='threading' )
 
-		self.summaries += len(sequences)
-
-		if alg == 'baum-welch':
+		if algorithm == 'baum-welch':
 			return sum( parallel([ delayed( self._baum_welch_summarize, check_pickle=False )(
-					sequence, weight, self.distributions ) for sequence, weight in zip(sequences, weights) ]) )
+					sequence, weight) for sequence, weight in zip(sequences, weights) ]) )
 		else:
 			return sum( parallel([ delayed( self._viterbi_summarize, check_pickle=False )(
-					sequence, weight, self.distributions ) for sequence, weight in zip(sequences, weights) ]) )
+					sequence, weight) for sequence, weight in zip(sequences, weights) ]) )
 
-
-	def from_summaries( self, transition_pseudocount=0,
-		use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0 ):
-		"""Fit the model to the stored summary statistics.
-
-		Parameters
-		----------
-		transition_pseudocount : int, optional
-			A pseudocount to add to all transitions to add a prior to the
-			MLE estimate of the transition probability. Default is 0.
-
-		use_pseudocount : bool, optional
-			Whether to use pseudocounts when updatiing the transition
-			probability parameters. Default is False.
-
-		edge_inertia : bool, optional, range [0, 1]
-			Whether to use inertia when updating the transition probability
-			parameters. Default is 0.0.
-
-		distribution_inertia : double, optional, range [0, 1]
-			Whether to use inertia when updating the distribution parameters.
-			Default is 0.0.
-
-		Returns
-		-------
-		None
-		"""
-
-		if self.d == 0:
-			raise ValueError("must bake model before using from summaries")
-
-		if self.summaries == 0:
-			return
-
-		self._from_summaries( transition_pseudocount, use_pseudocount,
-			edge_inertia, distribution_inertia )
-
-		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
-		self.summaries = 0
-
-	def clear_summaries( self ):
-		"""Clear the summary statistics stored in the object.
-
-		Parameters
-		----------
-		None
-
-		Returns
-		-------
-		None
-		"""
-
-		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
-		self.summaries = 0
-
-		for state in self.states[:self.silent_start]:
-			state.distribution.clear_summaries()
-
-	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray,
-		double weight, numpy.ndarray distributions_ndarray ):
+	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, double weight):
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
@@ -2581,23 +2535,22 @@ cdef class HiddenMarkovModel( GraphModel ):
 		"""
 
 		cdef double* sequence = <double*> sequence_ndarray.data
-		cdef void** distributions = <void**> distributions_ndarray.data
 		cdef int n = sequence_ndarray.shape[0]
 		cdef double log_sequence_probability
 
 		with nogil:
-			log_sequence_probability = self.__baum_welch_summarize( sequence, 
-				weight, distributions, n)
+			log_sequence_probability = self._summarize(sequence, &weight, n)
 
 		return log_sequence_probability
 
-	cdef double __baum_welch_summarize( self, double* sequence, double weight,
-		void** distributions, int n ) nogil:
+	cdef double _summarize(self, double* sequence, double* weight, int n) nogil:
 		"""Collect sufficient statistics on a single sequence."""
 
 		cdef int i, k, l, li
 		cdef int m = self.n_states
 		cdef int dim = self.d
+
+		cdef void** distributions = self.distributions_ptr
 
 		cdef double log_sequence_probability
 		cdef double log_transition_emission_probability_sum
@@ -2624,8 +2577,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 					e[l*n + i] = ((<Model>distributions[l])._log_probability( sequence[i] ) +
 						self.state_weights[l])
 
-		f = self._forward( sequence, distributions, n, e )
-		b = self._backward( sequence, distributions, n, e )
+		f = self._forward( sequence, n, e )
+		b = self._backward( sequence, n, e )
 
 		if self.finite == 1:
 			log_sequence_probability = f[n*m + self.end_index]
@@ -2724,7 +2677,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 						# docs/HTKBook/node7_mn.html, we really should divide by
 						# sequence probability.
 						weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] -
-							log_sequence_probability ) * weight
+							log_sequence_probability ) * weight[0]
 
 						for l in range( tied_states[k], tied_states[k+1] ):
 							li = self.tied[l]
@@ -2737,7 +2690,9 @@ cdef class HiddenMarkovModel( GraphModel ):
 			# Update the master expected transitions vector representing the sparse matrix.
 			with gil:
 				for i in range(self.n_edges):
-					self.expected_transitions[i] += expected_transitions[i] * weight
+					self.expected_transitions[i] += expected_transitions[i] * weight[0]
+
+		self.summaries += 1
 
 		free(expected_transitions)
 		free(e)
@@ -2745,10 +2700,9 @@ cdef class HiddenMarkovModel( GraphModel ):
 		free(weights)
 		free(f)
 		free(b)
-		return log_sequence_probability * weight
+		return log_sequence_probability * weight[0]
 
-	cpdef double _viterbi_summarize( self, numpy.ndarray sequence_ndarray,
-		double weight, numpy.ndarray distributions_ndarray ):
+	cpdef double _viterbi_summarize(self, numpy.ndarray sequence_ndarray, double weight):
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
@@ -2757,17 +2711,15 @@ cdef class HiddenMarkovModel( GraphModel ):
 		"""
 
 		cdef double* sequence = <double*> sequence_ndarray.data
-		cdef void** distributions = <void**> distributions_ndarray.data
 		cdef int n = sequence_ndarray.shape[0], m = len(self.states)
 		cdef double log_sequence_probability
 
 		with nogil:
-			log_sequence_probability = self.__viterbi_summarize(sequence, weight, distributions, n, m)
+			log_sequence_probability = self.__viterbi_summarize(sequence, weight, n, m)
 
 		return self.log_probability( sequence_ndarray, check_input=False )
 
-	cdef double __viterbi_summarize( self, double* sequence, double weight, void** distributions,
-		int n, int m ) nogil:
+	cdef double __viterbi_summarize( self, double* sequence, double weight, int n, int m ) nogil:
 		"""Perform Viterbi re-estimation on the model parameters.
 
 		The sequence is tagged using the viterbi algorithm, and both
@@ -2779,6 +2731,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int* path = <int*> calloc( n+m, sizeof(int) )
 		cdef int* tied_states = self.tied_state_count
 		cdef int* out_edges = self.out_edge_count
+		cdef void** distributions = self.distributions_ptr
 
 		cdef double* transitions = <double*> calloc(m*m, sizeof(double))
 		cdef double* weights = <double*> calloc(n, sizeof(double))
@@ -2793,7 +2746,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int past, present
 		cdef double log_probability
 
-		log_probability = self._viterbi(sequence, distributions, rpath, n, m)
+		log_probability = self._viterbi(sequence, rpath, n, m)
 
 		if log_probability != NEGINF or True:
 			# Tally up the transitions seen in the Viterbi path
@@ -2852,12 +2805,62 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 					(<Model>distributions[k])._summarize(sequence, weights, n)
 
+		self.summaries += 1
+
 		free(transitions)
 		free(visited)
 		free(path)
 		free(rpath)
 		free(weights)
 		return log_probability * weight
+
+	def from_summaries( self, inertia=None, transition_pseudocount=0,
+		use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0 ):
+		"""Fit the model to the stored summary statistics.
+
+		Parameters
+		----------
+		inertia : double or None, optional
+			The inertia to use for both edges and distributions without
+			needing to set both of them. If None, use the values passed
+			in to those variables. Default is None.
+
+		transition_pseudocount : int, optional
+			A pseudocount to add to all transitions to add a prior to the
+			MLE estimate of the transition probability. Default is 0.
+
+		use_pseudocount : bool, optional
+			Whether to use pseudocounts when updatiing the transition
+			probability parameters. Default is False.
+
+		edge_inertia : bool, optional, range [0, 1]
+			Whether to use inertia when updating the transition probability
+			parameters. Default is 0.0.
+
+		distribution_inertia : double, optional, range [0, 1]
+			Whether to use inertia when updating the distribution parameters.
+			Default is 0.0.
+
+		Returns
+		-------
+		None
+		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using from summaries")
+
+		if self.summaries == 0:
+			return
+
+		if inertia is not None:
+			edge_inertia = inertia
+			distribution_inertia = inertia
+
+		self._from_summaries( transition_pseudocount, use_pseudocount,
+			edge_inertia, distribution_inertia )
+
+		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
+		self.summaries = 0
 
 	cdef void _from_summaries(self, double transition_pseudocount,
 		bint use_pseudocount, double edge_inertia, double distribution_inertia ):
@@ -2977,6 +2980,24 @@ cdef class HiddenMarkovModel( GraphModel ):
 		free(norm)
 		free(visited)
 		free(expected_transitions)
+
+	def clear_summaries( self ):
+		"""Clear the summary statistics stored in the object.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		None
+		"""
+
+		memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
+		self.summaries = 0
+
+		for state in self.states[:self.silent_start]:
+			state.distribution.clear_summaries()
 
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Serialize the model to a JSON.

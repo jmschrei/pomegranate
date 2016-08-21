@@ -11,9 +11,11 @@ cdef class Model( object ):
 	cdef public str name
 	cdef public int d
 	cdef public bint frozen
+	cdef public str model
 
 	cdef double _log_probability( self, double symbol ) nogil
 	cdef double _mv_log_probability( self, double* symbol ) nogil
+	cdef double _vl_log_probability( self, double* symbol, int n ) nogil
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil
 
 cdef class GraphModel( Model ):
