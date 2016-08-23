@@ -93,6 +93,8 @@ cdef class BayesianNetwork( GraphModel ):
 		None
 		"""
 
+		self.d = len(self.states)
+
 		# Initialize the factor graph
 		self.graph = FactorGraph( self.name+'-fg' )
 
@@ -111,11 +113,6 @@ cdef class BayesianNetwork( GraphModel ):
 		# distribution, otherwise add in the appropriate marginal and
 		# conditional distribution as separate nodes.
 		for i, state in enumerate( self.states ):
-			if self.d == 0:
-				self.d = state.distribution.d
-			elif self.d != state.distribution.d:
-				raise TypeError("states do not have the same number of inputs")
-
 			# For every state (ones with conditional distributions or those
 			# encoding marginals) we need to create a marginal node in the
 			# underlying factor graph. 

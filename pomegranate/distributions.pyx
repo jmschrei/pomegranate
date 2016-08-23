@@ -1901,6 +1901,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		self.distributions_ptr = <void**> self.distributions.data
 
 		self.d = len(distributions)
+		self.discrete = isinstance(distributions[0], DiscreteDistribution)
 
 		if weights is not None:
 			weights = numpy.array( weights, dtype=numpy.float64 )
@@ -1927,19 +1928,25 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		cdef double* symbol_ptr = <double*> symbol_ndarray.data
 		cdef double logp
 
-		with nogil:
-			logp = self._mv_log_probability( symbol_ptr )
+		if self.discrete:
+			logp = 0
+			for i in range(self.d):
+				logp += self.distributions[i].log_probability(symbol[i]) + self.weights[i]
+
+		else:
+			with nogil:
+				logp = self._mv_log_probability( symbol_ptr )
 
 		return logp
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 
-		cdef int i, d = self.d
-		cdef double w, logp = 0.0
+		cdef int i
+		cdef double logp = 0.0
 
-		for i in range(d):
-			logp += ( <Distribution> self.distributions_ptr[i] )._log_probability( symbol[i] )
+		for i in range(self.d):
+			logp += ( <Model> self.distributions_ptr[i] )._log_probability( symbol[i] )
 			logp += self.weights_ptr[i]
 
 		return logp
@@ -1987,7 +1994,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for i in range(n):
 			for j in range(d):
-				( <Distribution> self.distributions_ptr[j] )._summarize( items+i*d+j, weights+i, 1 )
+				( <Model> self.distributions_ptr[j] )._summarize( items+i*d+j, weights+i, 1 )
 
 	def from_summaries( self, inertia=0.0 ):
 		"""

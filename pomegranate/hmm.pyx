@@ -484,7 +484,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				transition_log_probabilities[i, self.out_transitions[n]] = \
 					self.out_transition_log_probabilities[n]
 
-		return transition_log_probabilities
+		return numpy.exp(transition_log_probabilities)
 
 	def copy( self ):
 		"""Returns a deep copy of the HMM.

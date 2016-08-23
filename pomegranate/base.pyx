@@ -134,7 +134,23 @@ cdef class Model( object ):
 
 		raise NotImplementedError
 
-	def log_probability( self, double symbol ):
+	def probability( self, symbol ):
+		"""Return the probability of the given symbol under this distribution.
+
+		Parameters
+		----------
+		symbol : object
+			The symbol to calculate the probability of
+
+		Returns
+		-------
+		probability : double
+			The probability of that point under the distribution.
+		"""
+
+		return numpy.exp(self.log_probability(symbol))
+
+	def log_probability( self, symbol ):
 		"""Return the log probability of the given symbol under this distribution.
 
 		Parameters
@@ -289,35 +305,35 @@ cdef class GraphModel( Model ):
 
 		return "{}:{}".format(self.name, "".join(map(str, self.states)))
 
-	def add_node( self, n ):
+	def add_node( self, node ):
 		"""
 		Add a node to the graph.
 		"""
 
-		self.states.append( n )
+		self.states.append( node )
 		self.n_states += 1
 
-	def add_nodes( self, n ):
+	def add_nodes( self, *nodes ):
 		"""
 		Add multiple states to the graph.
 		"""
 
-		for node in n:
+		for node in nodes:
 			self.add_node( node )
 
-	def add_state( self, s ):
+	def add_state( self, state ):
 		"""
 		Another name for a node.
 		"""
 
-		self.add_node( s )
+		self.add_node( state )
 
-	def add_states( self, s ):
+	def add_states( self, *states ):
 		"""
 		Another name for a node.
 		"""
 
-		self.add_nodes( s )
+		self.add_nodes( states )
 
 	def add_edge( self, a, b ):
 		"""

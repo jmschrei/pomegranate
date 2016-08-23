@@ -70,6 +70,7 @@ cdef class MultivariateDistribution( Distribution ):
 
 cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	cdef public numpy.ndarray distributions, weights
+	cdef int discrete
 	cdef double* weights_ptr
 	cdef void** distributions_ptr
 
