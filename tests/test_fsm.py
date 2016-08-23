@@ -31,7 +31,7 @@ def setup():
 	model = FiniteStateMachine( "Turnstile" )
 
 	# Add the states in the same way
-	model.add_states( [a, b, c, d, e] )
+	model.add_nodes(a, b, c, d, e)
 
 	# Add in transitions by using nickels
 	model.add_transition( model.start, a, 5 )

@@ -101,7 +101,7 @@ def setup():
 
 	# Make the bayes net, add the states, and the conditional dependencies.
 	network = BayesianNetwork( "test" )
-	network.add_states( [ s0, s1, s2, s3, s4, s5 ] )
+	network.add_nodes(s0, s1, s2, s3, s4, s5)
 	network.add_transition( s0, s1 )
 	network.add_transition( s1, s3 )
 	network.add_transition( s2, s3 )

@@ -51,7 +51,7 @@ def setup():
 	network = BayesianNetwork( "Titanic Disaster" )
 
 	# Add the three nodes to the network
-	network.add_nodes( [ s1, s2, s3 ] )
+	network.add_nodes(s1, s2, s3)
 
 	# Add transitions which represent conditional depesndencies, where the second
 	# node is conditionally dependent on the first node (Monty is dependent on both guest and prize)
