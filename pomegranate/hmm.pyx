@@ -587,7 +587,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 		self.add_transition( self.end, other.start, 1.00 )
 		self.end = other.end
 
-	def draw( self, **kwargs ):
+	def draw(self, **kwargs):
+		raise ValueError("depricated. Please use .plot")
+
+	def plot( self, **kwargs ):
 		"""Draw this model's graph using NetworkX and matplotlib.
 
 		Note that this relies on networkx's built-in graphing capabilities (and
@@ -639,7 +642,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 		else:
 			warnings.warn("Install pygraphviz for nicer visualizations")
 			networkx.draw()
-		pyplot.show()
 
 	def bake( self, verbose=False, merge="All" ):
 		"""Finalize the topology of the model.
