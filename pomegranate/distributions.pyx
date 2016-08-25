@@ -371,6 +371,23 @@ cdef class UniformDistribution( Distribution ):
 		self.summarize( items, weights )
 		self.from_summaries( inertia )
 
+	def summarize( self, items, weights=None ):
+		"""
+		Take in a series of items and their weights and reduce it down to a
+		summary statistic to be used in training later.
+		"""
+
+		items, weights = weight_set(items, weights)
+		if weights.sum() <= 0:
+			return
+
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
+		cdef SIZE_t n = items.shape[0]
+
+		with nogil:
+			self._summarize( items_p, weights_p, n )
+
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Cython optimized training."""
 
@@ -389,23 +406,6 @@ cdef class UniformDistribution( Distribution ):
 				self.summaries[1] = maximum
 			if minimum < self.summaries[0]:
 				self.summaries[0] = minimum
-
-	def summarize( self, items, weights=None ):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		items, weights = weight_set(items, weights)
-		if weights.sum() <= 0:
-			return
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
-
-		with nogil:
-			self._summarize( items_p, weights_p, n )
 
 	def from_summaries( self, inertia=0.0 ):
 		"""
