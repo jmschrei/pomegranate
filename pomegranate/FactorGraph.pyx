@@ -131,8 +131,6 @@ cdef class FactorGraph( GraphModel ):
 
 			self.transitions[ start ] = b
 
-		self.edges = []  
-
 	def marginal( self ):
 		"""Return the marginal probabilities of each variable in the graph.
 

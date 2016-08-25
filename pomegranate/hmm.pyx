@@ -43,7 +43,7 @@ else:
 
 try:
 	import pygraphviz
-	from matplotlib import pyplot
+	import matplotlib.pyplot as plt
 	import matplotlib.image
 except ImportError:
 	pygraphviz = None
@@ -156,7 +156,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 	cdef int* out_edge_count
 	cdef int* out_transitions
 	cdef int finite, n_tied_edge_groups
-	cdef dict keymap
+	cdef public dict keymap
 	cdef object state_names
 	cdef numpy.ndarray distributions
 	cdef void** distributions_ptr
@@ -590,7 +590,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 	def draw(self, **kwargs):
 		raise ValueError("depricated. Please use .plot")
 
-	def plot( self, **kwargs ):
+	def plot( self, precision=4, **kwargs ):
 		"""Draw this model's graph using NetworkX and matplotlib.
 
 		Note that this relies on networkx's built-in graphing capabilities (and
@@ -600,6 +600,10 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		Parameters
 		----------
+		precision : int, optional
+			The precision with which to round edge probabilities.
+			Default is 4.
+
 		**kwargs : any
 			The arguments to pass into networkx.draw_networkx()
 
@@ -608,37 +612,33 @@ cdef class HiddenMarkovModel( GraphModel ):
 		None
 		"""
 
+
 		if pygraphviz is not None:
 			G = pygraphviz.AGraph(directed=True)
-			done_nodes = set()
-			add_nodes = set()
-			def add_node(node):
-				if node not in add_nodes:
-					if node.is_silent():
-						color = 'grey'
-					else:
-						if node.distribution.frozen:
-							color = 'blue'
-						else:
-							color = 'red'
-					G.add_node(node.name, color=color)
-					add_nodes.add(node)
-			def proc_node(n):
-				add_node(n)
-				done_nodes.add(n)
-				for node in self.graph.successors_iter(n):
-					add_node(node)
-					G.add_edge(n.name, node.name, label="%g" % (math.e ** self.graph.get_edge_data(n, node)['probability']))
-					if node not in done_nodes:
-						proc_node(node)
-			for node in self.graph.nodes_iter():
-				if isinstance(node, State):
-					proc_node(node)
+			out_edges = self.out_edge_count
+
+			for state in self.states:
+				if state.is_silent():
+					color = 'grey'
+				elif state.distribution.frozen:
+					color = 'blue'
+				else:
+					color = 'red'
+
+				G.add_node(state.name, color=color)
+
+			for i, state in enumerate(self.states):
+				for l in range(out_edges[i], out_edges[i+1]):
+					li = self.out_transitions[l]
+					p = cexp(self.out_transition_log_probabilities[l])
+					p = round(p, precision)
+					G.add_edge(state.name, self.states[li].name, label=p)
+
 			with tempfile.NamedTemporaryFile() as tf:
 				G.draw(tf.name, format='png', prog='dot')
 				img = matplotlib.image.imread(tf.name)
-				pyplot.imshow(img)
-				pyplot.axis('off')
+				plt.imshow(img)
+				plt.axis('off')
 		else:
 			warnings.warn("Install pygraphviz for nicer visualizations")
 			networkx.draw()

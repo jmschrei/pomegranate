@@ -12,6 +12,14 @@ from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 
+try:
+	import tempfile
+	import pygraphviz
+	import matplotlib.pyplot as plt
+	import matplotlib.image
+except ImportError:
+	pygraphviz = None
+
 cdef class BayesianNetwork( GraphModel ):
 	"""A Bayesian Network Model.
 
@@ -74,6 +82,42 @@ cdef class BayesianNetwork( GraphModel ):
 	>>> print model.impute([[None, 'A']])
 	[['B', 'A']]
 	"""
+
+	def plot( self, **kwargs ):
+		"""Draw this model's graph using NetworkX and matplotlib.
+
+		Note that this relies on networkx's built-in graphing capabilities (and
+		not Graphviz) and thus can't draw self-loops.
+
+		See networkx.draw_networkx() for the keywords you can pass in.
+
+		Parameters
+		----------
+		**kwargs : any
+			The arguments to pass into networkx.draw_networkx()
+
+		Returns
+		-------
+		None
+		"""
+
+
+		if pygraphviz is not None:
+			G = pygraphviz.AGraph(directed=True)
+
+			for state in self.states:
+				G.add_node(state.name, color='red')
+
+			for parent, child in self.edges:
+				G.add_edge(parent.name, child.name)
+
+			with tempfile.NamedTemporaryFile() as tf:
+				G.draw(tf.name, format='png', prog='dot')
+				img = matplotlib.image.imread(tf.name)
+				plt.imshow(img)
+				plt.axis('off')
+		else:
+			raise ValueError("must have pygraphviz installed for visualization")
 
 	def bake( self ): 
 		"""Finalize the topology of the model.

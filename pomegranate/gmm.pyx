@@ -791,7 +791,7 @@ cdef class GeneralMixtureModel( Model ):
 		while improvement > stop_threshold and iteration < max_iterations + 1:
 			self.from_summaries(inertia)
 			log_probability_sum = self.summarize(X, weights)
-			
+
 			if iteration == 0:
 				initial_log_probability_sum = log_probability_sum
 			else:
@@ -897,7 +897,9 @@ cdef class GeneralMixtureModel( Model ):
 
 			for j in range(self.n):
 				r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
-				self.summaries_ptr[j] += r[j*n + i]
+				
+				with gil:
+					self.summaries_ptr[j] += r[j*n + i]
 
 			log_probability_sum += total * weights[i]
 

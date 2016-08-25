@@ -371,64 +371,6 @@ def test_multivariate_fit():
 	assert_equal( predicts[2], 0 )
 	assert_equal( predicts[3], 0 )
 
-@with_setup( setup_hmm, teardown )
-def test_hmm_fit():
-	X = np.array([list( 'HHHHHTHTHTTTTH' ),
-				  list( 'HHTHHTTHHHHHTH' ),
-				  list( 'TH' ), list( 'HHHHT' ),])
-	y = np.array([ 2, 2, 1, 0 ])
-
-	hmms.fit( X, y )
-
-	data = np.array([list('H'), list('THHH'), list('HHHH'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')])
-
-	# test hmm log probabilities
-	logs = hmms.predict_log_proba( data )
-
-	assert_almost_equal( logs[0][0], -1.2745564715121378 )
-	assert_almost_equal( logs[0][1], -1.8242710481193862 )
-	assert_almost_equal( logs[0][2], -0.58140929189714219 )
-	assert_almost_equal( logs[1][0], -148.69787686172131 )
-	assert_almost_equal( logs[1][1], 0.0 )
-	assert_almost_equal( logs[1][2], -148.90503555416012 )
-	assert_almost_equal( logs[2][0], -0.65431299454112646 )
-	assert_almost_equal( logs[2][1], -2.8531712971903209 )
-	assert_almost_equal( logs[2][2], -0.86147167008351733 )
-	assert_almost_equal( logs[3][0], -898.78383614856 )
-	assert_almost_equal( logs[3][1], 0.0 )
-	assert_almost_equal( logs[3][2], -149.77063003020317 )
-	assert_almost_equal( logs[4][0], -596.9903657729626 )
-	assert_almost_equal( logs[4][1], 0.0 )
-	assert_almost_equal( logs[4][2], -149.77062996265178 )
-
-	# test hmm probabilities
-	probs = hmms.predict_proba( data )
-
-	assert_almost_equal( probs[0][0], 0.27955493104058637 )
-	assert_almost_equal( probs[0][1], 0.16133520687824079 )
-	assert_almost_equal( probs[0][2], 0.55910986208117275 )
-	assert_almost_equal( probs[1][0], 2.709300362358663e-09 )
-	assert_almost_equal( probs[1][1], 0.99999999508833481 )
-	assert_almost_equal( probs[1][2], 2.2023649431371957e-09 )
-	assert_almost_equal( probs[2][0], 0.51979904472991378 )
-	assert_almost_equal( probs[2][1], 0.057661169909141198 )
-	assert_almost_equal( probs[2][2], 0.422539785360945 )
-	assert_almost_equal( probs[3][0], 5.3986709867980443e-55 )
-	assert_almost_equal( probs[3][1], 0.999999999073242 )
-	assert_almost_equal( probs[3][2], 9.2675809768728048e-10 )
-	assert_almost_equal( probs[4][0], 5.9769084150373497e-36 )
-	assert_almost_equal( probs[4][1], 0.99999999907324189 )
-	assert_almost_equal( probs[4][2], 9.267581150732276e-10 )
-
-	# test hmm classifications
-	predicts = hmms.predict( data )
-
-	assert_equal( predicts[0], 2 )
-	assert_equal( predicts[1], 1 )
-	assert_equal( predicts[2], 0 )
-	assert_equal( predicts[3], 1 )
-	assert_equal( predicts[4], 1 )
-
 @with_setup( setup_all, teardown )
 def test_raise_errors():
 	# check if fit first ValueError is thrown
@@ -477,14 +419,14 @@ def test_pickling():
 	j_multi = pickle.dumps(multivariate)
 
 	new_univ = pickle.loads( j_univ )
-	assert isinstance( new_univ.models[0], NormalDistribution )
-	assert isinstance( new_univ.models[1], UniformDistribution )
+	assert isinstance( new_univ.distributions[0], NormalDistribution )
+	assert isinstance( new_univ.distributions[1], UniformDistribution )
 	numpy.testing.assert_array_equal( univariate.weights, new_univ.weights )
 	assert isinstance( new_univ, NaiveBayes )
 
 	new_multi = pickle.loads( j_multi )
-	assert isinstance( new_multi.models[0], MultivariateGaussianDistribution )
-	assert isinstance( new_multi.models[1], IndependentComponentsDistribution )
+	assert isinstance( new_multi.distributions[0], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[1], IndependentComponentsDistribution )
 	numpy.testing.assert_array_equal( multivariate.weights, new_multi.weights )
 	assert isinstance( new_multi, NaiveBayes )
 
@@ -496,14 +438,14 @@ def test_json():
 	j_multi = multivariate.to_json()
 
 	new_univ = univariate.from_json( j_univ )
-	assert isinstance( new_univ.models[0], NormalDistribution )
-	assert isinstance( new_univ.models[1], UniformDistribution )
+	assert isinstance( new_univ.distributions[0], NormalDistribution )
+	assert isinstance( new_univ.distributions[1], UniformDistribution )
 	numpy.testing.assert_array_equal( univariate.weights, new_univ.weights )
 	assert isinstance( new_univ, NaiveBayes )
 
 	new_multi = multivariate.from_json( j_multi )
-	assert isinstance( new_multi.models[0], MultivariateGaussianDistribution )
-	assert isinstance( new_multi.models[1], IndependentComponentsDistribution )
+	assert isinstance( new_multi.distributions[0], MultivariateGaussianDistribution )
+	assert isinstance( new_multi.distributions[1], IndependentComponentsDistribution )
 	numpy.testing.assert_array_equal( multivariate.weights, new_multi.weights )
 	assert isinstance( new_multi, NaiveBayes )
 

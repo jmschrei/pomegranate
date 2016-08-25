@@ -11,17 +11,51 @@ cimport numpy
 from libc.math cimport exp as cexp
 
 from .distributions cimport Distribution
+from .distributions import DiscreteDistribution
 from .gmm import GeneralMixtureModel
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
+
+from .base cimport Model
+from .base cimport GraphModel
 
 from .utils cimport pair_lse
 from .utils import _convert
 import json
 
+import sys
+
+cpdef numpy.ndarray _check_input(X, dict keymap):
+    """Check the input to make sure that it is a properly formatted array."""
+
+    cdef numpy.ndarray X_ndarray
+
+    if isinstance(X, numpy.ndarray) and (X.dtype == 'float64'):
+        return X
+    elif isinstance(X, (int, float)):
+        X_ndarray = numpy.array([X], dtype='float64')
+    elif not isinstance(X, (numpy.ndarray, list, tuple)):
+        X_ndarray = numpy.array([keymap[X]], dtype='float64')
+    else:
+        try:
+            X_ndarray = numpy.array(X, dtype='float64')
+        except ValueError:
+            X = numpy.array(X)
+            X_ndarray = numpy.empty(X.shape, dtype='float64')
+
+            if X.ndim == 1:
+                for i in range(X.shape[0]):
+                    X_ndarray[i] = keymap[X[i]]
+            else:
+                for i in range(X.shape[0]):
+                    for j in range(X.shape[1]):
+                        X_ndarray[i, j] = keymap[X[i][j]]
+
+    return X_ndarray
+
 cdef double NEGINF = float("-inf")
 
-cdef class NaiveBayes( object ):
+cdef class NaiveBayes( Model ):
     """A Naive Bayes model, a supervised alternative to GMM.
 
     Parameters
@@ -64,61 +98,265 @@ cdef class NaiveBayes( object ):
            [-1.09861229, -0.40546511]])
     """
 
-    cdef public object models
-    cdef void** models_ptr
+    cdef object distribution_callable
+    cdef public numpy.ndarray distributions
+    cdef void** distributions_ptr
     cdef numpy.ndarray summaries
+    cdef double* summaries_ptr
     cdef public numpy.ndarray weights
     cdef double* weights_ptr
-    cdef public int d
+    cdef public int n
+    cdef int hmm
+    cdef dict keymap
 
-    def __init__( self, models=None, weights=None ):
-        if not callable(models) and not isinstance(models, list):
-            raise ValueError("must either give initial models or constructor")
+    def __init__( self, distributions=None, weights=None ):
+        if not callable(distributions) and not isinstance(distributions, (list, numpy.ndarray)):
+            raise ValueError("must either give initial distributions or constructor")
 
-        self.summaries = None
         self.d = 0
+        self.hmm = 0
 
-        if type(models) is list:
-            if len(models) < 2:
-                raise ValueError("must have at least two models for comparison")
+        if callable(distributions):
+            self.distribution_callable = distributions
+        else:
+            self.n = len(distributions)
+            if len(distributions) < 2:
+                raise ValueError("must have at least two distributions for general mixture models")
 
-            for model in models:
-                if callable(model):
-                    raise TypeError("must have initialized models in list")
-                elif self.d == 0 and not isinstance( model, HiddenMarkovModel ):
-                    self.d = model.d
-                elif not isinstance( model, HiddenMarkovModel ) and self.d != model.d:
-                    raise TypeError("mis-matching dimensions between models in list")
-                elif self.d > 0 and isinstance( model, HiddenMarkovModel ) and model.d != 1:
-                    raise TypeError("can only compare multi-dimensional hmms with other multi-dimensional hmms")
-
-            if self.d == 0:
-                self.d = models[0].d
-                if sum([self.d == model.d for model in models]) != len(models):
-                    raise TypeError("mis-matching dimensions between hidden markov models")
-
-            self.summaries = numpy.zeros(len(models))
-
-            self.models = numpy.array( models )
-            self.models_ptr = <void**> (<numpy.ndarray> self.models).data
+            for dist in distributions:
+                if callable(dist):
+                    raise TypeError("must have initialized distributions in list")
+                elif self.d == 0:
+                    self.d = dist.d
+                elif self.d != dist.d:
+                    raise TypeError("mis-matching dimensions between distributions in list")
+                if dist.model == 'HiddenMarkovModel':
+                    self.hmm = 1
+                    self.keymap = dist.keymap
 
             if weights is None:
-                self.weights = numpy.ones(len(models), dtype='float64') / len(models)
+                weights = numpy.ones_like(distributions, dtype=float) / len( distributions )
             else:
-                self.weights = numpy.array(weights) / numpy.sum(weights)
+                weights = numpy.asarray(weights) / weights.sum()
 
-            self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
+            self.weights = numpy.log( weights )
+            self.weights_ptr = <double*> self.weights.data
 
-        self.models = models
+            self.distributions = numpy.array( distributions )
+            self.distributions_ptr = <void**> self.distributions.data
+
+            self.summaries = numpy.zeros_like(weights, dtype='float64')
+            self.summaries_ptr = <double*> self.summaries.data
+
+        if self.d > 0 and isinstance( self.distributions[0], DiscreteDistribution ):
+            keys = []
+            for d in self.distributions:
+                keys.extend( d.keys() )
+            self.keymap = { key: i for i, key in enumerate(set(keys)) }
+            for d in self.distributions:
+                d.encode( tuple(set(keys)) )
 
     def __reduce__( self ):
-        return self.__class__, (self.models, self.weights)
+        return self.__class__, (self.distributions, self.weights)
 
     def __str__( self ):
         try:
             return self.to_json()
         except:
             return self.__repr__()
+
+    def predict_proba(self, X):
+        """Calculate the posterior P(M|D) for data.
+
+        Calculate the probability of each item having been generated from
+        each component in the model. This returns normalized probabilities
+        such that each row should sum to 1.
+
+        Since calculating the log probability is much faster, this is just
+        a wrapper which exponentiates the log probability matrix.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_dimensions)
+            The samples to do the prediction on. Each sample is a row and each
+            column corresponds to a dimension in that sample. For univariate
+            distributions, a single array may be passed in.
+
+        Returns
+        -------
+        probability : array-like, shape (n_samples, n_components)
+            The normalized probability P(M|D) for each sample. This is the
+            probability that the sample was generated from each component.
+        """
+
+        if self.d == 0:
+            raise ValueError("must first fit model before using predict proba method.")
+
+        return numpy.exp( self.predict_log_proba(X) )
+
+    def predict_log_proba( self, X ):
+        """Calculate the posterior log P(M|D) for data.
+
+        Calculate the log probability of each item having been generated from
+        each component in the model. This returns normalized log probabilities
+        such that the probabilities should sum to 1
+
+        This is a sklearn wrapper for the original posterior function.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_dimensions)
+            The samples to do the prediction on. Each sample is a row and each
+            column corresponds to a dimension in that sample. For univariate
+            distributions, a single array may be passed in.
+
+        Returns
+        -------
+        y : array-like, shape (n_samples, n_components)
+            The normalized log probability log P(M|D) for each sample. This is
+            the probability that the sample was generated from each component.
+        """
+
+        if self.d == 0:
+            raise ValueError("must first fit model before using predict log proba method.")
+
+        cdef int i, n, d
+        cdef numpy.ndarray X_ndarray
+        cdef double* X_ptr
+        cdef numpy.ndarray y
+        cdef double* y_ptr
+
+        if self.hmm == 0:
+            X_ndarray = _check_input(X, self.keymap)
+            X_ptr = <double*> X_ndarray.data
+
+            if not (self.d == 1 and X_ndarray.ndim == 1) and X_ndarray.shape[1] != self.d:
+                raise ValueError("dimensionality of model does not match data")
+
+        if self.hmm == 1:
+            n, d = len(X), self.d
+        elif self.d > 1 and X_ndarray.ndim == 1:
+            n, d = 1, X_ndarray.shape[0]
+        else: 
+            n, d = len(X_ndarray), self.d
+
+        y = numpy.zeros((n, self.n))
+        y_ptr = <double*> y.data
+
+        with nogil:
+            if self.hmm == 0:
+                self._predict_log_proba( X_ptr, y_ptr, n, d )
+            else:
+                for i in range(n):
+                    with gil:
+                        X_ndarray = _check_input(X[i], self.keymap)
+                        X_ptr = <double*> X_ndarray.data
+                        d = len(X_ndarray)
+
+                    self._predict_log_proba( X_ptr, y_ptr+i*self.n, 1, d )
+
+        return y
+
+    cdef void _predict_log_proba( self, double* X, double* y, int n, int d ) nogil:
+        cdef double y_sum, logp
+        cdef int i, j, m = self.n
+
+        for i in range(n):
+            y_sum = NEGINF
+
+            for j in range(m):
+                if self.hmm == 1:
+                    logp = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
+                elif d > 1:
+                    logp = (<Model> self.distributions_ptr[j])._mv_log_probability(X + i*d)
+                else:
+                    logp = (<Model> self.distributions_ptr[j])._log_probability(X[i])
+
+                y[i*m + j] = logp + self.weights_ptr[j]
+                y_sum = pair_lse(y_sum, y[i*m + j])
+
+            for j in range(m):
+                y[i*m + j] = y[i*m + j] - y_sum
+
+    def predict( self, X ):
+        """Predict the most likely component which generated each sample.
+
+        Calculate the posterior P(M|D) for each sample and return the index
+        of the component most likely to fit it. This corresponds to a simple
+        argmax over the responsibility matrix.
+
+        This is a sklearn wrapper for the maximum_a_posteriori method.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_dimensions)
+            The samples to do the prediction on. Each sample is a row and each
+            column corresponds to a dimension in that sample. For univariate
+            distributions, a single array may be passed in.
+
+        Returns
+        -------
+        y : array-like, shape (n_samples,)
+            The predicted component which fits the sample the best.
+        """
+
+        cdef int i, n, d
+
+        cdef numpy.ndarray X_ndarray
+        cdef double* X_ptr
+
+        if self.d == 0:
+            raise ValueError("must first fit model before using predict method.")
+
+        if self.hmm == 0:
+            X_ndarray = _check_input(X, self.keymap)
+            X_ptr = <double*> X_ndarray.data
+
+            if not (self.d == 1 and X_ndarray.ndim == 1) and X_ndarray.shape[1] != self.d:
+                raise ValueError("dimensionality of model does not match data")
+
+        if self.hmm == 1:
+            n, d = len(X), self.d
+        elif self.d > 1 and X_ndarray.ndim == 1:
+            n, d = 1, X_ndarray.shape[0]
+        else: 
+            n, d = len(X_ndarray), self.d
+
+        cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
+        cdef int* y_ptr = <int*> y.data
+
+        with nogil:
+            if self.hmm == 0:
+                self._predict(X_ptr, y_ptr, n, d)
+            else:
+                for i in range(n):
+                    with gil:
+                        X_ndarray = _check_input(X[i], self.keymap)
+                        X_ptr = <double*> X_ndarray.data
+                        d = len(X_ndarray)
+
+                    self._predict(X_ptr, y_ptr+i, 1, d)
+
+        return y
+
+    cdef void _predict( self, double* X, int* y, int n, int d) nogil:
+        cdef int i, j, m = self.n
+        cdef double max_logp, logp
+
+        for i in range(n):
+            max_logp = NEGINF
+
+            for j in range(m):
+                if self.hmm == 1:
+                    logp = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d) + self.weights_ptr[j]
+                elif d > 1:
+                    logp = (<Model> self.distributions_ptr[j])._mv_log_probability(X + i*d) + self.weights_ptr[j]
+                else:
+                    logp = (<Model> self.distributions_ptr[j])._log_probability(X[i]) + self.weights_ptr[j]
+
+                if logp > max_logp:
+                    max_logp = logp
+                    y[i] = j
 
     def fit( self, X, y, weights=None, inertia=0.0 ):
         """Fit the Naive Bayes model to the data by passing data to their components.
@@ -171,7 +409,7 @@ cdef class NaiveBayes( object ):
         X = _convert(X)
         y = _convert(y)
 
-        if self.d > 0 and not isinstance( self.models[0], HiddenMarkovModel ):
+        if self.d > 0 and not isinstance( self.distributions[0], HiddenMarkovModel ):
             if X.ndim > 2:
                 raise ValueError("input data has too many dimensions")
             elif X.ndim == 2 and self.d != X.shape[1]:
@@ -186,29 +424,31 @@ cdef class NaiveBayes( object ):
             X = X.reshape( X.shape[0], 1 )
 
         n = numpy.unique(y).shape[0]
+        self.n = n
 
         if self.d == 0:
-            self.models = [self.models] * n
+            self.distributions = numpy.array([self.distributions_callable] * n)
             self.d = X.shape[1]
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
             self.summaries = numpy.zeros(n)
+            self.keymap = { key: i for i, key in enumerate(numpy.unique(X)) }
 
-        elif n != len(self.models):
-            self.models = [self.models[0].__class__] * n
+        elif n != len(self.distributions):
+            self.distributions = numpy.array([self.distributions[0].__class__] * n)
             self.d = X.shape[1]
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data
             self.summaries = numpy.zeros(n)
 
         for i in range(n):
-            if callable(self.models[i]):
-                self.models[i] = self.models[i].from_samples(X[0:2])
+            if callable(self.distributions[i]):
+                self.distributions[i] = self.distributions[i].from_samples(X[0:2])
 
-            if isinstance( self.models[i], HiddenMarkovModel ):
-                self.models[i].fit( list(X[y==i]) )
+            if isinstance( self.distributions[i], HiddenMarkovModel ):
+                self.distributions[i].fit( list(X[y==i]) )
             else:
-                self.models[i].summarize( X[y==i], weights[y==i] )
+                self.distributions[i].summarize( X[y==i], weights[y==i] )
 
             self.summaries[i] += weights[y==i].sum()
 
@@ -226,156 +466,20 @@ cdef class NaiveBayes( object ):
             Returns the fitted model
         """
 
-        n = len(self.models)
+        n = len(self.distributions)
         self.summaries /= self.summaries.sum()
 
-        self.models = numpy.array( self.models )
-        self.models_ptr = <void**> (<numpy.ndarray> self.models).data
+        self.distributions = numpy.array( self.distributions )
+        self.distributions_ptr = <void**> self.distributions.data
 
         for i in range(n):
-            if not isinstance( self.models[i], HiddenMarkovModel ):
-                self.models[i].from_summaries(inertia=inertia)
+            if not isinstance( self.distributions[i], HiddenMarkovModel ):
+                self.distributions[i].from_summaries(inertia=inertia)
 
             self.weights[i] = self.summaries[i]
 
         self.summaries = numpy.zeros(n)
         return self
-
-    cpdef predict_log_proba( self, X ):
-        """Return the normalized log probability of samples under the model.
-
-        Parameters
-        ----------
-        X : array-like, shape (n_samples, variable)
-            Array of the samples, which can be either fixed size or variable depending
-            on the underlying components.
-
-        Returns
-        -------
-        r : array-like, shape (n_samples, n_components)
-            Returns the normalized log probabilities of the sample under the
-            components of the model. The normalized log probability is the
-            log of the posterior probability P(M|D) from Bayes rule.
-        """
-
-        X = _convert(X)
-
-        if self.d == 0:
-            raise ValueError("must fit components to the data before prediction,")
-
-        if not isinstance( self.models[0], HiddenMarkovModel ):
-            if X.ndim > 2:
-                raise ValueError("input data has too many dimensions")
-            elif ( X.ndim == 1 and self.d != 1 ) or ( X.ndim == 2 and self.d != X.shape[1] ):
-                raise ValueError("input data rows do not match model dimension")
-
-
-        n, m = X.shape[0], len(self.models)
-        r = numpy.zeros( (n, m), dtype=numpy.float64 )
-        logw = numpy.log( self.weights )
-
-        for i in range(n):
-            total = NEGINF
-
-            for j in range(m):
-                r[i, j] = self.models[j].log_probability( X[i] ) + logw[j]
-                total = pair_lse( total, r[i, j] )
-
-            for j in range(m):
-                r[i, j] -= total
-
-        return r
-
-    cpdef predict_proba( self, X ):
-        """Return the normalized probability of samples under the model.
-
-        Parameters
-        ----------
-        X : array-like, shape (n_samples, variable)
-            Array of the samples, which can be either fixed size or variable depending
-            on the underlying components.
-
-        Returns
-        -------
-        r : array-like, shape (n_samples, n_components)
-            Returns the normalized probabilities of the sample under the
-            components of the model. The normalized log probability is the
-            posterior probability P(M|D) from Bayes rule.
-        """
-
-        X = _convert( X )
-
-        if self.d == 0:
-            raise ValueError("must fit components to the data before prediction,")
-
-        if not isinstance( self.models[0], HiddenMarkovModel ):
-            if X.ndim > 2:
-                raise ValueError("input data has too many dimensions")
-            elif ( X.ndim == 1 and self.d != 1 ) or ( X.ndim == 2 and self.d != X.shape[1] ):
-                raise ValueError("input data rows do not match model dimension")
-
-        n, m = X.shape[0], len(self.models)
-        r = numpy.zeros( (n, m), dtype=numpy.float64 )
-
-        for i in range(n):
-            total = 0.
-
-            for j in range(m):
-                r[i, j] = cexp(self.models[j].log_probability( X[i] )) * self.weights[j]
-                total += r[i, j]
-
-            for j in range(m):
-                r[i, j] /= total
-
-        return r
-
-    def predict( self, X ):
-        """Return the most likely component corresponding to each sample.
-
-        Parameters
-        ----------
-        X : array-like, shape (n_samples, variable)
-            Array of the samples, which can be either fixed size or variable depending
-            on the underlying components.
-
-        Returns
-        -------
-        r : array-like, shape (n_samples, n_components)
-            Returns the normalized probabilities of the sample under the
-            components of the model. The normalized log probability is the
-            posterior probability P(M|D) from Bayes rule.
-        """
-
-        X = _convert( X )
-
-        if self.d == 0:
-            raise ValueError("must fit components to the data before prediction")
-
-        if not isinstance( self.models[0], HiddenMarkovModel ):
-            if X.ndim > 2:
-                raise ValueError("input data has too many dimensions")
-            elif ( X.ndim == 1 and self.d != 1 ) or ( X.ndim == 2 and self.d != X.shape[1] ):
-                raise ValueError("input data rows do not match model dimension")
-
-        return self._predict( X )
-
-    cdef numpy.ndarray _predict( self, numpy.ndarray X ):
-        cdef int i, j, m = len(self.models), n = X.shape[0]
-        cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
-        cdef int* y_ptr = <int*> y.data
-        cdef double logp, max_logp
-
-        for i in range(n):
-            max_logp = NEGINF
-
-            for j in range(m):
-                logp = self.models[j].log_probability(X[i]) + self.weights_ptr[j]
-
-                if logp > max_logp:
-                    max_logp = logp
-                    y_ptr[i] = j
-
-        return y
 
     def to_json( self, separators=(',', ' : '), indent=4 ):
         if self.d == 0:
@@ -383,7 +487,7 @@ cdef class NaiveBayes( object ):
 
         nb = {
             'class' : 'NaiveBayes',
-            'models' : [ json.loads( model.to_json() ) for model in self.models ],
+            'models' : [ json.loads( model.to_json() ) for model in self.distributions ],
             'weights' : self.weights.tolist()
         }
 
