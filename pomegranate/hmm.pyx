@@ -2566,7 +2566,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int* tied_states = self.tied_state_count
 		cdef int* out_edges = self.out_edge_count
 
-		cdef int* visited = <int*> calloc( self.silent_start, sizeof(int) )
 		cdef double* weights = <double*> calloc( n, sizeof(double) )
 
 		e = <double*> calloc( n*self.silent_start, sizeof(double) )
@@ -2651,22 +2650,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 						log_transition_emission_probability_sum -
 						log_sequence_probability )
 
-				memset( visited, 0, self.silent_start*sizeof(int) )
 				if k < self.silent_start:
-					# If another state in the set of tied states has already
-					# been visited, we don't want to retrain.
-					if visited[k] == 1:
-						continue
-
-					# Mark that we've visited this state
-					visited[k] = 1
-
-					# Mark that we've visited all other states in this state
-					# group.
-					for l in range( tied_states[k], tied_states[k+1] ):
-						li = self.tied[l]
-						visited[li] = 1
-
 					for i in range( n ):
 						# For each symbol that came out
 						# What's the weight of this symbol for that state?
@@ -2681,12 +2665,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 						weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] -
 							log_sequence_probability ) * weight[0]
 
-						for l in range( tied_states[k], tied_states[k+1] ):
-							li = self.tied[l]
-							weights[i] += cexp( f[(i+1)*m + li] + b[(i+1)*m + li] -
-								log_sequence_probability )
-
-
 					(<Model>distributions[k])._summarize(sequence, weights, n)
 
 			# Update the master expected transitions vector representing the sparse matrix.
@@ -2698,7 +2676,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		free(expected_transitions)
 		free(e)
-		free(visited)
 		free(weights)
 		free(f)
 		free(b)
