@@ -427,7 +427,7 @@ cdef class NaiveBayes( Model ):
         self.n = n
 
         if self.d == 0:
-            self.distributions = numpy.array([self.distributions_callable] * n)
+            self.distributions = numpy.array([self.distribution_callable] * n)
             self.d = X.shape[1]
             self.weights = numpy.ones(n, dtype=numpy.float64) / n
             self.weights_ptr = <double*> (<numpy.ndarray> self.weights).data

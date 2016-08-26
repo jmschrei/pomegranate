@@ -240,6 +240,17 @@ cdef class BayesianNetwork( GraphModel ):
 		
 		return logp
 
+	cdef double _mv_log_probability(self, double* symbol) nogil:
+		cdef double logp
+		with gil:
+			X = numpy.zeros(self.d)
+			for i in range(self.d):
+				X[i] = symbol[i]
+
+			logp = self.log_probability(X)
+
+		return logp
+
 	def marginal( self ):
 		"""Return the marginal probabilities of each variable in the graph.
 
