@@ -35,6 +35,12 @@ cdef class Model( object ):
 	def __repr__( self ):
 		return self.to_json()
 
+	def get_params(self, *args, **kwargs):
+		return self.__getstate__()
+
+	def set_params(self, state):
+		self.__setstate__(state)
+
 	def copy( self ):
 		"""Return a deep copy of this distribution object.
 
