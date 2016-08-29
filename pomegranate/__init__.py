@@ -36,6 +36,7 @@ elif os.name == 'posix':
     pyximport.install()
 
 from .hmm import *
+from .kmeans import *
 from .BayesianNetwork import *
 from .FactorGraph import *
 from .fsm import *
@@ -46,4 +47,4 @@ from .NaiveBayes import *
 from .MarkovChain import *
 from .parallel import *
 
-__version__ = '0.5.1'
+__version__ = '0.5.2b'

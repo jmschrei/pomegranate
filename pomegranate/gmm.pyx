@@ -20,6 +20,8 @@ from joblib import delayed
 from .base cimport Model
 from .base cimport GraphModel
 
+from .kmeans import Kmeans
+
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
 from .utils cimport _log
@@ -32,7 +34,6 @@ from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 
-# Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
@@ -69,193 +70,6 @@ cdef double log_probability( Distribution model, double* samples, int n, int d )
 			logp += model._log_probability( samples[i] )
 
 	return logp
-
-cdef class Kmeans( object ):
-	"""A kmeans model.
-
-	Kmeans is not a probabilistic model, but it is used in the kmeans++
-	initialization for GMMs. In essence, a point is selected as the center
-	for one component and then remaining points are selected
-
-	Parameters
-	----------
-	k : int
-		The number of centroids.
-
-	Attributes
-	----------
-	k : int
-		The number of centroids
-
-	centroids : array-like, shape (k, n_dim)
-		The means of the centroid points.
-	"""
-
-	cdef public int k, d
-	cdef public numpy.ndarray centroids
-	cdef double* centroids_ptr
-	cdef int initialized
-	cdef double* summary_sizes
-	cdef double* summary_weights
-
-	def __init__( self, k ):
-		self.k = k
-		self.d = 0
-
-	def __dealloc__( self ):
-		free(self.summary_sizes)
-		free(self.summary_weights)
-
-	cpdef fit( self, X, int max_iterations=10 ):
-		"""Fit the model to the data using k centroids.
-
-		Parameters
-		----------
-		X : array-like, shape (n_samples, n_dim)
-			The data to fit to.
-
-		max_iterations : int, optional
-			The maximum number of iterations to run for. Default is 10.
-
-		Returns
-		-------
-		None
-		"""
-
-		cdef int iterations = 0
-		while iterations < max_iterations:
-			iterations += 1
-
-			self.summarize( X )
-			self.from_summaries()
-
-	cpdef summarize( self, X ):
-		"""Summarize the points into sufficient statistics for a future update.
-
-		Parameters
-		----------
-		X : array-like, shape (n_samples, n_dim)
-			The data to fit to.
-
-		Returns
-		-------
-		None
-		"""
-
-		cdef numpy.ndarray X_ndarray = numpy.array(X, dtype='float64')
-		cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1], i, j
-		cdef double* X_ptr = <double*> X_ndarray.data
-
-		if self.d == 0:
-			self.d = d
-			self.centroids = numpy.zeros((self.k, d))
-			self.centroids_ptr = <double*> self.centroids.data
-			self.summary_sizes = <double*> calloc(self.k, sizeof(double))
-			self.summary_weights = <double*> calloc(self.k*d, sizeof(double))
-
-			for i in range(self.k):
-				for j in range(d):
-					self.centroids_ptr[i*d + j] = X_ptr[i*d + j]
-
-		self._summarize( X_ptr, n, d, self.k )
-
-	cdef void _summarize( self, double* X, int n, int d, int k ) nogil:
-		cdef int i, j, l, y
-		cdef double min_dist, dist
-		cdef double* summary_sizes = <double*> calloc(k, sizeof(double))
-		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))
-
-		for i in range(n):
-			min_dist = INF
-
-			for j in range(k):
-				dist = 0.0
-
-				for l in range(d):
-					dist += ( self.centroids_ptr[j*d + l] - X[i*d + l] ) ** 2.0
-
-				if dist < min_dist:
-					min_dist = dist
-					y = j
-
-			summary_sizes[y] += 1
-
-			for l in range(d):
-				summary_weights[y*d + l] += X[i*d + l]
-
-		with gil:
-			for j in range(k):
-				self.summary_sizes[j] += summary_sizes[j]
-
-				for l in range(d):
-					self.summary_weights[j*d + l] += summary_weights[j*d + l]
-
-		free(summary_sizes)
-		free(summary_weights)
-
-	cpdef from_summaries( self ):
-		"""Fit the model to the sufficient statistics.
-
-		Parameters
-		----------
-		None
-
-		Returns
-		-------
-		None
-		"""
-
-		cdef int l, j, k = self.k, d = self.d
-
-		for j in range(k):
-			for l in range(d):
-				self.centroids_ptr[j*d + l] = self.summary_weights[j*d + l] / self.summary_sizes[j]
-				self.summary_weights[j*d + l] = 0.0
-			self.summary_sizes[j] = 0.0
-
-	cpdef predict( self, X ):
-		"""Predict nearest centroid for each point.
-
-		Parameters
-		----------
-		X : array-like, shape (n_samples, n_dim)
-			The data to fit to.
-
-		Returns
-		-------
-		y : array-like, shape (n_samples,)
-			The index of the nearest centroid.
-		"""
-
-		X = numpy.array(X)
-		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
-		cdef int n, d
-
-		n, d = X.shape
-
-		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
-		cdef int* y_ptr = <int*> y.data
-
-		self._predict( X_ptr, y_ptr, n, d, self.k )
-		return y
-
-	cdef void _predict( self, double* X, int* y, int n, int d, int k ) nogil:
-		cdef int i, j, l
-		cdef double dist, min_dist
-
-		for i in range(n):
-			min_dist = INF
-
-			for j in range(k):
-				dist = 0.0
-
-				for l in range(d):
-					dist += ( self.centroids_ptr[j*d + l] - X[i*d + l] ) ** 2.0
-
-				if dist < min_dist:
-					min_dist = dist
-					y[i] = j
-
 
 cdef class GeneralMixtureModel( Model ):
 	"""A General Mixture Model.
@@ -756,37 +570,13 @@ cdef class GeneralMixtureModel( Model ):
 			The total improvement in log probability P(D|M)
 		"""
 
-		cdef int n = len(X), d = len(X[0])
-		cdef numpy.ndarray X_ndarray
-
-		# If not initialized then we need to do kmeans initialization.
-		if self.d == 0 or (d != self.d and self.hmm == 0):
-			if self.distribution_callable == DiscreteDistribution:
-				y = numpy.random.choice(self.n, size=n)
-				self.keymap = { key: i for i, key in enumerate(numpy.unique(X)) }
-			else:
-				X_ndarray = _check_input( X, self.keymap )
-				kmeans = Kmeans(self.n)
-				kmeans.fit(X_ndarray, max_iterations=1)
-				y = kmeans.predict(X)
-
-			distributions = [ self.distribution_callable.from_samples( X_ndarray[y==i] ) for i in range(self.n) ]
-
-			self.distributions = numpy.array( distributions )
-			self.distributions_ptr = <void**> self.distributions.data
-
-			self.weights = numpy.log( numpy.ones(self.n) / self.n )
-			self.weights_ptr = <double*> self.weights.data
-
-			self.summaries_ndarray = numpy.zeros_like(self.weights, dtype='float64')
-			self.summaries_ptr = <double*> self.summaries_ndarray.data
-
-			self.n = len(distributions)
-			self.d = distributions[0].d
-
-
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
+
+		if weights is None:
+			weights = numpy.ones(len(X), dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
 
 		while improvement > stop_threshold and iteration < max_iterations + 1:
 			self.from_summaries(inertia)
@@ -841,6 +631,11 @@ cdef class GeneralMixtureModel( Model ):
 		cdef numpy.ndarray weights_ndarray
 		cdef double log_probability
 
+		if weights is None:
+			weights_ndarray = numpy.ones(n, dtype='float64')
+		else:
+			weights_ndarray = numpy.array(weights, dtype='float64')
+
 		if self.hmm == 1:
 			n, d = len(X), self.d
 		elif self.d == 1:
@@ -850,10 +645,30 @@ cdef class GeneralMixtureModel( Model ):
 		else:
 			n, d = X.shape
 
-		if weights is None:
-			weights_ndarray = numpy.ones(n, dtype='float64')
-		else:
-			weights_ndarray = numpy.array(weights)
+		# If not initialized then we need to do kmeans initialization.
+		if self.d == 0 or (d != self.d and self.hmm == 0):
+			if self.distribution_callable == DiscreteDistribution:
+				y = numpy.random.choice(self.n, size=n)
+				self.keymap = { key: i for i, key in enumerate(numpy.unique(X)) }
+			else:
+				X_ndarray = _check_input( X, self.keymap )
+				kmeans = Kmeans(self.n)
+				kmeans.fit(X_ndarray, weights_ndarray, max_iterations=1)
+				y = kmeans.predict(X)
+
+			distributions = [ self.distribution_callable.from_samples( X_ndarray[y==i] ) for i in range(self.n) ]
+
+			self.distributions = numpy.array( distributions )
+			self.distributions_ptr = <void**> self.distributions.data
+
+			self.weights = numpy.log(numpy.ones(self.n, dtype='float64') / self.n)
+			self.weights_ptr = <double*> self.weights.data
+
+			self.summaries_ndarray = numpy.zeros_like(self.weights, dtype='float64')
+			self.summaries_ptr = <double*> self.summaries_ndarray.data
+
+			self.n = len(distributions)
+			self.d = distributions[0].d
 
 		cdef double* X_ptr
 		cdef double* weights_ptr = <double*> weights_ndarray.data
@@ -931,7 +746,7 @@ cdef class GeneralMixtureModel( Model ):
 		None
 		"""
 
-		if self.summaries_ndarray.sum() == 0:
+		if self.d == 0 or self.summaries_ndarray.sum() == 0:
 			return
 
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
