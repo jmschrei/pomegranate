@@ -6,15 +6,18 @@
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.string cimport memset
+from libc.string cimport memcpy
 
-import json
+from .base cimport Model
+
+import json, time
 import numpy
 cimport numpy
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
-cdef class Kmeans( object ):
+cdef class Kmeans( Model ):
 	"""A kmeans model.
 
 	Kmeans is not a probabilistic model, but it is used in the kmeans++
@@ -41,7 +44,7 @@ cdef class Kmeans( object ):
 		The means of the centroid points.
 	"""
 
-	cdef public int k, d
+	cdef public int k
 	cdef public numpy.ndarray centroids
 	cdef double* centroids_ptr
 	cdef double* summary_sizes
@@ -195,6 +198,7 @@ cdef class Kmeans( object ):
 		cdef numpy.ndarray weights_ndarray
 		cdef int i, j, n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 		cdef double* X_ptr = <double*> X_ndarray.data
+		cdef double dist
 
 		if weights is None:
 			weights_ndarray = numpy.ones(n, dtype='float64')
@@ -210,11 +214,14 @@ cdef class Kmeans( object ):
 			self.summary_sizes = <double*> calloc(self.k, sizeof(double))
 			self.summary_weights = <double*> calloc(self.k*d, sizeof(double))
 
-			for i in range(self.k):
-				for j in range(d):
-					self.centroids_ptr[i*d + j] = X_ptr[i*d + j]
+			memcpy(self.centroids_ptr, X_ptr, self.k*d*sizeof(double))
+			memset(self.summary_sizes, 0 ,self.k*sizeof(double))
+			memset(self.summary_weights, 0, self.k*d*sizeof(double))
 
-		return self._summarize(X_ptr, weights_ptr, n)
+		with nogil:
+			dist = self._summarize(X_ptr, weights_ptr, n)
+
+		return dist
 
 	cdef double _summarize(self, double* X, double* weights, int n) nogil:
 		cdef int i, j, l, y, k = self.k, d = self.d

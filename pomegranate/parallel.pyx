@@ -1,8 +1,9 @@
 # parallel.py
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
-import numpy
+import numpy, time
 
+from .base cimport Model
 from .hmm import HiddenMarkovModel
 from .NaiveBayes import NaiveBayes
 from .distributions import Distribution
@@ -218,7 +219,7 @@ def log_probability(model, X, n_jobs=1, backend='threading'):
 
 	return parallelize(model, X, 'log_probability', n_jobs, backend)
 
-def summarize(model, X, weights=None, n_jobs=1, backend='threading'):
+def summarize(model, X, weights=None, n_jobs=1, backend='threading', parallel=None):
 	"""Provides for a parallelized summarization function.
 
 	This function takes in a model, a dataset, the number of jobs to do, 
@@ -247,6 +248,11 @@ def summarize(model, X, weights=None, n_jobs=1, backend='threading'):
 		use the processing backend, if 'threading' then use the threading
 		backend.
 
+	parallel : joblib.Parallel or None
+		The worker pool. If you're calling summarize multiple times, it may be
+		more efficient to reuse the worker pool rather than create a new one
+		each time it is called.
+
 	Returns
 	-------
 	logp : double
@@ -272,7 +278,7 @@ def summarize(model, X, weights=None, n_jobs=1, backend='threading'):
 	starts = [n/n_jobs*i for i in range(n_jobs)]
 	ends = starts[1:] + [n]
 
-	parallel = Parallel(n_jobs=n_jobs, backend=backend)
+	parallel = parallel or Parallel(n_jobs=n_jobs, backend=backend)
 	delay = delayed(model.summarize, check_pickle=False)
 
 	y = parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends))
@@ -354,12 +360,25 @@ def fit(model, X, weights=None, n_jobs=1, backend='threading', stop_threshold=1e
 		model.from_summaries(inertia)
 
 	else:
+		if isinstance(X, list):
+			n, d = len(X), model.d
+		elif X.ndim == 1 and model.d == 1:
+			n, d = X.shape[0], 1
+		else:
+			n, d = X.shape
+
+		starts = [n/n_jobs*i for i in range(n_jobs)]
+		ends = starts[1:] + [n]
+
+		parallel = Parallel(n_jobs=n_jobs, backend=backend)
+		delay = delayed(model.summarize, check_pickle=False)
+
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
 
 		while improvement > stop_threshold and iteration < max_iterations + 1:
 			model.from_summaries(inertia)
-			log_probability_sum = summarize(model, X, weights, n_jobs, backend)
+			log_probability_sum = sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends)))
 
 			if iteration == 0:
 				initial_log_probability_sum = log_probability_sum

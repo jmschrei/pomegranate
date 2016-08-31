@@ -447,7 +447,7 @@ cdef class NormalDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.mu, self.sigma = parameters
 
-	def __cinit__( self, double mean, double std, bint frozen=False ):
+	def __cinit__( self, mean, std, frozen=False, min_std=None ):
 		"""
 		Make a new Normal distribution with the given mean mean and standard
 		deviation std.
@@ -460,6 +460,7 @@ cdef class NormalDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 		self.log_sigma_sqrt_2_pi = -_log(std * SQRT_2_PI)
 		self.two_sigma_squared = 2 * std ** 2
+		self.min_std = min_std
 
 	def __reduce__( self ):
 		"""Serialize distribution for pickling."""
@@ -475,7 +476,7 @@ cdef class NormalDistribution( Distribution ):
 		"""Sample from this normal distribution and return the value sampled."""
 		return numpy.random.normal(self.mu, self.sigma, n)
 
-	def fit( self, items, weights=None, inertia=0.0, min_std=0.01 ):
+	def fit( self, items, weights=None, inertia=0.0, min_std=1e-5 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -529,6 +530,8 @@ cdef class NormalDistribution( Distribution ):
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
 
+		min_std = self.min_std if self.min_std is not None else min_std
+
 		# If no summaries stored or the summary is frozen, don't do anything.
 		if self.summaries[0] == 0 or self.frozen == True:
 			return
@@ -552,11 +555,11 @@ cdef class NormalDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
+	def from_samples( cls, items, weights=None, min_std=None ):
 		"""Fit a distribution to some data without pre-specifying it."""
 
 		d = cls(0, 1)
-		d.fit(items, weights)
+		d.fit(items, weights, min_std=min_std)
 		return d
 
 cdef class LogNormalDistribution( Distribution ):
