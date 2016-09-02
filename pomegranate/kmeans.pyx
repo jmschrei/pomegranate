@@ -90,7 +90,9 @@ cdef class Kmeans( Model ):
 		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
 		cdef int* y_ptr = <int*> y.data
 
-		self._predict( X_ptr, y_ptr, n )
+		with nogil:
+			self._predict( X_ptr, y_ptr, n )
+		
 		return y
 
 	cdef void _predict(self, double* X, int* y, int n) nogil:
@@ -228,6 +230,8 @@ cdef class Kmeans( Model ):
 		cdef double min_dist, dist, total_dist = 0.0
 		cdef double* summary_sizes = <double*> calloc(k, sizeof(double))
 		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))
+		memset(summary_sizes, 0, k*sizeof(double))
+		memset(summary_weights, 0, k*d*sizeof(double))
 
 		for i in range(n):
 			min_dist = INF
@@ -243,7 +247,6 @@ cdef class Kmeans( Model ):
 					y = j
 
 			total_dist -= min_dist
-
 			summary_sizes[y] += weights[i]
 
 			for l in range(d):
@@ -260,7 +263,7 @@ cdef class Kmeans( Model ):
 		free(summary_weights)
 		return total_dist
 
-	def from_summaries(self, inertia=0.0):
+	def from_summaries(self, double inertia=0.0):
 		"""Fit the model to the sufficient statistics.
 
 		Parameters
@@ -281,12 +284,14 @@ cdef class Kmeans( Model ):
 
 		cdef int l, j, k = self.k, d = self.d
 
-		for j in range(k):
-			for l in range(d):
-				self.centroids_ptr[j*d + l] = self.centroids_ptr[j*d + l] * inertia + \
-					(self.summary_weights[j*d + l] / self.summary_sizes[j] * (1-inertia))
+		with nogil:
+			for j in range(k):
+				for l in range(d):
+					self.centroids_ptr[j*d + l] = self.centroids_ptr[j*d + l] * inertia + \
+						(self.summary_weights[j*d + l] / self.summary_sizes[j] * (1-inertia))
 
-		self.clear_summaries()
+			memset(self.summary_sizes, 0, self.k*sizeof(int))
+			memset(self.summary_weights, 0, self.k*self.d*sizeof(int))
 
 	def clear_summaries(self):
 		"""Clear the stored sufficient statistics.

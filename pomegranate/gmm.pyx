@@ -162,6 +162,8 @@ cdef class GeneralMixtureModel( Model ):
 		self.hmm = 0
 
 		if callable(distributions):
+			if distributions == DiscreteDistribution:
+				raise ValueError("cannot fit a discrete GMM without pre-initialized distributions")
 			self.n = n_components
 			self.distribution_callable = distributions
 		else:
@@ -647,18 +649,15 @@ cdef class GeneralMixtureModel( Model ):
 
 		# If not initialized then we need to do kmeans initialization.
 		if self.d == 0 or (d != self.d and self.hmm == 0):
-			if self.distribution_callable == DiscreteDistribution:
-				y = numpy.random.choice(self.n, size=n)
-				self.keymap = { key: i for i, key in enumerate(numpy.unique(X)) }
-			else:
-				X_ndarray = _check_input( X, self.keymap )
-				kmeans = Kmeans(self.n)
-				kmeans.fit(X_ndarray, weights_ndarray, max_iterations=1)
-				y = kmeans.predict(X)
+			X_ndarray = _check_input(X, self.keymap)
+			kmeans = Kmeans(self.n)
+			kmeans.fit(X_ndarray, max_iterations=1)
+			y = kmeans.predict(X_ndarray)
 
 			distributions = [ self.distribution_callable.from_samples( X_ndarray[y==i] ) for i in range(self.n) ]
+			self.d = distributions[0].d
 
-			self.distributions = numpy.array( distributions )
+			self.distributions = numpy.array(distributions)
 			self.distributions_ptr = <void**> self.distributions.data
 
 			self.weights = numpy.log(numpy.ones(self.n, dtype='float64') / self.n)
@@ -666,9 +665,6 @@ cdef class GeneralMixtureModel( Model ):
 
 			self.summaries_ndarray = numpy.zeros_like(self.weights, dtype='float64')
 			self.summaries_ptr = <double*> self.summaries_ndarray.data
-
-			self.n = len(distributions)
-			self.d = distributions[0].d
 
 		cdef double* X_ptr
 		cdef double* weights_ptr = <double*> weights_ndarray.data
@@ -750,7 +746,6 @@ cdef class GeneralMixtureModel( Model ):
 			return
 
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
-
 		for i, distribution in enumerate(self.distributions):
 			distribution.from_summaries(inertia)
 			self.weights[i] = _log(self.summaries_ndarray[i])

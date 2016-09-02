@@ -2,6 +2,9 @@
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
 import numpy, time
+cimport numpy
+
+import sys
 
 from .base cimport Model
 from .hmm import HiddenMarkovModel
@@ -370,26 +373,26 @@ def fit(model, X, weights=None, n_jobs=1, backend='threading', stop_threshold=1e
 		starts = [n/n_jobs*i for i in range(n_jobs)]
 		ends = starts[1:] + [n]
 
-		parallel = Parallel(n_jobs=n_jobs, backend=backend)
 		delay = delayed(model.summarize, check_pickle=False)
 
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
 
-		while improvement > stop_threshold and iteration < max_iterations + 1:
-			model.from_summaries(inertia)
-			log_probability_sum = sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends)))
+		with Parallel(n_jobs=n_jobs, backend=backend) as parallel:
+			while improvement > stop_threshold and iteration < max_iterations + 1:
+				if iteration == 0:
+					log_probability_sum = model.summarize(X[starts[0]:ends[0]], weights[starts[0]:ends[0]])
+					log_probability_sum += sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts[1:], ends[1:])))
+					initial_log_probability_sum = log_probability_sum
+				else:
+					model.from_summaries(inertia)
+					log_probability_sum = sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends)))
+					improvement = log_probability_sum - last_log_probability_sum
+					if verbose:
+						print( "Improvement: {}".format(improvement) )
 
-			if iteration == 0:
-				initial_log_probability_sum = log_probability_sum
-			else:
-				improvement = log_probability_sum - last_log_probability_sum
-
-				if verbose:
-					print( "Improvement: {}".format(improvement) )
-
-			iteration += 1
-			last_log_probability_sum = log_probability_sum
+				iteration += 1
+				last_log_probability_sum = log_probability_sum
 
 		model.clear_summaries()
 
