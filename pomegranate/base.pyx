@@ -286,6 +286,9 @@ cdef class Model( object ):
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		pass
 
+	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+		pass
+
 
 cdef class GraphModel( Model ):
 	"""Represents an generic graphical model."""

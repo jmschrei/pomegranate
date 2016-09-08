@@ -12,7 +12,7 @@ cdef class Distribution( Model ):
 	cdef public list summaries
 
 cdef class UniformDistribution( Distribution ):
-	cdef double start, end
+	cdef double start, end, logp
 
 cdef class NormalDistribution( Distribution ):
 	cdef double mu, sigma, two_sigma_squared, log_sigma_sqrt_2_pi
@@ -22,7 +22,7 @@ cdef class LogNormalDistribution( Distribution ):
 	cdef double mu, sigma
 
 cdef class ExponentialDistribution( Distribution ):
-	cdef double rate
+	cdef double rate, log_rate
 
 cdef class BetaDistribution( Distribution ):
 	cdef double alpha, beta, beta_norm
@@ -76,16 +76,17 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 	cdef void** distributions_ptr
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
-	cdef public numpy.ndarray mu, cov, inv_cov_ndarray
-	cdef double* inv_cov
+	cdef public numpy.ndarray mu, cov, inv_cov
 	cdef double* _mu
 	cdef double* _mu_new
 	cdef double* _cov
-	cdef double* _cov_new
 	cdef double _log_det
 	cdef double w_sum
 	cdef double* column_sum
 	cdef double* pair_sum
+	cdef double* chol_dot_mu
+	cdef double* _inv_cov
+	cdef double* _inv_dot_mu
 
 cdef class DirichletDistribution( MultivariateDistribution ):
 	cdef public numpy.ndarray alphas

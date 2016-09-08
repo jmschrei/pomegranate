@@ -11,6 +11,9 @@ from libc.math cimport exp as cexp
 from libc.math cimport fabs
 from libc.math cimport sqrt as csqrt
 
+import scipy
+from scipy.linalg.cython_blas cimport dgemm
+
 import itertools as it
 import json
 import numpy
@@ -21,6 +24,7 @@ import sys
 from .utils cimport pair_lse
 from .utils cimport _log
 from .utils cimport lgamma
+from .utils cimport mdot
 
 from collections import OrderedDict
 
@@ -337,22 +341,25 @@ cdef class UniformDistribution( Distribution ):
 		self.summaries = [INF, NEGINF]
 		self.name = "UniformDistribution"
 		self.frozen = frozen
+		self.logp = -_log(end-start)
 
 	def __reduce__( self ):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.start, self.end, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double start = self.start
-		cdef double end = self.end
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef int i
+		for i in range(n):
+			if symbol[i] >= self.start and symbol[i] <= self.end:
+				log_probability[i] = self.logp
+			else:
+				log_probability[i] = NEGINF
 
-		if symbol == start and symbol == end:
-			return 0
-		if symbol >= start and symbol <= end:
-			return _log( 1.0 / ( end - start ) )
-		return NEGINF
 
 	def sample( self, n=None ):
 		"""Sample from this uniform distribution and return the value sampled."""
@@ -389,8 +396,6 @@ cdef class UniformDistribution( Distribution ):
 			self._summarize( items_p, weights_p, n )
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-		"""Cython optimized training."""
-
 		cdef double minimum = INF, maximum = NEGINF
 		cdef int i
 
@@ -420,6 +425,7 @@ cdef class UniformDistribution( Distribution ):
 		minimum, maximum = self.summaries
 		self.start = minimum*(1-inertia) + self.start*inertia
 		self.end = maximum*(1-inertia) + self.end*inertia
+		self.logp = -_log(self.end - self.start)
 
 		self.summaries = [INF, NEGINF]
 
@@ -467,13 +473,17 @@ cdef class NormalDistribution( Distribution ):
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		return self.log_sigma_sqrt_2_pi - ((symbol - self.mu) ** 2) /\
-			self.two_sigma_squared
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef int i
+		for i in range(n):
+			log_probability[i] = self.log_sigma_sqrt_2_pi - ((symbol[i] - self.mu) ** 2) /\
+				self.two_sigma_squared
 
 	def sample( self, n=None ):
-		"""Sample from this normal distribution and return the value sampled."""
 		return numpy.random.normal(self.mu, self.sigma, n)
 
 	def fit( self, items, weights=None, inertia=0.0, min_std=1e-5 ):
@@ -490,8 +500,6 @@ cdef class NormalDistribution( Distribution ):
 		self.from_summaries( inertia, min_std )
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-		"""Cython function to get the MLE estimate for a Gaussian."""
-
 		cdef SIZE_t i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 
@@ -591,12 +599,15 @@ cdef class LogNormalDistribution( Distribution ):
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double mu = self.mu, sigma = self.sigma
-
-		return -_log( symbol * sigma * SQRT_2_PI ) \
-			- 0.5 * ( ( _log( symbol ) - mu ) / sigma ) ** 2
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef int i
+		for i in range(n):
+			log_probability[i] = -_log( symbol[i] * self.sigma * SQRT_2_PI ) \
+				- 0.5 * ((_log(symbol[i]) - self.mu) / self.sigma) ** 2			
 
 	def sample( self, n=None ):
 		"""Return a sample from this distribution."""
@@ -622,7 +633,6 @@ cdef class LogNormalDistribution( Distribution ):
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 		cdef double log_item
 
-		# Calculate the average, which is the MLE mu estimate
 		for i in range(n):
 			log_item = _log(items[i])
 			w_sum += weights[i]
@@ -698,7 +708,7 @@ cdef class ExponentialDistribution( Distribution ):
 		def __set__( self, parameters ):
 			self.rate = parameters[0]
 
-	def __cinit__( self, double rate, bint frozen=False ):
+	def __init__( self, double rate, bint frozen=False ):
 		"""
 		Make a new inverse gamma distribution. The parameter is called "rate"
 		because lambda is taken.
@@ -708,17 +718,23 @@ cdef class ExponentialDistribution( Distribution ):
 		self.summaries = [0, 0]
 		self.name = "ExponentialDistribution"
 		self.frozen = frozen
+		self.log_rate = _log(rate)
 
 	def __reduce__( self ):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.rate, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
-		return _log(self.rate) - self.rate * symbol
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
+
+	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+		cdef int i
+		for i in range(n):
+			log_probability[i] = self.log_rate - self.rate * symbol[i]
 
 	def sample( self, n=None ):
-		"""Sample from this exponential distribution."""
 		return numpy.random.exponential( 1. / self.parameters[0], n )
 
 	def fit( self, items, weights=None, inertia=0.0 ):
@@ -776,6 +792,7 @@ cdef class ExponentialDistribution( Distribution ):
 			return
 
 		self.rate = self.summaries[0] / self.summaries[1]
+		self.log_rate = _log(self.rate)
 		self.summaries = [0, 0]
 
 	def clear_summaries( self ):
@@ -824,10 +841,19 @@ cdef class BetaDistribution( Distribution ):
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double alpha = self.alpha, beta = self.beta
-		return self.beta_norm + (alpha-1)*_log(symbol) + (beta-1)*_log(1-symbol)
+	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+		cdef double alpha = self.alpha
+		cdef double beta = self.beta
+		cdef double beta_norm = self.beta_norm
+		cdef int i
+
+		for i in range(n):
+			log_probability[i] = beta_norm + (alpha-1)*_log(symbol[i]) + \
+				(beta-1)*_log(1-symbol[i])
 
 	def sample( self, n=None ):
 		"""Return a random sample from the beta distribution."""
@@ -937,15 +963,20 @@ cdef class GammaDistribution( Distribution ):
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double alpha = self.alpha, beta = self.beta
+	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+		cdef double alpha = self.alpha
+		cdef double beta = self.beta
+		cdef int i
 
-		return (_log(beta) * alpha - lgamma(alpha) + _log(symbol)
-			* (alpha - 1) - beta * symbol)
+		for i in range(n):
+			log_probability[i] = (_log(beta) * alpha - lgamma(alpha) + 
+				_log(symbol[i]) * (alpha - 1) - beta * symbol[i])
 
 	def sample( self, n=None ):
-		"""Sample from this gamma distribution and return the value sampled."""
 		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1])
 
 	def fit( self, items, weights=None, inertia=0.0, epsilon=1E-9,
@@ -1239,7 +1270,6 @@ cdef class DiscreteDistribution( Distribution ):
 		return self.__class__, (self.dist, self.frozen)
 
 	def __len__( self ):
-		"""Return the length of the underlying dictionary"""
 		return len( self.dist )
 
 	def __mul__( self, other ):
@@ -1327,20 +1357,22 @@ cdef class DiscreteDistribution( Distribution ):
 		return self.__log_probability( symbol )
 
 	cdef double __log_probability( self, symbol ):
-		"""Cython optimized lookup."""
-
 		return self.log_dist.get( symbol, NEGINF )
 
 	cdef public double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized lookup."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		if symbol < 0 or symbol > self.n:
-			return NEGINF
-		return self.encoded_log_probability[<SIZE_t> symbol]
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef int i
+		for i in range(n):
+			if symbol[i] < 0 or symbol[i] > self.n:
+				log_probability[i] = NEGINF
+			else:
+				log_probability[i] = self.encoded_log_probability[<int> symbol[i]]
 
 	def sample( self, n=None ):
-		"""Sample randomly from the discrete distribution."""
-
 		if n is None:
 			rand = random.random()
 			for key, value in self.items():
@@ -1379,8 +1411,6 @@ cdef class DiscreteDistribution( Distribution ):
 			characters[items[i]] += weights[i]
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
-		"""Cython version of summarize."""
-
 		cdef int i
 		self.encoded_summary = 1
 
@@ -1475,22 +1505,25 @@ cdef class PoissonDistribution(Distribution):
 		return self.__class__, (self.l, self.frozen)
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double factorial = 1.0
-		cdef int i
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef double f
+		cdef int i, j
 
-		if symbol < 0 or self.l == 0:
-			return NEGINF
+		for i in range(n):
+			f = 1.0
 
-		elif symbol > 1:
-			for i in range(2, <int>symbol+1):
-				factorial *= i
-
-		return symbol * self.logl - self.l - _log(factorial)
+			if symbol[i] < 0 or self.l == 0:
+				log_probability[i] = NEGINF
+			elif symbol[i] > 0:
+				for j in range(2, <int>symbol[i] + 1):
+					f *= j
+				log_probability[i] = symbol[i] * self.logl - self.l - _log(f)
 
 	def sample( self, n=None ):
-		"""Sample from the poisson distribution."""
 		return numpy.random.poisson( self.l, n )
 
 	def fit( self, items, weights=None, inertia=0.0 ):
@@ -1566,44 +1599,6 @@ cdef class PoissonDistribution(Distribution):
 		d = cls(0)
 		d.fit(items, weights)
 		return d
-
-
-cdef class LambdaDistribution(Distribution):
-	"""
-	A distribution which takes in an arbitrary lambda function, and returns
-	probabilities associated with whatever that function gives. For example...
-
-	func = lambda x: log(1) if 2 > x > 1 else log(0)
-	distribution = LambdaDistribution( func )
-	print distribution.log_probability( 1 ) # 1
-	print distribution.log_probability( -100 ) # 0
-
-	This assumes the lambda function returns the log probability, not the
-	untransformed probability.
-	"""
-
-	def __init__(self, lambda_funct=None, frozen=True ):
-		"""
-		Takes in a lambda function and stores it. This function should return
-		the log probability of seeing a certain input.
-		"""
-
-		# Store the parameters
-		self.parameters = [lambda_funct]
-		self.name = "LambdaDistribution"
-		self.frozen = frozen
-
-	def __reduce__( self ):
-		"""Serialize the distribution for pickle."""
-		lambda_funct = self.parameters[0]
-		return self.__class__, (lambda_funct, self.frozen)
-
-	def log_probability(self, symbol):
-		"""
-		What's the probability of the given float under this distribution?
-		"""
-
-		return self.parameters[0](symbol)
 
 cdef class KernelDensity( Distribution ):
 	"""An abstract kernel density, with shared properties and methods."""
@@ -1699,37 +1694,28 @@ cdef class GaussianKernelDensity( KernelDensity ):
 	"""
 
 	def __cinit__( self, points=[], bandwidth=1, weights=None, frozen=False ):
-		"""
-		Take in points, bandwidth, and appropriate weights. If no weights
-		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1.
-		"""
-
 		self.name = "GaussianKernelDensity"
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double mu, w
-		cdef double scalar = 1.0 / SQRT_2_PI
-		cdef int i, n = self.n
-		cdef double prob = 0.0
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
+		cdef int i, j
 
-		for i in range( n ):
-			mu = self.points[i]
-			w = self.weights[i]
+		for i in range(n):
+			prob = 0.0
 
-			prob += w * scalar * cexp( -0.5 * (( mu-symbol ) / self.bandwidth) ** 2 )
+			for j in range(self.n):
+				mu = self.points[j]
+				w = self.weights[j]
+				prob += w * scalar * cexp(-0.5*((mu-symbol[i]) / b) ** 2)
 
-		return _log( prob )
+			log_probability[i] = _log(prob)
 
 	def sample( self, n=None ):
-		"""
-		Generate a random sample from this distribution. This is done by first
-		selecting a random point, weighted by weights if the points are weighted
-		or uniformly if not, and then randomly sampling from that point's PDF.
-		"""
-
 		sigma = self.parameters[1]
 		if n is None:
 			mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
@@ -1748,44 +1734,30 @@ cdef class UniformKernelDensity( KernelDensity ):
 	"""
 
 	def __cinit__( self, points=[], bandwidth=1, weights=None, frozen=False ):
-		"""
-		Take in points, bandwidth, and appropriate weights. If no weights
-		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1.
-		"""
-
 		self.name = "UniformKernelDensity"
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double bandwidth = self.bandwidth
-		cdef double mu, w
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
+		cdef int i, j
 
-		cdef int i, n = self.n
-		cdef double prob = 0.0
+		for i in range(n):
+			prob = 0.0
 
-		for i in range( n ):
-			# Go through each point sequentially
-			mu = self.points[i]
-			w = self.weights[i]
+			for j in range(self.n):
+				mu = self.points[j]
+				w = self.weights[j]
 
-			# The good thing about uniform distributions if that
-			# you just need to check to make sure the point is within
-			# a bandwidth.
-			if fabs( mu - symbol ) <= bandwidth:
-				prob += w
+				if fabs(mu - symbol[i]) <= b:
+					prob += w
 
-		# Return the log of the sum of probabilities
-		return _log( prob )
+			log_probability[i] = _log(prob)
 
 	def sample( self, n=None ):
-		"""
-		Generate a random sample from this distribution. This is done by first
-		selecting a random point, weighted by weights if the points are weighted
-		or uniformly if not, and then randomly sampling from that point's PDF.
-		"""
-
 		band = self.parameters[1]
 		if n is None:
 			mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
@@ -1812,43 +1784,31 @@ cdef class TriangleKernelDensity( KernelDensity ):
 	"""
 
 	def __cinit__( self, points=[], bandwidth=1, weights=None, frozen=False ):
-		"""
-		Take in points, bandwidth, and appropriate weights. If no weights
-		are provided, a uniform weight of 1/n is provided to each point.
-		Weights are scaled so that they sum to 1.
-		"""
-
 		self.name = "TriangleKernelDensity"
 
 	cdef double _log_probability( self, double symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
 
-		cdef double bandwidth = self.bandwidth
-		cdef double mu, w
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob
+		cdef double hinge, b = self.bandwidth
+		cdef int i, j
 
-		cdef int i, n = self.n
-		cdef double prob = 0.0, hinge
+		for i in range(n):
+			prob = 0.0
 
-		for i in range( n ):
-			# Go through each point sequentially
-			mu = self.points[i]
-			w = self.weights[i]
+			for j in range(self.n):
+				mu = self.points[j]
+				w = self.weights[j]
+				hinge = b - fabs(mu - symbol[i])
+				if hinge > 0:
+					prob += hinge * w
 
-			# Calculate the probability for each point
-			hinge = bandwidth - fabs( mu - symbol )
-			if hinge > 0:
-				prob += hinge * w
-
-		# Return the log of the sum of probabilities
-		return _log( prob )
+			log_probability[i] = _log(prob)
 
 	def sample( self, n=None ):
-		"""
-		Generate a random sample from this distribution. This is done by first
-		selecting a random point, weighted by weights if the points are weighted
-		or uniformly if not, and then randomly sampling from that point's PDF.
-		"""
-
 		band = self.parameters[1]
 		if n is None:
 			mu = numpy.random.choice( self.parameters[0], p=self.parameters[2] )
@@ -1943,23 +1903,24 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		return logp
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
-
-		cdef int i
-		cdef double logp = 0.0
-
-		for i in range(self.d):
-			logp += ( <Model> self.distributions_ptr[i] )._log_probability( symbol[i] )
-			logp += self.weights_ptr[i]
-
+		cdef double logp
+		self._v_log_probability(symbol, &logp, 1)
 		return logp
 
-	def sample( self, n=None ):
-		"""
-		Sample from the mixture. First, choose a distribution to sample from
-		according to the weights, then sample from that distribution.
-		"""
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef int i, j, d = self.d
+		cdef double logp
 
+		for i in range(n):
+			logp = 0.0
+
+			for j in range(d):
+				logp += (<Model> self.distributions_ptr[j])._log_probability(symbol[i*d+j])
+				logp += self.weights_ptr[j]	
+
+			log_probability[i] = logp
+
+	def sample( self, n=None ):
 		if n is None:
 			return numpy.array([ d.sample() for d in self.parameters[0] ])
 		else:
@@ -1988,8 +1949,10 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		items, weights = weight_set( items, weights )
 		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
+		cdef int n = items.shape[0]
 
-		self._summarize( items_ptr, weights_ptr, items.shape[0] )
+		with nogil:
+			self._summarize(items_ptr, weights_ptr, n)
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		cdef SIZE_t i, j, d = self.d
@@ -2045,35 +2008,35 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		self.name = "MultivariateGaussianDistribution"
 		self.frozen = frozen
-		self.mu = numpy.array(means, dtype=numpy.float64)
-		self.cov = numpy.array(covariance, dtype=numpy.float64)
-
-		det = numpy.linalg.det(covariance)
+		self.mu = numpy.array(means, dtype='float64')
+		self._mu = <double*> self.mu.data
+		self.cov = numpy.array(covariance, dtype='float64')
+		self._cov = <double*> self.cov.data
+		_, self._log_det = numpy.linalg.slogdet(self.cov)
 
 		if self.mu.shape[0] != self.cov.shape[0]:
 			raise ValueError("mu shape is {} while covariance shape is {}".format( self.mu.shape[0], self.cov.shape[0] ))
 		if self.cov.shape[0] != self.cov.shape[1]:
 			raise ValueError("covariance is not a square matrix, dimensions are ({}, {})".format( self.cov.shape[0], self.cov.shape[1] ) )
-		if det == 0:
+		if self._log_det == NEGINF:
 			raise ValueError("covariance matrix is not invertible.")
 
 		d = self.mu.shape[0]
 		self.d = d
+		self._inv_dot_mu = <double*> calloc(d, sizeof(double))
 
-		self.inv_cov_ndarray = numpy.linalg.inv(covariance).astype('float64')
-		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
-		self._mu = <double*> (<numpy.ndarray> self.mu).data
-		self._cov = <double*> (<numpy.ndarray> self.cov).data
-		self._log_det = _log(det)
+		chol = scipy.linalg.cholesky(self.cov, lower=True)
+		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), 
+			lower=True).T
+		self._inv_cov = <double*> self.inv_cov.data
+		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
 
 		self.w_sum = 0.0
 		self.column_sum = <double*> calloc( d, sizeof(double) )
 		self.pair_sum = <double*> calloc( d*d, sizeof(double) )
 		memset( self.column_sum, 0, d*sizeof(double) )
 		memset( self.pair_sum, 0, d*d*sizeof(double) )
-
 		self._mu_new = <double*> calloc( d, sizeof(double) )
-		self._cov_new = <double*> calloc( d*d, sizeof(double) )
 
 	def __reduce__( self ):
 		"""Serialize the distribution for pickle."""
@@ -2081,17 +2044,10 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 	def __dealloc__(self):
 		free(self._mu_new)
-		free(self._cov_new)
 		free(self.column_sum)
 		free(self.pair_sum)
 
 	def log_probability( self, symbol ):
-		"""
-		What's the probability of a given tuple under this mixture? It's the
-		product of the probabilities of each symbol in the tuple under their
-		respective distribution, which is the sum of the log probabilities.
-		"""
-
 		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype(numpy.float64)
 		cdef double* symbol_ptr = <double*> symbol_ndarray.data
 		cdef double logp
@@ -2100,18 +2056,29 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 			logp = self._mv_log_probability(symbol_ptr)
 		return logp
 
+
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
 		"""Cython optimized function for log probability calculation."""
 
 		cdef SIZE_t i, j, d = self.d
-		cdef double log_det = self._log_det
-		cdef double logp = 0.0
+		cdef double logp
+		self._v_log_probability(symbol, &logp, 1)
+		return logp
 
-		for i in range(d):
+	cdef void _v_log_probability( self, double* symbol, double* logp, int n) nogil:
+		cdef int i, j, d = self.d
+
+		cdef double* dot = <double*> calloc(n*d, sizeof(double))
+		mdot(symbol, self._inv_cov, dot, n, d, d)
+
+		for i in range(n):
+			logp[i] = 0
 			for j in range(d):
-				logp += (symbol[i] - self._mu[i]) * (symbol[j] - self._mu[j]) * self.inv_cov[i + j*d]
+				logp[i] += (dot[i*d + j] - self._inv_dot_mu[j])**2
 
-		return -0.5 * (d * LOG_2_PI + log_det + logp)
+			logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
+
+		free(dot)
 
 	def sample( self, n=None ):
 		"""
@@ -2150,21 +2117,12 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		d = items.shape[1]
 
 		if self.d != d:
-			self.d = d
-
-			free(self.column_sum)
-			self.column_sum = <double*> calloc( d, sizeof(double) )
-			memset( self.column_sum, 0, d*sizeof(double) )
-
-			free(self.pair_sum)
-			self.pair_sum = <double*> calloc( d*d, sizeof(double) )
-			memset( self.pair_sum, 0, d*d*sizeof(double) )
-
-			self._mu_new = <double*> calloc( d, sizeof(double) )
-			self._cov_new = <double*> calloc( d*d, sizeof(double) )
+			raise ValueError("trying to fit data with {} dimensions to distribution \
+				with {} distributions".format(d, self.d))
 
 		with nogil:
 			self._summarize( items_p, weights_p, n )
+
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		"""Calculate sufficient statistics for a minibatch.
@@ -2180,15 +2138,20 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		memset( column_sum, 0, d*sizeof(double) )
 		memset( pair_sum, 0, d*d*sizeof(double) )
 
+
+		cdef double* y = <double*> calloc(n*d, sizeof(double))
+
+		cdef double alpha = 1
+		cdef double beta = 0
+
 		for i in range(n):
 			w_sum += weights[i]
 
 			for j in range(d):
-				column_sum[j] += items[i*d + j] * weights[i]
+				y[i*d + j] = items[i*d + j] * weights[i]
+				column_sum[j] += y[i*d + j]
 
-				for k in range(d):
-					pair_sum[j*d + k] += (weights[i] * items[i*d + j] *
-						items[i*d + k])
+		dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, items, &d, &beta, pair_sum, &d)
 
 		with gil:
 			self.w_sum += w_sum
@@ -2201,8 +2164,9 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		free(column_sum)
 		free(pair_sum)
+		free(y)
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries( self, inertia=0.0, min_covar=1e-5 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -2217,13 +2181,8 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		cdef double* column_sum = self.column_sum
 		cdef double* pair_sum = self.pair_sum
 		cdef double* u = self._mu_new
-
-		if self.cov.shape[0] != self.d:
-			self.cov = numpy.zeros((self.d, self.d))
-			self._cov = <double*> (<numpy.ndarray> self.cov).data
-
-			self.mu = numpy.zeros(self.d)
-			self._mu = <double*> (<numpy.ndarray> self.mu).data
+		cdef double cov
+		cdef numpy.ndarray chol
 
 		for i in range(d):
 			u[i] = self.column_sum[i] / self.w_sum
@@ -2231,17 +2190,27 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 
 		for j in range(d):
 			for k in range(d):
-				self._cov_new[j*d + k] = (pair_sum[j*d + k] - column_sum[j]*u[k]
-					- column_sum[k]*u[j] + self.w_sum*u[j]*u[k]) / self.w_sum
-				self._cov[j*d + k] = self._cov[j*d + k] * inertia + self._cov_new[j*d +k] * (1-inertia)
+				cov = (pair_sum[j*d + k] - column_sum[j]*u[k]- column_sum[k]*u[j] + 
+					self.w_sum*u[j]*u[k]) / self.w_sum
+				self._cov[j*d + k] = self._cov[j*d + k] * inertia + cov * (1-inertia)
 
 		memset( column_sum, 0, d*sizeof(double) )
 		memset( pair_sum, 0, d*d*sizeof(double) )
 		self.w_sum = 0.0
 
-		self.inv_cov_ndarray = numpy.linalg.inv(self.cov).astype('float64')
-		self.inv_cov = <double*> (<numpy.ndarray> self.inv_cov_ndarray).data
 		_, self._log_det = numpy.linalg.slogdet(self.cov)
+
+		try:
+			chol = scipy.linalg.cholesky(self.cov, lower=True)
+		except:
+			# Taken from sklearn.gmm, it's possible there are not enough observations
+			# to get a good measurement, so reinitialize this component.
+			chol = scipy.linalg.cholesky(self.cov + min_covar*numpy.eye(d), lower=True)
+
+		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), 
+			lower=True).T
+		self._inv_cov = <double*> self.inv_cov.data
+		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
 
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object."""
@@ -2293,18 +2262,21 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 		return logp
 
 	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		"""Cython optimized function for log probability calculation."""
-
-		cdef SIZE_t i, d = self.d
-		cdef double logp = self.beta_norm
-
-		for i in range(d):
-			logp += self.alphas_ptr[i] * _log(symbol[i])
-
+		cdef double logp
+		self._v_log_probability(symbol, &logp, 1)
 		return logp
 
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef int i, j, d = self.d
+		cdef double logp
+
+		for i in range(n):
+			log_probability[i] = self.beta_norm
+
+			for j in range(d):
+				log_probability[i] += self.alphas_ptr[j] * _log(symbol[i*d + j])
+
 	def sample( self, n=None ):
-		"""Sample from the underlying dirichlet distribution."""
 		return numpy.random.dirichlet(self.alphas, n)
 
 	def summarize( self, items, weights=None ):

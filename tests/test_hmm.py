@@ -45,7 +45,7 @@ def test_dimension():
 
 	# multiple dimensions
 	s1d3 = State( MultivariateGaussianDistribution([1, 4, 3], [[3, 0, 1],[0, 3, 0],[1, 0, 3]]) )
-	s2d3 = State( MultivariateGaussianDistribution([7, 7, 7], [[1, 3, 1],[3, 5, 0],[1, 0, 3]]) )
+	s2d3 = State( MultivariateGaussianDistribution([7, 7, 7], [[1, 0, 0],[0, 5, 0],[0, 0, 3]]) )
 	s3d3 = State( IndependentComponentsDistribution([ UniformDistribution(0, 10), UniformDistribution(0, 10), UniformDistribution(0, 10) ]) )
 
 	hmmd3 = HiddenMarkovModel()

@@ -7,6 +7,9 @@ from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
 
+from libc.stdlib cimport calloc, free
+from scipy.linalg.cython_blas cimport dgemm
+
 cimport numpy
 import numpy
 
@@ -16,6 +19,28 @@ DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 DEF GAMMA = 0.577215664901532860606512090
 DEF HALF_LOG2_PI = 0.91893853320467274178032973640562
+
+cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil:
+	cdef double alpha = 1
+	cdef double beta = 0
+	dgemm('N', 'N', &n, &m, &k, &alpha, Y, &n, X, &k, &beta, A, &n)
+
+cpdef bdot(numpy.ndarray X_ndarray):
+	cdef int n = X_ndarray.shape[0]
+	cdef int d = X_ndarray.shape[1]
+
+	cdef double* x = <double*> X_ndarray.data
+
+	cdef double alpha = 1
+	cdef double beta = 1
+
+	cdef numpy.ndarray c_ndarray = numpy.zeros((d, d), dtype='float64')
+	cdef double* c = <double*> c_ndarray.data
+
+	dgemm('N', 'T', &d, &d, &n, &alpha, x, &d, x, &d, &beta, c, &d)
+	#dgemm('T', 'N', &n, &n, &d, &alpha, x, &d, x, &d, &beta, c, &n)
+	return c_ndarray
+
 
 cpdef numpy.ndarray _convert( data ):
 	if type(data) is numpy.ndarray:

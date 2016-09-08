@@ -41,7 +41,7 @@ def test_normal():
 	d = NormalDistribution( 5, 2 )
 	e = NormalDistribution( 5., 2. )
 
-	assert_almost_equal( d.log_probability( 5 ), -1.6120857137642188 )
+	assert_almost_equal( d.log_probability( 5 ), -1.61208571, 8 )
 	assert_equal( d.log_probability( 5 ), e.log_probability( 5 ) )
 	assert_equal( d.log_probability( 5 ), d.log_probability( 5. ) )
 
@@ -50,8 +50,8 @@ def test_normal():
 
 	d.fit( [ 5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4 ] )
 
-	assert_equal( round( d.parameters[0], 4 ), 4.9167 )
-	assert_equal( round( d.parameters[1], 4 ), 0.7592 )
+	assert_almost_equal( d.parameters[0], 4.9167, 4 )
+	assert_almost_equal( d.parameters[1], 0.7592, 4 )
 	assert_not_equal( d.log_probability( 4 ), e.log_probability( 4 ) )
 	assert_almost_equal( d.log_probability( 4 ), -1.3723678499651766 )
 	assert_almost_equal( d.log_probability( 18 ), -149.13140399454429 )
@@ -103,7 +103,7 @@ def test_normal():
 def test_uniform():
 	d = UniformDistribution( 0, 10 )
 
-	assert_equal( d.log_probability( 2.34 ), -2.3025850929940455 )
+	assert_almost_equal( d.log_probability( 2.34 ), -2.3025850929940455, 8 )
 	assert_equal( d.log_probability( 2 ), d.log_probability( 8 ) )
 	assert_equal( d.log_probability( 10 ), d.log_probability( 3.4 ) )
 	assert_equal( d.log_probability( 1.7 ), d.log_probability( 9.7 ) )

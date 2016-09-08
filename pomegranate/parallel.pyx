@@ -222,7 +222,44 @@ def log_probability(model, X, n_jobs=1, backend='threading'):
 
 	return parallelize(model, X, 'log_probability', n_jobs, backend)
 
-def summarize(model, X, weights=None, n_jobs=1, backend='threading', parallel=None):
+def probability(model, X, n_jobs=1, backend='threading'):
+	"""Provides for a parallelized probability function.
+
+	This function takes in a model, a dataset, the number of jobs to do, 
+	and the backend, and will chunk up the dataset and parallelize the 
+	log_probability function followed by exponentiation.
+
+	Parameters
+	----------
+	model : base.Model
+		This is any pomegranate model. All pomegranate models have a cython
+		backend which releases the GIL and allows for multithreaded
+		parallelization.
+
+	X : numpy.ndarray or list
+		The dataset to operate on. For most models this is a numpy array with
+		columns corresponding to features and rows corresponding to samples.
+		For markov chains and HMMs this will be a list of variable length
+		sequences.
+
+	n_jobs : int
+		The number of jobs to use to parallelize, either the number of threads
+		or the number of processes to use.
+
+	backend : str, 'multiprocessing' or 'threading'
+		The parallelization backend of joblib to use. If 'multiprocessing' then
+		use the processing backend, if 'threading' then use the threading
+		backend.
+
+	Returns
+	-------
+	results : object
+		The probabilities concatenated together across processes.   
+	"""
+
+	return numpy.exp(parallelize(model, X, 'log_probability', n_jobs, backend))
+
+def summarize(model, X, weights=None, y=None, n_jobs=1, backend='threading', parallel=None):
 	"""Provides for a parallelized summarization function.
 
 	This function takes in a model, a dataset, the number of jobs to do, 
@@ -241,6 +278,9 @@ def summarize(model, X, weights=None, n_jobs=1, backend='threading', parallel=No
 		columns corresponding to features and rows corresponding to samples.
 		For markov chains and HMMs this will be a list of variable length
 		sequences.
+
+	y : numpy.ndarray or list or None, optional
+		Data labels for supervised training algorithms. Default is None
 
 	n_jobs : int
 		The number of jobs to use to parallelize, either the number of threads
@@ -284,10 +324,14 @@ def summarize(model, X, weights=None, n_jobs=1, backend='threading', parallel=No
 	parallel = parallel or Parallel(n_jobs=n_jobs, backend=backend)
 	delay = delayed(model.summarize, check_pickle=False)
 
-	y = parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends))
+	if isinstance(model, NaiveBayes):
+		y = parallel(delay(X[start:end], y[start:end], weights[start:end]) for start, end in zip(starts, ends))
+	else:
+		y = parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends))
+	
 	return sum(y)
 
-def fit(model, X, weights=None, n_jobs=1, backend='threading', stop_threshold=1e-3, 
+def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_threshold=1e-3, 
 	max_iterations=1e8, inertia=0.0, verbose=False, **kwargs):
 	"""Provides for a parallelized fit function.
 
@@ -308,19 +352,22 @@ def fit(model, X, weights=None, n_jobs=1, backend='threading', stop_threshold=1e
 		For markov chains and HMMs this will be a list of variable length
 		sequences.
 
-	weights : array-like, shape (n_samples,), optional
+	y : numpy.ndarray or list or None, optional
+		Data labels for supervised training algorithms. Default is None
+
+	weights : array-like or None, shape (n_samples,), optional
 		The initial weights of each sample in the matrix. If nothing is
 		passed in then each sample is assumed to be the same weight.
 		Default is None.
 
 	n_jobs : int
 		The number of jobs to use to parallelize, either the number of threads
-		or the number of processes to use.
+		or the number of processes to use. Default is 1.
 
 	backend : str, 'multiprocessing' or 'threading'
 		The parallelization backend of joblib to use. If 'multiprocessing' then
 		use the processing backend, if 'threading' then use the threading
-		backend.
+		backend. Default is 'threading'
 
 	stop_threshold : double, optional, positive
 		The threshold at which EM will terminate for the improvement of
@@ -356,11 +403,14 @@ def fit(model, X, weights=None, n_jobs=1, backend='threading', stop_threshold=1e
 
 	if isinstance(model, HiddenMarkovModel):
 		return model.fit(X, weights=weights, n_jobs=n_jobs, stop_threshold=stop_threshold, 
-			max_iterations=max_iterations, inertia=inertia, **kwargs)
+			max_iterations=max_iterations, inertia=inertia, verbose=verbose, **kwargs)
 
-	elif isinstance(model, (Distribution, NaiveBayes)):
+	elif isinstance(model, Distribution):
 		summarize(model, X, weights, n_jobs, backend)
 		model.from_summaries(inertia)
+
+	elif isinstance(model, NaiveBayes):
+		model.fit(X, y, weights, n_jobs=n_jobs, inertia=inertia)
 
 	else:
 		if isinstance(X, list):
@@ -381,8 +431,7 @@ def fit(model, X, weights=None, n_jobs=1, backend='threading', stop_threshold=1e
 		with Parallel(n_jobs=n_jobs, backend=backend) as parallel:
 			while improvement > stop_threshold and iteration < max_iterations + 1:
 				if iteration == 0:
-					log_probability_sum = model.summarize(X[starts[0]:ends[0]], weights[starts[0]:ends[0]])
-					log_probability_sum += sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts[1:], ends[1:])))
+					log_probability_sum = model.summarize(X, weights)
 					initial_log_probability_sum = log_probability_sum
 				else:
 					model.from_summaries(inertia)
