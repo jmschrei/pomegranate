@@ -56,23 +56,17 @@ def parallelize(model, X, func, n_jobs, backend):
 		The results of the method concatenated together across processes.   
 	"""
 
-	if isinstance(X, list) and isinstance(model, HiddenMarkovModel):
-		n, n_jobs = len(X), len(X)
-	elif X.ndim == 1 and model.d > 1:
-		n, d = 1, X.shape[0]
-	elif X.ndim == 1 and model.d == 1:
-		n, d = X.shape[0], 1
-	else:
-		n, d = X.shape
-
-	starts = [n/n_jobs*i for i in range(n_jobs)]
-	ends = starts[1:] + [n]
-
-	parallel = Parallel(n_jobs=n_jobs, backend=backend)
 	delay = delayed(getattr(model, func), check_pickle=False)
+	with Parallel(n_jobs=n_jobs, backend=backend) as parallel:
+		if isinstance(model, HiddenMarkovModel):
+			y = parallel(delay(x) for x in X)
+		else:
+			n = len(X)
+			starts = [n/n_jobs*i for i in range(n_jobs)]
+			ends = starts[1:] + [n]
+			y = parallel(delay(X[start:end]) for start, end in zip(starts, ends))
 
-	y = parallel(delay(X[start:end]) for start, end in zip(starts, ends))
-	return numpy.concatenate(y) if n_jobs > 1 and n_jobs != n else y
+	return numpy.concatenate(y) if n_jobs > 1 and n_jobs != len(X) else y
 
 def predict(model, X, n_jobs=1, backend='threading'):
 	"""Provides for a parallelized predict function.
@@ -430,11 +424,14 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 
 		with Parallel(n_jobs=n_jobs, backend=backend) as parallel:
 			while improvement > stop_threshold and iteration < max_iterations + 1:
-				if iteration == 0:
+				if model.d == 0:
 					log_probability_sum = model.summarize(X, weights)
 					initial_log_probability_sum = log_probability_sum
+				elif iteration == 0:
+					log_probability_sum = sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends)))
+					initial_log_probability_sum = log_probability_sum
 				else:
-					model.from_summaries(inertia)
+					model.from_summaries(inertia, **kwargs)
 					log_probability_sum = sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends)))
 					improvement = log_probability_sum - last_log_probability_sum
 					if verbose:

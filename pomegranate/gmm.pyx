@@ -635,11 +635,6 @@ cdef class GeneralMixtureModel( Model ):
 		cdef numpy.ndarray weights_ndarray
 		cdef double log_probability
 
-		if weights is None:
-			weights_ndarray = numpy.ones(n, dtype='float64')
-		else:
-			weights_ndarray = numpy.array(weights, dtype='float64')
-
 		if self.hmm == 1:
 			n, d = len(X), self.d
 		elif self.d == 1:
@@ -648,6 +643,11 @@ cdef class GeneralMixtureModel( Model ):
 			n, d = 1, len(X)
 		else:
 			n, d = X.shape
+
+		if weights is None:
+			weights_ndarray = numpy.ones(n, dtype='float64')
+		else:
+			weights_ndarray = numpy.array(weights, dtype='float64')
 
 		# If not initialized then we need to do kmeans initialization.
 		if self.d == 0:
@@ -700,7 +700,7 @@ cdef class GeneralMixtureModel( Model ):
 
 		for j in range(self.n):
 			if self.hmm == 1:
-				r[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, n)
+				r[j*n] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, n)
 			else:
 				(<Model> self.distributions_ptr[j])._v_log_probability(X, r+j*n, n)
 
@@ -714,7 +714,7 @@ cdef class GeneralMixtureModel( Model ):
 			for j in range(self.n):
 				r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
 				summaries[j] += r[j*n + i]
-
+			
 			log_probability_sum += total * weights[i]
 
 			if self.hmm == 1:
@@ -731,7 +731,7 @@ cdef class GeneralMixtureModel( Model ):
 		free(summaries)
 		return log_probability_sum
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries( self, inertia=0.0, **kwargs ):
 		"""Fit the model to the collected sufficient statistics.
 
 		Fit the parameters of the model to the sufficient statistics gathered
@@ -755,7 +755,7 @@ cdef class GeneralMixtureModel( Model ):
 
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
 		for i, distribution in enumerate(self.distributions):
-			distribution.from_summaries(inertia)
+			distribution.from_summaries(inertia, **kwargs)
 			self.weights[i] = _log(self.summaries_ndarray[i])
 			self.summaries_ndarray[i] = 0.
 

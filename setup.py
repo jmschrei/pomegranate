@@ -51,6 +51,7 @@ setup(
         "cython >= 0.22.1",
         "numpy >= 1.8.0",
         "joblib >= 0.9.0b4",
-        "networkx >= 1.8.1"
+        "networkx >= 1.8.1",
+        "scipy >= 0.17.0"
     ],
 )
