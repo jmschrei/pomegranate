@@ -1483,7 +1483,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef double* sequence_data
 		cdef double* b
 		cdef int n = len(sequence), m = len(self.states)
-		cdef void** distributions = <void**> self.distributions.data
 		cdef numpy.ndarray b_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 
 		try:
@@ -2172,37 +2171,69 @@ cdef class HiddenMarkovModel( GraphModel ):
 		if self.d == 0:
 			raise ValueError("must bake model before prediction")
 
-		return numpy.array( self._predict_log_proba( numpy.array(sequence) ) )
+		cdef int n = len(sequence), m = len(self.states)
+		cdef numpy.ndarray sequence_ndarray
+		cdef numpy.ndarray r_ndarray = numpy.zeros((n, self.silent_start), dtype='float64')
+		cdef double* sequence_data
+		cdef double* r = <double*> r_ndarray.data
 
-	cdef double [:,:] _predict_log_proba( self, numpy.ndarray sequence ):
+		try:
+			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64 )
+		except ValueError:
+			sequence = list( map( self.keymap.__getitem__, sequence ) )
+			sequence_ndarray = numpy.array( sequence, dtype=numpy.float64)
+
+		sequence_data = <double*> sequence_ndarray.data
+
+		with nogil:
+			self._predict_log_proba( sequence_data, r, n, NULL )
+
+		return r_ndarray
+
+	cdef void _predict_log_proba( self, double* sequence, double* r, int n, 
+		double* emissions ) nogil:
 		cdef int i, k, l, li
-		cdef int m=len(self.states), n=len(sequence)
-		cdef double [:,:] f, b
-		cdef double [:,:] emission_weights = numpy.zeros((n, self.silent_start))
+		cdef int m = self.n_states, dim = self.d
 		cdef double log_sequence_probability
+		cdef double* f
+		cdef double* b
+		cdef double* e
+		cdef void** distributions = self.distributions_ptr
 
+		if emissions is NULL:
+			e = <double*> calloc(n*self.silent_start, sizeof(double))
+			for l in range(self.silent_start):
+				for i in range(n):
+					if self.multivariate:
+						e[l*n + i] = ((<Model>distributions[l])._mv_log_probability(sequence+i*dim) +
+							self.state_weights[l])
+					else:
+						e[l*n + i] = ((<Model>distributions[l])._log_probability(sequence[i]) +
+							self.state_weights[l])
+		else:
+			e = emissions
 
 		# Fill in both the F and B DP matrices.
-		f = self.forward( sequence )
-		b = self.backward( sequence )
+		f = self._forward(sequence, n, emissions)
+		b = self._backward(sequence, n, emissions)
 
 		# Find out the probability of the sequence
 		if self.finite == 1:
-			log_sequence_probability = f[ n, self.end_index ]
+			log_sequence_probability = f[n*m + self.end_index]
 		else:
 			log_sequence_probability = NEGINF
 			for i in range( self.silent_start ):
 				log_sequence_probability = pair_lse(
-					log_sequence_probability, f[ n, i ] )
+					log_sequence_probability, f[n*m + i])
 
 		# Is the sequence impossible? If so, don't bother calculating any more.
 		if log_sequence_probability == NEGINF:
-			print( "Warning: Sequence is impossible." )
-			return ( None, None )
+			with gil:
+				print( "Warning: Sequence is impossible." )
 
-		for k in range( m ):
+		for k in range(m):
 			if k < self.silent_start:
-				for i in range( n ):
+				for i in range(n):
 					# For each symbol that came out
 					# What's the weight of this symbol for that state?
 					# Probability that we emit index characters and then
@@ -2213,10 +2244,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 					# According to http://www1.icsi.berkeley.edu/Speech/
 					# docs/HTKBook/node7_mn.html, we really should divide by
 					# sequence probability.
-					emission_weights[i,k] = f[i+1, k] + b[i+1, k] - \
+					r[i*self.silent_start + k] = f[(i+1)*m + k] + b[(i+1)*m + k] - \
 						log_sequence_probability
 
-		return emission_weights
+		free(f)
+		free(b)
+		free(e)
 
 	def predict( self, sequence, algorithm='map' ):
 		"""Calculate the most likely state for each observation.
@@ -2287,7 +2320,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 	cdef tuple _maximum_a_posteriori( self, numpy.ndarray sequence ):
 		cdef int i, k, l, li
 		cdef int m=len(self.states), n=len(sequence)
-		cdef double [:,:] emission_weights = self._predict_log_proba( sequence )
+		cdef double [:,:] emission_weights = self.predict_log_proba( sequence )
 
 		cdef list path = []
 		cdef double maximum_emission_weight
