@@ -28,7 +28,7 @@ cd pomegranate
 python setup.py install
 ```
 
-Lastly, you can also download the zip and manually move the files into your site-packages folder (or your PYTHON_PATH, if you've changed it).
+Lastly, you can also download the zip and manually move the files into your site-packages folder (or a directory on your `PYTHONPATH`, if you've changed it).
 
 On Windows machines you may need to download a C++ compiler. This minimal version of Visual Studio 2008 works well: https://www.microsoft.com/en-us/download/details.aspx?id=44266
 
