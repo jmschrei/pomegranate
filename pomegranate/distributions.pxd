@@ -96,11 +96,24 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 	cdef double* summaries_ptr
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
-	cdef dict key_dict
-	cdef public list parameters
-	cdef void _table_summarize( self, items, double [:] weights )
+	cdef double* values
+	cdef double* counts
+	cdef double* marginal_counts
+	cdef int m, n, k
+	cdef int* idxs
+	cdef int* marginal_idxs
+	cdef public list parents, parameters
+	cdef public object keymap
+	cdef public object marginal_keymap
+	cdef void __summarize( self, items, double [:] weights )
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
-	cdef dict key_dict
-	cdef public list parameters
-	cdef void _table_summarize( self, items, double [:] weights )
+	cdef double* values
+	cdef double* counts
+	cdef double count
+	cdef int m, n, k
+	cdef int* idxs
+	cdef public list parents, parameters
+	cdef public object keymap
+	cdef public object marginal_keymap
+	cdef void __summarize( self, items, double [:] weights )

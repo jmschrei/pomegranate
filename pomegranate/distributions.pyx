@@ -11,6 +11,7 @@ from libc.math cimport exp as cexp
 from libc.math cimport fabs
 from libc.math cimport sqrt as csqrt
 
+import time
 import scipy
 from scipy.linalg.cython_blas cimport dgemm
 
@@ -302,17 +303,13 @@ cdef class Distribution( Model ):
 		if d['name'] == 'IndependentComponentsDistribution':
 			d['parameters'][0] = [cls.from_json( json.dumps(dist) ) for dist in d['parameters'][0]]
 			return IndependentComponentsDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
-		elif d['name'] == 'MixtureDistribution':
-			d['parameters'][0] = [cls.from_json( json.dumps(dist) ) for dist in d['parameters'][0]]
-			return MixtureDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
-		elif 'Table' in d['name']:
+		elif d['name'] == 'ConditionalProbabilityTable':
+			parents = [ Distribution.from_json( json.dumps(j) ) for j in d['parents'] ]
+			return ConditionalProbabilityTable(d['table'], parents)
+		elif d['name'] == 'JointProbabilityTable':
 			parents = [ Distribution.from_json( json.dumps(j) ) for j in d['parents'] ]
 			keys = [ (tuple(c), b) for c, b in d['keys'] ]
-			if d['name'] == 'ConditionalProbabilityTable':
-				model = ConditionalProbabilityTable( numpy.log(d['values']), parents, OrderedDict(keys) )
-			elif d['name'] == 'JointProbabilityTable':
-				model = JointProbabilityTable( numpy.log(d['values']), parents, OrderedDict(keys) )
-			return model
+			return JointProbabilityTable( numpy.log(d['values']), parents, OrderedDict(keys) )
 		else:
 			dist = eval( "{}( {}, frozen={} )".format( d['name'],
 			                                    ','.join( map( str, d['parameters'] ) ),
@@ -2344,7 +2341,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	encode for.
 	"""
 
-	def __init__( self, table=None, parents=None, keys=None, frozen=False ):
+	def __init__( self, table, parents, keys=None, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2352,44 +2349,61 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		self.name = "ConditionalProbabilityTable"
 		self.frozen = False
+		self.m = len(parents)
+		self.n = len(table)
+		self.k = len(set(row[-2] for row in table))
+		self.idxs = <int*> calloc(self.m+1, sizeof(int))
+		self.marginal_idxs = <int*> calloc(self.m, sizeof(int))
 
-		if keys:
-			self.parameters = [ table, parents, keys ]
-		else:
-			keys = []
-			values = numpy.zeros( len(table) )
+		self.values = <double*> calloc(self.n, sizeof(double))
+		self.counts = <double*> calloc(self.n, sizeof(double))
+		self.marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
 
-			for i, row in enumerate( table ):
-				keys.append( ( tuple(row[:-1]), i ) )
-				values[i] = _log( row[-1] )
+		memset(self.counts, 0, self.n*sizeof(double))
+		memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
+		
+		self.idxs[0] = 1
+		self.idxs[1] = self.k
+		for i in range(self.m-1):
+			self.idxs[i+2] = len(parents[self.m-i-1])
 
-			self.key_dict = dict(keys)
-			keys = OrderedDict( keys )
-			self.parameters = [ values, parents, keys ]
+		self.marginal_idxs[0] = 1
+		for i in range(self.m-1):
+			self.marginal_idxs[i+1] = len(parents[self.m-i-1])
 
-		self.summaries = [{}, {}]
+		keys = []
+		for i, row in enumerate( table ):
+			keys.append( ( tuple(row[:-1]), i ) )
+			self.values[i] = _log( row[-1] )
+
+		self.keymap = OrderedDict(keys)
+
+		marginal_keys = []
+		for i, row in enumerate( table[::self.k] ):
+			marginal_keys.append( ( tuple(row[:-2]), i ) ) 
+
+		self.marginal_keymap = OrderedDict(marginal_keys)
+		self.parents = parents
+		self.parameters = [ table, self.parents ]
+
+	def __dealloc__(self):
+		free(self.idxs)
+		free(self.values)
+		free(self.counts)
+		free(self.marginal_idxs)
+		free(self.marginal_counts)
 
 	def __reduce__( self ):
 		"""Serialize the distribution for pickle."""
-		values, neighbors, keys = self.parameters
-		return self.__class__, (values, neighbors, keys, self.frozen)
+		return self.__class__, (self.parameters[0], self.parents, self.frozen)
 
 	def __str__( self ):
-		"""
-		Regenerate the table.
-		"""
-
-		values, parents, keys = self.parameters
 		return "\n".join(
-					"\t".join( map( str, key + (cexp( values[idx] ),) ) )
-							for key, idx in keys.items() )
+					"\t".join( map( str, key + (cexp( self.values[idx] ),)))
+							for key, idx in self.keymap.items() )
 
 	def __len__( self ):
-		"""
-		The length of the distribution is the number of keys.
-		"""
-
-		return len( self.keys() )
+		return self.k
 
 	def keys( self ):
 		"""
@@ -2397,15 +2411,13 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		the child variable.
 		"""
 
-		return tuple(set(row[-1] for row in self.parameters[2].keys()))
+		return tuple(set(row[-1] for row in self.keymap.keys()))
 
 	def sample( self, parent_values={} ):
 		"""Return a random sample from the conditional probability table."""
 
-		values, parents, keys = self.parameters
-		keys = keys.keys()
-
-		for parent in parents:
+		keys = self.keymap.keys()
+		for parent in self.parents:
 			if parent not in parent_values:
 				parent_values[parent] = parent.sample()
 
@@ -2414,12 +2426,12 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		values_ = []
 
 		for i in range(n):
-			for j, parent in enumerate( parents ):
+			for j, parent in enumerate(self.parents):
 				if parent_values[parent] != keys[i][j]:
 					break
 			else:
 				idxs.append(i)
-				values_.append(cexp(values[i]))
+				values_.append(cexp(self.values[i]))
 
 		values_ = numpy.cumsum(values_)
 		a = numpy.random.uniform(0, 1)
@@ -2433,11 +2445,16 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		ordering, like the training data.
 		"""
 
-		# Unpack the parameters
-		values, _, keys = self.parameters
+		idx = self.keymap[tuple(symbol)]
+		return self.values[idx]
 
-		# Return the array element with that identity
-		return values[ keys[symbol] ]
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
+		cdef int i, idx = 0
+
+		for i in range(self.m+1):
+			idx += self.idxs[i] * <int> symbol[self.m-i]
+
+		return self.values[idx]
 
 	def joint( self, neighbor_values=None ):
 		"""
@@ -2447,47 +2464,23 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		by the parent distributions.
 		"""
 
-		# Unpack the parameters
-		values, parents, hashes = self.parameters
-
-		neighbor_values = neighbor_values or parents+[None]
-		# If given a dictionary, then decode it
+		neighbor_values = neighbor_values or self.parents+[None]
 		if isinstance( neighbor_values, dict ):
-			nv = [ None for i in xrange( len( neighbor_values)+1 ) ]
+			neighbor_values = [ neighbor_values.get( p, None ) for p in self.parents + [self]]
 
-			# Go through each parent and find the appropriate value
-			for i, parent in enumerate( parents ):
-				nv[i] = neighbor_values.get( parent, None )
-
-			if len(neighbor_values) == len(parents):
-				# We've already gotten the value for this marginal, because it
-				# was encoded as a separate factor.
-				pass
-			else:
-				# Get values for this marginal
-				nv[-1] = neighbor_values.get( self, None )
-
-			neighbor_values = nv
-
-		# The growing table
-		table = []
-
-		# Create the table row by row
-		for key, idx in hashes.items():
-
-			# Scale the probability by the weights on the marginals
-			scaled_val = values[idx]
+		table, total = [], 0
+		for key, idx in self.keymap.items():
+			scaled_val = self.values[idx]
 			for j, k in enumerate( key ):
 				if neighbor_values[j] is not None:
 					scaled_val += neighbor_values[j].log_probability( k )
 
-			table.append( key + (cexp(scaled_val),) )
+			scaled_val = cexp(scaled_val)
+			total += scaled_val
+			table.append( key + (scaled_val,) )
 
-		# Normalize the values
-		total = sum( row[-1] for row in table )
 		table = [ row[:-1] + (row[-1] / total,) for row in table ]
-
-		return JointProbabilityTable( table, parents )
+		return JointProbabilityTable( table, self.parents )
 
 	def marginal( self, neighbor_values=None ):
 		"""
@@ -2498,11 +2491,11 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		# Convert from a dictionary to a list if necessary
 		if isinstance( neighbor_values, dict ):
-			neighbor_values = [ neighbor_values.get( d, None ) for d in self.parameters[1] ]
+			neighbor_values = [ neighbor_values.get( d, None ) for d in self.parents ]
 
 		# Get the index we're marginalizing over
 		i = -1 if neighbor_values == None else neighbor_values.index( None )
-		return self.joint( neighbor_values ).marginal( i )
+		return self.joint(neighbor_values).marginal(i)
 
 	def summarize(self, items, weights=None):
 		"""Summarize the data into sufficient statistics to store."""
@@ -2517,37 +2510,73 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		else:
 			weights = numpy.asarray(weights, dtype='float64' )
 
-		self._table_summarize(items, weights)
+		self.__summarize(items, weights)
 
-	cdef void _table_summarize(self, items, double [:] weights):
+	cdef void __summarize(self, items, double [:] weights):
 		cdef int i, n = len(items)
-		cdef tuple item
+		cdef tuple item 
 
 		for i in range(n):
-			item = tuple(items[i])
-			self.summaries[0][item] = self.summaries[0].get(item, 0) + weights[i]
-			self.summaries[1][item[:-1]] = self.summaries[1].get(item[:-1], 0) + weights[i]
+			key = self.keymap[tuple(items[i])]
+			self.counts[key] += weights[i]
+			
+			key = self.marginal_keymap[tuple(items[i][:-1])]
+			self.marginal_counts[key] += weights[i]
 
-	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
+	cdef double _summarize(self, double* items, double* weights, int n ) nogil:
+		cdef int i, j, idx
+		cdef double* counts = <double*> calloc(self.n, sizeof(double))
+		cdef double* marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
+
+		for i in range(n):
+			idx = 0
+			for j in range(self.m+1):
+				idx += self.idxs[i] * <int> items[self.m-i]
+
+			counts[idx] += weights[i]
+
+			idx = 0
+			for j in range(self.m):
+				idx += self.marginal_idxs[i] * <int> items[self.m-1-i]
+
+			marginal_counts[idx] += weights[i]
+
+		with gil:
+			for i in range(n):
+				self.counts[i] += counts[i]
+				if i < self.n / self.k:
+					self.marginal_counts[i] += marginal_counts[i]
+
+		free(counts)
+		free(marginal_counts)
+
+	def from_summaries( self, double inertia=0.0, double pseudocount=0.0 ):
 		"""Update the parameters of the distribution using sufficient statistics."""
 
-		values = numpy.zeros_like(self.parameters[0])
-		keys = self.key_dict
+		cdef int i, k
 
-		for key in self.parameters[2].keys():
-			count = self.summaries[0].get( key, 0.0 )
-			marginal_count = self.summaries[1].get( key[:-1], 0.0 )
+		with nogil:
+			for i in range(self.n):
+				k = i / self.k
 
-			probability = count / marginal_count if marginal_count > 0 else 1. / len(self)
-			values[keys[key]] = probability
+				if self.marginal_counts[k] > 0:
+					probability = ((self.counts[i] + pseudocount) / 
+						(self.marginal_counts[k] + pseudocount * self.k))
 
-		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
-		self.summaries = [{}, {}]
+					self.values[i] = _log(cexp(self.values[i])*inertia + 
+						probability*(1-inertia))
+
+				else:
+					self.values[i] = 1. / self.k
+
+		self.clear_summaries()
 
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object."""
 
-		self.summaries = [{}, {}]
+		with nogil:
+			memset(self.counts, 0, self.n*sizeof(double))
+			memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
 
 	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""Update the parameters of the table based on the data."""
@@ -2574,12 +2603,13 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		    A properly formatted JSON object.
 		"""
 
+		table = [list(key + tuple([cexp(self.values[i])])) for key, i in self.keymap.items() ]
+
 		model = {
 					'class' : 'Distribution',
 		            'name' : 'ConditionalProbabilityTable',
-		            'values' : numpy.exp(self.parameters[0]).tolist(),
-		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
-		            'keys' : list(self.parameters[2].items())
+		            'table' : table,
+		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parents ]
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
@@ -2592,65 +2622,61 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 	by the marginals of each parent.
 	"""
 
-	def __cinit__( self, table=None, neighbors=None, keys=None, frozen=False ):
+	def __cinit__( self, table, parents, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
 		"""
 
-		self.summaries = [{}, 0]
 		self.name = "JointProbabilityTable"
 		self.frozen = False
+		self.m = len(parents)
+		self.n = len(table)
+		self.k = len(set(row[-2] for row in table))
+		self.idxs = <int*> calloc(self.m+1, sizeof(int))
 
-		if keys:
-			self.parameters = [ table, neighbors, keys ]
-		else:
-			keys = []
-			values = numpy.zeros( len(table) )
+		self.values = <double*> calloc(self.n, sizeof(double))
+		self.counts = <double*> calloc(self.n, sizeof(double))
+		self.count = 0
 
-			for i, row in enumerate( table ):
-				keys.append( ( tuple(row[:-1]), i ) )
-				values[i] = _log( row[-1] )
+		memset(self.counts, 0, self.n*sizeof(double))
+		
+		self.idxs[0] = 1
+		self.idxs[1] = self.k
+		for i in range(self.m-1):
+			self.idxs[i+2] = len(parents[self.m-i-1])
 
-			self.key_dict = dict(keys)
-			keys = OrderedDict( keys[::-1] )
-			self.parameters = [ values, neighbors, keys ]
+		keys = []
+		for i, row in enumerate( table ):
+			keys.append( ( tuple(row[:-1]), i ) )
+			self.values[i] = _log( row[-1] )
+
+		self.keymap = OrderedDict(keys)
+		self.parents = parents
+		self.parameters = [ table, self.parents ]
+
+	def __dealloc__(self):
+		free(self.values)
+		free(self.counts)
 
 	def __reduce__( self ):
-		"""Serialize the distribution for pickle."""
-		values, neighbors, keys = self.parameters
-		return self.__class__, (values, neighbors, keys, self.frozen)
+		return self.__class__, (self.parameters[0], self.parents, self.frozen)
 
 	def __str__( self ):
-		"""Regenerate the table."""
-
-		values, parents, keys = self.parameters
 		return "\n".join(
-					"\t".join( map( str, key + (cexp( values[idx] ),) ) )
-							for key, idx in keys.items() )
+					"\t".join( map( str, key + (cexp(self.values[idx] ),) ) )
+							for key, idx in self.keymap.items() )
 
 	def __len__( self ):
-		"""The length of the distribution is the number of keys."""
-
-		return len( self.keys() )
+		return self.k
 
 	def sample( self, n=None ):
-		"""Return a sample from the table."""
-
-		values, neighbors, keys = self.parameters
-		values = numpy.cumsum(numpy.exp(values))
-
 		a = numpy.random.uniform(0, 1)
-		for i in range(len(values)):
-			if values[i] > a:
-				return keys.keys()[i][-1]
+		for i in range(self.n):
+			if cexp(self.values[i]) > a:
+				return self.keymap.keys()[i][-1]
 
 	def keys( self ):
-		"""
-		Return the keys of the probability distribution which has parents,
-		the child variable.
-		"""
-
 		return tuple(set(row[-1] for row in self.parameters[2].keys()))
 
 	def log_probability( self, symbol ):
@@ -2659,11 +2685,16 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		ordering, like the training data.
 		"""
 
-		# Unpack the parameters
-		values, _, keys = self.parameters
+		key = self.keymap[tuple(symbol)]
+		return self.values[key]
 
-		# Return the array element with that identity
-		return values[ keys[symbol] ]
+	cdef double _mv_log_probability( self, double* symbol ) nogil:
+		cdef int i, idx = 0
+
+		for i in range(self.m+1):
+			idx += self.idxs[i] * <int> symbol[self.m-i]
+
+		return self.values[idx]
 
 	def marginal( self, wrt=-1, neighbor_values=None ):
 		"""
@@ -2679,21 +2710,18 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		table.marginal(-1) gives the marginal wrt C
 		"""
 
-		# Unpack the parameters
-		values, neighbors, keys = self.parameters
-
-		# If given a dictionary, convert to a list
-		if isinstance( neighbor_values, dict ):
-			neighbor_values = [ neighbor_values.get( d, None ) for d in neighbors ]
-		if isinstance( neighbor_values, list ):
-			wrt = neighbor_values.index( None )
+		if isinstance(neighbor_values, dict):
+			neighbor_values = [ neighbor_values.get( d, None ) for d in self.parents ]
+		
+		if isinstance(neighbor_values, list):
+			wrt = neighbor_values.index(None)
 
 		# Determine the keys for the respective parent distribution
-		d = { k: 0 for k in neighbors[wrt].keys() }
+		d = { k: 0 for k in self.parents[wrt].keys() }
 		total = 0.0
 
-		for key, idx in keys.items():
-			logp = values[idx]
+		for key, idx in self.keymap.items():
+			logp = self.values[idx]
 
 			if neighbor_values is not None:
 				for j, k in enumerate( key ):
@@ -2709,7 +2737,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		for key, value in d.items():
 			d[key] = value / total
 
-		return DiscreteDistribution( d )
+		return DiscreteDistribution(d)
 
 	def summarize( self, items, weights=None ):
 		"""Summarize the data into sufficient statistics to store."""
@@ -2726,31 +2754,54 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		self._table_summarize(items, weights)
 
-	cdef void _table_summarize(self, items, double [:] weights):
+	cdef void __summarize(self, items, double [:] weights):
 		cdef int i, n = len(items)
-		cdef tuple item
+		cdef tuple item 
 
 		for i in range(n):
-			item = tuple(items[i])
-			self.summaries[0][item] = self.summaries[0].get(item, 0) + weights[i]
-			self.summaries[1] += weights[i]
+			key = self.keymap[tuple(items[i])]
+			self.counts[key] += weights[i]
 
-	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
+	cdef double _summarize(self, double* items, double* weights, int n ) nogil:
+		cdef int i, j, idx
+		cdef double count = 0
+		cdef double* counts = <double*> calloc(self.n, sizeof(double))
+
+		for i in range(n):
+			idx = 0
+			for j in range(self.m+1):
+				idx += self.idxs[i] * <int> items[self.m-i]
+
+			counts[idx] += weights[i]
+			count += weights[i]
+
+		with gil:
+			self.count += count
+			for i in range(n):
+				self.counts[i] += counts[i]
+
+		free(counts)
+
+	def from_summaries( self, double inertia=0.0, double pseudocount=0.0 ):
 		"""Update the parameters of the distribution using sufficient statistics."""
 
-		values = numpy.zeros_like(self.parameters[0])
-		keys = self.key_dict
+		cdef int i, k
+		cdef double p = pseudocount
 
-		for key in self.parameters[2].keys():
-			values[keys[key]] = self.summaries[0].get( key, 0.0 ) / self.summaries[1]
+		with nogil:
+			for i in range(self.n):
+				probability = ((self.counts[i] + p) / (self.count + p * self.k))
+				self.values[i] = _log(cexp(self.values[i])*inertia + 
+					probability*(1-inertia))
 
-		self.parameters[0] = numpy.log(numpy.exp(self.parameters[0])*inertia + values*(1-inertia) + pseudocount)
-		self.summaries = [{}, 0]
+		self.clear_summaries()
 
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object."""
 
-		self.summaries = [{}, 0]
+		self.count = 0
+		with nogil:
+			memset(self.counts, 0, self.n*sizeof(double))
 
 	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""Update the parameters of the table based on the data."""
@@ -2777,12 +2828,13 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		    A properly formatted JSON object.
 		"""
 
+		table = [list(key + tuple([cexp(self.values[i])])) for key, i in self.keymap.items() ]
+
 		model = {
 					'class' : 'Distribution',
 		            'name' : 'JointProbabilityTable',
-		            'values' : numpy.exp(self.parameters[0]).tolist(),
-		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ],
-		            'keys' : list(self.parameters[2].items())
+		            'table' : table,
+		            'parents' : [ json.loads( dist.to_json() ) for dist in self.parameters[1] ]
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )

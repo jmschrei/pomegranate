@@ -194,7 +194,7 @@ cdef class BayesianNetwork( GraphModel ):
 			d = state.distribution
 			if isinstance( d, ConditionalProbabilityTable ):
 				dist = fa_mapping[d]
-				d.parameters[1] = [ d_mapping[parent] for parent in d.parameters[1] ]
+				d.parents = [ d_mapping[parent] for parent in d.parents ]
 				state.distribution = d.joint()
 				state.distribution.parameters[1].append( dist )
 
@@ -232,7 +232,7 @@ cdef class BayesianNetwork( GraphModel ):
 		# update to the states
 		for i, state in enumerate( self.states ):
 			if isinstance( state.distribution, ConditionalProbabilityTable ):
-				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
+				idx = [ indices[ dist ] for dist in state.distribution.parents ] + [i]
 				data = tuple( sample[i] for i in idx )
 				logp += state.distribution.log_probability( data )
 			else:
@@ -393,7 +393,7 @@ cdef class BayesianNetwork( GraphModel ):
 		# update to the states
 		for i, state in enumerate( self.states ):
 			if isinstance( state.distribution, ConditionalProbabilityTable ):
-				idx = [ indices[ dist ] for dist in state.distribution.parameters[1] ] + [i]
+				idx = [ indices[ dist ] for dist in state.distribution.parents ] + [i]
 				data = [ [ item[i] for i in idx ] for item in items ]
 				state.distribution.summarize( data, weights )
 			else:
