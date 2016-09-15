@@ -23,6 +23,8 @@ pomegranate/gmm.c
 pomegranate/gmm.pyx
 pomegranate/hmm.c
 pomegranate/hmm.pyx
+pomegranate/kmeans.c
+pomegranate/kmeans.pyx
 pomegranate/parallel.c
 pomegranate/parallel.pyx
 pomegranate/utils.c
