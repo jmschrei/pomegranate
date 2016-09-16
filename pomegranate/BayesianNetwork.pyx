@@ -2,10 +2,16 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 import numpy
+cimport numpy
+
+from libc.stdlib cimport calloc
+from libc.stdlib cimport free
+from libc.string cimport memset
 
 from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
+from .distributions cimport MultivariateDistribution
 from .distributions cimport DiscreteDistribution
 from .distributions cimport ConditionalProbabilityTable
 from .distributions cimport JointProbabilityTable
@@ -83,6 +89,16 @@ cdef class BayesianNetwork( GraphModel ):
 	[['B', 'A']]
 	"""
 
+	cdef list idxs
+	cdef int* parent_count
+	cdef int* parent_idxs
+	cdef numpy.ndarray distributions
+	cdef void** distributions_ptr
+
+	def __dealloc__( self ):
+		free(self.parent_count)
+		free(self.parent_idxs)
+
 	def plot( self, **kwargs ):
 		"""Draw this model's graph using NetworkX and matplotlib.
 
@@ -142,10 +158,6 @@ cdef class BayesianNetwork( GraphModel ):
 		# Initialize the factor graph
 		self.graph = FactorGraph( self.name+'-fg' )
 
-		# Build the factor graph structure we'll use for all the important
-		# calculations.
-		j = 0
-
 		# Create two mappings, where edges which previously went to a
 		# conditional distribution now go to a factor, and those which left
 		# a conditional distribution now go to a marginal
@@ -182,9 +194,6 @@ cdef class BayesianNetwork( GraphModel ):
 			m_mapping[state] = m
 			d_mapping[state.distribution] = d
 
-			# Progress the counter by one
-			j += 1
-
 		for a, b in self.edges:
 			self.graph.add_edge( m_mapping[a], f_mapping[b] )
 
@@ -200,6 +209,43 @@ cdef class BayesianNetwork( GraphModel ):
 
 		# Finalize the factor graph structure
 		self.graph.bake()
+
+		indices = {state.distribution : i for i, state in enumerate(self.states)}
+
+		n, self.idxs = 0, []
+		for i, state in enumerate(self.states):
+			if isinstance(state.distribution, MultivariateDistribution):
+				d = state.distribution
+				self.idxs.append( tuple(indices[parent] for parent in d.parents) + (i,) )
+				n += len(self.idxs[-1])
+			else:
+				state.distribution.encode( (0, 1) )
+				self.idxs.append(i)
+				n += 1
+
+		self.distributions = numpy.array([state.distribution for state in self.states])
+		self.distributions_ptr = <void**> self.distributions.data
+
+		self.parent_count = <int*> calloc(self.d+1, sizeof(int))
+		self.parent_idxs = <int*> calloc(n, sizeof(int))
+
+		j = 0
+		for i, state in enumerate(self.states):
+			if isinstance(state.distribution, MultivariateDistribution):
+				self.parent_count[i+1] = len(state.distribution.parents) + 1
+				for parent in state.distribution.parents:
+					self.parent_idxs[j] = indices[parent]
+					j += 1
+
+				self.parent_idxs[j] = i
+				j += 1
+			else:
+				self.parent_count[i+1] = 1
+				self.parent_idxs[j] = i
+				j += 1
+
+			if i > 0:
+				self.parent_count[i+1] += self.parent_count[i]
 
 	def log_probability( self, sample ):
 		"""Return the log probability of a sample under the Bayesian network model.
@@ -225,18 +271,10 @@ cdef class BayesianNetwork( GraphModel ):
 		if self.d == 0:
 			raise ValueError("must bake model before computing probability")
 
-		indices = { state.distribution: i for i, state in enumerate( self.states ) }
+		sample = numpy.array(sample, ndmin=2)
 		logp = 0.0
-
-		# Go through each state and pass in the appropriate data for the
-		# update to the states
 		for i, state in enumerate( self.states ):
-			if isinstance( state.distribution, ConditionalProbabilityTable ):
-				idx = [ indices[ dist ] for dist in state.distribution.parents ] + [i]
-				data = tuple( sample[i] for i in idx )
-				logp += state.distribution.log_probability( data )
-			else:
-				logp += state.distribution.log_probability( sample[i] )
+			logp += state.distribution.log_probability( sample[0, self.idxs[i]] )
 		
 		return logp
 
@@ -246,15 +284,23 @@ cdef class BayesianNetwork( GraphModel ):
 		return logp
 
 	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
-		cdef int i, j
+		cdef int i, j, l, li, k
+		cdef double logp
+		cdef double* sym = <double*> calloc(self.d, sizeof(double))
+		memset(log_probability, 0, n*sizeof(double))
 
-		with gil:
-			X = numpy.zeros(self.d)
-			for i in range(n):
-				for j in range(self.d):
-					X[j] = symbol[i*self.d + j]
+		for i in range(n):
+			for j in range(self.d):
+				memset(sym, 0, self.d*sizeof(double))
+				logp = 0.0
 
-				log_probability[i] = self.log_probability(X)
+				for l in range(self.parent_count[j], self.parent_count[j+1]):
+					li = self.parent_idxs[l]
+					k = l - self.parent_count[j]
+					sym[k] = symbol[i*self.d + li]
+
+				(<Model> self.distributions_ptr[j])._v_log_probability(sym, &logp, 1)
+				log_probability[i] += logp
 
 
 	def marginal( self ):
@@ -281,47 +327,6 @@ cdef class BayesianNetwork( GraphModel ):
 		return self.graph.marginal()
 
 	def predict_proba( self, data={}, max_iterations=100, check_input=True ):
-		"""Returns the probabilities of each variable in the graph given evidence.
-
-		This calculates the marginal probability distributions for each state given
-		the evidence provided through loopy belief propogation. Loopy belief
-		propogation is an approximate algorithm which is exact for certain graph
-		structures.
-
-		This is a sklearn wrapper for the forward_backward method.
-
-		Parameters
-		----------
-		data : dict or array-like, shape <= n_nodes, optional
-			The evidence supplied to the graph. This can either be a dictionary
-			with keys being state names and values being the observed values
-			(either the emissions or a distribution over the emissions) or an
-			array with the values being ordered according to the nodes incorporation
-			in the graph (the order fed into .add_states/add_nodes) and None for
-			variables which are unknown. If nothing is fed in then calculate the
-			marginal of the graph. Default is {}.
-
-		max_iterations : int, optional
-			The number of iterations with which to do loopy belief propogation.
-			Usually requires only 1. Default is 100.
-
-		check_input : bool, optional
-			Check to make sure that the observed symbol is a valid symbol for that
-			distribution to produce. Default is True.
-
-		Returns
-		-------
-		probabilities : array-like, shape (n_nodes)
-			An array of univariate distribution objects showing the probabilities
-			of each variable.
-		"""
-
-		if self.d == 0:
-			raise ValueError("must bake model before prediction")
-
-		return self.forward_backward( data, max_iterations, check_input )
-
-	def forward_backward( self, data={}, max_iterations=100, check_input=True ):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
 		This calculates the marginal probability distributions for each state given
@@ -365,7 +370,7 @@ cdef class BayesianNetwork( GraphModel ):
 				if value not in indices[key].keys() and not isinstance( value, DiscreteDistribution ):
 					raise ValueError( "State '{}' does not have key '{}'".format( key, value ) )
 
-		return self.graph.forward_backward( data, max_iterations )
+		return self.graph.predict_proba( data, max_iterations )
 
 	def summarize(self, items, weights=None):
 		"""Summarize a batch of data and store the sufficient statistics.
@@ -458,8 +463,8 @@ cdef class BayesianNetwork( GraphModel ):
 		self.from_summaries(inertia)
 		self.bake()
 
-	def impute( self, items, max_iterations=100 ):
-		"""Impute missing values of a data matrix using MLE.
+	def predict( self, items, max_iterations=100 ):
+		"""Predict missing values of a data matrix using MLE.
 
 		Impute the missing values of a data matrix using the maximally likely
 		predictions according to the forward-backward algorithm. Run each
@@ -499,9 +504,12 @@ cdef class BayesianNetwork( GraphModel ):
 					except:
 						obs[ state.name ] = item
 
-			imputation = self.forward_backward( obs  )
+			imputation = self.predict_proba( obs  )
 
 			for j in range( len( self.states) ):
 				items[i][j] = imputation[j].mle()
 
 		return items 
+
+	def impute( self, *args, **kwargs ):
+		raise Warning("method 'impute' has been depricated, please use 'predict' instead") 

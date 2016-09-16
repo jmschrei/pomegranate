@@ -79,8 +79,8 @@ def test_network():
 	assert_equal( tclass.log_probability( ('perish', 'third') ), float("-inf") )
 
 def test_guest():
-	male   = network.forward_backward( {'gender' : 'male'   } )
-	female = network.forward_backward( {'gender' : 'female' } )
+	male   = network.predict_proba( {'gender' : 'male'   } )
+	female = network.predict_proba( {'gender' : 'female' } )
 
 	assert_equal( female[0].log_probability( "survive" ), 0.0 )
 	assert_equal( female[0].log_probability( "perish" ), float("-inf") )

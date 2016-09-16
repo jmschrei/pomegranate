@@ -2456,6 +2456,16 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		return self.values[idx]
 
+	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+		cdef int i, j, idx
+
+		for i in range(n):
+			idx = 0
+			for j in range(self.m+1):
+				idx += self.idxs[j] * <int> symbol[self.m-j]
+
+			log_probability[i] = self.values[idx]
+
 	def joint( self, neighbor_values=None ):
 		"""
 		This will turn a conditional probability table into a joint
@@ -2695,6 +2705,16 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			idx += self.idxs[i] * <int> symbol[self.m-i]
 
 		return self.values[idx]
+
+	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+		cdef int i, j, idx
+
+		for i in range(n):
+			idx = 0
+			for j in range(self.m+1):
+				idx += self.idxs[j] * <int> symbol[self.m-j]
+
+			log_probability[i] = self.values[idx]
 
 	def marginal( self, wrt=-1, neighbor_values=None ):
 		"""

@@ -149,9 +149,9 @@ cdef class FactorGraph( GraphModel ):
 			probabilities of that variable.
 		"""
 
-		return self.forward_backward( {} )
+		return self.predict_proba( {} )
 
-	def forward_backward( self, data, max_iterations=10, verbose=False ):
+	def predict_proba( self, data, max_iterations=10, verbose=False ):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
 		This calculates the marginal probability distributions for each state given

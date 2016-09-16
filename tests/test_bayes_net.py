@@ -85,9 +85,9 @@ def discrete_equality( x, y, z=8 ):
 			raise ValueError( "{} != {}".format( yd[key], value ) )
 
 def test_guest():
-	a = network.forward_backward( {'guest' : 'A'} )
-	b = network.forward_backward( {'guest' : 'B'} )
-	c = network.forward_backward( {'guest' : 'C'} )
+	a = network.predict_proba( {'guest' : 'A'} )
+	b = network.predict_proba( {'guest' : 'B'} )
+	c = network.predict_proba( {'guest' : 'C'} )
 
 	prize_correct = DiscreteDistribution({'A' : 1./3, 'B' : 1./3, 'C' : 1./3 })
 
@@ -100,8 +100,8 @@ def test_guest():
 	discrete_equality( c[monty_index], DiscreteDistribution({'A': 1./2, 'B' : 1./2, 'C' : 0.0}) )
 
 def test_guest_monty():
-	b = network.forward_backward( { 'guest' : 'A', 'monty' : 'B' } )
-	c = network.forward_backward( { 'guest' : 'A', 'monty' : 'C' } )
+	b = network.predict_proba( { 'guest' : 'A', 'monty' : 'B' } )
+	c = network.predict_proba( { 'guest' : 'A', 'monty' : 'C' } )
 
 	discrete_equality( b[guest_index], DiscreteDistribution({'A': 1., 'B': 0., 'C': 0. }) )
 	discrete_equality( b[monty_index], DiscreteDistribution({'A': 0., 'B': 1., 'C': 0. }) )
@@ -111,7 +111,7 @@ def test_guest_monty():
 	discrete_equality( c[prize_index], DiscreteDistribution({'A': 1./3, 'B': 2./3, 'C': 0.0 }) )
 
 def test_monty():
-	a = network.forward_backward({ 'monty' : 'A' })
+	a = network.predict_proba({ 'monty' : 'A' })
 
 	discrete_equality( a[monty_index], DiscreteDistribution({'A': 1.0, 'B': 0.0, 'C': 0.0}) )
 	discrete_equality( a[guest_index], a[prize_index] )
@@ -122,7 +122,7 @@ def test_imputation():
 	       ['A', None, 'C'],
 	       ['A', 'B', 'C']]
 
-	network.impute( obs )
+	network.predict( obs )
 
 	assert_equal( obs[0], ['A', 'C', 'B'] )
 	assert_equal( obs[1], ['A', 'B', 'C'] )
@@ -133,7 +133,7 @@ def test_numpy_imputation():
 	       			   ['A', None, 'C'],
 	       			   ['A', 'B', 'C']])
 
-	network.impute( obs )
+	network.predict( obs )
 
 	assert_equal( obs[0, 0], 'A' )
 	assert_equal( obs[0, 1], 'C' )
@@ -147,16 +147,16 @@ def test_numpy_imputation():
 
 def test_raise_error():
 	obs = [['green', 'cat', None]]
-	assert_raises( ValueError, network.impute, obs )
+	assert_raises( ValueError, network.predict, obs )
 
 	obs = [['A', 'b', None]]
-	assert_raises( ValueError, network.impute, obs )
+	assert_raises( ValueError, network.predict, obs )
 
 	obs = [['none', 'B', None]]
-	assert_raises( ValueError, network.impute, obs )
+	assert_raises( ValueError, network.predict, obs )
 
 	obs = [['NaN', 'B', None]]
-	assert_raises( ValueError, network.impute, obs )
+	assert_raises( ValueError, network.predict, obs )
 
 	obs = [['A', 'C', 'D']]
-	assert_raises( ValueError, network.impute, obs )
+	assert_raises( ValueError, network.predict, obs )
