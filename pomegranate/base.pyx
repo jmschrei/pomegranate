@@ -342,7 +342,8 @@ cdef class GraphModel( Model ):
 		Another name for a node.
 		"""
 
-		self.add_nodes( states )
+		for state in states:
+			self.add_state(state)
 
 	def add_edge( self, a, b ):
 		"""
@@ -468,7 +469,7 @@ cdef class State( object ):
 		Return a hard copy of this state.
 		"""
 
-		return State( **self.__dict__ )
+		return State( distribution=self.distribution.copy(), name=self.name )
 
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""

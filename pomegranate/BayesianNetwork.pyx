@@ -1,6 +1,9 @@
 # BayesianNetwork.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
+import itertools as it
+import json
+
 import numpy
 cimport numpy
 
@@ -17,6 +20,7 @@ from .distributions cimport ConditionalProbabilityTable
 from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
+from .utils cimport lgamma
 
 try:
 	import tempfile
@@ -25,6 +29,9 @@ try:
 	import matplotlib.image
 except ImportError:
 	pygraphviz = None
+
+INF = float("inf")
+NEGINF = float("-inf")
 
 cdef class BayesianNetwork( GraphModel ):
 	"""A Bayesian Network Model.
@@ -90,10 +97,23 @@ cdef class BayesianNetwork( GraphModel ):
 	"""
 
 	cdef list idxs
+	cdef numpy.ndarray keymap
 	cdef int* parent_count
 	cdef int* parent_idxs
 	cdef numpy.ndarray distributions
 	cdef void** distributions_ptr
+
+	@property
+	def structure( self ):
+		structure = [() for i in range(self.d)]
+		indices = { distribution : i for i, distribution in enumerate(self.distributions) }
+
+		for i, state in enumerate(self.states):
+			d = state.distribution
+			if isinstance(d, MultivariateDistribution):
+				structure[i] = tuple(indices[parent] for parent in d.parents)
+
+		return tuple(structure)
 
 	def __dealloc__( self ):
 		free(self.parent_count)
@@ -116,7 +136,6 @@ cdef class BayesianNetwork( GraphModel ):
 		-------
 		None
 		"""
-
 
 		if pygraphviz is not None:
 			G = pygraphviz.AGraph(directed=True)
@@ -195,7 +214,7 @@ cdef class BayesianNetwork( GraphModel ):
 			d_mapping[state.distribution] = d
 
 		for a, b in self.edges:
-			self.graph.add_edge( m_mapping[a], f_mapping[b] )
+			self.graph.add_edge(m_mapping[a], f_mapping[b])
 
 		# Now go back and redirect parent pointers to the appropriate
 		# objects.
@@ -204,6 +223,7 @@ cdef class BayesianNetwork( GraphModel ):
 			if isinstance( d, ConditionalProbabilityTable ):
 				dist = fa_mapping[d]
 				d.parents = [ d_mapping[parent] for parent in d.parents ]
+				d.parameters[1] = d.parents
 				state.distribution = d.joint()
 				state.distribution.parameters[1].append( dist )
 
@@ -213,14 +233,18 @@ cdef class BayesianNetwork( GraphModel ):
 		indices = {state.distribution : i for i, state in enumerate(self.states)}
 
 		n, self.idxs = 0, []
+		self.keymap = numpy.array([state.distribution.keys() for state in self.states])
 		for i, state in enumerate(self.states):
-			if isinstance(state.distribution, MultivariateDistribution):
-				d = state.distribution
-				self.idxs.append( tuple(indices[parent] for parent in d.parents) + (i,) )
-				n += len(self.idxs[-1])
+			d = state.distribution
+
+			if isinstance(d, MultivariateDistribution):
+				idxs = tuple(indices[parent] for parent in d.parents) + (i,)
+				self.idxs.append(idxs)
+				d.bake(tuple(it.product(*[self.keymap[idx] for idx in idxs])))
+				n += len(idxs)
 			else:
-				state.distribution.encode( (0, 1) )
 				self.idxs.append(i)
+				d.bake(tuple(self.keymap[i]))
 				n += 1
 
 		self.distributions = numpy.array([state.distribution for state in self.states])
@@ -430,7 +454,6 @@ cdef class BayesianNetwork( GraphModel ):
 		for state in self.states:
 			state.distribution.from_summaries(inertia)
 
-
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""Fit the model to data using MLE estimates.
 
@@ -513,3 +536,365 @@ cdef class BayesianNetwork( GraphModel ):
 
 	def impute( self, *args, **kwargs ):
 		raise Warning("method 'impute' has been depricated, please use 'predict' instead") 
+
+	def to_json( self, separators=(',', ' : '), indent=4 ):
+		"""Serialize the model to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional
+			The two separaters to pass to the json.dumps function for formatting.
+
+		indent : int, optional
+			The indentation to use at each level. Passed to json.dumps for
+			formatting.
+
+		Returns
+		-------
+		json : str
+			A properly formatted JSON object.
+		"""
+
+		states = [ state.copy() for state in self.states ]
+		for state in states:
+			if isinstance(state.distribution, MultivariateDistribution):
+				state.distribution.parents = []
+
+		model = {
+					'class' : 'BayesianNetwork',
+					'name'  : self.name,
+					'structure' : self.structure,
+					'states' : [ json.loads( state.to_json() ) for state in states ]
+				}
+
+		return json.dumps( model, separators=separators, indent=indent )
+
+	@classmethod
+	def from_json( cls, s ):
+		"""Read in a serialized Bayesian Network and return the appropriate object.
+
+		Parameters
+		----------
+		s : str
+			A JSON formatted string containing the file.
+
+		Returns
+		-------
+		model : object
+			A properly initialized and baked model.
+		"""
+
+		# Load a dictionary from a JSON formatted string
+		try:
+			d = json.loads( s )
+		except:
+			try:
+				with open( s, 'r' ) as infile:
+					d = json.load( infile )
+			except:
+				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
+
+		# Make a new generic Bayesian Network
+		model = BayesianNetwork( str(d['name']) )
+
+
+		# Load all the states from JSON formatted strings
+		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
+		structure = d['structure']
+		for state, parents in zip(states, structure):
+			if len(parents) > 0:
+				state.distribution.parents = [states[parent].distribution for parent in parents]
+				state.distribution.parameters[1] = state.distribution.parents
+				state.distribution.m = len(parents)
+
+		model.add_states(*states)
+		for i, parents in enumerate(structure):
+			for parent in parents:
+				model.add_edge(states[parent], states[i])
+
+		model.bake()
+		print model.structure
+		return model
+
+	@classmethod
+	def from_structure( cls, X, structure, weights=None, name=None ):
+		"""Return a Bayesian network from a predefined structure.
+
+		Pass in the structure of the network as a tuple of tuples and get a fit
+		network in return. The tuple should contain n tuples, with one for each
+		node in the graph. Each inner tuple should be of the parents for that
+		node. For example, a three node graph where both node 0 and 1 have node
+		2 as a parent would be specified as ((2,), (2,), ()). 
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_nodes)
+			The data to fit the structure too, where each row is a sample and each column
+			corresponds to the associated variable.
+
+		structure : tuple of tuples
+			The parents for each node in the graph. If a node has no parents,
+			then do not specify any parents.
+
+		weights : array-like, shape (n_nodes), optional
+			The weight of each sample as a positive double. Default is None.
+
+		name : str, optional
+			The name of the model. Default is None.
+
+		Returns
+		-------
+		model : BayesianNetwoork
+			A Bayesian network with the specified structure.
+		"""
+
+		X = numpy.array(X)
+		d = len(structure)
+
+		nodes = [None for i in range(d)]
+
+		if weights is None:
+			weights_ndarray = numpy.ones(X.shape[0], dtype='float64')
+		else:
+			weights_ndarray = numpy.array(weights, dtype='float64')
+
+		for i, parents in enumerate(structure):
+			if len(parents) == 0:
+				nodes[i] = DiscreteDistribution.from_samples(X[:,i], weights=weights_ndarray)
+
+		while True:
+			for i, parents in enumerate(structure):
+				if nodes[i] is None:
+					for parent in parents:
+						if nodes[parent] is None:
+							break
+					else:
+						nodes[i] = ConditionalProbabilityTable.from_samples(X[:,parents+(i,)], 
+							parents=[nodes[parent] for parent in parents], 
+							weights=weights_ndarray)
+						break
+			else:
+				break
+
+		states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
+
+		model = BayesianNetwork(name=name)
+		model.add_nodes(*states)
+
+		for i, parents in enumerate(structure):
+			d = states[i].distribution
+
+			for parent in parents:
+				model.add_edge(states[parent], states[i])
+
+		model.bake()
+		return model
+
+	@classmethod
+	def from_samples( cls, X, weights=None, algorithm='chow-liu', root=0, pseudocount=0.0 ):
+		"""Learn the structure of the network from data.
+
+		Find the structure of the network from data using a Bayesian structure
+		learning score. This currently enumerates all the exponential number of
+		structures and finds the best according to the score. This allows
+		weights on the different samples as well.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_nodes)
+			The data to fit the structure too, where each row is a sample and each column
+			corresponds to the associated variable.
+
+		weights : array-like, shape (n_nodes), optional
+			The weight of each sample as a positive double. Default is None.
+
+		algorithm : str, one of 'chow-liu', optional
+			The algorithm to use for learning the Bayesian network. Default is
+			'chow-liu' which returns a tree structure.
+
+		root : int, optional
+			For algorithms which require a single root ('chow-liu'), this is the
+			root for which all edges point away from. User may specify which column
+			to use as the root. Default is the first column.
+
+		pseudocount : double, optional
+			A pseudocount to add to each possibility.
+
+		Returns
+		-------
+		model : BayesianNetwork
+			The learned BayesianNetwork.
+		"""
+
+		X = numpy.array(X)
+		n, d = X.shape
+
+		keys = [numpy.unique(X[:,i]) for i in range(X.shape[1])]
+		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(X.shape[1])])
+
+		X_int = numpy.zeros((n, d), dtype='int32')
+		for i in range(n):
+			for j in range(d):
+				X_int[i, j] = keymap[j][X[i, j]]
+
+		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
+
+		if weights is None:
+			weights = numpy.ones(X.shape[0], dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
+		if algorithm == 'chow-liu':
+			structure = discrete_chow_liu_tree(X_int, weights, key_count, pseudocount, root)
+
+		return BayesianNetwork.from_structure(X, structure, weights=weights)
+
+
+cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray, 
+	numpy.ndarray key_count_ndarray, double pseudocount, int root):
+	cdef int i, j, k, l, lj, lk, Xj, Xk, xj, xk
+	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
+	cdef int max_keys = key_count_ndarray.max()
+
+	cdef int* X = <int*> X_ndarray.data
+	cdef double* weights = <double*> weights_ndarray.data
+	cdef int* key_count = <int*> key_count_ndarray.data
+
+	cdef numpy.ndarray mutual_info_ndarray = numpy.zeros((d, d), dtype='float64')
+	cdef double* mutual_info = <double*> mutual_info_ndarray.data
+
+	cdef double* marg_j = <double*> calloc(max_keys, sizeof(double))
+	cdef double* marg_k = <double*> calloc(max_keys, sizeof(double))
+	cdef double* joint_count = <double*> calloc(max_keys**2, sizeof(double))
+
+	for j in range(d):
+		for k in range(j):
+			if j == k:
+				continue
+
+			lj = key_count[j]
+			lk = key_count[k]
+
+			for i in range(max_keys):
+				marg_j[i] = pseudocount
+				marg_k[i] = pseudocount
+
+				for l in range(max_keys):
+					joint_count[i*max_keys + l] = pseudocount
+
+			for i in range(n):
+				Xj = X[i*d + j]
+				Xk = X[i*d + k]
+
+				joint_count[Xj * lk + Xk] += weights[i]
+				marg_j[Xj] += weights[i]
+				marg_k[Xk] += weights[i]
+
+			for xj in range(lj):
+				for xk in range(lk):
+					mutual_info[j*d + k] -= joint_count[xj*lk+xk] * _log( 
+						joint_count[xj*lk+xk] / (marg_j[xj] * marg_k[xk]))
+					mutual_info[k*d + j] = mutual_info[j*d + k]
+
+
+	structure = [() for i in range(d)]
+	visited = [root]
+	unvisited = list(range(d))
+	unvisited.remove(root) 
+
+	while len(unvisited) > 0:
+		min_score, min_x, min_y = INF, -1, -1
+
+		for x in visited:
+			for y in unvisited:
+				score = mutual_info_ndarray[x, y]
+				if score < min_score:
+					min_score, min_x, min_y = score, x, y
+
+		structure[min_y] += (min_x,)
+		visited.append(min_y)
+		unvisited.remove(min_y)
+
+	free(marg_j)
+	free(marg_k)
+	free(joint_count)
+	return tuple(structure)
+
+
+
+cdef double find_best_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, double pseudocount, double beta, numpy.ndarray key_count):
+	cdef int i, j, d, n = X.shape[0], l = X.shape[1]
+	cdef double logp
+
+	cdef numpy.ndarray X_ndarray = numpy.array(X)
+	cdef double* weights_ptr = <double*> weights.data
+	cdef int* X_ptr = <int*> X_ndarray.data
+	cdef int* m = <int*> calloc(l+1, sizeof(int))
+	cdef int* idxs = <int*> calloc(l, sizeof(int))
+
+	parents = [[i for i in range(d) if i != j] for j in range(d)]
+	structures = it.product( *[it.chain( *[it.combinations(parents[j], i) for i in range(d)] ) for j in range(d) ])
+
+	max_score, max_structure = float("-inf"), None
+	for structure in structures:
+		logp = 0.0
+
+		for i in range(X.shape[1]):
+			columns = parents[i] + (i,)
+			d = len(columns)
+
+			m[0] = 1
+			for j in range(d):
+				idxs[j] = columns[j]
+				m[j+1] = m[j] * key_count[columns[j]]
+
+			logp += score_node(X_ptr, weights_ptr, pseudocount, beta, m, idxs, n, d, l)
+
+		if logp > max_score:
+			max_score = logp
+			max_structure = structure
+
+	free(m)
+	free(idxs)
+	return structure
+
+cdef double score_node(int* X, double* weights_ptr, double pseudocount, double beta, int* m, int* idxs, int n, int d, int l) nogil:
+	cdef int i, j, k, idx
+	cdef double logp = -(m[d] - m[d-1]) * beta
+	cdef double* counts = <double*> calloc(m[d], sizeof(double))
+	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
+
+	memset(counts, 0, m[d]*sizeof(double))
+	memset(marginal_counts, 0, m[d-1]*sizeof(double))
+
+	for i in range(n):
+		idx = 0
+		for j in range(d-1):
+			k = idxs[j]
+			idx += X[i*l+k] * m[j]
+
+		marginal_counts[idx] += weights_ptr[i]
+		k = idxs[d-1]
+		idx += X[i*l+k] * m[d-1]
+		counts[idx] += weights_ptr[i]
+
+	for i in range(m[d]):
+		logp += lgamma(pseudocount + counts[i])
+
+	for i in range(m[d-1]):
+		logp -= lgamma(pseudocount + marginal_counts[i])
+
+	free(counts)
+	free(marginal_counts)
+	return logp
+
+
+
+
+
+
+
+
+
+
+
