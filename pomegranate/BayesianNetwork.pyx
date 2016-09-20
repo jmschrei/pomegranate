@@ -1,6 +1,8 @@
 # BayesianNetwork.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
+import itertools as it
+
 import numpy
 cimport numpy
 
@@ -17,6 +19,7 @@ from .distributions cimport ConditionalProbabilityTable
 from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
+from .utils cimport lgamma
 
 try:
 	import tempfile
@@ -513,3 +516,124 @@ cdef class BayesianNetwork( GraphModel ):
 
 	def impute( self, *args, **kwargs ):
 		raise Warning("method 'impute' has been depricated, please use 'predict' instead") 
+
+
+	@classmethod
+	def from_samples( cls, X, weights=None, pseudocount=0.0 ):
+		"""Learn the structure of the network from data.
+
+		Find the structure of the network from data using a Bayesian structure
+		learning score. This currently enumerates all the exponential number of
+		structures and finds the best according to the score. This allows
+		weights on the different samples as well.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_nodes)
+			The data to fit the structure too, where each row is a sample and each column
+			corresponds to the associated variable.
+
+		weights : array-like, shape (n_nodes), optional
+			The weight of each sample as a positive double. Default is None.
+
+		pseudocount : double, optional
+			A pseudocount to add to each possibility.
+
+		Returns
+		-------
+		model : BayesianNetwork
+			The learned BayesianNetwork.
+		"""
+
+		X = numpy.array(X, dtype='int32')
+		n, d = X.shape
+
+		if weights is None:
+			weights = numpy.ones(X.shape[0], dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
+		cdef double beta = lgamma(pseudocount)
+
+		key_count = numpy.array([numpy.unique(X[:,i]).shape[0] for i in range(d) ])
+		key_count = key_count.astype('int32')
+
+		parents = [[i for i in range(d) if i != j] for j in range(d)]
+		structures = it.product( *[it.chain( *[it.combinations(parents[j], i) for i in range(d)] ) for j in range(d) ])
+
+		max_score, max_structure = float("-inf"), None
+		for structure in structures:
+			score = score_graph(X, weights, structure, pseudocount, beta, key_count)
+
+			if score > max_score:
+				max_score = score
+				max_structure = structure
+
+		return max_score, max_structure
+
+
+cdef double score_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, double pseudocount, double beta, numpy.ndarray key_count):
+	cdef int i, j, d, n = X.shape[0], l = X.shape[1]
+	cdef double logp = 0.0
+
+	cdef numpy.ndarray X_ndarray = numpy.array(X)
+	cdef double* weights_ptr = <double*> weights.data
+	cdef int* X_ptr = <int*> X_ndarray.data
+	cdef int* m = <int*> calloc(l+1, sizeof(int))
+	cdef int* idxs = <int*> calloc(l, sizeof(int))
+
+	for i in range(X.shape[1]):
+		columns = parents[i] + (i,)
+		d = len(columns)
+
+		m[0] = 1
+		for j in range(d):
+			idxs[j] = columns[j]
+			m[j+1] = m[j] * key_count[columns[j]]
+
+		logp += score_node(X_ptr, weights_ptr, pseudocount, beta, m, idxs, n, d, l)
+
+	free(m)
+	free(idxs)
+	return logp
+
+cdef double score_node(int* X, double* weights_ptr, double pseudocount, double beta, int* m, int* idxs, int n, int d, int l) nogil:
+	cdef int i, j, k, idx
+	cdef double logp = -(m[d] - m[d-1]) * beta
+	cdef double* counts = <double*> calloc(m[d], sizeof(double))
+	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
+
+	memset(counts, 0, m[d]*sizeof(double))
+	memset(marginal_counts, 0, m[d-1]*sizeof(double))
+
+	for i in range(n):
+		idx = 0
+		for j in range(d-1):
+			k = idxs[j]
+			idx += X[i*l+k] * m[j]
+
+		marginal_counts[idx] += weights_ptr[i]
+		k = idxs[d-1]
+		idx += X[i*l+k] * m[d-1]
+		counts[idx] += weights_ptr[i]
+
+	for i in range(m[d]):
+		logp += lgamma(pseudocount + counts[i])
+
+	for i in range(m[d-1]):
+		logp -= lgamma(pseudocount + marginal_counts[i])
+
+	free(counts)
+	free(marginal_counts)
+	return logp
+
+
+
+
+
+
+
+
+
+
+
