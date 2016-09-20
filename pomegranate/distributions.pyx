@@ -2195,14 +2195,15 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		memset( pair_sum, 0, d*d*sizeof(double) )
 		self.w_sum = 0.0
 
-		_, self._log_det = numpy.linalg.slogdet(self.cov)
-
 		try:
 			chol = scipy.linalg.cholesky(self.cov, lower=True)
 		except:
 			# Taken from sklearn.gmm, it's possible there are not enough observations
 			# to get a good measurement, so reinitialize this component.
-			chol = scipy.linalg.cholesky(self.cov + min_covar*numpy.eye(d), lower=True)
+			self.cov += min_covar * numpy.eye(d)
+			chol = scipy.linalg.cholesky(self.cov, lower=True)
+
+		_, self._log_det = numpy.linalg.slogdet(self.cov)
 
 		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), 
 			lower=True).T
