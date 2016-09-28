@@ -517,9 +517,77 @@ cdef class BayesianNetwork( GraphModel ):
 	def impute( self, *args, **kwargs ):
 		raise Warning("method 'impute' has been depricated, please use 'predict' instead") 
 
+	@classmethod
+	def from_structure( cls, X, structure, weights=None, name=None ):
+		"""Return a Bayesian network from a predefined structure.
+
+		Pass in the structure of the network as a tuple of tuples and get a fit
+		network in return. The tuple should contain n tuples, with one for each
+		node in the graph. Each inner tuple should be of the parents for that
+		node. For example, a three node graph where both node 0 and 1 have node
+		2 as a parent would be specified as ((2,), (2,), ()). 
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_nodes)
+			The data to fit the structure too, where each row is a sample and each column
+			corresponds to the associated variable.
+
+		structure : tuple of tuples
+			The parents for each node in the graph. If a node has no parents,
+			then do not specify any parents.
+
+		weights : array-like, shape (n_nodes), optional
+			The weight of each sample as a positive double. Default is None.
+
+		name : str, optional
+			The name of the model. Default is None.
+
+		Returns
+		-------
+		model : BayesianNetwoork
+			A Bayesian network with the specified structure.
+		"""
+
+		X = numpy.array(X)
+		d = len(structure)
+
+		nodes = [None for i in range(d)]
+
+		if weights is None:
+			weights_ndarray = numpy.ones(X.shape[0], dtype='float64')
+		else:
+			weights_ndarray = numpy.array(weights, dtype='float64')
+
+		for i, parents in enumerate(structure):
+			if len(parents) == 0:
+				nodes[i] = DiscreteDistribution.from_samples(X[:,i], weights=weights_ndarray)
+
+		while True:
+			for i, parents in enumerate(structure):
+				if nodes[i] is None:
+					for parent in parents:
+						if nodes[parent] is None:
+							break
+					else:
+						nodes[i] = ConditionalProbabilityTable.from_samples(X[:,parents+(i,)], 
+							parents=[nodes[parent] for parent in parents], 
+							weights=weights_ndarray)
+
+		states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
+
+		model = BayesianNetwork(name=name)
+		model.add_nodes(*nodes)
+
+		for i, node in enumerate(parents):
+			for parent in node:
+				model.add_edge(states[parent], states[i])
+
+		model.bake()
+		return model
 
 	@classmethod
-	def from_samples( cls, X, weights=None, pseudocount=0.0 ):
+	def from_samples( cls, X, weights=None, algorithm='chow-liu', root=1, pseudocount=0.0 ):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -529,12 +597,21 @@ cdef class BayesianNetwork( GraphModel ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_nodes)
+		X : array-like, shape (n_samples, n_nodes)
 			The data to fit the structure too, where each row is a sample and each column
 			corresponds to the associated variable.
 
 		weights : array-like, shape (n_nodes), optional
 			The weight of each sample as a positive double. Default is None.
+
+		algorithm : str, one of 'chow-liu', optional
+			The algorithm to use for learning the Bayesian network. Default is
+			'chow-liu' which returns a tree structure.
+
+		root : int, optional
+			For algorithms which require a single root ('chow-liu'), this is the
+			root for which all edges point away from. User may specify which column
+			to use as the root. Default is the first column.
 
 		pseudocount : double, optional
 			A pseudocount to add to each possibility.
@@ -545,36 +622,89 @@ cdef class BayesianNetwork( GraphModel ):
 			The learned BayesianNetwork.
 		"""
 
-		X = numpy.array(X, dtype='int32')
-		n, d = X.shape
+		cdef numpy.ndarray X_ndarray = numpy.array(X, dtype='int32')
+		cdef numpy.ndarray weights_ndarray
+		cdef numpy.ndarray key_count
+
+		cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1], max_keys
+
+		key_count = numpy.array([numpy.unique(X_ndarray[:,i]).shape[0] for i in range(d) ], dtype='int32')
+		max_keys = key_count.max()
+
+		cdef int* X_ptr = <int*> X_ndarray.data
+		cdef double* weights_ptr
+		cdef int* key_count_ptr = <int*> key_count.data
 
 		if weights is None:
-			weights = numpy.ones(X.shape[0], dtype='float64')
+			weights_ndarray = numpy.ones(X.shape[0], dtype='float64')
 		else:
-			weights = numpy.array(weights, dtype='float64')
+			weights_ndarray = numpy.array(weights, dtype='float64')
 
-		cdef double beta = lgamma(pseudocount)
+		weights_ptr = <double*> weights_ndarray.data
 
-		key_count = numpy.array([numpy.unique(X[:,i]).shape[0] for i in range(d) ])
-		key_count = key_count.astype('int32')
-
-		parents = [[i for i in range(d) if i != j] for j in range(d)]
-		structures = it.product( *[it.chain( *[it.combinations(parents[j], i) for i in range(d)] ) for j in range(d) ])
-
-		max_score, max_structure = float("-inf"), None
-		for structure in structures:
-			score = score_graph(X, weights, structure, pseudocount, beta, key_count)
-
-			if score > max_score:
-				max_score = score
-				max_structure = structure
-
-		return max_score, max_structure
+		if algorithm == 'chow-liu':
+			structure = discrete_chow_liu_tree(X_ptr, weights_ptr, n, d, key_count_ptr, max_keys, pseudocount)
+		
+		return BayesianNetwork.from_structure(X, structure, weights=weights)
 
 
-cdef double score_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, double pseudocount, double beta, numpy.ndarray key_count):
+cdef double discrete_chow_liu_tree(int* X, double* weights, int n, int d, int* key_count, int max_keys, double pseudocount):
+	cdef int i, j, k, l, lj, lk, Xj, Xk, xj, xk
+	cdef numpy.ndarray mutual_info_ndarray = numpy.zeros((d, d), dtype='float64')
+	cdef double* mutual_info = <double*> mutual_info_ndarray.data
+
+	cdef double* marg_j = <double*> calloc(max_keys, sizeof(double))
+	cdef double* marg_k = <double*> calloc(max_keys, sizeof(double))
+	cdef double* joint_count = <double*> calloc(max_keys**2, sizeof(double))
+
+	for j in range(d):
+		for k in range(j):
+			lj = key_count[j]
+			lk = key_count[k]
+
+			for i in range(max_keys):
+				marg_j[i] = pseudocount
+				marg_k[i] = pseudocount
+
+				for l in range(max_keys):
+					joint_count[i*max_keys + l] = pseudocount
+
+			for i in range(n):
+				Xj = X[i*d + j]
+				Xk = X[i*d + k]
+
+				joint_count[Xj * lk + Xk] += weights[i]
+				marg_j[Xj] += weights[i]
+				marg_k[Xk] += weights[i]
+
+			for xj in range(lj):
+				for xk in range(lk):
+					mutual_info[j*d + k] += joint_count[xj*lk+xk] * _log( joint_count[xj*lk+xk] / (marg_j[xj] * marg_k[xk]))
+
+	cdef int* parents = <int*> calloc(d, sizeof(int))
+	memset(parents, -1, d*sizeof(int))
+	cdef int argmax, m = 0
+
+	while True:
+		argmax = mutual_info_ndarray.argmax()
+		mutual_info[argmax] = 0
+		i, j = argmax / d, argmax % d
+
+		if parents[j] != -1:
+			parents[j] == i
+
+
+
+
+
+
+	
+
+
+
+cdef double find_best_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, double pseudocount, double beta, numpy.ndarray key_count):
 	cdef int i, j, d, n = X.shape[0], l = X.shape[1]
-	cdef double logp = 0.0
+	cdef double logp
 
 	cdef numpy.ndarray X_ndarray = numpy.array(X)
 	cdef double* weights_ptr = <double*> weights.data
@@ -582,20 +712,31 @@ cdef double score_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, d
 	cdef int* m = <int*> calloc(l+1, sizeof(int))
 	cdef int* idxs = <int*> calloc(l, sizeof(int))
 
-	for i in range(X.shape[1]):
-		columns = parents[i] + (i,)
-		d = len(columns)
+	parents = [[i for i in range(d) if i != j] for j in range(d)]
+	structures = it.product( *[it.chain( *[it.combinations(parents[j], i) for i in range(d)] ) for j in range(d) ])
 
-		m[0] = 1
-		for j in range(d):
-			idxs[j] = columns[j]
-			m[j+1] = m[j] * key_count[columns[j]]
+	max_score, max_structure = float("-inf"), None
+	for structure in structures:
+		logp = 0.0
 
-		logp += score_node(X_ptr, weights_ptr, pseudocount, beta, m, idxs, n, d, l)
+		for i in range(X.shape[1]):
+			columns = parents[i] + (i,)
+			d = len(columns)
+
+			m[0] = 1
+			for j in range(d):
+				idxs[j] = columns[j]
+				m[j+1] = m[j] * key_count[columns[j]]
+
+			logp += score_node(X_ptr, weights_ptr, pseudocount, beta, m, idxs, n, d, l)
+
+		if logp > max_score:
+			max_score = logp
+			max_structure = structure
 
 	free(m)
 	free(idxs)
-	return logp
+	return structure
 
 cdef double score_node(int* X, double* weights_ptr, double pseudocount, double beta, int* m, int* idxs, int n, int d, int l) nogil:
 	cdef int i, j, k, idx

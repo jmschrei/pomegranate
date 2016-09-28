@@ -1467,13 +1467,19 @@ cdef class DiscreteDistribution( Distribution ):
 			weights = numpy.ones( len(items) )
 
 		characters = {}
+		total = 0
+
 		for character, weight in it.izip(items, weights):
+			total += weight
 			if character in characters:
 				characters[character] += weight
 			else:
 				characters[character] = weight
 
-		d = cls(characters)
+		for character, weight in characters.items():
+			characters[character] = weight / total
+
+		d = DiscreteDistribution(characters)
 		return d
 
 
@@ -2341,7 +2347,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	encode for.
 	"""
 
-	def __init__( self, table, parents, keys=None, frozen=False ):
+	def __init__( self, table, parents, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2624,6 +2630,23 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		return json.dumps( model, separators=separators, indent=indent )
 
+	@classmethod
+	def from_samples(cls, X, parents, weights=None):
+		"""Learn the table from data."""
+
+		X = numpy.array(X)
+		n, d = X.shape
+
+		keys = [numpy.unique(X[:,i]) for i in range(d)]
+
+		table = []
+		for key in it.product(keys, repeat=d):
+			table.append( list(key) + [1./len(keys[-1]),] )
+
+		d = ConditionalProbabilityTable(table, parents)
+		d.fit(X, weights)
+		return d
+
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	"""
 	A joint probability table. The primary difference between this and the
@@ -2858,3 +2881,21 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
+
+	@classmethod
+	def from_samples(cls, X, parents, weights=None):
+		"""Learn the table from data."""
+
+		X = numpy.array(X)
+		n, d = X.shape
+
+		keys = [numpy.unique(X[:,i]) for i in range(d)]
+		m = numpy.prod([k.shape[0] for k in keys])
+
+		table = []
+		for key in it.product(keys, repeat=d):
+			table.append( list(key) + [1./m,] )
+
+		d = ConditionalProbabilityTable(table, parents)
+		d.fit(X, weights)
+		return d
