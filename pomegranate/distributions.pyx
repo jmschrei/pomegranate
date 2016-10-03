@@ -2711,7 +2711,11 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		keys = [numpy.unique(X[:,i]) for i in range(d)]
 
 		table = []
+<<<<<<< HEAD
 		for key in it.product(*keys):
+=======
+		for key in it.product(keys, repeat=d):
+>>>>>>> 32a242cf35fb355397bb2e6058436af8ef93d60b
 			table.append( list(key) + [1./len(keys[-1]),] )
 
 		d = ConditionalProbabilityTable(table, parents)
@@ -2981,7 +2985,11 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		m = numpy.prod([k.shape[0] for k in keys])
 
 		table = []
+<<<<<<< HEAD
 		for key in it.product(*keys):
+=======
+		for key in it.product(keys, repeat=d):
+>>>>>>> 32a242cf35fb355397bb2e6058436af8ef93d60b
 			table.append( list(key) + [1./m,] )
 
 		d = ConditionalProbabilityTable(table, parents)
