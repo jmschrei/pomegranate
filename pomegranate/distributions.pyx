@@ -303,13 +303,31 @@ cdef class Distribution( Model ):
 		if d['name'] == 'IndependentComponentsDistribution':
 			d['parameters'][0] = [cls.from_json( json.dumps(dist) ) for dist in d['parameters'][0]]
 			return IndependentComponentsDistribution( d['parameters'][0], d['parameters'][1], d['frozen'] )
-		elif d['name'] == 'ConditionalProbabilityTable':
+		elif d['name'] == 'DiscreteDistribution':
+			try:
+				dist = {float(key) : value for key, value in d['parameters'][0].items()}
+			except:
+				dist = d['parameters'][0]
+
+			return DiscreteDistribution(dist, frozen=d['frozen'])
+
+		elif 'Table' in d['name']:
 			parents = [ Distribution.from_json( json.dumps(j) ) for j in d['parents'] ]
-			return ConditionalProbabilityTable(d['table'], parents)
-		elif d['name'] == 'JointProbabilityTable':
-			parents = [ Distribution.from_json( json.dumps(j) ) for j in d['parents'] ]
-			keys = [ (tuple(c), b) for c, b in d['keys'] ]
-			return JointProbabilityTable( numpy.log(d['values']), parents, OrderedDict(keys) )
+			table = []
+			
+			for row in d['table']:
+				table.append([])
+				for item in row:
+					try:
+						table[-1].append(float(item))
+					except:
+						table[-1].append(item)
+
+			if d['name'] == 'JointProbabilityTable':
+				return JointProbabilityTable(table, parents)
+			elif d['name'] == 'ConditionalProbabilityTable':
+				return ConditionalProbabilityTable(table, parents)
+
 		else:
 			dist = eval( "{}( {}, frozen={} )".format( d['name'],
 			                                    ','.join( map( str, d['parameters'] ) ),
@@ -560,7 +578,7 @@ cdef class NormalDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None, min_std=None ):
+	def from_samples( cls, items, weights=None, min_std=1e-5 ):
 		"""Fit a distribution to some data without pre-specifying it."""
 
 		d = cls(0, 1)
@@ -687,11 +705,11 @@ cdef class LogNormalDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
+	def from_samples( cls, items, weights=None, min_std=1e-5 ):
 		"""Fit a distribution to some data without pre-specifying it."""
 
 		d = cls(0, 1)
-		d.fit(items, weights)
+		d.fit(items, weights, min_std=min_std)
 		return d
 
 cdef class ExponentialDistribution( Distribution ):
@@ -1233,9 +1251,11 @@ cdef class DiscreteDistribution( Distribution ):
 
 	property parameters:
 		def __get__( self ):
-			return [ self.dist ]
+			return [self.dist]
 		def __set__( self, parameters ):
-			self.dist = parameters[0]
+			d = parameters[0]
+			self.dist = d
+			self.log_dist = {key: _log(value) for key, value in d.items()}
 
 	def __cinit__( self, dict characters, bint frozen=False ):
 		"""
@@ -1307,15 +1327,15 @@ cdef class DiscreteDistribution( Distribution ):
 
 	def keys( self ):
 		"""Return the keys of the underlying dictionary."""
-		return self.dist.keys()
+		return tuple(self.dist.keys())
 
 	def items( self ):
 		"""Return items of the underlying dictionary."""
-		return self.dist.items()
+		return tuple(self.dist.items())
 
 	def values( self ):
 		"""Return values of the underlying dictionary."""
-		return self.dist.values()
+		return tuple(self.dist.values())
 
 	def mle( self ):
 		"""Return the maximally likely key."""
@@ -1327,14 +1347,14 @@ cdef class DiscreteDistribution( Distribution ):
 
 		return max_key
 
-	def encode( self, encoded_keys ):
+	def bake( self, keys ):
 		"""Encoding the distribution into integers."""
 
-		if encoded_keys is None:
+		if keys is None:
 			return
 
-		n = len(encoded_keys)
-		self.encoded_keys = encoded_keys
+		n = len(keys)
+		self.encoded_keys = keys
 
 		free(self.encoded_counts)
 		free(self.encoded_log_probability)
@@ -1344,7 +1364,7 @@ cdef class DiscreteDistribution( Distribution ):
 		self.n = n
 
 		for i in range(n):
-			key = encoded_keys[i]
+			key = keys[i]
 			self.encoded_counts[i] = 0
 			self.encoded_log_probability[i] = self.log_dist.get( key, NEGINF )
 
@@ -1437,7 +1457,7 @@ cdef class DiscreteDistribution( Distribution ):
 				self.dist[key] = self.dist[key]*inertia + (1-inertia)*value / _sum
 				self.log_dist[key] = _log( self.dist[key] )
 
-			self.encode( self.encoded_keys )
+			self.bake( self.encoded_keys )
 		else:
 			n = len(self.encoded_keys)
 			for i in range(n):
@@ -1447,7 +1467,7 @@ cdef class DiscreteDistribution( Distribution ):
 				self.log_dist[key] = _log( self.dist[key] )
 				self.encoded_counts[i] = 0
 
-			self.encode( self.encoded_keys )
+			self.bake( self.encoded_keys )
 
 		self.summaries = [{ key: 0 for key in self.keys() }, 0]
 
@@ -1459,6 +1479,32 @@ cdef class DiscreteDistribution( Distribution ):
 			for i in range(len(self.encoded_keys)):
 				self.encoded_counts[i] = 0
 
+	def to_json( self, separators=(',', ' :'), indent=4 ):
+		"""Serialize the distribution to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional
+			The two separaters to pass to the json.dumps function for formatting.
+			Default is (',', ' : ').
+
+		indent : int, optional
+			The indentation to use at each level. Passed to json.dumps for
+			formatting. Default is 4.
+
+		Returns
+		-------
+		json : str
+			A properly formatted JSON object.
+		"""
+
+		return json.dumps( {
+								'class' : 'Distribution',
+								'name'  : self.name,
+								'parameters' : [{str(key): value for key, value in self.dist.items()}],
+								'frozen' : self.frozen
+						   }, separators=separators, indent=indent )
+
 	@classmethod
 	def from_samples( cls, items, weights=None ):
 		"""Fit a distribution to some data without pre-specifying it."""
@@ -1467,13 +1513,19 @@ cdef class DiscreteDistribution( Distribution ):
 			weights = numpy.ones( len(items) )
 
 		characters = {}
+		total = 0
+
 		for character, weight in it.izip(items, weights):
+			total += weight
 			if character in characters:
 				characters[character] += weight
 			else:
 				characters[character] = weight
 
-		d = cls(characters)
+		for character, weight in characters.items():
+			characters[character] = weight / total
+
+		d = DiscreteDistribution(characters)
 		return d
 
 
@@ -2248,7 +2300,6 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alpha) for alpha in alphas])
 		self.summaries_ndarray = numpy.zeros(self.d, dtype='float64')
 		self.summaries_ptr = <double*> self.summaries_ndarray.data
-		print self.alphas, self.beta_norm
 
 	def log_probability( self, symbol ):
 		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol, dtype='float64')
@@ -2342,7 +2393,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	encode for.
 	"""
 
-	def __init__( self, table, parents, keys=None, frozen=False ):
+	def __init__( self, table, parents, frozen=False ):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2414,6 +2465,26 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		return tuple(set(row[-1] for row in self.keymap.keys()))
 
+	def bake( self, keys ):
+		"""Order the inputs according to some external global ordering."""
+
+		keymap, marginal_keymap, values = [], set([]), []
+		for i, key in enumerate(keys):
+			keymap.append((key, i))
+			idx = self.keymap[key]
+			values.append(self.values[idx])
+
+		marginal_keys = []
+		for i, row in enumerate( keys[::self.k] ):
+			marginal_keys.append( ( tuple(row[:-1]), i ) ) 
+
+		self.marginal_keymap = OrderedDict(marginal_keys)
+
+		for i in range(len(keys)):
+			self.values[i] = values[i]
+
+		self.keymap = OrderedDict(keymap)
+
 	def sample( self, parent_values={} ):
 		"""Return a random sample from the conditional probability table."""
 
@@ -2482,6 +2553,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		table, total = [], 0
 		for key, idx in self.keymap.items():
 			scaled_val = self.values[idx]
+
 			for j, k in enumerate( key ):
 				if neighbor_values[j] is not None:
 					scaled_val += neighbor_values[j].log_probability( k )
@@ -2578,7 +2650,10 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 						probability*(1-inertia))
 
 				else:
-					self.values[i] = 1. / self.k
+					self.values[i] = -_log(self.k)
+
+		for i in range(self.n):
+			self.parameters[0][i][-1] = cexp(self.values[i])
 
 		self.clear_summaries()
 
@@ -2615,6 +2690,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 
 		table = [list(key + tuple([cexp(self.values[i])])) for key, i in self.keymap.items() ]
+		table = [[str(item) for item in row] for row in table]
 
 		model = {
 					'class' : 'Distribution',
@@ -2624,6 +2700,23 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
+
+	@classmethod
+	def from_samples(cls, X, parents, weights=None):
+		"""Learn the table from data."""
+
+		X = numpy.array(X)
+		n, d = X.shape
+
+		keys = [numpy.unique(X[:,i]) for i in range(d)]
+
+		table = []
+		for key in it.product(*keys):
+			table.append( list(key) + [1./len(keys[-1]),] )
+
+		d = ConditionalProbabilityTable(table, parents)
+		d.fit(X, weights)
+		return d
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	"""
@@ -2686,6 +2779,20 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		for i in range(self.n):
 			if cexp(self.values[i]) > a:
 				return self.keymap.keys()[i][-1]
+
+	def bake( self, keys ):
+		"""Order the inputs according to some external global ordering."""
+
+		keymap, values = [], []
+		for i, key in enumerate(keys):
+			keymap.append((key, i))
+			idx = self.keymap[key]
+			values.append(self.values[idx])
+
+		for i in range(len(keys)):
+			self.values[i] = values[i]
+
+		self.keymap = OrderedDict(keymap)
 
 	def keys( self ):
 		return tuple(set(row[-1] for row in self.parameters[2].keys()))
@@ -2815,6 +2922,9 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 				self.values[i] = _log(cexp(self.values[i])*inertia + 
 					probability*(1-inertia))
 
+		for i in range(self.n):
+			self.parameters[0][i][-1] = cexp(self.values[i])
+
 		self.clear_summaries()
 
 	def clear_summaries( self ):
@@ -2859,3 +2969,21 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		        }
 
 		return json.dumps( model, separators=separators, indent=indent )
+
+	@classmethod
+	def from_samples(cls, X, parents, weights=None):
+		"""Learn the table from data."""
+
+		X = numpy.array(X)
+		n, d = X.shape
+
+		keys = [numpy.unique(X[:,i]) for i in range(d)]
+		m = numpy.prod([k.shape[0] for k in keys])
+
+		table = []
+		for key in it.product(*keys):
+			table.append( list(key) + [1./m,] )
+
+		d = ConditionalProbabilityTable(table, parents)
+		d.fit(X, weights)
+		return d

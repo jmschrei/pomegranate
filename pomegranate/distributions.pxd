@@ -99,21 +99,23 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	cdef double* values
 	cdef double* counts
 	cdef double* marginal_counts
-	cdef int m, n, k
+	cdef int n, k
 	cdef int* idxs
 	cdef int* marginal_idxs
 	cdef public list parents, parameters
 	cdef public object keymap
 	cdef public object marginal_keymap
+	cdef public int m
 	cdef void __summarize( self, items, double [:] weights )
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
 	cdef double* values
 	cdef double* counts
 	cdef double count
-	cdef int m, n, k
+	cdef int n, k
 	cdef int* idxs
 	cdef public list parents, parameters
 	cdef public object keymap
 	cdef public object marginal_keymap
+	cdef public int m
 	cdef void __summarize( self, items, double [:] weights )

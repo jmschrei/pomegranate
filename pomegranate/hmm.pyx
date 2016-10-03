@@ -1047,7 +1047,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				keys.extend( state.distribution.keys() )
 			self.keymap = { key: i for i, key in enumerate(set(keys)) }
 			for state in states:
-				state.distribution.encode( tuple(set(keys)) )
+				state.distribution.bake( tuple(set(keys)) )
 
 		self.d = dist.d
 		self.multivariate = self.d > 1
