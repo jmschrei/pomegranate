@@ -5,8 +5,11 @@
 
 import numpy
 import json
+import itertools as it
 
 from .distributions import Distribution
+from .distributions import DiscreteDistribution
+from .distributions import ConditionalProbabilityTable
 
 cdef class MarkovChain(object):
 	"""A Markov Chain.
@@ -252,4 +255,54 @@ cdef class MarkovChain(object):
 		d = json.loads( s )
 		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ]
 		model = MarkovChain( distributions )
+		return model
+
+	@classmethod
+	def from_samples( cls, X, weights=None, k=1 ):
+		"""Learn the Markov chain from data.
+
+		Takes in the memory of the chain (k) and learns the initial
+		distribution and probability tables associated with the proper
+		parameters.
+
+		Parameters
+		----------
+		X : array-like, list or numpy.array
+			The data to fit the structure too as a list of sequences of
+			variable length. Since the data will be of variable length,
+			there is no set form 
+
+		weights : array-like, shape (n_nodes), optional
+			The weight of each sample as a positive double. Default is None.
+
+		k : int, optional
+			The number of samples back to condition on in the model. Default
+			is 1.
+
+		Returns
+		-------
+		model : MarkovChain
+			The learned markov chain model.
+		"""
+
+		symbols = set()
+		for seq in X:
+			for symbol in seq:
+				symbols.add(symbol)
+
+		n = len(symbols)
+
+		d = DiscreteDistribution({ symbol: 1./n for symbol in symbols })
+		distributions = [d]
+
+		for i in range(1, k+1):
+			table = []
+			for key in it.product(symbols, repeat=i+1):
+				table.append( list(key) + [1./n] )
+
+			d = ConditionalProbabilityTable(table, distributions[:])
+			distributions.append(d)
+
+		model = MarkovChain(distributions)
+		model.fit(X)
 		return model
