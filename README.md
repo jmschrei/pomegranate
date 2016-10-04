@@ -17,8 +17,23 @@ pomegranate is a package for graphical models and Bayesian statistics for Python
 See the tutorial below, or the more in depth tutorials in the `tutorials` folder with examples in IPython notebooks. See [the website](http://pomegranate.readthedocs.org/en/latest/) for further information.
 
 No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM, and all the current contributors to pomegranate, including the graduate students who share my office I annoy on a regular basis by bouncing ideas off of.
-
 ## Installation
+
+### Dependencies
+
+pomegranate requires:
+
+```
+- Cython
+- NumPy
+- SciPy
+- NetworkX
+- joblib
+```
+
+To run the tests, you also must have `nose` installed.
+
+### User Installation
 
 pomegranate is now pip installable! Install using `pip install pomegranate`. You can get the bleeding edge using the following:
 
