@@ -1,3 +1,6 @@
 *.pyc
 *.c
 .ipynb_checkpoints
+*~
+.DS_Store
+build
