@@ -457,6 +457,92 @@ cdef class UniformDistribution( Distribution ):
 		d.fit(items, weights)
 		return d
 
+cdef class BernoulliDistribution( Distribution ):
+	"""A Bernoulli distribution describing the probability of a binary variable."""
+
+	property parameters:
+		def __get__( self ):
+			return [self.p]
+		def __set__( self, parameters ):
+			self.p = parameters[0]
+			self.logp[0] = _log(1-self.p)
+			self.logp[1] = _log(self.p)
+
+	def __cinit__(self, p, frozen=False):
+		self.p = p
+		self.name = "BernoulliDistribution"
+		self.frozen = frozen
+		self.logp = <double*> calloc(2, sizeof(double))
+		self.logp[0] = _log(1-p)
+		self.logp[1] = _log(p)
+		self.summaries = [0.0, 0.0]
+
+	def __dealloc__(self):
+		free(self.logp)
+
+	def __reduce__(self):
+		"""Serialize distribution for pickling."""
+		return self.__class__, (self.p, self.frozen)
+
+	cdef double _log_probability(self, double symbol) nogil:
+		cdef double logp
+		self._v_log_probability(&symbol, &logp, 1)
+		return logp
+
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+		cdef int i
+		for i in range(n):
+			log_probability[i] = self.logp[<int> symbol[i]]
+
+	def sample( self, n=None ):
+		return (numpy.random.uniform(size=(5, 2)) < 0.5).astype('int')
+
+	def summarize(self, items, weights=None):
+		items, weights = weight_set(items, weights)
+		if weights.sum() <= 0:
+			return
+
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
+		cdef SIZE_t n = items.shape[0]
+
+		with nogil:
+			self._summarize( items_p, weights_p, n )
+
+	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
+		cdef SIZE_t i
+		cdef double w_sum, x_sum
+
+		for i in range(n):
+			w_sum += weights[i]
+			if items[i] == 1:
+				x_sum += weights[i]
+
+		with gil:
+			self.summaries[0] += w_sum
+			self.summaries[1] += x_sum
+
+	def from_summaries(self, inertia=0.0):
+		"""Update the parameters of the distribution from the summaries."""
+
+		p = self.summaries[1] / self.summaries[0] 
+		self.p = self.p * inertia + p * (1-inertia)
+		self.logp[0] = _log(1-p)
+		self.logp[1] = _log(p)
+		self.summaries = [0.0, 0.0]
+
+	def fit(self, items, weights=None, inertia=0.0):
+		"""Fit the parameter to maximize the likelihood of the samples."""
+
+		self.summarize(items, weights)
+		self.from_summaries(inertia)
+
+	@classmethod
+	def from_samples(self, items, weights=None):
+		d = BernoulliDistribution(0.5)
+		d.fit(items, weights)
+		return d
+
 cdef class NormalDistribution( Distribution ):
 	"""
 	A normal distribution based on a mean and standard deviation.

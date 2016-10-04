@@ -14,6 +14,10 @@ cdef class Distribution( Model ):
 cdef class UniformDistribution( Distribution ):
 	cdef double start, end, logp
 
+cdef class BernoulliDistribution( Distribution ):
+	cdef double p
+	cdef double* logp
+
 cdef class NormalDistribution( Distribution ):
 	cdef double mu, sigma, two_sigma_squared, log_sigma_sqrt_2_pi
 	cdef object min_std
