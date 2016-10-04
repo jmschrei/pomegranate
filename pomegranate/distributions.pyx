@@ -495,7 +495,7 @@ cdef class BernoulliDistribution( Distribution ):
 			log_probability[i] = self.logp[<int> symbol[i]]
 
 	def sample( self, n=None ):
-		return (numpy.random.uniform(size=(5, 2)) < 0.5).astype('int')
+		return numpy.random.choice(2, p=[1-self.p, self.p], size=n)
 
 	def summarize(self, items, weights=None):
 		items, weights = weight_set(items, weights)
@@ -511,7 +511,7 @@ cdef class BernoulliDistribution( Distribution ):
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		cdef SIZE_t i
-		cdef double w_sum, x_sum
+		cdef double w_sum = 0, x_sum = 0
 
 		for i in range(n):
 			w_sum += weights[i]
