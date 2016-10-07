@@ -3,6 +3,7 @@
 
 import itertools as it
 import json
+import time
 
 import numpy
 cimport numpy
@@ -746,9 +747,10 @@ cdef class BayesianNetwork( GraphModel ):
 
 		if algorithm == 'chow-liu':
 			structure = discrete_chow_liu_tree(X_int, weights, key_count, pseudocount, root)
+		elif algorithm == 'exact':
+			structure = exact_graph(X_int, weights, key_count)
 
 		return BayesianNetwork.from_structure(X, structure, weights=weights)
-
 
 cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray, 
 	numpy.ndarray key_count_ndarray, double pseudocount, int root):
@@ -821,6 +823,200 @@ cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights
 	return tuple(structure)
 
 
+def generate_all_graphs(n):
+	yield tuple(tuple() for i in range(n))
+	for layers in generate_layer_combos(n):
+		prior_parents = set()
+		parents = [None for k in range(n)]
+
+		for layer in layers:
+			for node in layer:
+				parents[node] = it.chain(*[it.combinations(prior_parents, k) for k in range(0, len(prior_parents)+1)])
+
+			for node in layer:
+				prior_parents.add(node)
+
+		structures = it.product(*parents)
+		next(structures)
+		for structure in structures:
+			okay = True
+
+			for k, layer in enumerate(layers):
+				if k == 0:
+					continue
+
+				for node in layer:
+					for parent in structure[node]:
+						if parent in layers[k-1]:
+							break
+					else:
+						okay = False
+						break
+
+					if okay == False:
+						break
+
+				if okay == False:
+					break
+
+			if okay == True:
+				yield structure
+
+cdef generate_independent_graphs(numpy.ndarray X, numpy.ndarray weights, numpy.ndarray key_count, double pseudocount):
+	cdef int n = X.shape[0], l = X.shape[1]
+	cdef int* X_ptr = <int*> X.data
+	cdef double* weights_ptr = <double*> weights.data
+	cdef int* key_count_ptr = <int*> key_count.data
+
+	cdef int* m = <int*> calloc(l+1, sizeof(int))
+	cdef int* idxs = <int*> calloc(l, sizeof(int))
+
+	best_graph, best_graph_score = tuple(tuple() for i in range(l)), float("-inf")
+
+	cache = [{} for i in range(l)]
+
+	for layers in generate_layer_combos(l):
+		prior_parents = set()
+		structure = [ () for k in range(l) ]
+		graph_score = 0.0
+
+		for i, layer in enumerate(layers):
+			for node in layer:
+				best_score, best_parents = float("-inf"), ()
+
+				for parents in it.chain(*[it.combinations(prior_parents, k) for k in range(0, len(prior_parents)+1)]):
+					okay = True
+					for parent in parents:
+						if parent in layers[i-1]:
+							break
+					else:
+						if len(parents) > 0:
+							okay = False
+
+					if okay:
+						if parents not in cache[node]:
+							columns = parents + (node,)
+							d = len(columns)
+
+							m[0] = 1
+							for j in range(d):
+								idxs[j] = columns[j]
+								m[j+1] = m[j] * key_count[columns[j]]
+
+							node_score = score_node(X_ptr, weights_ptr, m, idxs, n, d, l, pseudocount, lgamma(pseudocount))
+							cache[node][parents] = node_score
+						else:
+							node_score = cache[node][parents]
+
+						if node_score > best_score:
+							best_score, best_parents = node_score, parents
+
+				graph_score += best_score
+				structure[node] = best_parents
+
+			for node in layer:
+				prior_parents.add(node)
+
+		if graph_score > best_graph_score and graph_score != 0:
+			best_graph_score, best_graph = graph_score, structure
+
+	return tuple(best_graph), best_graph_score
+
+def generate_layer_combos(n):
+	for i in range(n+1):
+		for labels in it.product(range(i), repeat=n):
+			layers = [[] for k in range(i)]
+
+			for j, label in enumerate(labels):
+				layers[label].append(j)
+
+			tic = time.time()
+			for layer in layers:
+				if len(layer) == 0:
+					break
+			else:
+				yield layers
+
+cdef tuple exact_graph(numpy.ndarray X, numpy.ndarray weights, numpy.ndarray key_count, double pseudocount = 0.1):
+	cdef int n = X.shape[0], d = X.shape[1]
+	cdef int* X_ptr = <int*> X.data
+	cdef double* weights_ptr = <double*> weights.data
+	cdef int* key_count_ptr = <int*> key_count.data
+
+	'''
+	tic = time.time()
+	best_score, best_structure = float('-inf'), None
+	for structure in generate_all_graphs(d):
+		score = score_graph(X_ptr, weights_ptr, key_count_ptr, n, d, structure, pseudocount)
+		if score > best_score:
+			best_score, best_graph = score, structure
+	'''
+
+	#print best_graph, best_score, time.time() - tic
+
+	print
+	print "independent"
+	tic = time.time()
+	structure, score = generate_independent_graphs(X, weights, key_count, pseudocount)
+	print structure, score, score_graph(X_ptr, weights_ptr, key_count_ptr, n, d, structure, pseudocount), time.time() - tic
+
+	return tuple( tuple() for i in range(d) )
+
+
+cdef double score_graph(int* X, double* weights, int* key_count, int n, int l, tuple structure, double pseudocount):
+	cdef int i, j, d
+	cdef double logp
+
+	cdef int* m = <int*> calloc(l+1, sizeof(int))
+	cdef int* idxs = <int*> calloc(l, sizeof(int))
+
+	logp = 0.0
+	for i in range(l):
+		parents = structure[i] + (i,)
+		d = len(parents)
+
+		m[0] = 1
+		for j in range(d):
+			idxs[j] = parents[j]
+			m[j+1] = m[j] * key_count[parents[j]]
+
+		logp += score_node(X, weights, m, idxs, n, d, l, pseudocount, lgamma(pseudocount))
+
+	free(m)
+	free(idxs)
+	return logp
+
+cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int d, int l, double pseudocount, double beta) nogil:
+	cdef int i, j, k, idx
+	cdef double logp = -(m[d] - m[d-1]) * beta
+	cdef double* counts = <double*> calloc(m[d], sizeof(double))
+	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
+
+	memset(counts, 0, m[d]*sizeof(double))
+	memset(marginal_counts, 0, m[d-1]*sizeof(double))
+
+	for i in range(n):
+		idx = 0
+		for j in range(d-1):
+			k = parents[j]
+			idx += X[i*l+k] * m[j]
+
+		marginal_counts[idx] += weights[i]
+		k = parents[d-1]
+		idx += X[i*l+k] * m[d-1]
+		counts[idx] += weights[i]
+
+	for i in range(m[d]):
+		logp += lgamma(pseudocount + counts[i])
+
+	for i in range(m[d-1]):
+		logp -= lgamma(pseudocount + marginal_counts[i])
+
+	free(counts)
+	free(marginal_counts)
+	return logp
+
+
 
 cdef double find_best_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, double pseudocount, double beta, numpy.ndarray key_count):
 	cdef int i, j, d, n = X.shape[0], l = X.shape[1]
@@ -848,7 +1044,7 @@ cdef double find_best_graph(numpy.ndarray X, numpy.ndarray weights, tuple parent
 				idxs[j] = columns[j]
 				m[j+1] = m[j] * key_count[columns[j]]
 
-			logp += score_node(X_ptr, weights_ptr, pseudocount, beta, m, idxs, n, d, l)
+			logp += score_node(X_ptr, weights_ptr, m, idxs, n, d, l, pseudocount, beta)
 
 		if logp > max_score:
 			max_score = logp
@@ -857,40 +1053,6 @@ cdef double find_best_graph(numpy.ndarray X, numpy.ndarray weights, tuple parent
 	free(m)
 	free(idxs)
 	return structure
-
-cdef double score_node(int* X, double* weights_ptr, double pseudocount, double beta, int* m, int* idxs, int n, int d, int l) nogil:
-	cdef int i, j, k, idx
-	cdef double logp = -(m[d] - m[d-1]) * beta
-	cdef double* counts = <double*> calloc(m[d], sizeof(double))
-	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
-
-	memset(counts, 0, m[d]*sizeof(double))
-	memset(marginal_counts, 0, m[d-1]*sizeof(double))
-
-	for i in range(n):
-		idx = 0
-		for j in range(d-1):
-			k = idxs[j]
-			idx += X[i*l+k] * m[j]
-
-		marginal_counts[idx] += weights_ptr[i]
-		k = idxs[d-1]
-		idx += X[i*l+k] * m[d-1]
-		counts[idx] += weights_ptr[i]
-
-	for i in range(m[d]):
-		logp += lgamma(pseudocount + counts[i])
-
-	for i in range(m[d-1]):
-		logp -= lgamma(pseudocount + marginal_counts[i])
-
-	free(counts)
-	free(marginal_counts)
-	return logp
-
-
-
-
 
 
 
