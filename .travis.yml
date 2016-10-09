@@ -27,9 +27,8 @@ install:
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION cython numpy scipy nose networkx
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION cython numpy scipy nose networkx joblib
   - source activate test-environment
-  - pip install joblib==0.9.0b4
   - python setup.py install
 
 script: nosetests -s -v
