@@ -4,9 +4,12 @@
 import itertools as it
 import json
 import time
-
+import networkx as nx
 import numpy
 cimport numpy
+
+from joblib import Parallel
+from joblib import delayed
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -862,66 +865,6 @@ def generate_all_graphs(n):
 			if okay == True:
 				yield structure
 
-cdef generate_independent_graphs(numpy.ndarray X, numpy.ndarray weights, numpy.ndarray key_count, double pseudocount):
-	cdef int n = X.shape[0], l = X.shape[1]
-	cdef int* X_ptr = <int*> X.data
-	cdef double* weights_ptr = <double*> weights.data
-	cdef int* key_count_ptr = <int*> key_count.data
-
-	cdef int* m = <int*> calloc(l+1, sizeof(int))
-	cdef int* idxs = <int*> calloc(l, sizeof(int))
-
-	best_graph, best_graph_score = tuple(tuple() for i in range(l)), float("-inf")
-
-	cache = [{} for i in range(l)]
-
-	for layers in generate_layer_combos(l):
-		prior_parents = set()
-		structure = [ () for k in range(l) ]
-		graph_score = 0.0
-
-		for i, layer in enumerate(layers):
-			for node in layer:
-				best_score, best_parents = float("-inf"), ()
-
-				for parents in it.chain(*[it.combinations(prior_parents, k) for k in range(0, len(prior_parents)+1)]):
-					okay = True
-					for parent in parents:
-						if parent in layers[i-1]:
-							break
-					else:
-						if len(parents) > 0:
-							okay = False
-
-					if okay:
-						if parents not in cache[node]:
-							columns = parents + (node,)
-							d = len(columns)
-
-							m[0] = 1
-							for j in range(d):
-								idxs[j] = columns[j]
-								m[j+1] = m[j] * key_count[columns[j]]
-
-							node_score = score_node(X_ptr, weights_ptr, m, idxs, n, d, l, pseudocount, lgamma(pseudocount))
-							cache[node][parents] = node_score
-						else:
-							node_score = cache[node][parents]
-
-						if node_score > best_score:
-							best_score, best_parents = node_score, parents
-
-				graph_score += best_score
-				structure[node] = best_parents
-
-			for node in layer:
-				prior_parents.add(node)
-
-		if graph_score > best_graph_score and graph_score != 0:
-			best_graph_score, best_graph = graph_score, structure
-
-	return tuple(best_graph), best_graph_score
-
 def generate_layer_combos(n):
 	for i in range(n+1):
 		for labels in it.product(range(i), repeat=n):
@@ -937,28 +880,146 @@ def generate_layer_combos(n):
 			else:
 				yield layers
 
+cdef void combinations(int* arr, int* results, int arr_len, int results_len, int length, int start):
+	cdef int i
+
+	if length == 0:
+		return
+
+	for i in range(start, arr_len-length+1):
+		results[results_len - length] = arr[i]
+		combinations(arr, results, arr_len, results_len, length-1, i+1)
+
+cdef void generate_parent_graphs(int* X, double* weights, int* key_count, int n, 
+	int l, int* m, int* idxs, double* scores, list structures, 
+	list parent_graphs, double max_parents, double pseudocount):
+
+	cdef int i, j, k, idx, ii, ij
+	cdef double score, best_score
+
+	cdef tuple parents, best_parents, lattice_parents, pars
+	cdef int parent, par
+
+	m[0] = 1
+	for i in range(l):
+		parent_set = [j for j in range(l) if j != i]
+
+		for k in range(l):
+			for parents in it.combinations(parent_set, k):
+				for j in range(k):
+					idxs[j] = parents[j]
+					m[j+1] = m[j] * key_count[parents[j]]
+
+				idxs[k] = i
+				m[k+1] = m[k] * key_count[i]
+				m[k+2] = m[k] * (key_count[i] - 1)
+
+				if k <= max_parents: 
+					best_parents = parents
+					best_score = score_node(X, weights, m, idxs, n, k+1, l, pseudocount)
+				else:
+					best_parents = ()
+					best_score = NEGINF
+
+				for j in range(k):
+					ij, idx = 0, 0
+					for ii in range(l):
+						if ii == i:
+							continue
+
+						if ij < k and ij != j and idxs[ij] == ii:
+							idx = idx * 2 + 1
+							ij += 1
+						else:
+							idx = idx * 2
+
+					idx += 2**(l-1) * i
+
+					if scores[idx] >= best_score:
+						best_score = scores[idx]
+						best_parents = structures[idx]
+
+
+				idx, ij = 0, 0
+				for ii in range(l):
+					if ii == i:
+						continue
+					if ij < k and idxs[ij] == ii:
+						idx = idx * 2 + 1
+						ij += 1
+					else:
+						idx = idx * 2
+
+				idx += 2**(l-1) * i
+
+				scores[idx] = best_score
+				structures[idx] = best_parents
+
+				parent_graphs[i][parents] = (best_parents, best_score)
+
+cdef dynamic_programming_graph(int* X, double* weights, int* key_count, int n, 
+	int d, double pseudocount):
+	cdef double max_parents = _log(2*n / _log(n)) 
+
+	cdef list structures = [None for i in range(d*2**(d-1))]
+	cdef list parent_graphs = [{} for i in range(d)]
+	cdef int* m = <int*> calloc(d+2, sizeof(int))
+	cdef int* idxs = <int*> calloc(d, sizeof(int))
+
+	cdef double* scores = <double*> calloc(d*2**(d-1), sizeof(double))
+
+	generate_parent_graphs(X, weights, key_count, n, d, m, idxs, scores, 
+		structures, parent_graphs, max_parents, pseudocount)
+
+	order_graph = nx.DiGraph()
+
+	for i in range(d+1):
+		for subset in it.combinations(range(d), i):
+			order_graph.add_node(subset)
+
+			for variable in subset:
+				parent = tuple(v for v in subset if v != variable)
+
+				structure, weight = parent_graphs[variable][parent]
+				weight = -weight if weight < 0 else 0
+				order_graph.add_edge(parent, subset, weight=weight, structure=structure)
+
+	path = nx.shortest_path(order_graph, source=(), target=tuple(range(d)), weight='weight')
+
+	score, structure = 0, list( None for i in range(d) )
+	for u, v in zip(path[:-1], path[1:]):
+		idx = list(set(v) - set(u))[0]
+		parents = order_graph.get_edge_data(u, v)['structure'] 
+		structure[idx] = parents
+		score -= order_graph.get_edge_data(u, v)['weight'] 
+
+	free(m)
+	free(idxs)
+	free(scores)
+	del structures
+	return tuple(structure), score
+
+
 cdef tuple exact_graph(numpy.ndarray X, numpy.ndarray weights, numpy.ndarray key_count, double pseudocount = 0.1):
 	cdef int n = X.shape[0], d = X.shape[1]
 	cdef int* X_ptr = <int*> X.data
 	cdef double* weights_ptr = <double*> weights.data
 	cdef int* key_count_ptr = <int*> key_count.data
 
-	'''
+	if d <= 5:
+		tic = time.time()
+		best_score, best_structure = float('-inf'), None
+		for structure in generate_all_graphs(d):
+			score = score_graph(X_ptr, weights_ptr, key_count_ptr, n, d, structure, pseudocount)
+			if score > best_score:
+				best_score, best_graph = score, structure
+		print "Naive: ", best_score, best_graph, time.time() - tic
+
 	tic = time.time()
-	best_score, best_structure = float('-inf'), None
-	for structure in generate_all_graphs(d):
-		score = score_graph(X_ptr, weights_ptr, key_count_ptr, n, d, structure, pseudocount)
-		if score > best_score:
-			best_score, best_graph = score, structure
-	'''
-
-	#print best_graph, best_score, time.time() - tic
-
+	structure, score = dynamic_programming_graph(X_ptr, weights_ptr, key_count_ptr, n, d, pseudocount)
+	print "DP: ", score, structure, time.time() - tic
 	print
-	print "independent"
-	tic = time.time()
-	structure, score = generate_independent_graphs(X, weights, key_count, pseudocount)
-	print structure, score, score_graph(X_ptr, weights_ptr, key_count_ptr, n, d, structure, pseudocount), time.time() - tic
+
 
 	return tuple( tuple() for i in range(d) )
 
@@ -967,7 +1028,7 @@ cdef double score_graph(int* X, double* weights, int* key_count, int n, int l, t
 	cdef int i, j, d
 	cdef double logp
 
-	cdef int* m = <int*> calloc(l+1, sizeof(int))
+	cdef int* m = <int*> calloc(l+2, sizeof(int))
 	cdef int* idxs = <int*> calloc(l, sizeof(int))
 
 	logp = 0.0
@@ -979,16 +1040,18 @@ cdef double score_graph(int* X, double* weights, int* key_count, int n, int l, t
 		for j in range(d):
 			idxs[j] = parents[j]
 			m[j+1] = m[j] * key_count[parents[j]]
+		m[j+2] = m[j] * (key_count[parents[j]] - 1)
 
-		logp += score_node(X, weights, m, idxs, n, d, l, pseudocount, lgamma(pseudocount))
+		logp += score_node(X, weights, m, idxs, n, d, l, pseudocount)
 
 	free(m)
 	free(idxs)
 	return logp
 
-cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int d, int l, double pseudocount, double beta) nogil:
+cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int d, int l, double pseudocount) nogil:
 	cdef int i, j, k, idx
-	cdef double logp = -(m[d] - m[d-1]) * beta
+	cdef double logp = -_log(n) / 2 * m[d+1]
+	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
 
@@ -1007,56 +1070,10 @@ cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int
 		counts[idx] += weights[i]
 
 	for i in range(m[d]):
-		logp += lgamma(pseudocount + counts[i])
-
-	for i in range(m[d-1]):
-		logp -= lgamma(pseudocount + marginal_counts[i])
+		count = pseudocount + counts[i]
+		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
+		logp += count * _log( count / marginal_count )
 
 	free(counts)
 	free(marginal_counts)
 	return logp
-
-
-
-cdef double find_best_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, double pseudocount, double beta, numpy.ndarray key_count):
-	cdef int i, j, d, n = X.shape[0], l = X.shape[1]
-	cdef double logp
-
-	cdef numpy.ndarray X_ndarray = numpy.array(X)
-	cdef double* weights_ptr = <double*> weights.data
-	cdef int* X_ptr = <int*> X_ndarray.data
-	cdef int* m = <int*> calloc(l+1, sizeof(int))
-	cdef int* idxs = <int*> calloc(l, sizeof(int))
-
-	parents = [[i for i in range(d) if i != j] for j in range(d)]
-	structures = it.product( *[it.chain( *[it.combinations(parents[j], i) for i in range(d)] ) for j in range(d) ])
-
-	max_score, max_structure = float("-inf"), None
-	for structure in structures:
-		logp = 0.0
-
-		for i in range(X.shape[1]):
-			columns = parents[i] + (i,)
-			d = len(columns)
-
-			m[0] = 1
-			for j in range(d):
-				idxs[j] = columns[j]
-				m[j+1] = m[j] * key_count[columns[j]]
-
-			logp += score_node(X_ptr, weights_ptr, m, idxs, n, d, l, pseudocount, beta)
-
-		if logp > max_score:
-			max_score = logp
-			max_structure = structure
-
-	free(m)
-	free(idxs)
-	return structure
-
-
-
-
-
-
-
