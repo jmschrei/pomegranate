@@ -1,8 +1,7 @@
-# test_bayes_net_monty.py
-# Contact: Jacob Schreiber
-#          jmschreiber91@gmail.com
-# Contributors: Nelson Liu
-#               nelson@nelsonliu.me
+# test_bayes_net.py
+# Authors: Jacob Schreiber <jmschreiber91@gmail.com>
+#          Nelson Liu <nelson@nelsonliu.me>
+#
 '''
 These are unit tests for the Bayesian network part of pomegranate.
 '''
