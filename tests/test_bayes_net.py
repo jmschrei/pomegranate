@@ -76,7 +76,7 @@ def setup():
 	prize_index = monty_network.states.index( s2 )
 	guest_index = monty_network.states.index( s1 )
 
-    # Build a model of the Monty Hall Problem
+    # Build a model of the titanic disaster
 	global titanic_network, passenger, gender, tclass
 
 	# Passengers on the Titanic either survive or perish
