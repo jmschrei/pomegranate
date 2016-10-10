@@ -125,14 +125,14 @@ def test_uniform():
     assert_equal(d.log_probability(10.0001), float("-inf"))
     assert_equal(d.log_probability(-0.0001), float("-inf"))
 
-    for i in xrange(10):
+    for i in range(10):
         data = np.random.randn(100) * 100
         d.fit(data)
         assert_equal(d.parameters[0], data.min())
         assert_equal(d.parameters[1], data.max())
 
     minimum, maximum = data.min(), data.max()
-    for i in xrange(100):
+    for i in range(100):
         sample = d.sample()
         assert_less_equal(minimum, sample)
         assert_less_equal(sample,  maximum)
