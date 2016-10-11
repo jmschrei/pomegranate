@@ -3,9 +3,13 @@
 
 import itertools as it
 import json
-
+import time
+import networkx as nx
 import numpy
 cimport numpy
+
+from joblib import Parallel
+from joblib import delayed
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -30,8 +34,8 @@ try:
 except ImportError:
 	pygraphviz = None
 
-INF = float("inf")
-NEGINF = float("-inf")
+DEF INF = float("inf")
+DEF NEGINF = float("-inf")
 
 cdef class BayesianNetwork( GraphModel ):
 	"""A Bayesian Network Model.
@@ -613,7 +617,6 @@ cdef class BayesianNetwork( GraphModel ):
 				model.add_edge(states[parent], states[i])
 
 		model.bake()
-		print model.structure
 		return model
 
 	@classmethod
@@ -691,7 +694,8 @@ cdef class BayesianNetwork( GraphModel ):
 		return model
 
 	@classmethod
-	def from_samples( cls, X, weights=None, algorithm='chow-liu', root=0, pseudocount=0.0 ):
+	def from_samples( cls, X, weights=None, algorithm='chow-liu', max_parents=-1,
+		 root=0, pseudocount=0.0 ):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -702,20 +706,25 @@ cdef class BayesianNetwork( GraphModel ):
 		Parameters
 		----------
 		X : array-like, shape (n_samples, n_nodes)
-			The data to fit the structure too, where each row is a sample and each column
-			corresponds to the associated variable.
+			The data to fit the structure too, where each row is a sample and 
+			each column corresponds to the associated variable.
 
 		weights : array-like, shape (n_nodes), optional
 			The weight of each sample as a positive double. Default is None.
 
-		algorithm : str, one of 'chow-liu', optional
+		algorithm : str, one of 'chow-liu', 'exact' optional
 			The algorithm to use for learning the Bayesian network. Default is
 			'chow-liu' which returns a tree structure.
 
+		max_parents : int, optional
+			The maximum number of parents a node can have. If used, this means
+			using the k-learn procedure. Can drastically speed up algorithms.
+			If -1, no max on parents. Default is -1. 
+
 		root : int, optional
 			For algorithms which require a single root ('chow-liu'), this is the
-			root for which all edges point away from. User may specify which column
-			to use as the root. Default is the first column.
+			root for which all edges point away from. User may specify which 
+			column to use as the root. Default is the first column.
 
 		pseudocount : double, optional
 			A pseudocount to add to each possibility.
@@ -728,6 +737,9 @@ cdef class BayesianNetwork( GraphModel ):
 
 		X = numpy.array(X)
 		n, d = X.shape
+
+		if max_parents == -1:
+			max_parents = d
 
 		keys = [numpy.unique(X[:,i]) for i in range(X.shape[1])]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(X.shape[1])])
@@ -745,10 +757,13 @@ cdef class BayesianNetwork( GraphModel ):
 			weights = numpy.array(weights, dtype='float64')
 
 		if algorithm == 'chow-liu':
-			structure = discrete_chow_liu_tree(X_int, weights, key_count, pseudocount, root)
+			structure = discrete_chow_liu_tree(X_int, weights, key_count, 
+				pseudocount, root)
+		elif algorithm == 'exact':
+			structure = discrete_exact_graph(X_int, weights, key_count, 
+				pseudocount, max_parents)
 
 		return BayesianNetwork.from_structure(X, structure, weights=weights)
-
 
 cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray, 
 	numpy.ndarray key_count_ndarray, double pseudocount, int root):
@@ -821,46 +836,175 @@ cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights
 	return tuple(structure)
 
 
+cdef discrete_exact_graph(numpy.ndarray X, numpy.ndarray weights, 
+	numpy.ndarray key_count, double pseudocount, double max_parents):
+	
+	cdef int n = X.shape[0], d = X.shape[1]
+	cdef list parent_graphs = [{} for i in range(d)]
 
-cdef double find_best_graph(numpy.ndarray X, numpy.ndarray weights, tuple parents, double pseudocount, double beta, numpy.ndarray key_count):
-	cdef int i, j, d, n = X.shape[0], l = X.shape[1]
+	if max_parents > _log(2*n / _log(n)):
+		max_parents = _log(2*n / _log(n))
+
+	generate_parent_graphs(X, weights, key_count, parent_graphs, max_parents, 
+		pseudocount)
+
+	order_graph = nx.DiGraph()
+
+	for i in range(d+1):
+		for subset in it.combinations(range(d), i):
+			order_graph.add_node(subset)
+
+			for variable in subset:
+				parent = tuple(v for v in subset if v != variable)
+
+				structure, weight = parent_graphs[variable][parent]
+				weight = -weight if weight < 0 else 0
+				order_graph.add_edge(parent, subset, weight=weight, 
+					structure=structure)
+
+	path = nx.shortest_path(order_graph, source=(), target=tuple(range(d)), 
+		weight='weight')
+
+	score, structure = 0, list( None for i in range(d) )
+	for u, v in zip(path[:-1], path[1:]):
+		idx = list(set(v) - set(u))[0]
+		parents = order_graph.get_edge_data(u, v)['structure'] 
+		structure[idx] = parents
+		score -= order_graph.get_edge_data(u, v)['weight'] 
+
+	return tuple(structure)
+
+
+cdef void generate_parent_graphs(numpy.ndarray X_ndarray, 
+	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
+	list parent_graphs, double max_parents, double pseudocount):
+
+	cdef int i, j, k
+	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
+
+	cdef int* X = <int*> X_ndarray.data
+	cdef int* key_count = <int*> key_count_ndarray.data
+	cdef int* m = <int*> calloc(l+2, sizeof(int))
+	cdef int* parents = <int*> calloc(l, sizeof(int))
+	cdef int* combs = <int*> calloc(l, sizeof(int))
+
+	cdef double* weights = <double*> weights_ndarray.data
+	cdef double* scores = <double*> calloc(2**(l-1), sizeof(double))
+
+	cdef list structures = [None for i in range(2**(l-1))]
+
+	m[0] = 1
+	for i in range(l):
+		j = 0
+		for k in range(l):
+			if k != i:
+				parents[j] = k
+				j += 1
+
+		for k in range(l):
+			generate_parent_layer(X, weights, key_count, n, l, m, scores, 
+				structures, parent_graphs, max_parents, pseudocount, i, parents, 
+				combs, l-1, k, k, 0)
+
+	free(m)
+	free(scores)
+	del structures
+
+
+cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n, 
+	int l, int* m, double* scores, list structures, list parent_graphs, 
+	double max_parents, double pseudocount, int i, int* parents, int* combs, 
+	int n_parents, int k, int length, int start):
+
+	cdef int ii, j, ij, idx
+	cdef double best_score
+	cdef tuple parent_tuple, best_parents
+
+	if length == 0:
+		parent_tuple = tuple(combs[j] for j in range(k))
+
+		for j in range(k):
+			m[j+1] = m[j] * key_count[combs[j]]
+
+		combs[k] = i
+		m[k+1] = m[k] * key_count[i]
+		m[k+2] = m[k] * (key_count[i] - 1)
+
+		if k <= max_parents: 
+			best_parents = parent_tuple
+			best_score = score_node(X, weights, m, combs, n, k+1, l, pseudocount)
+		else:
+			best_parents = ()
+			best_score = NEGINF
+
+		for j in range(k):
+			ij, idx = 0, 0
+			for ii in range(l):
+				if ii == i:
+					continue
+
+				if ij < k and ij != j and combs[ij] == ii:
+					idx = idx * 2 + 1
+					ij += 1
+				else:
+					idx = idx * 2
+
+			if scores[idx] >= best_score:
+				best_score = scores[idx]
+				best_parents = structures[idx]
+
+		idx, ij = 0, 0
+		for ii in range(l):
+			if ii == i:
+				continue
+			if ij < k and combs[ij] == ii:
+				idx = idx * 2 + 1
+				ij += 1
+			else:
+				idx = idx * 2
+
+		scores[idx] = best_score
+		structures[idx] = best_parents
+
+		parent_graphs[i][parent_tuple] = (best_parents, best_score)
+		return
+
+	for ii in range(start, n_parents-length+1):
+		combs[k - length] = parents[ii]
+		generate_parent_layer(X, weights, key_count, n, l, m, scores, 
+			structures, parent_graphs, max_parents, pseudocount, i, parents, 
+			combs, n_parents, k, length-1, ii+1)
+
+
+cdef double score_graph(int* X, double* weights, int* key_count, int n, int l, tuple structure, double pseudocount):
+	cdef int i, j, d
 	cdef double logp
 
-	cdef numpy.ndarray X_ndarray = numpy.array(X)
-	cdef double* weights_ptr = <double*> weights.data
-	cdef int* X_ptr = <int*> X_ndarray.data
-	cdef int* m = <int*> calloc(l+1, sizeof(int))
+	cdef int* m = <int*> calloc(l+2, sizeof(int))
 	cdef int* idxs = <int*> calloc(l, sizeof(int))
 
-	parents = [[i for i in range(d) if i != j] for j in range(d)]
-	structures = it.product( *[it.chain( *[it.combinations(parents[j], i) for i in range(d)] ) for j in range(d) ])
+	logp = 0.0
+	for i in range(l):
+		parents = structure[i] + (i,)
+		d = len(parents)
 
-	max_score, max_structure = float("-inf"), None
-	for structure in structures:
-		logp = 0.0
+		m[0] = 1
+		for j in range(d):
+			idxs[j] = parents[j]
+			m[j+1] = m[j] * key_count[parents[j]]
+		m[j+2] = m[j] * (key_count[parents[j]] - 1)
 
-		for i in range(X.shape[1]):
-			columns = parents[i] + (i,)
-			d = len(columns)
-
-			m[0] = 1
-			for j in range(d):
-				idxs[j] = columns[j]
-				m[j+1] = m[j] * key_count[columns[j]]
-
-			logp += score_node(X_ptr, weights_ptr, pseudocount, beta, m, idxs, n, d, l)
-
-		if logp > max_score:
-			max_score = logp
-			max_structure = structure
+		logp += score_node(X, weights, m, idxs, n, d, l, pseudocount)
 
 	free(m)
 	free(idxs)
-	return structure
+	return logp
 
-cdef double score_node(int* X, double* weights_ptr, double pseudocount, double beta, int* m, int* idxs, int n, int d, int l) nogil:
+
+cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int d, int l, double pseudocount) nogil:
 	cdef int i, j, k, idx
-	cdef double logp = -(m[d] - m[d-1]) * beta
+	cdef double logp = -_log(n) / 2 * m[d+1]
+	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
 
@@ -870,31 +1014,21 @@ cdef double score_node(int* X, double* weights_ptr, double pseudocount, double b
 	for i in range(n):
 		idx = 0
 		for j in range(d-1):
-			k = idxs[j]
+			k = parents[j]
 			idx += X[i*l+k] * m[j]
 
-		marginal_counts[idx] += weights_ptr[i]
-		k = idxs[d-1]
+		marginal_counts[idx] += weights[i]
+		k = parents[d-1]
 		idx += X[i*l+k] * m[d-1]
-		counts[idx] += weights_ptr[i]
+		counts[idx] += weights[i]
 
 	for i in range(m[d]):
-		logp += lgamma(pseudocount + counts[i])
+		count = pseudocount + counts[i]
+		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
 
-	for i in range(m[d-1]):
-		logp -= lgamma(pseudocount + marginal_counts[i])
+		if count > 0:
+			logp += count * _log( count / marginal_count )
 
 	free(counts)
 	free(marginal_counts)
 	return logp
-
-
-
-
-
-
-
-
-
-
-
