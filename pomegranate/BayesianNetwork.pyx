@@ -894,10 +894,12 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 	int l, int* m, int* idxs, double* scores, list structures, 
 	list parent_graphs, double max_parents, double pseudocount, int i, int* parents, int* combs, int n_parents, int k, int length, int start):
 
-	cdef int ii, j
+	cdef int ii, j, ij, idx
+	cdef double best_score
+	cdef tuple parent_tuple, best_parents
 
 	if length == 0:
-		parent_tuple = tuple(combs[i] for i in range(k))
+		parent_tuple = tuple(combs[j] for j in range(k))
 
 		for j in range(k):
 			idxs[j] = parent_tuple[j]
@@ -978,7 +980,11 @@ cdef void generate_parent_graphs(int* X, double* weights, int* key_count, int n,
 				j += 1
 
 		for k in range(l):
-			generate_parent_layer(X, weights, key_count, n, l, m, idxs, scores, structures, parent_graphs, max_parents, pseudocount, i, parents, combs, l, k, k, 0)
+			generate_parent_layer(X, weights, key_count, n, l, m, idxs, scores, structures, parent_graphs, max_parents, pseudocount, i, parents, combs, l-1, k, k, 0)
+
+	#for g in parent_graphs:
+	#	print
+	#	print g
 
 '''
 			for parents in it.combinations(parent_set, k):
