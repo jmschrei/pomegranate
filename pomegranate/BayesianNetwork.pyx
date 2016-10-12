@@ -834,7 +834,7 @@ cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights
 	free(marg_k)
 	free(joint_count)
 	return tuple(structure)
-
+	
 
 cdef discrete_exact_graph(numpy.ndarray X, numpy.ndarray weights, 
 	numpy.ndarray key_count, double pseudocount, double max_parents):
