@@ -160,7 +160,7 @@ cdef class NaiveBayes( Model ):
 				keys.extend( d.keys() )
 			self.keymap = { key: i for i, key in enumerate(set(keys)) }
 			for d in self.distributions:
-				d.encode( tuple(set(keys)) )
+				d.bake( tuple(set(keys)) )
 
 	def __reduce__( self ):
 		return self.__class__, (self.distributions, self.weights)
