@@ -11,6 +11,7 @@ from .distributions import Distribution
 from .distributions import DiscreteDistribution
 from .distributions import ConditionalProbabilityTable
 
+
 cdef class MarkovChain(object):
 	"""A Markov Chain.
 
@@ -58,16 +59,18 @@ cdef class MarkovChain(object):
 		"""Calculate the log probability of the sequence under the model.
 
 		This calculates the first slices of increasing size under the
-		corresponding first few components of the model until size k is reached,
-		at which all slices are evaluated under the final component.
+		corresponding first few components of the model until size k is
+		reached, at which all slices are evaluated under the final component.
 
 		Parameters
 		----------
 		sequence : array-like
 			An array of observations
 
-		Returns : double
-			logp : The log probability of the sequence under the model.
+		Returns
+		-------
+		logp : double
+			The log probability of the sequence under the model.
 		"""
 
 		n, k = len(sequence), self.k
@@ -84,15 +87,16 @@ cdef class MarkovChain(object):
 
 		return logp
 
-	def sample( self, length ):
+	def sample(self, length):
 		"""Create a random sample from the model.
 
 		Parameters
 		----------
 		length : int or Distribution
-			Give either the length of the sample you want to generate, or a distribution
-			object which will be randomly sampled for the length. Continuous distributions
-			will have their sample rounded to the nearest integer, minimum 1.
+			Give either the length of the sample you want to generate, or a
+			distribution object which will be randomly sampled for the length.
+			Continuous distributions will have their sample rounded to the
+			nearest integer, minimum 1.
 
 		Returns
 		-------
@@ -100,7 +104,7 @@ cdef class MarkovChain(object):
 			A sequence randomly generated from the markov chain.
 		"""
 
-		if isinstance( length, Distribution ):
+		if isinstance(length, Distribution):
 			length = int(length.sample())
 
 		length = max(length, 1)
@@ -108,14 +112,15 @@ cdef class MarkovChain(object):
 		sequence = [ self.distributions[0].sample() ]
 		if length > self.k:
 			for j, distribution in enumerate(self.distributions[1:]):
-				parents = { self.distributions[l] : sequence[l] for l in range(j+1)}
+				parents = { self.distributions[l] : sequence[l]
+				            for l in range(j+1)}
 				sequence.append( distribution.sample(parents) )
 			for l in range(length - self.k - 1):
-				parents = { self.distributions[k] : sequence[l+k+1] for k in range(self.k)}
+				parents = { self.distributions[k] : sequence[l+k+1]
+				            for k in range(self.k)}
 				sequence.append( self.distributions[-1].sample(parents) )
 
 		return sequence
-
 
 	def fit(self, sequences, weights=None, inertia=0.0):
 		"""Fit the model to new data using MLE.
@@ -135,9 +140,10 @@ cdef class MarkovChain(object):
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia),
-			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters. Default is 0.0.
+			parameters will roughly be
+			old_param*inertia + new_param*(1-inertia), so an inertia of 0 means
+			ignore the old parameters, whereas an inertia of 1 means ignore the
+			new parameters. Default is 0.0.
 
 		Returns
 		-------
@@ -173,19 +179,24 @@ cdef class MarkovChain(object):
 		else:
 			weights = numpy.array(weights)
 
-		n = max( map( len, sequences ) )
+		n = max( map(len, sequences) )
 		for i in range(self.k):
 			if i == 0:
 				symbols = [ sequence[0] for sequence in sequences ]
 			else:
-				symbols = [ sequence[:i+1] for sequence in sequences if len(sequence) > i ]
+				symbols = [ sequence[:i+1]
+				            for sequence in sequences if len(sequence) > i ]
 			self.distributions[i].summarize(symbols, weights)
 
 		for j in range(n-self.k):
 			if self.k == 0:
-				symbols = [ sequence[j] for sequence in sequences if len(sequence) > j+self.k ]
+				symbols = [ sequence[j]
+				            for sequence in sequences
+				            if len(sequence) > j+self.k ]
 			else:
-				symbols = [ sequence[j:j+self.k+1] for sequence in sequences if len(sequence) > j+self.k ]
+				symbols = [ sequence[j:j+self.k+1]
+				            for sequence in sequences
+				            if len(sequence) > j+self.k ]
 
 			self.distributions[-1].summarize(symbols, weights)
 
@@ -199,9 +210,10 @@ cdef class MarkovChain(object):
 		----------
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia),
-			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters. Default is 0.0.
+			parameters will roughly be
+			old_param*inertia + new_param * (1-inertia), so an inertia of 0
+			means ignore the old parameters, whereas an inertia of 1 means
+			ignore the new parameters. Default is 0.0.
 
 		Returns
 		-------
@@ -209,16 +221,16 @@ cdef class MarkovChain(object):
 		"""
 
 		for i in range(self.k+1):
-			self.distributions[i].from_summaries( inertia=inertia )
+			self.distributions[i].from_summaries(inertia=inertia)
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
+	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
 
 		Parameters
 		----------
 		separators : tuple, optional
-		    The two separaters to pass to the json.dumps function for formatting.
-		    Default is (',', ' : ').
+		    The two separaters to pass to the json.dumps function for
+		    formatting. Default is (',', ' : ').
 
 		indent : int, optional
 		    The indentation to use at each level. Passed to json.dumps for
@@ -232,13 +244,14 @@ cdef class MarkovChain(object):
 
 		model = {
 		            'class' : 'MarkovChain',
-		            'distributions'  : [ json.loads( d.to_json() ) for d in self.distributions ]
+		            'distributions' : [ json.loads( d.to_json() )
+		                                for d in self.distributions ]
 		        }
 
-		return json.dumps( model, separators=separators, indent=indent )
+		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_json( cls, s ):
+	def from_json(cls, s):
 		"""Read in a serialized model and return the appropriate classifier.
 
 		Parameters
@@ -252,13 +265,14 @@ cdef class MarkovChain(object):
 		    A properly initialized and baked model.
 		"""
 
-		d = json.loads( s )
-		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ]
-		model = MarkovChain( distributions )
+		d = json.loads(s)
+		distributions = [ Distribution.from_json( json.dumps(j) )
+		                  for j in d['distributions'] ]
+		model = MarkovChain(distributions)
 		return model
 
 	@classmethod
-	def from_samples( cls, X, weights=None, k=1 ):
+	def from_samples(cls, X, weights=None, k=1):
 		"""Learn the Markov chain from data.
 
 		Takes in the memory of the chain (k) and learns the initial
