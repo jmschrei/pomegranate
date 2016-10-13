@@ -695,7 +695,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 	@classmethod
 	def from_samples( cls, X, weights=None, algorithm='chow-liu', max_parents=-1,
-		 root=0, pseudocount=0.0 ):
+		 root=0, constraint_graph=None, pseudocount=0.0 ):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -725,6 +725,13 @@ cdef class BayesianNetwork( GraphModel ):
 			For algorithms which require a single root ('chow-liu'), this is the
 			root for which all edges point away from. User may specify which 
 			column to use as the root. Default is the first column.
+
+		constraint_graph : networkx.DiGraph or None, optional
+			A directed graph showing valid parent sets for each variable. Each
+			node is a set of variables, and edges represent which variables can
+			be valid parents of those variables. The naive structure learning
+			task is just all variables in a single node with a self edge,
+			meaning that you know nothing about 
 
 		pseudocount : double, optional
 			A pseudocount to add to each possibility.
@@ -1032,3 +1039,27 @@ cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int
 	free(counts)
 	free(marginal_counts)
 	return logp
+
+cpdef discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights, 
+	numpy.ndarray key_count, double pseudocount, int max_parents, 
+	object constraint_graph):
+
+	n = len(constraint_graph.nodes())
+	parent_sets = { node : tuple() for node in constraint_graph.nodes() }
+	indices = { node : i for i, node in enumerate(constraint_graph.nodes()) }
+	cycle = numpy.zeros(n)
+
+
+
+	for parent, child in constraint_graph.edges():
+		parent_sets[child] += parent
+		if child == parent:
+			cycle[indices[child]] = 1
+
+	for child, parents in parent_sets.items():
+		if cycle[indices[child]] == 1:
+			structure = discrete_exact_graph(X[:,parents], weights, key_count, 
+				pseudocount, max_parents)
+
+		for column in parents:
+			if column in child:
