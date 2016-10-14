@@ -695,7 +695,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 	@classmethod
 	def from_samples( cls, X, weights=None, algorithm='chow-liu', max_parents=-1,
-		 root=0, pseudocount=0.0 ):
+		 root=0, constraint_graph=None, pseudocount=0.0 ):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -725,6 +725,13 @@ cdef class BayesianNetwork( GraphModel ):
 			For algorithms which require a single root ('chow-liu'), this is the
 			root for which all edges point away from. User may specify which 
 			column to use as the root. Default is the first column.
+
+		constraint_graph : networkx.DiGraph or None, optional
+			A directed graph showing valid parent sets for each variable. Each
+			node is a set of variables, and edges represent which variables can
+			be valid parents of those variables. The naive structure learning
+			task is just all variables in a single node with a self edge,
+			meaning that you know nothing about 
 
 		pseudocount : double, optional
 			A pseudocount to add to each possibility.
@@ -759,11 +766,13 @@ cdef class BayesianNetwork( GraphModel ):
 		if algorithm == 'chow-liu':
 			structure = discrete_chow_liu_tree(X_int, weights, key_count, 
 				pseudocount, root)
+		elif algorithm == 'exact' and constraint_graph is not None:
+			structure = discrete_exact_with_constraints(X_int, weights,
+				key_count, pseudocount, max_parents) 
 		elif algorithm == 'exact':
 			structure = discrete_exact_graph(X_int, weights, key_count, 
 				pseudocount, max_parents)
 
-		return BayesianNetwork.from_structure(X, structure, weights=weights)
 
 cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray, 
 	numpy.ndarray key_count_ndarray, double pseudocount, int root):
@@ -1032,3 +1041,75 @@ cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int
 	free(counts)
 	free(marginal_counts)
 	return logp
+
+cpdef discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights, 
+	numpy.ndarray key_count, double pseudocount, double max_parents, 
+	object constraint_graph):
+
+	n = len(constraint_graph.nodes())
+	parent_sets = { node : tuple() for node in constraint_graph.nodes() }
+	indices = { node : i for i, node in enumerate(constraint_graph.nodes()) }
+	cycle = numpy.zeros(n)
+	structure = [None for i in range(n)]
+
+
+	for parent, child in constraint_graph.edges():
+		parent_sets[child] += parent
+		if child == parent:
+			cycle[indices[child]] = 1
+
+	for children, parents in parent_sets.items():
+		if cycle[indices[children]] == 1:
+			local_structure = discrete_exact_graph(X[:,parents], weights, 
+				key_count[:,parents], pseudocount, max_parents)
+
+			for i, parent in enumerate(parents):
+				if parent in children:
+					structure[parent] = local_structure[i]
+
+		else:
+			for child in children:
+				logp, parents = discrete_find_best_parents(X, weights,
+					key_count, child, parents, max_parents, pseudocount)
+
+				structure[child] = parents
+
+	return tuple(structure)
+
+
+cdef discrete_find_best_parents(numpy.ndarray X_ndarray, 
+	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
+	int i, list parents, double max_parents, double pseudocount):
+
+	cdef int j, k, ii, j, ij, idx
+	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
+
+	cdef int* X = <int*> X_ndarray.data
+	cdef int* key_count = <int*> key_count_ndarray.data
+	cdef int* m = <int*> calloc(l+2, sizeof(int))
+	cdef int* combs = <int*> calloc(l, sizeof(int))
+
+	cdef double* weights = <double*> weights_ndarray.data
+
+	cdef double best_score = NEGINF, score
+	cdef tuple best_parents, parents
+
+	for k in range(max(max_parents, l)):
+		for parents in it.combinations(parents, k)
+			for j in range(k):
+				combs[j] = parents[j]
+				m[j+1] = m[j] * key_count[combs[j]]
+
+			combs[k] = i
+			m[k+1] = m[k] * key_count[i]
+			m[k+2] = m[k] * (key_count[i] - 1)
+ 
+			score = score_node(X, weights, m, combs, n, k+1, l, pseudocount)
+			
+			if score > best_score:
+				best_score = score
+				best_parents = parents
+
+	free(m)
+	free(combs)
+	return best_score, best_parents
