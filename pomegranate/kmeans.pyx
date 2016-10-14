@@ -10,14 +10,16 @@ from libc.string cimport memcpy
 
 from .base cimport Model
 
-import json, time
+import json
 import numpy
 cimport numpy
+
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
-cdef class Kmeans( Model ):
+
+cdef class Kmeans(Model):
 	"""A kmeans model.
 
 	Kmeans is not a probabilistic model, but it is used in the kmeans++
@@ -50,7 +52,7 @@ cdef class Kmeans( Model ):
 	cdef double* summary_sizes
 	cdef double* summary_weights
 
-	def __init__( self, k, centroids=None ):
+	def __init__(self, k, centroids=None):
 		self.k = k
 		self.d = 0
 
@@ -65,7 +67,7 @@ cdef class Kmeans( Model ):
 	def __repr__(self):
 		return self.to_json()
 
-	def __dealloc__( self ):
+	def __dealloc__(self):
 		free(self.summary_sizes)
 		free(self.summary_weights)
 
@@ -91,7 +93,7 @@ cdef class Kmeans( Model ):
 		cdef int* y_ptr = <int*> y.data
 
 		with nogil:
-			self._predict( X_ptr, y_ptr, n )
+			self._predict(X_ptr, y_ptr, n)
 		
 		return y
 
@@ -112,8 +114,8 @@ cdef class Kmeans( Model ):
 					min_dist = dist
 					y[i] = j
 
-	def fit(self, X, weights=None, inertia=0.0, stop_threshold=1e-3, max_iterations=1e3,
-		verbose=False):
+	def fit(self, X, weights=None, inertia=0.0, stop_threshold=1e-3,
+		    max_iterations=1e3, verbose=False):
 		"""Fit the model to the data using k centroids.
 
 		Parameters
@@ -162,7 +164,7 @@ cdef class Kmeans( Model ):
 				improvement = log_probability_sum - last_log_probability_sum
 
 				if verbose:
-					print( "Improvement: {}".format(improvement) )
+					print("Improvement: {}".format(improvement))
 
 			iteration += 1
 			last_log_probability_sum = log_probability_sum
@@ -170,7 +172,8 @@ cdef class Kmeans( Model ):
 		self.clear_summaries()
 
 		if verbose:
-			print( "Total Improvement: {}".format(last_log_probability_sum - initial_log_probability_sum) )
+			print("Total Improvement: {}".format(
+				last_log_probability_sum - initial_log_probability_sum))
 
 		return last_log_probability_sum - initial_log_probability_sum
 
@@ -190,10 +193,11 @@ cdef class Kmeans( Model ):
 		Returns
 		-------
 		dist : double
-			The negative total euclidean distance between each point and its nearest
-			centroid. This is not a probabilitity, and the negative is returned to
-			fit in with the idea of large negative numbers being worse than smaller
-			negative numbers, such as with log probabilities.
+			The negative total euclidean distance between each point and its
+			nearest centroid. This is not a probabilitity, and the negative is
+			returned to fit in with the idea of large negative numbers being
+			worse than smaller negative numbers, such as with log
+			probabilities.
 		"""
 
 		cdef numpy.ndarray X_ndarray = numpy.array(X, dtype='float64')
@@ -270,9 +274,10 @@ cdef class Kmeans( Model ):
 		----------
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia),
-			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters. Default is 0.0.
+			parameters will roughly be old_param*inertia
+			+ new_param * (1-inertia), so an inertia of 0 means ignore the old
+			parameters, whereas an inertia of 1 means ignore the new
+			parameters. Default is 0.0.
 
 		Returns
 		-------
@@ -287,11 +292,14 @@ cdef class Kmeans( Model ):
 		with nogil:
 			for j in range(k):
 				for l in range(d):
-					self.centroids_ptr[j*d + l] = self.centroids_ptr[j*d + l] * inertia + \
-						(self.summary_weights[j*d + l] / self.summary_sizes[j] * (1-inertia))
+					self.centroids_ptr[j*d + l] = \
+						inertia * self.centroids_ptr[j*d + l] \
+						+ (1-inertia) * self.summary_weights[j*d + l] \
+						/ self.summary_sizes[j] \
 
-			memset(self.summary_sizes, 0, self.k*sizeof(int))
-			memset(self.summary_weights, 0, self.k*self.d*sizeof(int))
+
+			memset(self.summary_sizes, 0, self.k * sizeof(int))
+			memset(self.summary_weights, 0, self.k * self.d * sizeof(int))
 
 	def clear_summaries(self):
 		"""Clear the stored sufficient statistics.
@@ -308,7 +316,7 @@ cdef class Kmeans( Model ):
 		memset(self.summary_sizes, 0, self.k*sizeof(int))
 		memset(self.summary_weights, 0, self.k*self.d*sizeof(int))
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
+	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
 
 		Parameters
@@ -333,10 +341,10 @@ cdef class Kmeans( Model ):
 					'centroids'  : self.centroids.tolist()
 				}
 
-		return json.dumps( model, separators=separators, indent=indent )
+		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_json( cls, s ):
+	def from_json(cls, s):
 		"""Read in a serialized model and return the appropriate classifier.
 
 		Parameters
@@ -349,6 +357,6 @@ cdef class Kmeans( Model ):
 			A properly initialized and baked model.
 		"""
 
-		d = json.loads( s )
+		d = json.loads(s)
 		model = Kmeans(d['k'], d['centroids'])
 		return model
