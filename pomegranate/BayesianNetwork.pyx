@@ -818,15 +818,16 @@ cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights
 
 			for xj in range(lj):
 				for xk in range(lk):
-					mutual_info[j*d + k] -= joint_count[xj*lk+xk] * _log( 
-						joint_count[xj*lk+xk] / (marg_j[xj] * marg_k[xk]))
-					mutual_info[k*d + j] = mutual_info[j*d + k]
+					if joint_count[xj*lk+xk] > 0:					
+						mutual_info[j*d + k] -= joint_count[xj*lk+xk] * _log( 
+							joint_count[xj*lk+xk] / (marg_j[xj] * marg_k[xk]))
+						mutual_info[k*d + j] = mutual_info[j*d + k]
 
 
 	structure = [() for i in range(d)]
 	visited = [root]
 	unvisited = list(range(d))
-	unvisited.remove(root) 
+	unvisited.remove(root)
 
 	while len(unvisited) > 0:
 		min_score, min_x, min_y = INF, -1, -1
