@@ -3,41 +3,27 @@
 # gmm.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-cimport numpy
-import numpy
-import json
-import sys
-
-if sys.version_info[0] > 2:
-	xrange = range
-
-import numpy
-cimport numpy
-
-from joblib import Parallel
-from joblib import delayed
-
-from .base cimport Model
-from .base cimport GraphModel
-
-from .kmeans import Kmeans
-
-from .distributions cimport Distribution
-from .distributions import DiscreteDistribution
-from .utils cimport _log
-from .utils cimport pair_lse
-
-ctypedef numpy.npy_intp SIZE_t
-
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 
-import time
+import json
+
+import numpy
+cimport numpy
+
+from .base cimport Model
+from .kmeans import Kmeans
+from .distributions cimport Distribution
+from .distributions import DiscreteDistribution
+from .utils cimport _log
+from .utils cimport pair_lse
+
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
+
 
 cpdef numpy.ndarray _check_input(X, dict keymap):
 	"""Check the input to make sure that it is a properly formatted array."""
@@ -52,35 +38,23 @@ cpdef numpy.ndarray _check_input(X, dict keymap):
 		X_ndarray = numpy.empty(X.shape, dtype='float64')
 
 		if X.ndim == 1:
-			for i in range(X.shape[0]):
+			for i in xrange(X.shape[0]):
 				X_ndarray[i] = keymap[X[i]]
 		else:
-			for i in range(X.shape[0]):
-				for j in range(X.shape[1]):
+			for i in xrange(X.shape[0]):
+				for j in xrange(X.shape[1]):
 					X_ndarray[i, j] = keymap[X[i][j]]
 
 	return X_ndarray
 
-cdef double log_probability( Distribution model, double* samples, int n, int d ):
-	cdef double logp = 0.0
-	cdef int i, j
 
-	for i in range(n):
-		if d > 1:
-			logp += model._mv_log_probability( samples + i*d )
-		else:
-			logp += model._log_probability( samples[i] )
-
-	return logp
-
-cdef class GeneralMixtureModel( Model ):
+cdef class GeneralMixtureModel(Model):
 	"""A General Mixture Model.
 
-	This mixture model can be a mixture of any distribution as long as
-	they are all of the same dimensionality. Any object can serve as a
-	distribution as long as it has fit(X, weights), log_probability(X),
-	and summarize(X, weights)/from_summaries() methods if out of core
-	training is desired.
+	This mixture model can be a mixture of any distribution as long as they
+	are all of the same dimensionality. Any object can serve as a distribution
+	as long as it has fit(X, weights), log_probability(X), and summarize(X,
+	weights)/from_summaries() methods if out of core training is desired.
 
 	Parameters
 	----------
@@ -96,9 +70,8 @@ cdef class GeneralMixtureModel( Model ):
 
 	n_components : int, optional
 		If a callable is passed into distributions then this is the number
-		of components to initialize using the kmeans++ algorithm. Defaults
-		to None.
-
+		of components to initialize using the kmeans++ algorithm.
+		Defaults to None.
 
 	Attributes
 	----------
@@ -108,11 +81,12 @@ cdef class GeneralMixtureModel( Model ):
 	weights : array-like, shape (n_components,)
 		The learned prior weight of each object
 
-
 	Examples
 	--------
 	>>> from pomegranate import *
-	>>> clf = GeneralMixtureModel([NormalDistribution(5, 2), NormalDistribution(1, 1)])
+	>>> clf = GeneralMixtureModel([
+	>>>     NormalDistribution(5, 2),
+	>>>     NormalDistribution(1, 1)])
 	>>> clf.log_probability(5)
 	-2.304562194038089
 	>>> clf.predict_proba([[5], [7], [1]])
@@ -156,41 +130,46 @@ cdef class GeneralMixtureModel( Model ):
 	cdef int n
 	cdef public int hmm
 
-	def __init__( self, distributions, weights=None, n_components=None ):
+	def __init__(self, distributions, weights=None, n_components=None):
 		if not callable(distributions) and not isinstance(distributions, list):
-			raise ValueError("must either give initial distributions or constructor")
+			raise ValueError("must either give initial distributions "
+			                 "or constructor")
 
 		self.d = 0
 		self.hmm = 0
 
 		if callable(distributions):
 			if distributions == DiscreteDistribution:
-				raise ValueError("cannot fit a discrete GMM without pre-initialized distributions")
+				raise ValueError("cannot fit a discrete GMM "
+				                 "without pre-initialized distributions")
 			self.n = n_components
 			self.distribution_callable = distributions
 		else:
 			if len(distributions) < 2:
-				raise ValueError("must have at least two distributions for general mixture models")
+				raise ValueError("must have at least two distributions "
+				                 "for general mixture models")
 
 			for dist in distributions:
 				if callable(dist):
-					raise TypeError("must have initialized distributions in list")
+					raise TypeError("must have initialized distributions")
 				elif self.d == 0:
 					self.d = dist.d
 				elif self.d != dist.d:
-					raise TypeError("mis-matching dimensions between distributions in list")
+					raise TypeError("mis-matching dimensions "
+					                "between distributions")
 				if dist.model == 'HiddenMarkovModel':
 					self.hmm = 1
 
 			if weights is None:
-				weights = numpy.ones_like(distributions, dtype=float) / len( distributions )
+				weights = numpy.full_like(
+					distributions, 1.0 / len(distributions), dtype=float)
 			else:
 				weights = numpy.asarray(weights) / weights.sum()
 
-			self.weights = numpy.log( weights )
+			self.weights = numpy.log(weights)
 			self.weights_ptr = <double*> self.weights.data
 
-			self.distributions = numpy.array( distributions )
+			self.distributions = numpy.array(distributions)
 			self.distributions_ptr = <void**> self.distributions.data
 
 			self.summaries_ndarray = numpy.zeros_like(weights, dtype='float64')
@@ -198,7 +177,8 @@ cdef class GeneralMixtureModel( Model ):
 
 			self.n = len(distributions)
 
-		if self.d > 0 and isinstance( self.distributions[0], DiscreteDistribution ):
+		if self.d > 0 and isinstance(self.distributions[0],
+		                             DiscreteDistribution):
 			keys = []
 			for d in self.distributions:
 				keys.extend( d.keys() )
@@ -206,12 +186,12 @@ cdef class GeneralMixtureModel( Model ):
 			for d in self.distributions:
 				d.bake( tuple(set(keys)) )
 
+	def __reduce__(self):
+		return self.__class__, (self.distributions.tolist(),
+		                        numpy.exp(self.weights),
+		                        self.n)
 
-	def __reduce__( self ):
-		"""Serialize model for pickling."""
-		return self.__class__, (self.distributions.tolist(), self.weights, self.n)
-
-	def sample( self, n=1 ):
+	def sample(self, n=1):
 		"""Generate a sample from the model.
 
 		First, randomly select a component weighted by the prior probability,
@@ -234,17 +214,18 @@ cdef class GeneralMixtureModel( Model ):
 
 		samples = []
 		for i in xrange(n):
-			d = numpy.random.choice( self.distributions, p=numpy.exp(self.weights) )
+			d = numpy.random.choice(self.distributions,
+			                        p=numpy.exp(self.weights))
 			samples.append(d.sample())
 
 		return samples if n > 1 else samples[0]
 
-	cpdef log_probability( self, X ):
+	cpdef log_probability(self, X):
 		"""Calculate the log probability of a point under the distribution.
 
 		The probability of a point is the sum of the probabilities of each
-		distribution multiplied by the weights. Thus, the log probability
-		is the sum of the log probability plus the log prior.
+		distribution multiplied by the weights. Thus, the log probability is
+		the sum of the log probability plus the log prior.
 
 		This is the python interface.
 
@@ -254,7 +235,7 @@ cdef class GeneralMixtureModel( Model ):
 			The samples to calculate the log probability of. Each row is a
 			sample and each column is a dimension. If emissions are HMMs then
 			shape is (n, m, d) where m is variable length for each obervation,
-			and X becomes an array of n (m, d)-shaped arrays.  
+			and X becomes an array of n (m, d)-shaped arrays.
 
 		Returns
 		-------
@@ -263,7 +244,8 @@ cdef class GeneralMixtureModel( Model ):
 		"""
 
 		if self.d == 0:
-			raise ValueError("must first fit model before using log probability method.")
+			raise ValueError("must first fit model before using "
+			                 "log_probability method.")
 
 		cdef int i, j, n, d, m
 
@@ -287,7 +269,7 @@ cdef class GeneralMixtureModel( Model ):
 			X_ptr = <double*> X_ndarray.data
 
 		with nogil:
-			for i in range(n):
+			for i in xrange(n):
 				if self.hmm == 1:
 					with gil:
 						X_ndarray = numpy.array(X[i])
@@ -305,9 +287,12 @@ cdef class GeneralMixtureModel( Model ):
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
-		for i in range( self.n ):
-			log_probability = ( <Model> self.distributions_ptr[i] )._log_probability(X) + self.weights_ptr[i]
-			log_probability_sum = pair_lse( log_probability_sum, log_probability )
+		for i in xrange(self.n):
+			log_probability = \
+				(<Model> self.distributions_ptr[i])._log_probability(X) \
+				+ self.weights_ptr[i]
+			log_probability_sum = \
+				pair_lse(log_probability_sum, log_probability)
 
 		return log_probability_sum
 
@@ -316,9 +301,12 @@ cdef class GeneralMixtureModel( Model ):
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
-		for i in range( self.n ):
-			log_probability = ( <Model> self.distributions_ptr[i] )._mv_log_probability(X) + self.weights_ptr[i]
-			log_probability_sum = pair_lse( log_probability_sum, log_probability )
+		for i in xrange(self.n):
+			log_probability = \
+				(<Model> self.distributions_ptr[i])._mv_log_probability(X) \
+				+ self.weights_ptr[i]
+			log_probability_sum = \
+				pair_lse(log_probability_sum, log_probability)
 
 		return log_probability_sum
 
@@ -327,12 +315,14 @@ cdef class GeneralMixtureModel( Model ):
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
-		for i in range( self.n ):
-			log_probability = ( <Model> self.distributions_ptr[i] )._vl_log_probability(X, n) + self.weights_ptr[i]
-			log_probability_sum = pair_lse( log_probability_sum, log_probability )
+		for i in xrange(self.n):
+			log_probability = \
+				(<Model> self.distributions_ptr[i])._vl_log_probability(X, n) \
+				+ self.weights_ptr[i]
+			log_probability_sum = \
+				pair_lse(log_probability_sum, log_probability)
 
 		return log_probability_sum
-
 
 	def predict_proba(self, X):
 		"""Calculate the posterior P(M|D) for data.
@@ -359,11 +349,12 @@ cdef class GeneralMixtureModel( Model ):
 		"""
 
 		if self.d == 0:
-			raise ValueError("must first fit model before using predict proba method.")
+			raise ValueError("must first fit model before using "
+			                 "predict_proba method.")
 
-		return numpy.exp( self.predict_log_proba(X) )
+		return numpy.exp(self.predict_log_proba(X))
 
-	def predict_log_proba( self, X ):
+	def predict_log_proba(self, X):
 		"""Calculate the posterior log P(M|D) for data.
 
 		Calculate the log probability of each item having been generated from
@@ -387,7 +378,8 @@ cdef class GeneralMixtureModel( Model ):
 		"""
 
 		if self.d == 0:
-			raise ValueError("must first fit model before using predict log proba method.")
+			raise ValueError("must first fit model before using "
+			                 "predict_log_proba method.")
 
 		cdef int i, n, d
 		cdef numpy.ndarray X_ndarray
@@ -413,39 +405,41 @@ cdef class GeneralMixtureModel( Model ):
 
 		with nogil:
 			if self.hmm == 0:
-				self._predict_log_proba( X_ptr, y_ptr, n, d )
+				self._predict_log_proba(X_ptr, y_ptr, n, d)
 			else:
-				for i in range(n):
+				for i in xrange(n):
 					with gil:
 						X_ndarray = _check_input(X[i], self.keymap)
 						X_ptr = <double*> X_ndarray.data
 						d = len(X_ndarray)
 
-					self._predict_log_proba( X_ptr, y_ptr+i*self.n, 1, d )
+					self._predict_log_proba(X_ptr, y_ptr+i*self.n, 1, d)
 		
 		return y if self.hmm == 1 else y.reshape(self.n, n).T
 
-	cdef void _predict_log_proba( self, double* X, double* y, int n, int d ) nogil:
+	cdef void _predict_log_proba(self, double* X, double* y, int n, int d) nogil:
 		cdef double y_sum, logp
 		cdef int i, j
 
-		for j in range(self.n):
+		for j in xrange(self.n):
 			if self.hmm == 1:
-				y[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
+				y[j] = (<Model> self.distributions_ptr[j]) \
+					._vl_log_probability(X, d)
 			else:
-				(<Model> self.distributions_ptr[j])._v_log_probability(X, y+j*n, n)
+				(<Model> self.distributions_ptr[j]) \
+					._v_log_probability(X, y+j*n, n)
 
-		for i in range(n):
+		for i in xrange(n):
 			y_sum = NEGINF
 
-			for j in range(self.n):
+			for j in xrange(self.n):
 				y[j*n + i] += self.weights_ptr[j]
 				y_sum = pair_lse(y_sum, y[j*n + i])
 
-			for j in range(self.n):
+			for j in xrange(self.n):
 				y[j*n + i] -= y_sum
 
-	cpdef predict( self, X ):
+	cpdef predict(self, X):
 		"""Predict the most likely component which generated each sample.
 
 		Calculate the posterior P(M|D) for each sample and return the index
@@ -470,7 +464,8 @@ cdef class GeneralMixtureModel( Model ):
 		cdef int i, n, d
 
 		if self.d == 0:
-			raise ValueError("must first fit model before using predict method.")
+			raise ValueError("must first fit model before using "
+			                 "predict method.")
 
 		if self.hmm == 1:
 			n, d = len(X), self.d
@@ -495,7 +490,7 @@ cdef class GeneralMixtureModel( Model ):
 			if self.hmm == 0:
 				self._predict(X_ptr, y_ptr, n, d)
 			else:
-				for i in range(n):
+				for i in xrange(n):
 					with gil:
 						X_ndarray = _check_input(X[i], self.keymap)
 						X_ptr = <double*> X_ndarray.data
@@ -510,16 +505,18 @@ cdef class GeneralMixtureModel( Model ):
 		cdef double max_logp, logp
 		cdef double* r = <double*> calloc(n*self.n, sizeof(double))
 
-		for j in range(self.n):
+		for j in xrange(self.n):
 			if self.hmm == 1:
-				r[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
+				r[j] = (<Model> self.distributions_ptr[j]) \
+					._vl_log_probability(X, d)
 			else:
-				(<Model> self.distributions_ptr[j])._v_log_probability(X, r+j*n, n)
+				(<Model> self.distributions_ptr[j]) \
+					._v_log_probability(X, r+j*n, n)
 
-		for i in range(n):
+		for i in xrange(n):
 			max_logp = NEGINF
 
-			for j in range(self.n):
+			for j in xrange(self.n):
 				logp = r[j*n + i] + self.weights_ptr[j]
 				if logp > max_logp:
 					max_logp = logp
@@ -550,22 +547,27 @@ cdef class GeneralMixtureModel( Model ):
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia),
+			parameters will roughly be
+			old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters. Default is 0.0.
+			inertia of 1 means ignore the new parameters.
+			Default is 0.0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
 			the model. If the model does not improve its fit of the data by
-			a log probability of 0.1 then terminate. Default is 0.1.
+			a log probability of 0.1 then terminate.
+			Default is 0.1.
 
 		max_iterations : int, optional, positive
 			The maximum number of iterations to run EM for. If this limit is
 			hit then it will terminate training, regardless of how well the
-			model is improving per iteration. Default is 1e8.
+			model is improving per iteration.
+			Default is 1e8.
 
 		verbose : bool, optional
-			Whether or not to print out improvement information over iterations.
+			Whether or not to print out improvement information over
+			iterations.
 			Default is False.
 
 		Returns
@@ -592,7 +594,7 @@ cdef class GeneralMixtureModel( Model ):
 				improvement = log_probability_sum - last_log_probability_sum
 
 				if verbose:
-					print( "Improvement: {}".format(improvement) )
+					print("Improvement: {}".format(improvement))
 
 			iteration += 1
 			last_log_probability_sum = log_probability_sum
@@ -600,11 +602,12 @@ cdef class GeneralMixtureModel( Model ):
 		self.clear_summaries()
 
 		if verbose:
-			print( "Total Improvement: {}".format(last_log_probability_sum - initial_log_probability_sum) )
+			print("Total Improvement: {}".format(
+				last_log_probability_sum - initial_log_probability_sum))
 
 		return last_log_probability_sum - initial_log_probability_sum
 
-	def summarize( self, X, weights=None ):
+	def summarize(self, X, weights=None):
 		"""Summarize a batch of data and store sufficient statistics.
 
 		This will run the expectation step of EM and store sufficient
@@ -656,16 +659,20 @@ cdef class GeneralMixtureModel( Model ):
 			kmeans.fit(X_ndarray, max_iterations=1)
 			y = kmeans.predict(X_ndarray)
 
-			distributions = [ self.distribution_callable.from_samples( X_ndarray[y==i] ) for i in range(self.n) ]
+			distributions = [
+				self.distribution_callable.from_samples(X_ndarray[y==i])
+				for i in xrange(self.n) ]
 			self.d = distributions[0].d
 
 			self.distributions = numpy.array(distributions)
 			self.distributions_ptr = <void**> self.distributions.data
 
-			self.weights = numpy.log(numpy.ones(self.n, dtype='float64') / self.n)
+			self.weights = numpy.log(
+				numpy.full(self.n, 1.0 / self.n, dtype='float64'))
 			self.weights_ptr = <double*> self.weights.data
 
-			self.summaries_ndarray = numpy.zeros_like(self.weights, dtype='float64')
+			self.summaries_ndarray = numpy.zeros_like(
+				self.weights, dtype='float64')
 			self.summaries_ptr = <double*> self.summaries_ndarray.data
 
 		cdef double* X_ptr
@@ -679,7 +686,7 @@ cdef class GeneralMixtureModel( Model ):
 				log_probability = self._summarize(X_ptr, weights_ptr, n)
 		else:
 			log_probability = 0.0
-			for i in range(n):
+			for i in xrange(n):
 				X_ndarray = _check_input(X[i], self.keymap)
 				X_ptr = <double*> X_ndarray.data
 				d = len(X_ndarray)
@@ -687,7 +694,6 @@ cdef class GeneralMixtureModel( Model ):
 					log_probability += self._summarize(X_ptr, weights_ptr+i, d)
 
 		return log_probability
-
 
 	cdef double _summarize(self, double* X, double* weights, int n) nogil:
 		cdef double* r = <double*> calloc(self.n*n, sizeof(double))
@@ -698,20 +704,22 @@ cdef class GeneralMixtureModel( Model ):
 		memset(summaries, 0, self.n*sizeof(double))
 		cdef double tic
 
-		for j in range(self.n):
+		for j in xrange(self.n):
 			if self.hmm == 1:
-				r[j*n] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, n)
+				r[j*n] = (<Model> self.distributions_ptr[j]) \
+					._vl_log_probability(X, n)
 			else:
-				(<Model> self.distributions_ptr[j])._v_log_probability(X, r+j*n, n)
+				(<Model> self.distributions_ptr[j]) \
+					._v_log_probability(X, r+j*n, n)
 
-		for i in range(n):
+		for i in xrange(n):
 			total = NEGINF
 
-			for j in range(self.n):
+			for j in xrange(self.n):
 				r[j*n + i] += self.weights_ptr[j]
 				total = pair_lse(total, r[j*n + i])
 
-			for j in range(self.n):
+			for j in xrange(self.n):
 				r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
 				summaries[j] += r[j*n + i]
 			
@@ -720,18 +728,18 @@ cdef class GeneralMixtureModel( Model ):
 			if self.hmm == 1:
 				break
 
-		for j in range(self.n):
+		for j in xrange(self.n):
 			(<Model> self.distributions_ptr[j])._summarize(X, r+j*n, n)
 
 		with gil:
-			for j in range(self.n):
+			for j in xrange(self.n):
 				self.summaries_ptr[j] += summaries[j]
 
 		free(r)
 		free(summaries)
 		return log_probability_sum
 
-	def from_summaries( self, inertia=0.0, **kwargs ):
+	def from_summaries(self, inertia=0.0, **kwargs):
 		"""Fit the model to the collected sufficient statistics.
 
 		Fit the parameters of the model to the sufficient statistics gathered
@@ -741,7 +749,8 @@ cdef class GeneralMixtureModel( Model ):
 		----------
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia),
+			parameters will roughly be
+			old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
@@ -759,64 +768,28 @@ cdef class GeneralMixtureModel( Model ):
 			self.weights[i] = _log(self.summaries_ndarray[i])
 			self.summaries_ndarray[i] = 0.
 
-	def clear_summaries( self ):
-		"""Clear the summary statistics stored in the object.
-
-		Parameters
-		----------
-		None
-
-		Returns
-		-------
-		None
-		"""
-
+	def clear_summaries(self):
 		self.summaries_ndarray *= 0
 		for distribution in self.distributions:
 			distribution.clear_summaries()
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
-			Default is (',', ' : ').
-
-		indent : int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting. Default is 4.
-
-		Returns
-		-------
-		json : str
-			A properly formatted JSON object.
-		"""
+	def to_json(self):
+		separators=(',', ' : ')
+		indent=4
 
 		model = {
 					'class' : 'GeneralMixtureModel',
-					'distributions'  : [ json.loads( dist.to_json() ) for dist in self.distributions ],
+					'distributions'  : [ json.loads(dist.to_json())
+					                     for dist in self.distributions ],
 					'weights' : self.weights.tolist()
 				}
 
-		return json.dumps( model, separators=separators, indent=indent )
+		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_json( cls, s ):
-		"""Read in a serialized model and return the appropriate classifier.
-
-		Parameters
-		----------
-		s : str
-			A JSON formatted string containing the file.
-		Returns
-		-------
-		model : object
-			A properly initialized and baked model.
-		"""
-
-		d = json.loads( s )
-		distributions = [ Distribution.from_json( json.dumps(j) ) for j in d['distributions'] ]
-		model = GeneralMixtureModel( distributions, numpy.array( d['weights'] ) )
+	def from_json(cls, s):
+		d = json.loads(s)
+		distributions = [ Distribution.from_json(json.dumps(j))
+		                  for j in d['distributions'] ]
+		model = GeneralMixtureModel(distributions, numpy.array( d['weights'] ))
 		return model

@@ -216,7 +216,9 @@ def test_json():
 
 @with_setup( setup_multivariate_gaussian, teardown )
 def test_pickling():
-	univariate = GeneralMixtureModel([ NormalDistribution( 5, 2 ), UniformDistribution(0, 10) ])
+	univariate = GeneralMixtureModel(
+		[ NormalDistribution( 5, 2 ), UniformDistribution(0, 10) ],
+        weights=np.array([1, 2]))
 
 	j_univ = pickle.dumps( univariate )
 	j_multi = pickle.dumps( gmm )
