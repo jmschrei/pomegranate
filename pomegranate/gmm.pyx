@@ -128,7 +128,7 @@ cdef class GeneralMixtureModel(Model):
 	cdef double* summaries_ptr
 	cdef dict keymap
 	cdef int n
-	cdef public int hmm
+	cdef public bint is_hmm_
 
 	def __init__(self, distributions, weights=None, n_components=None):
 		if not callable(distributions) and not isinstance(distributions, list):
@@ -136,7 +136,7 @@ cdef class GeneralMixtureModel(Model):
 			                 "or constructor")
 
 		self.d = 0
-		self.hmm = 0
+		self.is_hmm_ = False
 
 		if callable(distributions):
 			if distributions == DiscreteDistribution:
@@ -144,6 +144,7 @@ cdef class GeneralMixtureModel(Model):
 				                 "without pre-initialized distributions")
 			self.n = n_components
 			self.distribution_callable = distributions
+
 		else:
 			if len(distributions) < 2:
 				raise ValueError("must have at least two distributions "
@@ -158,7 +159,7 @@ cdef class GeneralMixtureModel(Model):
 					raise TypeError("mis-matching dimensions "
 					                "between distributions")
 				if dist.model == 'HiddenMarkovModel':
-					self.hmm = 1
+					self.is_hmm_ = True
 
 			if weights is None:
 				weights = numpy.full_like(
@@ -243,16 +244,13 @@ cdef class GeneralMixtureModel(Model):
 			The log probabiltiy of the point under the distribution.
 		"""
 
+		cdef int i, j, n, d, m
+
 		if self.d == 0:
 			raise ValueError("must first fit model before using "
 			                 "log_probability method.")
-
-		cdef int i, j, n, d, m
-
-		if self.hmm == 1:
+		elif self.is_hmm_ or self.d == 1:
 			n, d = len(X), self.d
-		elif self.d == 1:
-			n, d = X.shape[0], 1
 		elif self.d > 1 and X.ndim == 1:
 			n, d = 1, len(X)
 		else:
@@ -264,13 +262,13 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray X_ndarray
 		cdef double* X_ptr 
 
-		if self.hmm == 0:
+		if not self.is_hmm_:
 			X_ndarray = numpy.array(X)
 			X_ptr = <double*> X_ndarray.data
 
 		with nogil:
 			for i in xrange(n):
-				if self.hmm == 1:
+				if self.is_hmm_:
 					with gil:
 						X_ndarray = numpy.array(X[i])
 						X_ptr = <double*> X_ndarray.data
@@ -387,7 +385,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray y
 		cdef double* y_ptr
 
-		if self.hmm == 1:
+		if self.is_hmm_:
 			n, d = len(X), self.d
 		elif self.d == 1:
 			n, d = X.shape[0], 1
@@ -399,12 +397,12 @@ cdef class GeneralMixtureModel(Model):
 		y = numpy.zeros((n, self.n), dtype='float64')
 		y_ptr = <double*> y.data
 
-		if self.hmm == 0:
+		if not self.is_hmm_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
 
 		with nogil:
-			if self.hmm == 0:
+			if not self.is_hmm_:
 				self._predict_log_proba(X_ptr, y_ptr, n, d)
 			else:
 				for i in xrange(n):
@@ -415,14 +413,14 @@ cdef class GeneralMixtureModel(Model):
 
 					self._predict_log_proba(X_ptr, y_ptr+i*self.n, 1, d)
 		
-		return y if self.hmm == 1 else y.reshape(self.n, n).T
+		return y if self.is_hmm_ else y.reshape(self.n, n).T
 
 	cdef void _predict_log_proba(self, double* X, double* y, int n, int d) nogil:
 		cdef double y_sum, logp
 		cdef int i, j
 
 		for j in xrange(self.n):
-			if self.hmm == 1:
+			if self.is_hmm_:
 				y[j] = (<Model> self.distributions_ptr[j]) \
 					._vl_log_probability(X, d)
 			else:
@@ -467,7 +465,7 @@ cdef class GeneralMixtureModel(Model):
 			raise ValueError("must first fit model before using "
 			                 "predict method.")
 
-		if self.hmm == 1:
+		if self.is_hmm_:
 			n, d = len(X), self.d
 		elif self.d == 1:
 			n, d = X.shape[0], 1
@@ -482,12 +480,12 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
 		cdef int* y_ptr = <int*> y.data
 
-		if self.hmm == 0:
+		if not self.is_hmm_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
 
 		with nogil:
-			if self.hmm == 0:
+			if not self.is_hmm_:
 				self._predict(X_ptr, y_ptr, n, d)
 			else:
 				for i in xrange(n):
@@ -506,7 +504,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef double* r = <double*> calloc(n*self.n, sizeof(double))
 
 		for j in xrange(self.n):
-			if self.hmm == 1:
+			if self.is_hmm_:
 				r[j] = (<Model> self.distributions_ptr[j]) \
 					._vl_log_probability(X, d)
 			else:
@@ -638,7 +636,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray weights_ndarray
 		cdef double log_probability
 
-		if self.hmm == 1:
+		if self.is_hmm_:
 			n, d = len(X), self.d
 		elif self.d == 1:
 			n, d = X.shape[0], 1
@@ -662,23 +660,13 @@ cdef class GeneralMixtureModel(Model):
 			distributions = [
 				self.distribution_callable.from_samples(X_ndarray[y==i])
 				for i in xrange(self.n) ]
-			self.d = distributions[0].d
-
-			self.distributions = numpy.array(distributions)
-			self.distributions_ptr = <void**> self.distributions.data
-
-			self.weights = numpy.log(
-				numpy.full(self.n, 1.0 / self.n, dtype='float64'))
-			self.weights_ptr = <double*> self.weights.data
-
-			self.summaries_ndarray = numpy.zeros_like(
-				self.weights, dtype='float64')
-			self.summaries_ptr = <double*> self.summaries_ndarray.data
+			
+			self.__init__(distributions)
 
 		cdef double* X_ptr
 		cdef double* weights_ptr = <double*> weights_ndarray.data
 
-		if self.hmm == 0:
+		if not self.is_hmm_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
 			
@@ -705,7 +693,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef double tic
 
 		for j in xrange(self.n):
-			if self.hmm == 1:
+			if self.is_hmm_:
 				r[j*n] = (<Model> self.distributions_ptr[j]) \
 					._vl_log_probability(X, n)
 			else:
@@ -725,7 +713,7 @@ cdef class GeneralMixtureModel(Model):
 			
 			log_probability_sum += total * weights[i]
 
-			if self.hmm == 1:
+			if self.is_hmm_:
 				break
 
 		for j in xrange(self.n):

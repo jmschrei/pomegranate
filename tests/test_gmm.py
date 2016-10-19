@@ -171,8 +171,8 @@ def test_initialization():
 	assert_raises( TypeError, GeneralMixtureModel, [ NormalDistribution( 5, 2 ), MultivariateGaussianDistribution([5, 2], [[1, 0], [0, 1]]) ] )
 	assert_raises( TypeError, GeneralMixtureModel, [ NormalDistribution( 5, 2 ), NormalDistribution ] )
 
-	X = numpy.concatenate((numpy.random.randn(100, 5) + 2, numpy.random.randn(100, 5)))
-	gmm1 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
+	X = numpy.concatenate((numpy.random.randn(300, 5) + 2, numpy.random.randn(200, 5)))
+	gmm1 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2, weights=[.6, .4] )
 	gmm2 = GeneralMixtureModel( MultivariateGaussianDistribution, n_components=2 )
 	assert_greater( gmm1.fit(X), gmm2.fit(X, max_iterations=1) )
 
