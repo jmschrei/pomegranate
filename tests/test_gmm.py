@@ -218,7 +218,7 @@ def test_json():
 def test_pickling():
 	univariate = GeneralMixtureModel(
 		[ NormalDistribution( 5, 2 ), UniformDistribution(0, 10) ],
-        weights=np.array([1, 2]))
+        weights=np.array([1.0, 2.0]))
 
 	j_univ = pickle.dumps( univariate )
 	j_multi = pickle.dumps( gmm )
