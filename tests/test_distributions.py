@@ -534,6 +534,25 @@ def test_independent():
     assert_equal(f.parameters[0][1].parameters[0], -2.5)
     assert_equal(f.parameters[0][1].parameters[1], 15)
 
+@with_setup(setup, teardown)
+def test_independent_splitting():
+
+    independent_distribution = IndependentComponentsDistribution(
+        [NormalDistribution( 4, 10 ),
+         NormalDistribution( 2, 10 )]
+    )
+
+    id_one, id_two = independent_distribution.split()
+
+    assert abs( id_one.distributions[0].parameters[0] - 2 ) < 0.01
+    assert abs( id_one.distributions[1].parameters[0] - 1 ) < 0.01
+    assert abs( id_one.distributions[0].parameters[1] - 17 ) < 0.01
+    assert abs( id_one.distributions[1].parameters[1] - 17 ) < 0.01
+
+    assert abs( id_two.distributions[0].parameters[0] - 2 ) < 0.01
+    assert abs( id_two.distributions[1].parameters[0] - 1 ) < 0.01
+    assert abs( id_two.distributions[0].parameters[1] - 3 ) < 0.01
+    assert abs( id_two.distributions[1].parameters[1] - 3 ) < 0.01
 
 def test_conditional():
     phditis = DiscreteDistribution({True: 0.01, False: 0.99})

@@ -362,6 +362,76 @@ cdef class HiddenMarkovModel( GraphModel ):
 			else:
 				self.add_state( state )
 
+	def split_state( self, state ):
+		"""The chosen State will be split and the new one will be set parallel to the splitted
+		state. The new State will get a slightly shifted Distribution depending on the chosen
+		Distribution and their shifting values.
+
+		Parameters
+		----------
+		state : State
+			A state object to be added to the model.
+
+		Returns
+		-------
+		new_state: State
+			The new State parallel to the old one
+		"""
+
+		# TODO: Change Distribution Slightly
+
+		distribution_one, distribution_two = state.distribution.split()
+
+		state.distribution = distribution_one
+
+		new_state = state.copy()
+		new_state.distribution = distribution_two
+
+		self.add_state( new_state )
+
+		# Outgoing Edges
+
+		successor_states = self.graph.successors( state )
+
+		for successor_state in successor_states:
+
+			edge_data = self.graph.get_edge_data( state, successor_state )
+
+			# Exception for Self Loop
+
+			if successor_state.name == state.name:
+				successor_state = new_state
+
+			self.add_transition( new_state, successor_state, cexp( edge_data['probability'] ),
+								 edge_data['pseudocount'], edge_data['group'] )
+
+		# Incoming Edges
+
+		predecessor_states = self.graph.predecessors( state )
+
+		for predecessor_state in predecessor_states:
+
+			# Exception for Self Loop
+
+			if predecessor_state.name == state.name:
+				continue
+
+			edge_data = self.graph.get_edge_data( predecessor_state, state )
+
+			probability = cexp( edge_data['probability'] ) / 2
+			pseudocount = edge_data['pseudocount'] / 2
+			group = edge_data['group']
+
+			# Update old Edge
+
+			self.add_transition( predecessor_state, state, probability, pseudocount, group )
+
+			# Add new Edge
+
+			self.add_transition( predecessor_state, new_state, probability, pseudocount, group )
+
+		return new_state
+
 	def add_transition( self, a, b, probability, pseudocount=None, group=None ):
 		"""Add a transition from state a to state b.
 
@@ -486,17 +556,17 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		self.graph.remove_edge( a, b )
 
-		edges = self.graph[a]
+		successor_states = self.graph.successors( a )
 
-		for edge in edges:
+		for successor_state in successor_states:
 
-			edge_data = self.graph.get_edge_data( a, edge )
+			edge_data = self.graph.get_edge_data( a, successor_state )
 			edge_prob = cexp( edge_data['probability'] )
 			edge_pseudo_count = edge_data['pseudocount']
 			edge_group = edge_data['group']
 
-			self.add_transition( a, edge, origin_edge_prob/2 + edge_prob, origin_edge_pseudo_count/2
-								 + edge_pseudo_count, edge_group )
+			self.add_transition( a, successor_state, origin_edge_prob/2 + edge_prob,
+								 origin_edge_pseudo_count/2 + edge_pseudo_count, edge_group )
 
 	def dense_transition_matrix( self ):
 		"""Returns the dense transition matrix.

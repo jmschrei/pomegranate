@@ -138,3 +138,50 @@ def test_pruning():
 
 	assert_equal( len( hmm.graph.edges() ), 7 )
 	assert_equal( hmm.graph.get_edge_data( s3, s3 )['pseudocount'], 0.5 )
+
+@with_setup( setup, teardown )
+def test_splitting():
+	# single dimensions
+	s1 = State( NormalDistribution( 1, 10 ) )
+	s2 = State( NormalDistribution( 2, 10 ) )
+	s3 = State( NormalDistribution( 3, 10 ) )
+	s4 = State( NormalDistribution( 4, 10 ) )
+	s5 = State( NormalDistribution( 5, 10 ) )
+
+	hmm = HiddenMarkovModel()
+
+	hmm.add_transition( hmm.start, s1, 0.5 )
+	hmm.add_transition( hmm.start, s2, 0.5 )
+	hmm.add_transition( s1, s3, 1 )
+	hmm.add_transition( s2, s3, 1 )
+	hmm.add_transition( s3, s3, 0.25 )
+	hmm.add_transition( s3, s4, 0.5 )
+	hmm.add_transition( s3, s5, 0.25 )
+	hmm.add_transition( s4, hmm.end, 1 )
+	hmm.add_transition( s5, hmm.end, 1 )
+
+	hmm.bake()
+
+	assert_equal( len( hmm.graph.edges() ), 9 )
+
+	# Pruning
+	s6 = hmm.split_state( s3 )
+
+	hmm.bake()
+
+	assert_equal( len( hmm.graph.edges() ), 14 )
+	assert_equal( hmm.graph.get_edge_data( s1, s3 )['pseudocount'], 0.5 )
+	assert_equal( hmm.graph.get_edge_data( s1, s6 )['pseudocount'], 0.5 )
+	assert_equal( hmm.graph.get_edge_data( s2, s3 )['pseudocount'], 0.5 )
+	assert_equal( hmm.graph.get_edge_data( s2, s6 )['pseudocount'], 0.5 )
+	assert_equal( hmm.graph.get_edge_data( s6, s6 )['pseudocount'], 0.25 )
+	assert_equal( hmm.graph.get_edge_data( s6, s4 )['pseudocount'], 0.5 )
+	assert_equal( hmm.graph.get_edge_data( s6, s5 )['pseudocount'], 0.25 )
+	assert_equal( hmm.graph.has_edge( s6, s3 ), False )
+	assert_equal( hmm.graph.has_edge( s3, s6 ), False )
+
+	assert abs( s3.distribution.parameters[0] - 1.5 ) < 0.01
+	assert abs( s3.distribution.parameters[1] - 17 ) < 0.01
+
+	assert abs( s6.distribution.parameters[0] - 1.5 ) < 0.01
+	assert abs( s6.distribution.parameters[1] - 3 ) < 0.01
