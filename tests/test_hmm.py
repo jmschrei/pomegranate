@@ -101,3 +101,40 @@ def test_serialization():
 	for i in range(10):
 		sequence = hmm1.sample(10)
 		assert_almost_equal(hmm1.log_probability(sequence), hmm2.log_probability(sequence))
+
+@with_setup( setup, teardown )
+def test_pruning():
+	# single dimensions
+	s1 = State( NormalDistribution( 1, 10 ) )
+	s2 = State( NormalDistribution( 2, 10 ) )
+	s3 = State( UniformDistribution( 3, 10 ) )
+	s4 = State( UniformDistribution( 4, 10 ) )
+	s5 = State( UniformDistribution( 5, 10 ) )
+
+	hmm = HiddenMarkovModel()
+
+	hmm.add_transition( hmm.start, s1, 0.5 )
+	hmm.add_transition( hmm.start, s2, 0.5 )
+	hmm.add_transition( s1, s3, 1 )
+	hmm.add_transition( s2, s3, 1 )
+	hmm.add_transition( s3, s3, 0.25 )
+	hmm.add_transition( s3, s4, 0.5 )
+	hmm.add_transition( s3, s5, 0.25 )
+	hmm.add_transition( s4, hmm.end, 1 )
+	hmm.add_transition( s5, hmm.end, 1 )
+
+	hmm.bake()
+
+	assert_equal( len( hmm.graph.edges() ), 9 )
+	assert_equal( hmm.graph.get_edge_data( s3, s3 )['pseudocount'], 0.25 )
+
+	# Pruning
+	hmm.prune_transition( s3, s4 )
+
+	assert_equal( len( hmm.graph.edges() ), 8 )
+	assert_equal( hmm.graph.get_edge_data( s3, s3 )['pseudocount'], 0.5 )
+
+	hmm.bake()
+
+	assert_equal( len( hmm.graph.edges() ), 7 )
+	assert_equal( hmm.graph.get_edge_data( s3, s3 )['pseudocount'], 0.5 )

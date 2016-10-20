@@ -462,6 +462,42 @@ cdef class HiddenMarkovModel( GraphModel ):
 			for end, probability, pseudocount, group in edges:
 				self.add_transition( a, end, probability, pseudocount, group )
 
+	def prune_transition( self, a, b ):
+		"""Prune a Transition between state a and b. The transition will be removed so that the
+		Graph is still valid. I.e. the summarized probability of all exiting transitions from a
+		add up to 1.
+
+		Parameters
+		----------
+		a : State
+			The state that the edge originates from
+
+		b : State
+			The state that the edge goes to
+
+		Returns
+		-------
+		None
+		"""
+
+		origin_edge_data = self.graph.get_edge_data( a, b )
+		origin_edge_prob = cexp( origin_edge_data['probability'] )
+		origin_edge_pseudo_count = origin_edge_data['pseudocount']
+
+		self.graph.remove_edge( a, b )
+
+		edges = self.graph[a]
+
+		for edge in edges:
+
+			edge_data = self.graph.get_edge_data( a, edge )
+			edge_prob = cexp( edge_data['probability'] )
+			edge_pseudo_count = edge_data['pseudocount']
+			edge_group = edge_data['group']
+
+			self.add_transition( a, edge, origin_edge_prob/2 + edge_prob, origin_edge_pseudo_count/2
+								 + edge_pseudo_count, edge_group )
+
 	def dense_transition_matrix( self ):
 		"""Returns the dense transition matrix.
 
