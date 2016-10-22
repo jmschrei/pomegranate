@@ -378,8 +378,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 			The new State parallel to the old one
 		"""
 
-		# TODO: Change Distribution Slightly
-
 		distribution_one, distribution_two = state.distribution.split()
 
 		state.distribution = distribution_one
