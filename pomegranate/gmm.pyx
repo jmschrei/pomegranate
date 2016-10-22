@@ -38,11 +38,11 @@ cpdef numpy.ndarray _check_input(X, dict keymap):
 		X_ndarray = numpy.empty(X.shape, dtype='float64')
 
 		if X.ndim == 1:
-			for i in xrange(X.shape[0]):
+			for i in range(X.shape[0]):
 				X_ndarray[i] = keymap[X[i]]
 		else:
-			for i in xrange(X.shape[0]):
-				for j in xrange(X.shape[1]):
+			for i in range(X.shape[0]):
+				for j in range(X.shape[1]):
 					X_ndarray[i, j] = keymap[X[i][j]]
 
 	return X_ndarray
@@ -128,7 +128,7 @@ cdef class GeneralMixtureModel(Model):
 	cdef double* summaries_ptr
 	cdef dict keymap
 	cdef int n
-	cdef public bint is_hmm_
+	cdef public bint is_vl_
 
 	def __init__(self, distributions, weights=None, n_components=None):
 		if not callable(distributions) and not isinstance(distributions, list):
@@ -136,7 +136,7 @@ cdef class GeneralMixtureModel(Model):
 			                 "or constructor")
 
 		self.d = 0
-		self.is_hmm_ = False
+		self.is_vl_ = False
 
 		if callable(distributions):
 			if distributions == DiscreteDistribution:
@@ -159,7 +159,7 @@ cdef class GeneralMixtureModel(Model):
 					raise TypeError("mis-matching dimensions "
 					                "between distributions")
 				if dist.model == 'HiddenMarkovModel':
-					self.is_hmm_ = True
+					self.is_vl_ = True
 
 			if weights is None:
 				weights = numpy.full_like(
@@ -214,7 +214,7 @@ cdef class GeneralMixtureModel(Model):
 		"""
 
 		samples = []
-		for i in xrange(n):
+		for i in range(n):
 			d = numpy.random.choice(self.distributions,
 			                        p=numpy.exp(self.weights))
 			samples.append(d.sample())
@@ -249,7 +249,7 @@ cdef class GeneralMixtureModel(Model):
 		if self.d == 0:
 			raise ValueError("must first fit model before using "
 			                 "log_probability method.")
-		elif self.is_hmm_ or self.d == 1:
+		elif self.is_vl_ or self.d == 1:
 			n, d = len(X), self.d
 		elif self.d > 1 and X.ndim == 1:
 			n, d = 1, len(X)
@@ -262,13 +262,13 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray X_ndarray
 		cdef double* X_ptr 
 
-		if not self.is_hmm_:
+		if not self.is_vl_:
 			X_ndarray = numpy.array(X)
 			X_ptr = <double*> X_ndarray.data
 
 		with nogil:
-			for i in xrange(n):
-				if self.is_hmm_:
+			for i in range(n):
+				if self.is_vl_:
 					with gil:
 						X_ndarray = numpy.array(X[i])
 						X_ptr = <double*> X_ndarray.data
@@ -285,7 +285,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
-		for i in xrange(self.n):
+		for i in range(self.n):
 			log_probability = \
 				(<Model> self.distributions_ptr[i])._log_probability(X) \
 				+ self.weights_ptr[i]
@@ -299,7 +299,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
-		for i in xrange(self.n):
+		for i in range(self.n):
 			log_probability = \
 				(<Model> self.distributions_ptr[i])._mv_log_probability(X) \
 				+ self.weights_ptr[i]
@@ -313,7 +313,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef double log_probability_sum = NEGINF
 		cdef double log_probability
 
-		for i in xrange(self.n):
+		for i in range(self.n):
 			log_probability = \
 				(<Model> self.distributions_ptr[i])._vl_log_probability(X, n) \
 				+ self.weights_ptr[i]
@@ -385,7 +385,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray y
 		cdef double* y_ptr
 
-		if self.is_hmm_:
+		if self.is_vl_:
 			n, d = len(X), self.d
 		elif self.d == 1:
 			n, d = X.shape[0], 1
@@ -397,15 +397,15 @@ cdef class GeneralMixtureModel(Model):
 		y = numpy.zeros((n, self.n), dtype='float64')
 		y_ptr = <double*> y.data
 
-		if not self.is_hmm_:
+		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
 
 		with nogil:
-			if not self.is_hmm_:
+			if not self.is_vl_:
 				self._predict_log_proba(X_ptr, y_ptr, n, d)
 			else:
-				for i in xrange(n):
+				for i in range(n):
 					with gil:
 						X_ndarray = _check_input(X[i], self.keymap)
 						X_ptr = <double*> X_ndarray.data
@@ -413,28 +413,29 @@ cdef class GeneralMixtureModel(Model):
 
 					self._predict_log_proba(X_ptr, y_ptr+i*self.n, 1, d)
 		
-		return y if self.is_hmm_ else y.reshape(self.n, n).T
+		return y if self.is_vl_ else y.reshape(self.n, n).T
 
-	cdef void _predict_log_proba(self, double* X, double* y, int n, int d) nogil:
+	cdef void _predict_log_proba(self, double* X, double* y,
+	                             int n, int d) nogil:
 		cdef double y_sum, logp
 		cdef int i, j
 
-		for j in xrange(self.n):
-			if self.is_hmm_:
+		for j in range(self.n):
+			if self.is_vl_:
 				y[j] = (<Model> self.distributions_ptr[j]) \
 					._vl_log_probability(X, d)
 			else:
 				(<Model> self.distributions_ptr[j]) \
 					._v_log_probability(X, y+j*n, n)
 
-		for i in xrange(n):
+		for i in range(n):
 			y_sum = NEGINF
 
-			for j in xrange(self.n):
+			for j in range(self.n):
 				y[j*n + i] += self.weights_ptr[j]
 				y_sum = pair_lse(y_sum, y[j*n + i])
 
-			for j in xrange(self.n):
+			for j in range(self.n):
 				y[j*n + i] -= y_sum
 
 	cpdef predict(self, X):
@@ -465,7 +466,7 @@ cdef class GeneralMixtureModel(Model):
 			raise ValueError("must first fit model before using "
 			                 "predict method.")
 
-		if self.is_hmm_:
+		if self.is_vl_:
 			n, d = len(X), self.d
 		elif self.d == 1:
 			n, d = X.shape[0], 1
@@ -480,15 +481,15 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
 		cdef int* y_ptr = <int*> y.data
 
-		if not self.is_hmm_:
+		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
 
 		with nogil:
-			if not self.is_hmm_:
+			if not self.is_vl_:
 				self._predict(X_ptr, y_ptr, n, d)
 			else:
-				for i in xrange(n):
+				for i in range(n):
 					with gil:
 						X_ndarray = _check_input(X[i], self.keymap)
 						X_ptr = <double*> X_ndarray.data
@@ -503,18 +504,18 @@ cdef class GeneralMixtureModel(Model):
 		cdef double max_logp, logp
 		cdef double* r = <double*> calloc(n*self.n, sizeof(double))
 
-		for j in xrange(self.n):
-			if self.is_hmm_:
+		for j in range(self.n):
+			if self.is_vl_:
 				r[j] = (<Model> self.distributions_ptr[j]) \
 					._vl_log_probability(X, d)
 			else:
 				(<Model> self.distributions_ptr[j]) \
 					._v_log_probability(X, r+j*n, n)
 
-		for i in xrange(n):
+		for i in range(n):
 			max_logp = NEGINF
 
-			for j in xrange(self.n):
+			for j in range(self.n):
 				logp = r[j*n + i] + self.weights_ptr[j]
 				if logp > max_logp:
 					max_logp = logp
@@ -636,7 +637,7 @@ cdef class GeneralMixtureModel(Model):
 		cdef numpy.ndarray weights_ndarray
 		cdef double log_probability
 
-		if self.is_hmm_:
+		if self.is_vl_:
 			n, d = len(X), self.d
 		elif self.d == 1:
 			n, d = X.shape[0], 1
@@ -659,14 +660,14 @@ cdef class GeneralMixtureModel(Model):
 
 			distributions = [
 				self.distribution_callable.from_samples(X_ndarray[y==i])
-				for i in xrange(self.n) ]
+				for i in range(self.n) ]
 			
 			self.__init__(distributions)
 
 		cdef double* X_ptr
 		cdef double* weights_ptr = <double*> weights_ndarray.data
 
-		if not self.is_hmm_:
+		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
 			
@@ -674,7 +675,7 @@ cdef class GeneralMixtureModel(Model):
 				log_probability = self._summarize(X_ptr, weights_ptr, n)
 		else:
 			log_probability = 0.0
-			for i in xrange(n):
+			for i in range(n):
 				X_ndarray = _check_input(X[i], self.keymap)
 				X_ptr = <double*> X_ndarray.data
 				d = len(X_ndarray)
@@ -692,35 +693,35 @@ cdef class GeneralMixtureModel(Model):
 		memset(summaries, 0, self.n*sizeof(double))
 		cdef double tic
 
-		for j in xrange(self.n):
-			if self.is_hmm_:
+		for j in range(self.n):
+			if self.is_vl_:
 				r[j*n] = (<Model> self.distributions_ptr[j]) \
 					._vl_log_probability(X, n)
 			else:
 				(<Model> self.distributions_ptr[j]) \
 					._v_log_probability(X, r+j*n, n)
 
-		for i in xrange(n):
+		for i in range(n):
 			total = NEGINF
 
-			for j in xrange(self.n):
+			for j in range(self.n):
 				r[j*n + i] += self.weights_ptr[j]
 				total = pair_lse(total, r[j*n + i])
 
-			for j in xrange(self.n):
+			for j in range(self.n):
 				r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
 				summaries[j] += r[j*n + i]
 			
 			log_probability_sum += total * weights[i]
 
-			if self.is_hmm_:
+			if self.is_vl_:
 				break
 
-		for j in xrange(self.n):
+		for j in range(self.n):
 			(<Model> self.distributions_ptr[j])._summarize(X, r+j*n, n)
 
 		with gil:
-			for j in xrange(self.n):
+			for j in range(self.n):
 				self.summaries_ptr[j] += summaries[j]
 
 		free(r)

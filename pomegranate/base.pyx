@@ -41,7 +41,8 @@ cdef class Model(object):
 		Parameters
 		----------
 		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
+			The two separaters to pass to the json.dumps function for
+			formatting.
 			Default is (',', ' : ').
 
 		indent : int, optional
@@ -267,7 +268,7 @@ cdef class Model(object):
 		return NEGINF
 
 	cdef double _summarize( self, double* items,
-	                        double* weights, int n ) nogil:
+		                    double* weights, int n ) nogil:
 		pass
 
 	cdef void _v_log_probability( self, double* symbol,
