@@ -104,7 +104,6 @@ def test_serialization():
 
 @with_setup( setup, teardown )
 def test_pruning():
-	# single dimensions
 	s1 = State( NormalDistribution( 1, 10 ) )
 	s2 = State( NormalDistribution( 2, 10 ) )
 	s3 = State( UniformDistribution( 3, 10 ) )
@@ -127,17 +126,25 @@ def test_pruning():
 
 	assert_equal( len( hmm.graph.edges() ), 9 )
 	assert_equal( hmm.graph.get_edge_data( s3, s3 )['pseudocount'], 0.25 )
+	assert_equal( hmm.graph.get_edge_data( s3, s5 )['pseudocount'], 0.25 )
 
 	# Pruning
 	hmm.prune_transition( s3, s4 )
 
+	# After the pruning, the edges should be reduced by one and the other existing outgoing edges
+	# of State S3 (- Start-State of the edge) should have their probabilities updated
 	assert_equal( len( hmm.graph.edges() ), 8 )
 	assert_equal( hmm.graph.get_edge_data( s3, s3 )['pseudocount'], 0.5 )
+	assert_equal( hmm.graph.get_edge_data( s3, s5 )['pseudocount'], 0.5 )
 
 	hmm.bake()
 
+	# After the baking S4 should be removed because of the merging preferences and the missing
+	# incoming edge.
 	assert_equal( len( hmm.graph.edges() ), 7 )
 	assert_equal( hmm.graph.get_edge_data( s3, s3 )['pseudocount'], 0.5 )
+	assert_equal( hmm.graph.get_edge_data( s3, s5 )['pseudocount'], 0.5 )
+
 
 @with_setup( setup, teardown )
 def test_splitting():
@@ -164,22 +171,32 @@ def test_splitting():
 
 	assert_equal( len( hmm.graph.edges() ), 9 )
 
-	# Pruning
+	# Splitting
 	s6 = hmm.split_state( s3 )
 
 	hmm.bake()
 
+	# S3 has 5 Edges (3 inc and 3 outgoing, one of each is the self loop) which will result in 5
+	# new edges, 9 + 5 = 14
 	assert_equal( len( hmm.graph.edges() ), 14 )
+
+	# Check that the incoming edges took the splitting into account and changed the probabilites
+	# I.e. S1 - S3 had a probability of 1 which splitted into S1 - S3 = 0.5 and S1 - S6 = 0.5
 	assert_equal( hmm.graph.get_edge_data( s1, s3 )['pseudocount'], 0.5 )
 	assert_equal( hmm.graph.get_edge_data( s1, s6 )['pseudocount'], 0.5 )
 	assert_equal( hmm.graph.get_edge_data( s2, s3 )['pseudocount'], 0.5 )
 	assert_equal( hmm.graph.get_edge_data( s2, s6 )['pseudocount'], 0.5 )
+
+	# Check the outgoing edges - they shouldn't change their probabilities
 	assert_equal( hmm.graph.get_edge_data( s6, s6 )['pseudocount'], 0.25 )
 	assert_equal( hmm.graph.get_edge_data( s6, s4 )['pseudocount'], 0.5 )
 	assert_equal( hmm.graph.get_edge_data( s6, s5 )['pseudocount'], 0.25 )
+
+	# Check that no edges between the splitted states have been wrongly assigned
 	assert_equal( hmm.graph.has_edge( s6, s3 ), False )
 	assert_equal( hmm.graph.has_edge( s3, s6 ), False )
 
+	# Check that the distributions splitted correctly
 	assert abs( s3.distribution.parameters[0] - 1.5 ) < 0.01
 	assert abs( s3.distribution.parameters[1] - 17 ) < 0.01
 
