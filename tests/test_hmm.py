@@ -204,3 +204,9 @@ def test_splitting():
 
 	assert abs( s6.distribution.parameters[0] - 1.5 ) < 0.01
 	assert abs( s6.distribution.parameters[1] - 3 ) < 0.01
+
+	# Split Starting State (with no Dist)
+
+	s7 = hmm.split_state( hmm.start )
+
+	assert_equal(s7.distribution, None)

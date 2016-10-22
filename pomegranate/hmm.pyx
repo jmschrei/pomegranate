@@ -380,7 +380,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 			The new State parallel to the old one
 		"""
 
-		distribution_one, distribution_two = state.distribution.split()
+		if state.distribution:
+			distribution_one, distribution_two = state.distribution.split()
+		else:
+			distribution_one = None
+			distribution_two = None
 
 		state.distribution = distribution_one
 
