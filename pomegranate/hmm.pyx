@@ -362,7 +362,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 			else:
 				self.add_state( state )
 
-	def split_state( self, state ):
+	def split_state( self, state, name_of_new_state=None ):
 		"""The chosen State will be split and the new one will be set parallel to the splitted
 		state. The new State will get a slightly shifted Distribution depending on the chosen
 		Distribution and their shifting values.
@@ -371,6 +371,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 		----------
 		state : State
 			A state object to be added to the model.
+		name_of_new_state: str
+			The name of the new state if an custom name scheme is in use
 
 		Returns
 		-------
@@ -382,8 +384,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		state.distribution = distribution_one
 
-		new_state = state.copy()
-		new_state.distribution = distribution_two
+		new_state = State( name=name_of_new_state,
+						   weight=state.weight, distribution=distribution_two )
 
 		self.add_state( new_state )
 

@@ -149,13 +149,15 @@ def test_pruning():
 @with_setup( setup, teardown )
 def test_splitting():
 	# single dimensions
-	s1 = State( NormalDistribution( 1, 10 ) )
-	s2 = State( NormalDistribution( 2, 10 ) )
-	s3 = State( NormalDistribution( 3, 10 ) )
-	s4 = State( NormalDistribution( 4, 10 ) )
-	s5 = State( NormalDistribution( 5, 10 ) )
+	s1 = State( NormalDistribution( 1, 10 ) , 'S1' )
+	s2 = State( NormalDistribution( 2, 10 ) , 'S2' )
+	s3 = State( NormalDistribution( 3, 10 ) , 'S3' )
+	s4 = State( NormalDistribution( 4, 10 ) , 'S4' )
+	s5 = State( NormalDistribution( 5, 10 ) , 'S5' )
 
 	hmm = HiddenMarkovModel()
+
+	hmm.add_states(s1, s2, s3, s4, s5)
 
 	hmm.add_transition( hmm.start, s1, 0.5 )
 	hmm.add_transition( hmm.start, s2, 0.5 )
