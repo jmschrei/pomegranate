@@ -43,7 +43,7 @@ DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
 
 def log(value):
-	"""Return the natural log of the given value, or - nf if the value is 0."""
+	"""Return the natural log of the given value, or - inf if the value is 0."""
 
 	if isinstance( value, numpy.ndarray ):
 		to_return = numpy.zeros(( value.shape ))
@@ -662,7 +662,12 @@ cdef class NormalDistribution( Distribution ):
 			return
 
 		mu = self.summaries[1] / self.summaries[0]
-		var = self.summaries[2] / self.summaries[0] - self.summaries[1] ** 2.0 / self.summaries[0] ** 2.0
+
+		''' The Original Formula var = x2 / x0 - x1^2 / x0^2 could lead to ZeroDivision Errors
+		through extreme small valus in x0 (i.e. 1.7^-300) which resulted through the ** 2 in the
+		value 0. '''
+
+		var = self.summaries[2] / self.summaries[0] - (self.summaries[1] / self.summaries[0]) ** 2.0
 
 		sigma = csqrt(var)
 		if sigma < min_std:
