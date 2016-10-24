@@ -326,7 +326,7 @@ def summarize(model, X, weights=None, y=None, n_jobs=1, backend='threading', par
 	return sum(y)
 
 def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_threshold=1e-3, 
-	max_iterations=1e8, inertia=0.0, verbose=False, **kwargs):
+	max_iterations=1e8, inertia=0.0, verbose=False, batch_size=1240, algorithm='exact', **kwargs):
 	"""Provides for a parallelized fit function.
 
 	This function takes in a model, a dataset, the number of jobs to do, 
@@ -383,6 +383,17 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 		Whether or not to print out improvement information over iterations.
 		Default is False.
 
+	batch_size : int, optional
+		The number of points to summarize at a time. The more the faster.
+		Default is 1240.
+
+	algorithm : str, 'exact' or 'batch', optional
+		The algorithm to use. Exact requires the dataset can be fully loaded
+		in memory for the first update. Batch updates will begin with the
+		first batch but don't require the full dataset to be stored in memory.
+		Both techniques allow parallelization, but 'batch' allows for out of
+		core updates. Default is 'exact'.
+
 	Returns
 	-------
 	improvement : double
@@ -414,9 +425,12 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 		else:
 			n, d = X.shape
 
-		starts = [n/n_jobs*i for i in range(n_jobs)]
+		if algorithm == 'exact':
+			starts = [n/n_jobs*i for i in range(n_jobs)]
+		elif algorithm == 'batch':
+			starts = [batch_size*i for i in range(n/batch_size+1)]
+		
 		ends = starts[1:] + [n]
-
 		delay = delayed(model.summarize, check_pickle=False)
 
 		initial_log_probability_sum = NEGINF
@@ -424,8 +438,12 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 
 		with Parallel(n_jobs=n_jobs, backend=backend) as parallel:
 			while improvement > stop_threshold and iteration < max_iterations + 1:
-				if model.d == 0:
+				if model.d == 0 and algorithm == 'exact':
 					log_probability_sum = model.summarize(X, weights)
+					initial_log_probability_sum = log_probability_sum
+				elif model.d == 0 and algorithm == 'batch':
+					log_probability_sum = model.summarize(X[starts[0]:ends[0]], weights[starts[0]:ends[0]])
+					log_probability_sum += sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts[1:], ends[1:])))
 					initial_log_probability_sum = log_probability_sum
 				elif iteration == 0:
 					log_probability_sum = sum(parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends)))
