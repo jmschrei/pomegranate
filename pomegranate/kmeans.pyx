@@ -23,8 +23,8 @@ cdef class Kmeans(Model):
 	"""A kmeans model.
 
 	Kmeans is not a probabilistic model, but it is used in the kmeans++
-	initialization for GMMs. In essence, a point is selected as the center
-	for one component and then remaining points are selected
+	initialization for GMMs. In essence, a point is selected as the center for
+	one component and then remaining points are selected.
 
 	Parameters
 	----------
@@ -35,7 +35,8 @@ cdef class Kmeans(Model):
 		The centroids to be used for this kmeans clusterer, if known ahead of
 		time. These centroids can either be refined on future data, or used
 		for predictions in the future. If None, then it will begin clustering
-		on the first batch of data that it sees. Default is None. 
+		on the first batch of data that it sees.
+		Default is None.
 
 	Attributes
 	----------
@@ -60,12 +61,6 @@ cdef class Kmeans(Model):
 			self.centroids = numpy.array(centroids, dtype='float64')
 			self.centroids_ptr = <double*> self.centroids.data
 			self.d = self.centroids.shape[1]
-
-	def __str__(self):
-		return self.to_json()
-
-	def __repr__(self):
-		return self.to_json()
 
 	def __dealloc__(self):
 		free(self.summary_sizes)
@@ -130,20 +125,24 @@ cdef class Kmeans(Model):
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia + new_param*(1-inertia),
-			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters. Default is 0.0.
+			parameters will roughly be
+			old_param*inertia + new_param*(1-inertia), so an inertia of 0 means
+			ignore the old parameters, whereas an inertia of 1 means ignore
+			the new parameters.
+			Default is 0.0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
-			the model. If the model does not improve its fit of the data by
-			a log probability of 0.1 then terminate. Default is 0.1.
+			the model. If the model does not improve its fit of the data by a
+			log probability of 0.1 then terminate.
+			Default is 0.1.
 
 		max_iterations : int, optional
 			The maximum number of iterations to run for. Default is 1e3.
 
 		verbose : bool, optional
-			Whether or not to print out improvement information over iterations.
+			Whether or not to print out improvement information over
+			iterations.
 			Default is False.
 
 		Returns
@@ -268,22 +267,6 @@ cdef class Kmeans(Model):
 		return total_dist
 
 	def from_summaries(self, double inertia=0.0):
-		"""Fit the model to the sufficient statistics.
-
-		Parameters
-		----------
-		inertia : double, optional
-			The weight of the previous parameters of the model. The new
-			parameters will roughly be old_param*inertia
-			+ new_param * (1-inertia), so an inertia of 0 means ignore the old
-			parameters, whereas an inertia of 1 means ignore the new
-			parameters. Default is 0.0.
-
-		Returns
-		-------
-		None
-		"""
-
 		if self.d == 0:
 			return
 
@@ -297,44 +280,14 @@ cdef class Kmeans(Model):
 						+ (1-inertia) * self.summary_weights[j*d + l] \
 						/ self.summary_sizes[j] \
 
-
 			memset(self.summary_sizes, 0, self.k * sizeof(int))
 			memset(self.summary_weights, 0, self.k * self.d * sizeof(int))
 
 	def clear_summaries(self):
-		"""Clear the stored sufficient statistics.
-
-		Parameters
-		----------
-		None
-
-		Returns
-		-------
-		None
-		"""
-
 		memset(self.summary_sizes, 0, self.k*sizeof(int))
 		memset(self.summary_weights, 0, self.k*self.d*sizeof(int))
 
 	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
-			Default is (',', ' : ').
-
-		indent : int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting. Default is 4.
-
-		Returns
-		-------
-		json : str
-			A properly formatted JSON object.
-		"""
-
 		model = {
 					'class' : 'Kmeans',
 					'k' : self.k,
@@ -345,18 +298,6 @@ cdef class Kmeans(Model):
 
 	@classmethod
 	def from_json(cls, s):
-		"""Read in a serialized model and return the appropriate classifier.
-
-		Parameters
-		----------
-		s : str
-			A JSON formatted string containing the file.
-		Returns
-		-------
-		model : object
-			A properly initialized and baked model.
-		"""
-
 		d = json.loads(s)
 		model = Kmeans(d['k'], d['centroids'])
 		return model

@@ -35,8 +35,25 @@ cdef class Model(object):
 	def set_params(self, state):
 		self.__setstate__(state)
 
-	def to_json(self):
-		"""Serialize this object into JSON format."""
+	def to_json(self, separators=(',', ' : '), indent=4):
+		"""Serialize the model to a JSON.
+
+		Parameters
+		----------
+		separators : tuple, optional
+			The two separaters to pass to the json.dumps function for
+			formatting.
+			Default is (',', ' : ').
+
+		indent : int, optional
+			The indentation to use at each level. Passed to json.dumps for
+			formatting. Default is 4.
+
+		Returns
+		-------
+		json : str
+			A properly formatted JSON object.
+		"""
 		raise NotImplementedError
 
 	@classmethod
@@ -251,7 +268,7 @@ cdef class Model(object):
 		return NEGINF
 
 	cdef double _summarize( self, double* items,
-	                        double* weights, int n ) nogil:
+		                    double* weights, int n ) nogil:
 		pass
 
 	cdef void _v_log_probability( self, double* symbol,
