@@ -12,15 +12,14 @@ from pomegranate import (GeneralMixtureModel,
                          HiddenMarkovModel,
                          State)
 from nose.tools import with_setup
-from nose.tools import assert_greater
-from nose.tools import assert_equal
-from nose.tools import assert_raises
+
 import random
 import numpy as np
 
 nan = np.nan
 np.random.seed(0)
 random.seed(0)
+
 
 def setup_hmm_gmm():
     # Build a GMM with HMM emissions
@@ -29,8 +28,10 @@ def setup_hmm_gmm():
     hmm_b = build_hmm(3, 10, "hmm_b")
     gmm = GeneralMixtureModel([hmm_a, hmm_b])
 
+
 def teardown():
     pass
+
 
 def build_hmm(mean_a, mean_b, name):
     d1 = State(NormalDistribution(mean_a, 1), "d1")
@@ -43,7 +44,7 @@ def build_hmm(mean_a, mean_b, name):
     hmm.add_transition(hmm.start, d2, 0.1)
     hmm.add_transition(d1, d2, 0.65)
     hmm.add_transition(d1, d1, 0.20)
-    hmm.add_transition( d1, hmm.end, 0.15)
+    hmm.add_transition(d1, hmm.end, 0.15)
     hmm.add_transition(d2, d1, 0.20)
     hmm.add_transition(d2, d2, 0.70)
     hmm.add_transition(d2, hmm.end, 0.10)
@@ -51,24 +52,31 @@ def build_hmm(mean_a, mean_b, name):
     hmm.bake()
     return hmm
 
-@with_setup(setup_hmm_gmm, teardown)
-def test_hmm_gmm_prior():
-    hmm_a_sample = [hmm_a.sample() for i in range(5)]
-    hmm_b_sample = [hmm_b.sample() for i in range(10)]
-    X = hmm_a_sample + hmm_b_sample
-    probs = gmm.predict_proba(X)
-    for i in probs[:5]:
-        assert_greater(i[0], i[1])
-    for i in probs[5:]:
-        assert_greater(i[1], i[0])
 
 @with_setup(setup_hmm_gmm, teardown)
-def test_hmm_gmm_posterior():
-    hmm_a_sample = [hmm_a.sample() for i in range(1000)]
-    hmm_b_sample = [hmm_b.sample() for i in range(2000)]
-    X = hmm_a_sample + hmm_b_sample
+def test_hmm_gmm_log_probability():
+    np.testing.assert_array_almost_equal(gmm.log_probability([5]),
+                                         np.array([-4.09641629]))
+
+
+@with_setup(setup_hmm_gmm, teardown)
+def test_hmm_gmm_predict_proba():
+    np.testing.assert_array_almost_equal(gmm.predict_proba([[5], [7]]),
+                                         np.array([[0.071109, 0.928891],
+                                                   [0.984603, 0.015397]]))
+
+
+@with_setup(setup_hmm_gmm, teardown)
+def test_hmm_gmm_predict_log_proba():
+    np.testing.assert_array_almost_equal(gmm.predict_log_proba([[5], [7]]),
+                                         np.array([[-2.64354, -0.073764],
+                                                   [-0.015517, -4.173585]]))
+
+
+@with_setup(setup_hmm_gmm, teardown)
+def test_hmm_gmm_fit():
+    X = [[1], [7], [8], [2]]
     gmm.fit(X, verbose=True)
-    print np.exp(gmm.weights)
-    np.testing.assert_array_almost_equal(np.exp(gmm.weights),
-                                         np.array([0.33, 0.66]),
-                                         decimal=2)
+    np.testing.assert_array_almost_equal(gmm.predict_log_proba([[5], [7]]),
+                                         np.array([[0., 0.928891],
+                                                   [0., 0.015397]]))
