@@ -75,8 +75,8 @@ def test_hmm_gmm_predict_log_proba():
 
 @with_setup(setup_hmm_gmm, teardown)
 def test_hmm_gmm_fit():
-    X = [[1], [7], [8], [2]]
+    X = [[2], [4], [8], [9]]
     gmm.fit(X, verbose=True)
-    np.testing.assert_array_almost_equal(gmm.predict_log_proba([[5], [7]]),
-                                         np.array([[0., 0.928891],
-                                                   [0., 0.015397]]))
+    np.testing.assert_array_almost_equal(gmm.predict_proba([[5], [7]]),
+                                         np.array([[0., 1.],
+                                                   [1., 0.]]))
