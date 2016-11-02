@@ -664,12 +664,12 @@ cdef class NormalDistribution( Distribution ):
 		mu = self.summaries[1] / self.summaries[0]
 
 		''' The Original Formula var = x2 / x0 - x1^2 / x0^2 could lead to ZeroDivision Errors
-		through extreme small valus in x0 (i.e. 1.7^-300) which resulted through the ** 2 in the
-		value 0. '''
+		through extreme small values in x0 (i.e. 1.7^-300) which resulted in the
+		value 0 through the ** 2 operation.'''
 
 		var = self.summaries[2] / self.summaries[0] - (self.summaries[1] / self.summaries[0]) ** 2.0
 
-		sigma = csqrt(var)
+		sigma = csqrt(abs(var))
 		if sigma < min_std:
 			sigma = min_std
 
@@ -1522,6 +1522,10 @@ cdef class DiscreteDistribution( Distribution ):
 		if self.encoded_summary == 1:
 			for i in range(len(self.encoded_keys)):
 				self.encoded_counts[i] = 0
+
+	def split( self ):
+
+		return self.copy(), self.copy()
 
 	def to_json( self, separators=(',', ' :'), indent=4 ):
 		"""Serialize the distribution to a JSON.

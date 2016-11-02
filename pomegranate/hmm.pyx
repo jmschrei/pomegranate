@@ -380,6 +380,9 @@ cdef class HiddenMarkovModel( GraphModel ):
 			The new State parallel to the old one
 		"""
 
+		if name_of_new_state is None:
+			name_of_new_state = state.name + '-split'
+
 		if state.distribution:
 			distribution_one, distribution_two = state.distribution.split()
 		else:
@@ -539,7 +542,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 	def prune_transition( self, a, b ):
 		"""Prune a Transition between state a and b. The transition will be removed so that the
 		Graph is still valid. I.e. the summarized probability of all exiting transitions from a
-		add up to 1.
+		add up to 1. Keep in mind to bake the model again after pruning.
 
 		Parameters
 		----------
@@ -554,7 +557,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 		None
 		"""
 
-		origin_edge_data = self.graph.get_edge_data( a, b )
+		origin_edge_data = self.graph.get_edge_data( a, b, default=None )
+
+		if origin_edge_data is None:
+			raise ValueError('Edge not existing.')
+
 		origin_edge_prob = cexp( origin_edge_data['probability'] )
 		origin_edge_pseudo_count = origin_edge_data['pseudocount']
 
@@ -751,7 +758,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				plt.axis('off')
 		else:
 			warnings.warn("Install pygraphviz for nicer visualizations")
-			networkx.draw()
+			networkx.draw(self.graph)
 
 	def bake( self, verbose=False, merge="All" ):
 		"""Finalize the topology of the model.
