@@ -15,21 +15,13 @@
 import sys
 import os
 import subprocess
-import mock
-
-MOCK_MODULES = ['joblib', 'networkx', 'scipy', 'scipy.special']
-for mod in MOCK_MODULES:
-  sys.modules[mod] = mock.Mock()
 
 subprocess.call('pip install numpydoc', shell=True)
-subprocess.call('pip install pomegranate', shell=True)
-
-import pomegranate
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../'))
 
 # -- General configuration ------------------------------------------------
 
