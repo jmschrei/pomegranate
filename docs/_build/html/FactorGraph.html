@@ -1,0 +1,351 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Factor Graphs &mdash; pomegranate 0.6.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="pomegranate 0.6.0 documentation" href="index.html"/>
+        <link rel="prev" title="Bayesian Networks" href="BayesianNetwork.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pomegranate
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.6.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ooc.html">Out of Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Distributions.html">Probability Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GeneralMixtureModel.html">General Mixture Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="HiddenMarkovModel.html">Hidden Markov Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="MarkovChain.html">Markov Chains</a></li>
+<li class="toctree-l1"><a class="reference internal" href="NaiveBayes.html">Naive Bayes Classifiers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BayesianNetwork.html">Bayesian Networks</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Factor Graphs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-pomegranate.FactorGraph">API Reference</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">pomegranate</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Factor Graphs</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/FactorGraph.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="factor-graphs">
+<span id="factorgraph"></span><h1>Factor Graphs<a class="headerlink" href="#factor-graphs" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-pomegranate.FactorGraph">
+<span id="api-reference"></span><h2>API Reference<a class="headerlink" href="#module-pomegranate.FactorGraph" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pomegranate.FactorGraph.FactorGraph">
+<em class="property">class </em><code class="descclassname">pomegranate.FactorGraph.</code><code class="descname">FactorGraph</code><a class="headerlink" href="#pomegranate.FactorGraph.FactorGraph" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Factor Graph model.</p>
+<p>A biparte graph where conditional probability tables are on one side,
+and marginals for each of the variables involved are on the other
+side.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str, optional</p>
+<blockquote class="last">
+<div><p>The name of the model. Default is None.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pomegranate.FactorGraph.FactorGraph.bake">
+<code class="descname">bake</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.FactorGraph.FactorGraph.bake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finalize the topology of the model.</p>
+<p>Assign a numerical index to every state and create the underlying arrays
+corresponding to the states and edges between the states. This method 
+must be called before any of the probability-calculating methods. This 
+is the same as the HMM bake, except that at the end it sets current
+state information.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>None</strong></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.FactorGraph.FactorGraph.marginal">
+<code class="descname">marginal</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.FactorGraph.FactorGraph.marginal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the marginal probabilities of each variable in the graph.</p>
+<p>This is equivalent to a pass of belief propogation on a graph where
+no data has been given. This will calculate the probability of each
+variable being in each possible emission when nothing is known.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>None</strong></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>marginals</strong> : array-like, shape (n_nodes)</p>
+<blockquote class="last">
+<div><p>An array of univariate distribution objects showing the marginal
+probabilities of that variable.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.FactorGraph.FactorGraph.plot">
+<code class="descname">plot</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.FactorGraph.FactorGraph.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw this model&#8217;s graph using NetworkX and matplotlib.</p>
+<p>Note that this relies on networkx&#8217;s built-in graphing capabilities (and
+not Graphviz) and thus can&#8217;t draw self-loops.</p>
+<p>See networkx.draw_networkx() for the keywords you can pass in.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>**kwargs</strong> : any</p>
+<blockquote>
+<div><p>The arguments to pass into networkx.draw_networkx()</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.FactorGraph.FactorGraph.predict_proba">
+<code class="descname">predict_proba</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.FactorGraph.FactorGraph.predict_proba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the probabilities of each variable in the graph given evidence.</p>
+<p>This calculates the marginal probability distributions for each state given
+the evidence provided through loopy belief propogation. Loopy belief
+propogation is an approximate algorithm which is exact for certain graph
+structures.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>data</strong> : dict or array-like, shape &lt;= n_nodes, optional</p>
+<blockquote>
+<div><p>The evidence supplied to the graph. This can either be a dictionary
+with keys being state names and values being the observed values
+(either the emissions or a distribution over the emissions) or an
+array with the values being ordered according to the nodes incorporation
+in the graph (the order fed into .add_states/add_nodes) and None for
+variables which are unknown. If nothing is fed in then calculate the
+marginal of the graph.</p>
+</div></blockquote>
+<p><strong>max_iterations</strong> : int, optional</p>
+<blockquote>
+<div><p>The number of iterations with which to do loopy belief propogation.
+Usually requires only 1.</p>
+</div></blockquote>
+<p><strong>check_input</strong> : bool, optional</p>
+<blockquote>
+<div><p>Check to make sure that the observed symbol is a valid symbol for that
+distribution to produce.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>probabilities</strong> : array-like, shape (n_nodes)</p>
+<blockquote class="last">
+<div><p>An array of univariate distribution objects showing the probabilities
+of each variable.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="BayesianNetwork.html" class="btn btn-neutral" title="Bayesian Networks" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Jacob Schreiber.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.6.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

@@ -1,0 +1,545 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Markov Chains &mdash; pomegranate 0.6.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="pomegranate 0.6.0 documentation" href="index.html"/>
+        <link rel="next" title="Bayesian Networks" href="BayesianNetwork.html"/>
+        <link rel="prev" title="Naive Bayes Classifiers" href="NaiveBayes.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pomegranate
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.6.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ooc.html">Out of Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Distributions.html">Probability Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GeneralMixtureModel.html">General Mixture Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="HiddenMarkovModel.html">Hidden Markov Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="NaiveBayes.html">Naive Bayes Classifiers</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Markov Chains</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#initialization">Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#probability">Probability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fitting">Fitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pomegranate.MarkovChain">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="BayesianNetwork.html">Bayesian Networks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FactorGraph.html">Factor Graphs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">pomegranate</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Markov Chains</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/MarkovChain.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="markov-chains">
+<span id="markovchain"></span><h1>Markov Chains<a class="headerlink" href="#markov-chains" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_6_Markov_Chain.ipynb">IPython Notebook Tutorial</a></p>
+<p>Markov chains are form of structured model over sequences. They represent the probability of each character in the sequence as a conditional probability of the last k symbols. For example, a 3rd order Markov chain would have each symbol depend on the last three symbols. A 0th order Markov chain is a naive predictor where each symbol is independent of all other symbols. Currently pomegranate only supports discrete emission Markov chains where each symbol is a discrete symbol versus a continuous number (like &#8216;A&#8217; &#8216;B&#8217; &#8216;C&#8217; instead of 17.32 or 19.65).</p>
+<div class="section" id="initialization">
+<h2>Initialization<a class="headerlink" href="#initialization" title="Permalink to this headline">¶</a></h2>
+<p>Markov chains can almost be represented by a single conditional probability table (CPT), except that the probability of the first k elements (for a k-th order Markov chain) cannot be appropriately represented except by using special characters. Due to this pomegranate takes in a series of k+1 distributions representing the first k elements. For example for a second order Markov chain:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d1</span> <span class="o">=</span> <span class="n">DiscreteDistribution</span><span class="p">({</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">:</span> <span class="mf">0.75</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d2</span> <span class="o">=</span> <span class="n">ConditionalProbabilityTable</span><span class="p">([[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">],</span>
+<span class="go">                                      [&#39;A&#39;, &#39;B&#39;, 0.9],</span>
+<span class="go">                                      [&#39;B&#39;, &#39;A&#39;, 0.6],</span>
+<span class="go">                                      [&#39;B&#39;, &#39;B&#39;, 0.4]], [d1])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d3</span> <span class="o">=</span> <span class="n">ConditionalProbabilityTable</span><span class="p">([[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.4</span><span class="p">],</span>
+<span class="go">                                      [&#39;A&#39;, &#39;A&#39;, &#39;B&#39;, 0.6],</span>
+<span class="go">                                      [&#39;A&#39;, &#39;B&#39;, &#39;A&#39;, 0.8],</span>
+<span class="go">                                      [&#39;A&#39;, &#39;B&#39;, &#39;B&#39;, 0.2],</span>
+<span class="go">                                      [&#39;B&#39;, &#39;A&#39;, &#39;A&#39;, 0.9],</span>
+<span class="go">                                      [&#39;B&#39;, &#39;A&#39;, &#39;B&#39;, 0.1],</span>
+<span class="go">                                      [&#39;B&#39;, &#39;B&#39;, &#39;A&#39;, 0.2],</span>
+<span class="go">                                      [&#39;B&#39;, &#39;B&#39;, &#39;B&#39;, 0.8]], [d1, d2])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">MarkovChain</span><span class="p">([</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">,</span> <span class="n">d3</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="probability">
+<h2>Probability<a class="headerlink" href="#probability" title="Permalink to this headline">¶</a></h2>
+<p>The probability of a sequence under the Markov chain is just the probabiliy of the first character under the first distribution times the probability of the second character under the second distribution and so forth until you go past the (k+1)th character, which remains evaluated under the (k+1)th distribution. We can calculate the probability or log probability in the same manner as any of the other models. Given the model shown before:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">log_probability</span><span class="p">([</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">])</span>
+<span class="go">-3.324236340526027</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">log_probability</span><span class="p">([</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">])</span>
+<span class="go">-5.521460917862246</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="fitting">
+<h2>Fitting<a class="headerlink" href="#fitting" title="Permalink to this headline">¶</a></h2>
+<p>Markov chains are not very complicated to chain. For each sequence the appropriate symbols are sent to the appropriate distributions and maximum likelihood estimates are used to update the parameters of the distributions. There are no latent factors to train and so no expectation maximization or iterative algorithms are needed to train anything.</p>
+</div>
+<div class="section" id="module-pomegranate.MarkovChain">
+<span id="api-reference"></span><h2>API Reference<a class="headerlink" href="#module-pomegranate.MarkovChain" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pomegranate.MarkovChain.MarkovChain">
+<em class="property">class </em><code class="descclassname">pomegranate.MarkovChain.</code><code class="descname">MarkovChain</code><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Markov Chain.</p>
+<p>Implemented as a series of conditional distributions, the Markov chain
+models P(X_i | X_i-1...X_i-k) for a k-th order Markov network. The
+conditional dependencies are directly on the emissions, and not on a
+hidden state as in a hidden Markov model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>distributions</strong> : list, shape (k+1)</p>
+<blockquote class="last">
+<div><p>A list of the conditional distributions which make up the markov chain.
+Begins with P(X_i), then P(X_i | X_i-1). For a k-th order markov chain
+you must put in k+1 distributions.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d1</span> <span class="o">=</span> <span class="n">DiscreteDistribution</span><span class="p">({</span><span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">:</span> <span class="mf">0.75</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d2</span> <span class="o">=</span> <span class="n">ConditionalProbabilityTable</span><span class="p">([[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.33</span><span class="p">],</span>
+<span class="go">                                     [&#39;B&#39;, &#39;A&#39;, 0.67],</span>
+<span class="go">                                     [&#39;A&#39;, &#39;B&#39;, 0.82],</span>
+<span class="go">                                     [&#39;B&#39;, &#39;B&#39;, 0.18]], [d1])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mc</span> <span class="o">=</span> <span class="n">MarkovChain</span><span class="p">([</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mc</span><span class="o">.</span><span class="n">log_probability</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="s1">&#39;ABBAABABABAABABA&#39;</span><span class="p">))</span>
+<span class="go">-8.9119890701808213</span>
+</pre></div>
+</div>
+<p class="rubric">Attributes</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="17%" />
+<col width="83%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>distributions</td>
+<td>(list, shape (k+1)) The distributions which make up the chain.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.fit">
+<code class="descname">fit</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the model to new data using MLE.</p>
+<p>The underlying distributions are fed in their appropriate points and
+weights and are updated.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>sequences</strong> : array-like, shape (n_samples, variable)</p>
+<blockquote>
+<div><p>This is the data to train on. Each row is a sample which contains
+a sequence of variable length</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_samples,), optional</p>
+<blockquote>
+<div><p>The initial weights of each sample. If nothing is passed in then
+each sample is assumed to be the same weight. Default is None.</p>
+</div></blockquote>
+<p><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>The weight of the previous parameters of the model. The new
+parameters will roughly be
+old_param*inertia + new_param*(1-inertia), so an inertia of 0 means
+ignore the old parameters, whereas an inertia of 1 means ignore the
+new parameters. Default is 0.0.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.from_json">
+<code class="descname">from_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.from_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read in a serialized model and return the appropriate classifier.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>s</strong> : str</p>
+<blockquote>
+<div><p>A JSON formatted string containing the file.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>model</strong> : object</p>
+<blockquote class="last">
+<div><p>A properly initialized and baked model.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.from_samples">
+<code class="descname">from_samples</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.from_samples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Learn the Markov chain from data.</p>
+<p>Takes in the memory of the chain (k) and learns the initial
+distribution and probability tables associated with the proper
+parameters.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, list or numpy.array</p>
+<blockquote>
+<div><p>The data to fit the structure too as a list of sequences of
+variable length. Since the data will be of variable length,
+there is no set form</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_nodes), optional</p>
+<blockquote>
+<div><p>The weight of each sample as a positive double. Default is None.</p>
+</div></blockquote>
+<p><strong>k</strong> : int, optional</p>
+<blockquote>
+<div><p>The number of samples back to condition on in the model. Default
+is 1.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>model</strong> : MarkovChain</p>
+<blockquote class="last">
+<div><p>The learned markov chain model.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.from_summaries">
+<code class="descname">from_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.from_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the model to the collected sufficient statistics.</p>
+<p>Fit the parameters of the model to the sufficient statistics gathered
+during the summarize calls. This should return an exact update.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>The weight of the previous parameters of the model. The new
+parameters will roughly be
+old_param*inertia + new_param * (1-inertia), so an inertia of 0
+means ignore the old parameters, whereas an inertia of 1 means
+ignore the new parameters. Default is 0.0.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.log_probability">
+<code class="descname">log_probability</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.log_probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the log probability of the sequence under the model.</p>
+<p>This calculates the first slices of increasing size under the
+corresponding first few components of the model until size k is
+reached, at which all slices are evaluated under the final component.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>sequence</strong> : array-like</p>
+<blockquote>
+<div><p>An array of observations</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>logp</strong> : double</p>
+<blockquote class="last">
+<div><p>The log probability of the sequence under the model.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a random sample from the model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>length</strong> : int or Distribution</p>
+<blockquote>
+<div><p>Give either the length of the sample you want to generate, or a
+distribution object which will be randomly sampled for the length.
+Continuous distributions will have their sample rounded to the
+nearest integer, minimum 1.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>sequence</strong> : array-like, shape = (length,)</p>
+<blockquote class="last">
+<div><p>A sequence randomly generated from the markov chain.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.summarize">
+<code class="descname">summarize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.summarize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Summarize a batch of data and store sufficient statistics.</p>
+<p>This will summarize the sequences into sufficient statistics stored in
+each distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>sequences</strong> : array-like, shape (n_samples, variable)</p>
+<blockquote>
+<div><p>This is the data to train on. Each row is a sample which contains
+a sequence of variable length</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_samples,), optional</p>
+<blockquote>
+<div><p>The initial weights of each sample. If nothing is passed in then
+each sample is assumed to be the same weight. Default is None.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.MarkovChain.MarkovChain.to_json">
+<code class="descname">to_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.MarkovChain.MarkovChain.to_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize the model to a JSON.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>separators</strong> : tuple, optional</p>
+<blockquote>
+<div><p>The two separaters to pass to the json.dumps function for
+formatting. Default is (&#8216;,&#8217;, &#8216; : &#8216;).</p>
+</div></blockquote>
+<p><strong>indent</strong> : int, optional</p>
+<blockquote>
+<div><p>The indentation to use at each level. Passed to json.dumps for
+formatting. Default is 4.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>json</strong> : str</p>
+<blockquote class="last">
+<div><p>A properly formatted JSON object.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="BayesianNetwork.html" class="btn btn-neutral float-right" title="Bayesian Networks" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="NaiveBayes.html" class="btn btn-neutral" title="Naive Bayes Classifiers" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Jacob Schreiber.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.6.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

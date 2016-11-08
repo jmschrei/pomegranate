@@ -1,0 +1,696 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Naive Bayes Classifiers &mdash; pomegranate 0.6.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="pomegranate 0.6.0 documentation" href="index.html"/>
+        <link rel="next" title="Markov Chains" href="MarkovChain.html"/>
+        <link rel="prev" title="Hidden Markov Models" href="HiddenMarkovModel.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pomegranate
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.6.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ooc.html">Out of Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Distributions.html">Probability Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GeneralMixtureModel.html">General Mixture Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="HiddenMarkovModel.html">Hidden Markov Models</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Naive Bayes Classifiers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#initialization">Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prediction">Prediction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fitting">Fitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pomegranate.NaiveBayes">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="MarkovChain.html">Markov Chains</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BayesianNetwork.html">Bayesian Networks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FactorGraph.html">Factor Graphs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">pomegranate</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Naive Bayes Classifiers</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/NaiveBayes.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="naive-bayes-classifiers">
+<span id="naivebayes"></span><h1>Naive Bayes Classifiers<a class="headerlink" href="#naive-bayes-classifiers" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_5_Naive_Bayes.ipynb">IPython Notebook Tutorial</a></p>
+<p>The Naive Bayes classifier is a simple probabilistic classification model based on Bayes Theorem. Since Naive Bayes classifiers classifies sets of data by which class has the highest conditional probability, Naive Bayes classifiers can use any distribution or model which has a probabilistic interpretation of the data as one of its components. Basically if it can output a log probability, then it can be used in Naive Bayes.</p>
+<p>An IPython notebook example demonstrating a Naive Bayes classifier using multivariate distributions can be <a class="reference external" href="https://github.com/jmschrei/pomegranate/blob/master/examples/naivebayes_multivariate_male_female.ipynb">found here</a>.</p>
+<div class="section" id="initialization">
+<h2>Initialization<a class="headerlink" href="#initialization" title="Permalink to this headline">¶</a></h2>
+<p>Naive Bayes can be initialized in two ways, either by (1) passing in pre-initialized models as a list, or by (2) passing in the constructor and the number of components for simple distributions. For example, here is how you can create a Naive bayes classifier which compares a normal distribution to a uniform distribution to an exponential distribution:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">([</span> <span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">UniformDistribution</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">ExponentialDistribution</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">])</span>
+</pre></div>
+</div>
+<p>An advantage of initializing the classifier this way is that you can use pre-trained or known-before-hand models to make predictions. A disadvantage is that if we don&#8217;t have any prior knowledge as to what the distributions should be then we have to make up distributions to start off with. If all of the models in the classifier use the same type of model then we can pass in the constructor for that model and the number of classes that there are.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">(</span><span class="n">NormalDistribution</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">If we initialize a naive Bayes classifier in this manner we must fit the model before we can use it to predict.</p>
+</div>
+<p>An advantage of doing it this way is that we don&#8217;t need to make dummy distributions just to train, but a disadvantage is that we have to train the model before we can use it.</p>
+<p>Since Naive Bayes classifiers simply compares the likelihood of a sample occurring under different models, it can be initialized with any model in pomegranate. This is assuming that all the models take the same type of input.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d1</span> <span class="o">=</span> <span class="n">MultivariateGaussianDistribution</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d2</span> <span class="o">=</span> <span class="n">IndependentComponentsDistribution</span><span class="p">([</span><span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">([</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This is no longer strictly a &#8220;naive&#8221; Bayes classifier if we are using more complicated models. However, much of the underlying math still holds.</p>
+</div>
+</div>
+<div class="section" id="prediction">
+<h2>Prediction<a class="headerlink" href="#prediction" title="Permalink to this headline">¶</a></h2>
+<p>Naive Bayes supports the same three prediction methods that the other models support, namely <code class="docutils literal"><span class="pre">predict</span></code>, <code class="docutils literal"><span class="pre">predict_proba</span></code>, and <code class="docutils literal"><span class="pre">predict_log_proba</span></code>. These methods return the most likely class given the data, the probability of each class given the data, and the log probability of each class given the data.</p>
+<p>The <code class="docutils literal"><span class="pre">predict</span></code> method takes in samples and returns the most likely class given the data.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">([</span> <span class="n">NormalDistribution</span><span class="p">(</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">2</span> <span class="p">),</span> <span class="n">UniformDistribution</span><span class="p">(</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span> <span class="p">),</span> <span class="n">ExponentialDistribution</span><span class="p">(</span> <span class="mf">1.0</span> <span class="p">)</span> <span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span> <span class="p">])</span> <span class="p">)</span>
+<span class="go">[ 2, 2, 2, 0, 0 ]</span>
+</pre></div>
+</div>
+<p>Calling <code class="docutils literal"><span class="pre">predict_proba</span></code> on five samples for a Naive Bayes with univariate components would look like the following.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">([</span><span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">UniformDistribution</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">ExponentialDistribution</span><span class="p">(</span><span class="mi">1</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]))</span>
+<span class="go">[[ 0.00790443  0.09019051  0.90190506]</span>
+<span class="go"> [ 0.05455011  0.20207126  0.74337863]</span>
+<span class="go"> [ 0.21579499  0.33322883  0.45097618]</span>
+<span class="go"> [ 0.44681566  0.36931382  0.18387052]</span>
+<span class="go"> [ 0.59804205  0.33973357  0.06222437]]</span>
+</pre></div>
+</div>
+<p>Multivariate models work the same way except that the input has to have the same number of columns as are represented in the model, like the following.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d1</span> <span class="o">=</span> <span class="n">MultivariateGaussianDistribution</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d2</span> <span class="o">=</span> <span class="n">IndependentComponentsDistribution</span><span class="p">([</span><span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">([</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">],</span>
+<span class="go">                                                            [1, 3],</span>
+<span class="go">                                                            [2, 2],</span>
+<span class="go">                                                            [3, 1],</span>
+<span class="go">                                                            [4, 0]]))</span>
+<span class="go">array([[ 0.00023312,  0.99976688],</span>
+<span class="go">       [ 0.00220745,  0.99779255],</span>
+<span class="go">       [ 0.00466169,  0.99533831],</span>
+<span class="go">       [ 0.00220745,  0.99779255],</span>
+<span class="go">       [ 0.00023312,  0.99976688]])</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">predict_log_proba</span></code> works in a similar way except that it returns the log probabilities instead of the actual probabilities.</p>
+</div>
+<div class="section" id="fitting">
+<h2>Fitting<a class="headerlink" href="#fitting" title="Permalink to this headline">¶</a></h2>
+<p>Naive Bayes has a fit method, in which the models in the classifier are trained to &#8220;fit&#8221; to a set of data. The method takes two numpy arrays as input, an array of samples and an array of correct classifications for each sample. Here is an example for a Naive Bayes made up of two bivariate distributions.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d1</span> <span class="o">=</span> <span class="n">MultivariateGaussianDistribution</span><span class="p">([</span><span class="mi">5</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="p">[[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">d2</span> <span class="o">=</span> <span class="n">IndependentComponentsDistribution</span><span class="p">(</span><span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">([</span><span class="n">d1</span><span class="p">,</span> <span class="n">d2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mf">6.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">],</span>
+<span class="go">                          [3.5, 4.0],</span>
+<span class="go">                          [7.5, 1.5],</span>
+<span class="go">                              [7.0, 7.0 ]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>As we can see, there are four samples, with the first two samples labeled as class 0 and the last two samples labeled as class 1. Keep in mind that the training samples must match the input requirements for the models used. So if using a univariate distribution, then each sample must contain one item. A bivariate distribution, two. For hidden markov models, the sample can be a list of observations of any length. An example using hidden markov models would be the following.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">list</span><span class="p">(</span> <span class="s1">&#39;HHHHHTHTHTTTTH&#39;</span> <span class="p">),</span>
+<span class="go">                                            list( &#39;HHTHHTTHHHHHTH&#39; ),</span>
+<span class="go">                                            list( &#39;TH&#39; ),</span>
+<span class="go">                                            list( &#39;HHHHT&#39; )])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="module-pomegranate.NaiveBayes">
+<span id="api-reference"></span><h2>API Reference<a class="headerlink" href="#module-pomegranate.NaiveBayes" title="Permalink to this headline">¶</a></h2>
+<p>Naive Bayes estimator, for anything with a log_probability method.</p>
+<dl class="class">
+<dt id="pomegranate.NaiveBayes.NaiveBayes">
+<em class="property">class </em><code class="descclassname">pomegranate.NaiveBayes.</code><code class="descname">NaiveBayes</code><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Naive Bayes model, a supervised alternative to GMM.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>models</strong> : list or constructor</p>
+<blockquote>
+<div><p>Must either be a list of initialized distribution/model objects, or
+the constructor for a distribution object:</p>
+<ul class="simple">
+<li>Initialized : NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])</li>
+<li>Constructor : NaiveBayes(NormalDistribution)</li>
+</ul>
+</div></blockquote>
+<p><strong>weights</strong> : list or numpy.ndarray or None, default None</p>
+<blockquote class="last">
+<div><p>The prior probabilities of the components. If None is passed in then
+defaults to the uniformly distributed priors.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">(</span> <span class="n">NormalDistribution</span> <span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">X</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">6</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">([</span><span class="mi">6</span><span class="p">])</span>
+<span class="go">array([[ 0.01973451,  0.98026549]])</span>
+</pre></div>
+</div>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">NaiveBayes</span><span class="p">([</span><span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">predict_log_proba</span><span class="p">([[</span><span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]])</span>
+<span class="go">array([[-1.1836569 , -0.36550972],</span>
+<span class="go">           [-0.79437677, -0.60122959],</span>
+<span class="go">           [-0.26751248, -1.4493653 ],</span>
+<span class="go">           [-1.09861229, -0.40546511]])</span>
+</pre></div>
+</div>
+<p class="rubric">Attributes</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="9%" />
+<col width="91%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>models</td>
+<td>(list) The model objects, either initialized by the user or fit to data.</td>
+</tr>
+<tr class="row-even"><td>weights</td>
+<td>(numpy.ndarray) The prior probability of each component of the model.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.clear_summaries">
+<code class="descname">clear_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.clear_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear the summary statistics stored in the object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a deep copy of this distribution object.</p>
+<p>This object will not be tied to any other distribution or connected
+in any form.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>None</strong></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>distribution</strong> : Distribution</p>
+<blockquote class="last">
+<div><p>A copy of the distribution with the same parameters.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.fit">
+<code class="descname">fit</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the Naive Bayes model to the data by passing data to their components.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : numpy.ndarray or list</p>
+<blockquote>
+<div><p>The dataset to operate on. For most models this is a numpy array with
+columns corresponding to features and rows corresponding to samples.
+For markov chains and HMMs this will be a list of variable length
+sequences.</p>
+</div></blockquote>
+<p><strong>y</strong> : numpy.ndarray or list or None, optional</p>
+<blockquote>
+<div><p>Data labels for supervised training algorithms. Default is None</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like or None, shape (n_samples,), optional</p>
+<blockquote>
+<div><p>The initial weights of each sample in the matrix. If nothing is
+passed in then each sample is assumed to be the same weight.
+Default is None.</p>
+</div></blockquote>
+<p><strong>n_jobs</strong> : int</p>
+<blockquote>
+<div><p>The number of jobs to use to parallelize, either the number of threads
+or the number of processes to use. Default is 1.</p>
+</div></blockquote>
+<p><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>Inertia used for the training the distributions.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>self</strong> : object</p>
+<blockquote class="last">
+<div><p>Returns the fitted model</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.freeze">
+<code class="descname">freeze</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.freeze" title="Permalink to this definition">¶</a></dt>
+<dd><p>Freeze the distribution, preventing updates from occuring.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.from_summaries">
+<code class="descname">from_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.from_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the Naive Bayes model to the stored sufficient statistics.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>Inertia used for the training the distributions.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>self</strong> : object</p>
+<blockquote class="last">
+<div><p>Returns the fitted model</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.log_probability">
+<code class="descname">log_probability</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.log_probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the log probability of the given symbol under this
+distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>symbol</strong> : double</p>
+<blockquote>
+<div><p>The symbol to calculate the log probability of (overriden for
+DiscreteDistributions)</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>logp</strong> : double</p>
+<blockquote class="last">
+<div><p>The log probability of that point under the distribution.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.predict">
+<code class="descname">predict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Predict the most likely component which generated each sample.</p>
+<p>Calculate the posterior P(M|D) for each sample and return the index
+of the component most likely to fit it. This corresponds to a simple
+argmax over the responsibility matrix.</p>
+<p>This is a sklearn wrapper for the maximum_a_posteriori method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>The samples to do the prediction on. Each sample is a row and each
+column corresponds to a dimension in that sample. For univariate
+distributions, a single array may be passed in.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>y</strong> : array-like, shape (n_samples,)</p>
+<blockquote class="last">
+<div><p>The predicted component which fits the sample the best.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.predict_log_proba">
+<code class="descname">predict_log_proba</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.predict_log_proba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the posterior log P(M|D) for data.</p>
+<p>Calculate the log probability of each item having been generated from
+each component in the model. This returns normalized log probabilities
+such that the probabilities should sum to 1</p>
+<p>This is a sklearn wrapper for the original posterior function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>The samples to do the prediction on. Each sample is a row and each
+column corresponds to a dimension in that sample. For univariate
+distributions, a single array may be passed in.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>y</strong> : array-like, shape (n_samples, n_components)</p>
+<blockquote class="last">
+<div><p>The normalized log probability log P(M|D) for each sample. This is
+the probability that the sample was generated from each component.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.predict_proba">
+<code class="descname">predict_proba</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.predict_proba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the posterior P(M|D) for data.</p>
+<p>Calculate the probability of each item having been generated from
+each component in the model. This returns normalized probabilities
+such that each row should sum to 1.</p>
+<p>Since calculating the log probability is much faster, this is just
+a wrapper which exponentiates the log probability matrix.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>The samples to do the prediction on. Each sample is a row and each
+column corresponds to a dimension in that sample. For univariate
+distributions, a single array may be passed in.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>probability</strong> : array-like, shape (n_samples, n_components)</p>
+<blockquote class="last">
+<div><p>The normalized probability P(M|D) for each sample. This is the
+probability that the sample was generated from each component.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.probability">
+<code class="descname">probability</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the probability of the given symbol under this distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>symbol</strong> : object</p>
+<blockquote>
+<div><p>The symbol to calculate the probability of</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>probability</strong> : double</p>
+<blockquote class="last">
+<div><p>The probability of that point under the distribution.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a random item sampled from this distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>n</strong> : int or None, optional</p>
+<blockquote>
+<div><p>The number of samples to return. Default is None, which is to
+generate a single sample.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>sample</strong> : double or object</p>
+<blockquote class="last">
+<div><p>Returns a sample from the distribution of a type in the support
+of the distribution.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.summarize">
+<code class="descname">summarize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.summarize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Summarize data into stored sufficient statistics for out-of-core training.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, variable)</p>
+<blockquote>
+<div><p>Array of the samples, which can be either fixed size or variable depending
+on the underlying components.</p>
+</div></blockquote>
+<p><strong>y</strong> : array-like, shape (n_samples,)</p>
+<blockquote>
+<div><p>Array of the known labels as integers</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_samples,) optional</p>
+<blockquote>
+<div><p>Array of the weight of each sample, a positive float</p>
+</div></blockquote>
+<p><strong>n_jobs</strong> : int</p>
+<blockquote>
+<div><p>The number of jobs to use to parallelize, either the number of threads
+or the number of processes to use. Default is 1.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.NaiveBayes.NaiveBayes.thaw">
+<code class="descname">thaw</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.NaiveBayes.NaiveBayes.thaw" title="Permalink to this definition">¶</a></dt>
+<dd><p>Thaw the distribution, re-allowing updates to occur.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="MarkovChain.html" class="btn btn-neutral float-right" title="Markov Chains" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="HiddenMarkovModel.html" class="btn btn-neutral" title="Hidden Markov Models" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Jacob Schreiber.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.6.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

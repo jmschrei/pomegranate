@@ -1,0 +1,746 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>General Mixture Models &mdash; pomegranate 0.6.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="pomegranate 0.6.0 documentation" href="index.html"/>
+        <link rel="next" title="Hidden Markov Models" href="HiddenMarkovModel.html"/>
+        <link rel="prev" title="Probability Distributions" href="Distributions.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pomegranate
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.6.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ooc.html">Out of Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Distributions.html">Probability Distributions</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">General Mixture Models</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#initialization">Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#log-probability">Log Probability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prediction">Prediction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fitting">Fitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-pomegranate.gmm">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="HiddenMarkovModel.html">Hidden Markov Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="NaiveBayes.html">Naive Bayes Classifiers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="MarkovChain.html">Markov Chains</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BayesianNetwork.html">Bayesian Networks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FactorGraph.html">Factor Graphs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">pomegranate</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>General Mixture Models</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/GeneralMixtureModel.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="general-mixture-models">
+<span id="generalmixturemodel"></span><h1>General Mixture Models<a class="headerlink" href="#general-mixture-models" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_2_General_Mixture_Models.ipynb">IPython Notebook Tutorial</a></p>
+<p>General Mixture Models (GMMs) are an unsupervised model composed of multiple distributions (commonly also referred to as components) and corresponding weights. This allows you to model more sophisticated phenomena probabilistically. A common task is to figure out which component a new data point comes from given only a large quantity of unlabelled data.</p>
+<div class="section" id="initialization">
+<h2>Initialization<a class="headerlink" href="#initialization" title="Permalink to this headline">¶</a></h2>
+<p>General Mixture Models can be initialized in two ways depending on if you know the initial parameters of the distributions of not. If you do know the prior parameters of the distributions then you can pass them in as a list. These do not have to be the same distribution&#8211;you can mix and match distributions as you want. You can also pass in the weights, or the prior probability of a sample belonging to that component of the model.</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">gmm</span> <span class="o">=</span> <span class="n">GeneralMixtureModel</span><span class="p">([</span><span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)],</span> <span class="n">weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.33</span><span class="p">,</span> <span class="mf">0.67</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>If you do not know the initial parameters, then the components can be initialized using kmeans++. This algorithm involves picking a point randomly to be the center for the first class, and then randomly selecting a point with weights inversely proportional to the distance to this point for each of the remaining points. kmeans is then run until convergence, and the initial parameters are selected as MLE estimates on the points assigned to that weight. This is done in the following manner:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">gmm</span> <span class="o">=</span> <span class="n">GeneralMixtureModel</span><span class="p">(</span> <span class="n">NormalDistribution</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">2</span> <span class="p">)</span>
+</pre></div>
+</div>
+<p>This allows any distribution in pomegranate to be natively used in GMMs.</p>
+</div>
+<div class="section" id="log-probability">
+<h2>Log Probability<a class="headerlink" href="#log-probability" title="Permalink to this headline">¶</a></h2>
+<p>The probability of a point is the sum of its probability under each of the components, multiplied by the weight of each component c, $P(D|M) = sumlimits_{c in M} P(D|c)$. This is easily calculated by summing the probability under each distribution in the mixture model and multiplying by the appropriate weights, and then taking the log.</p>
+</div>
+<div class="section" id="prediction">
+<h2>Prediction<a class="headerlink" href="#prediction" title="Permalink to this headline">¶</a></h2>
+<p>The common prediction tasks involve predicting which component a new point falls under. This is done using Bayes rule to determine</p>
+<div class="math">
+\[P(M|D)\]</div>
+<p>, not the more likely $P(D|M)$. This means that it is not simply which component gives the highest log probability when producing the point. Bayes Rule is as follows: $P(M|D) = frac{P(D|M)P(M)}{P(D)}$. Since we&#8217;re looking for a maximum and $P(D)$ is a constant we can cross that off, and we&#8217;re left with $P(M|D) = P(D|M)P(M)$. $P(D|M)$ is just the probability of the point under the distribution and $P(M)$ are the prior model weights passed in upon initialization or learned from data. This adds a regularization term, meaning that components with fewer samples corresponding to them are less likely to have given this point its label.</p>
+<p>We can get the component label assignments using <cite>model.predict(data)</cite>, which will return an array of indexes corresponding to the maximally likely component. If what we want is the full matrix of $P(M|D)$, then we can use <cite>model.predict_proba(data)</cite>, which will return a matrix with each row being a sample, each column being a component, and each cell being the probability that that model generated that data. If we want log probabilities instead we can use <cite>model.predict_log_proba(data)</cite> instead.</p>
+</div>
+<div class="section" id="fitting">
+<h2>Fitting<a class="headerlink" href="#fitting" title="Permalink to this headline">¶</a></h2>
+<p>Training GMMs faces the classic chicken-and-egg problem that most unsupervised learning algorithms face. If we knew which component a sample belonged to, we could use MLE estimates to update the component. And if we knew the parameters of the components we could predict which sample belonged to which component. This problem is solved using expectation-maximization, which iterates between the two until convergence. In essence, an initialization point is chosen which usually is not a very good start, but through successive iteration steps, the parameters converge to a good ending.</p>
+<p>These models are fit using <cite>model.fit(data)</cite>. A maximimum number of iterations can be specified as well as a stopping threshold for the improvement ratio. See the API reference for full documentation.</p>
+</div>
+<div class="section" id="module-pomegranate.gmm">
+<span id="api-reference"></span><h2>API Reference<a class="headerlink" href="#module-pomegranate.gmm" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pomegranate.gmm.GeneralMixtureModel">
+<em class="property">class </em><code class="descclassname">pomegranate.gmm.</code><code class="descname">GeneralMixtureModel</code><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>A General Mixture Model.</p>
+<p>This mixture model can be a mixture of any distribution as long as
+they are all of the same dimensionality. Any object can serve as a
+distribution as long as it has fit(X, weights), log_probability(X),
+and summarize(X, weights)/from_summaries() methods if out of core
+training is desired.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>distributions</strong> : array-like, shape (n_components,) or callable</p>
+<blockquote>
+<div><p>The components of the model. If array, corresponds to the initial
+distributions of the components. If callable, must also pass in the
+number of components and kmeans++ will be used to initialize them.</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, optional, shape (n_components,)</p>
+<blockquote>
+<div><p>The prior probabilities corresponding to each component. Does not
+need to sum to one, but will be normalized to sum to one internally.
+Defaults to None.</p>
+</div></blockquote>
+<p><strong>n_components</strong> : int, optional</p>
+<blockquote class="last">
+<div><p>If a callable is passed into distributions then this is the number
+of components to initialize using the kmeans++ algorithm. Defaults
+to None.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Examples</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span> <span class="o">=</span> <span class="n">GeneralMixtureModel</span><span class="p">([</span><span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">NormalDistribution</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">log_probability</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="go">-2.304562194038089</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">([[</span><span class="mi">5</span><span class="p">],</span> <span class="p">[</span><span class="mi">7</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+<span class="go">array([[ 0.99932952,  0.00067048],</span>
+<span class="go">       [ 0.99999995,  0.00000005],</span>
+<span class="go">       [ 0.06337894,  0.93662106]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">([[</span><span class="mi">1</span><span class="p">],</span> <span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="p">[</span><span class="mi">7</span><span class="p">],</span> <span class="p">[</span><span class="mi">8</span><span class="p">],</span> <span class="p">[</span><span class="mi">2</span><span class="p">]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">([[</span><span class="mi">5</span><span class="p">],</span> <span class="p">[</span><span class="mi">7</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">]])</span>
+<span class="go">array([[ 1.        ,  0.        ],</span>
+<span class="go">       [ 1.        ,  0.        ],</span>
+<span class="go">       [ 0.00004383,  0.99995617]])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">clf</span><span class="o">.</span><span class="n">distributions</span>
+<span class="go">array([ {</span>
+<span class="go">    &quot;frozen&quot; :false,</span>
+<span class="go">    &quot;class&quot; :&quot;Distribution&quot;,</span>
+<span class="go">    &quot;parameters&quot; :[</span>
+<span class="go">        6.6571359101390755,</span>
+<span class="go">        1.2639830514274502</span>
+<span class="go">    ],</span>
+<span class="go">    &quot;name&quot; :&quot;NormalDistribution&quot;</span>
+<span class="go">},</span>
+<span class="go">       {</span>
+<span class="go">    &quot;frozen&quot; :false,</span>
+<span class="go">    &quot;class&quot; :&quot;Distribution&quot;,</span>
+<span class="go">    &quot;parameters&quot; :[</span>
+<span class="go">        1.498707696758334,</span>
+<span class="go">        0.4999983303277837</span>
+<span class="go">    ],</span>
+<span class="go">    &quot;name&quot; :&quot;NormalDistribution&quot;</span>
+<span class="go">}], dtype=object)</span>
+</pre></div>
+</div>
+<p class="rubric">Attributes</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="15%" />
+<col width="85%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>distributions</td>
+<td>(array-like, shape (n_components,)) The component distribution objects.</td>
+</tr>
+<tr class="row-even"><td>weights</td>
+<td>(array-like, shape (n_components,)) The learned prior weight of each object</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.clear_summaries">
+<code class="descname">clear_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.clear_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear the summary statistics stored in the object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>None</strong></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a deep copy of this distribution object.</p>
+<p>This object will not be tied to any other distribution or connected
+in any form.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>None</strong></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>distribution</strong> : Distribution</p>
+<blockquote class="last">
+<div><p>A copy of the distribution with the same parameters.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.fit">
+<code class="descname">fit</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the model to new data using EM.</p>
+<p>This method fits the components of the model to new data using the EM
+method. It will iterate until either max iterations has been reached,
+or the stop threshold has been passed.</p>
+<p>This is a sklearn wrapper for train method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>This is the data to train on. Each row is a sample, and each column
+is a dimension to train on.</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_samples,), optional</p>
+<blockquote>
+<div><p>The initial weights of each sample in the matrix. If nothing is
+passed in then each sample is assumed to be the same weight.
+Default is None.</p>
+</div></blockquote>
+<p><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>The weight of the previous parameters of the model. The new
+parameters will roughly be old_param*inertia + new_param*(1-inertia),
+so an inertia of 0 means ignore the old parameters, whereas an
+inertia of 1 means ignore the new parameters. Default is 0.0.</p>
+</div></blockquote>
+<p><strong>stop_threshold</strong> : double, optional, positive</p>
+<blockquote>
+<div><p>The threshold at which EM will terminate for the improvement of
+the model. If the model does not improve its fit of the data by
+a log probability of 0.1 then terminate. Default is 0.1.</p>
+</div></blockquote>
+<p><strong>max_iterations</strong> : int, optional, positive</p>
+<blockquote>
+<div><p>The maximum number of iterations to run EM for. If this limit is
+hit then it will terminate training, regardless of how well the
+model is improving per iteration. Default is 1e8.</p>
+</div></blockquote>
+<p><strong>verbose</strong> : bool, optional</p>
+<blockquote>
+<div><p>Whether or not to print out improvement information over iterations.
+Default is False.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>improvement</strong> : double</p>
+<blockquote class="last">
+<div><p>The total improvement in log probability P(D|M)</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.freeze">
+<code class="descname">freeze</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.freeze" title="Permalink to this definition">¶</a></dt>
+<dd><p>Freeze the distribution, preventing updates from occuring.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.from_json">
+<code class="descname">from_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.from_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read in a serialized model and return the appropriate classifier.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>s</strong> : str</p>
+<blockquote>
+<div><p>A JSON formatted string containing the file.</p>
+</div></blockquote>
+<p><strong>Returns</strong></p>
+<p><strong>&#8212;&#8212;-</strong></p>
+<p><strong>model</strong> : object</p>
+<blockquote class="last">
+<div><p>A properly initialized and baked model.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.from_summaries">
+<code class="descname">from_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.from_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the model to the collected sufficient statistics.</p>
+<p>Fit the parameters of the model to the sufficient statistics gathered
+during the summarize calls. This should return an exact update.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>The weight of the previous parameters of the model. The new
+parameters will roughly be old_param*inertia + new_param*(1-inertia),
+so an inertia of 0 means ignore the old parameters, whereas an
+inertia of 1 means ignore the new parameters. Default is 0.0.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.log_probability">
+<code class="descname">log_probability</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.log_probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the log probability of a point under the distribution.</p>
+<p>The probability of a point is the sum of the probabilities of each
+distribution multiplied by the weights. Thus, the log probability
+is the sum of the log probability plus the log prior.</p>
+<p>This is the python interface.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : numpy.ndarray, shape=(n, d) or (n, m, d)</p>
+<blockquote>
+<div><p>The samples to calculate the log probability of. Each row is a
+sample and each column is a dimension. If emissions are HMMs then
+shape is (n, m, d) where m is variable length for each obervation,
+and X becomes an array of n (m, d)-shaped arrays.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>log_probability</strong> : double</p>
+<blockquote class="last">
+<div><p>The log probabiltiy of the point under the distribution.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.predict">
+<code class="descname">predict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Predict the most likely component which generated each sample.</p>
+<p>Calculate the posterior P(M|D) for each sample and return the index
+of the component most likely to fit it. This corresponds to a simple
+argmax over the responsibility matrix.</p>
+<p>This is a sklearn wrapper for the maximum_a_posteriori method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>The samples to do the prediction on. Each sample is a row and each
+column corresponds to a dimension in that sample. For univariate
+distributions, a single array may be passed in.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>y</strong> : array-like, shape (n_samples,)</p>
+<blockquote class="last">
+<div><p>The predicted component which fits the sample the best.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.predict_log_proba">
+<code class="descname">predict_log_proba</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.predict_log_proba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the posterior log P(M|D) for data.</p>
+<p>Calculate the log probability of each item having been generated from
+each component in the model. This returns normalized log probabilities
+such that the probabilities should sum to 1</p>
+<p>This is a sklearn wrapper for the original posterior function.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>The samples to do the prediction on. Each sample is a row and each
+column corresponds to a dimension in that sample. For univariate
+distributions, a single array may be passed in.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>y</strong> : array-like, shape (n_samples, n_components)</p>
+<blockquote class="last">
+<div><p>The normalized log probability log P(M|D) for each sample. This is
+the probability that the sample was generated from each component.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.predict_proba">
+<code class="descname">predict_proba</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.predict_proba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the posterior P(M|D) for data.</p>
+<p>Calculate the probability of each item having been generated from
+each component in the model. This returns normalized probabilities
+such that each row should sum to 1.</p>
+<p>Since calculating the log probability is much faster, this is just
+a wrapper which exponentiates the log probability matrix.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>The samples to do the prediction on. Each sample is a row and each
+column corresponds to a dimension in that sample. For univariate
+distributions, a single array may be passed in.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>probability</strong> : array-like, shape (n_samples, n_components)</p>
+<blockquote class="last">
+<div><p>The normalized probability P(M|D) for each sample. This is the
+probability that the sample was generated from each component.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.probability">
+<code class="descname">probability</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the probability of the given symbol under this distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>symbol</strong> : object</p>
+<blockquote>
+<div><p>The symbol to calculate the probability of</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>probability</strong> : double</p>
+<blockquote class="last">
+<div><p>The probability of that point under the distribution.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate a sample from the model.</p>
+<p>First, randomly select a component weighted by the prior probability,
+Then, use the sample method from that component to generate a sample.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>n</strong> : int, optional</p>
+<blockquote>
+<div><p>The number of samples to generate. Defaults to 1.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>sample</strong> : array-like or object</p>
+<blockquote class="last">
+<div><p>A randomly generated sample from the model of the type modelled
+by the emissions. An integer if using most distributions, or an
+array if using multivariate ones, or a string for most discrete
+distributions. If n=1 return an object, if n&gt;1 return an array
+of the samples.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.summarize">
+<code class="descname">summarize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.summarize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Summarize a batch of data and store sufficient statistics.</p>
+<p>This will run the expectation step of EM and store sufficient
+statistics in the appropriate distribution objects. The summarization
+can be thought of as a chunk of the E step, and the from_summaries
+method as the M step.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_dimensions)</p>
+<blockquote>
+<div><p>This is the data to train on. Each row is a sample, and each column
+is a dimension to train on.</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_samples,), optional</p>
+<blockquote>
+<div><p>The initial weights of each sample in the matrix. If nothing is
+passed in then each sample is assumed to be the same weight.
+Default is None.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>logp</strong> : double</p>
+<blockquote class="last">
+<div><p>The log probability of the data given the current model. This is
+used to speed up EM.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.thaw">
+<code class="descname">thaw</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.thaw" title="Permalink to this definition">¶</a></dt>
+<dd><p>Thaw the distribution, re-allowing updates to occur.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.gmm.GeneralMixtureModel.to_json">
+<code class="descname">to_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.gmm.GeneralMixtureModel.to_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize the model to a JSON.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>separators</strong> : tuple, optional</p>
+<blockquote>
+<div><p>The two separaters to pass to the json.dumps function for formatting.
+Default is (&#8216;,&#8217;, &#8216; : &#8216;).</p>
+</div></blockquote>
+<p><strong>indent</strong> : int, optional</p>
+<blockquote>
+<div><p>The indentation to use at each level. Passed to json.dumps for
+formatting. Default is 4.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>json</strong> : str</p>
+<blockquote class="last">
+<div><p>A properly formatted JSON object.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="HiddenMarkovModel.html" class="btn btn-neutral float-right" title="Hidden Markov Models" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="Distributions.html" class="btn btn-neutral" title="Probability Distributions" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Jacob Schreiber.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.6.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

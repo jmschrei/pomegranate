@@ -1,0 +1,911 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Bayesian Networks &mdash; pomegranate 0.6.0 documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+    <link rel="top" title="pomegranate 0.6.0 documentation" href="index.html"/>
+        <link rel="next" title="Factor Graphs" href="FactorGraph.html"/>
+        <link rel="prev" title="Markov Chains" href="MarkovChain.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> pomegranate
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.6.0
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Home</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ooc.html">Out of Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Distributions.html">Probability Distributions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GeneralMixtureModel.html">General Mixture Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="HiddenMarkovModel.html">Hidden Markov Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="NaiveBayes.html">Naive Bayes Classifiers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="MarkovChain.html">Markov Chains</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Bayesian Networks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-pomegranate.BayesianNetwork">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="FactorGraph.html">Factor Graphs</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="index.html">pomegranate</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+      
+    <li>Bayesian Networks</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/BayesianNetwork.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="bayesian-networks">
+<span id="bayesiannetwork"></span><h1>Bayesian Networks<a class="headerlink" href="#bayesian-networks" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference external" href="https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_4_Bayesian_Networks.ipynb">IPython Notebook Tutorial</a></p>
+<p><a class="reference external" href="http://en.wikipedia.org/wiki/Bayesian_network">Bayesian networks</a> are a powerful inference tool, in which nodes represent some random variable we care about, edges represent dependencies and a lack of an edge between two nodes represents a conditional independence. A powerful algorithm called the sum-product or forward-backward algorithm allows for inference to be done on this network, calculating posteriors on unobserved (&#8220;hidden&#8221;) variables when limited information is given. The more information is known, the better the inference will be, but there is no requirement on the number of nodes which must be observed. If no information is given, the marginal of the graph is trivially calculated. The hidden and observed variables do not need to be explicitly defined when the network is set, they simply exist based on what information is given.</p>
+<p>Lets test out the Bayesian Network framework on the <a class="reference external" href="http://en.wikipedia.org/wiki/Monty_Hall_problem">Monty Hall problem</a>. The Monty Hall problem arose from the gameshow <em>Let&#8217;s Make a Deal</em>, where a guest had to choose which one of three doors had a prize behind it. The twist was that after the guest chose, the host, originally Monty Hall, would then open one of the doors the guest did not pick and ask if the guest wanted to switch which door they had picked. Initial inspection may lead you to believe that if there are only two doors left, there is a 50-50 chance of you picking the right one, and so there is no advantage one way or the other. However, it has been proven both through simulations and analytically that there is in fact a 66% chance of getting the prize if the guest switches their door, regardless of the door they initially went with.</p>
+<p>We can reproduce this result using Bayesian networks with three nodes, one for the guest, one for the prize, and one for the door Monty chooses to open. The door the guest initially chooses and the door the prize is behind are completely random processes across the three doors, but the door which Monty opens is dependent on both the door the guest chooses (it cannot be the door the guest chooses), and the door the prize is behind (it cannot be the door with the prize behind it).</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">from</span> <span class="nn">pomegranate</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="c1"># The guests initial door selection is completely random</span>
+<span class="n">guest</span> <span class="o">=</span> <span class="n">DiscreteDistribution</span><span class="p">(</span> <span class="p">{</span> <span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="o">/</span><span class="mi">3</span> <span class="p">}</span> <span class="p">)</span>
+
+<span class="c1"># The door the prize is behind is also completely random</span>
+<span class="n">prize</span> <span class="o">=</span> <span class="n">DiscreteDistribution</span><span class="p">(</span> <span class="p">{</span> <span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">:</span> <span class="mf">1.</span><span class="o">/</span><span class="mi">3</span> <span class="p">}</span> <span class="p">)</span>
+
+        <span class="c1"># Monty is dependent on both the guest and the prize.</span>
+        <span class="n">monty</span> <span class="o">=</span> <span class="n">ConditionalProbabilityTable</span><span class="p">(</span>
+                <span class="p">[[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">0.5</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">0.5</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">1.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">1.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">1.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.5</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">0.5</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">1.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">1.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">1.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="mf">0.5</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="mf">0.5</span> <span class="p">],</span>
+                 <span class="p">[</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="mf">0.0</span> <span class="p">]],</span> <span class="p">[</span><span class="n">guest</span><span class="p">,</span> <span class="n">prize</span><span class="p">]</span> <span class="p">)</span>
+
+<span class="n">s1</span> <span class="o">=</span> <span class="n">State</span><span class="p">(</span> <span class="n">guest</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;guest&quot;</span> <span class="p">)</span>
+<span class="n">s2</span> <span class="o">=</span> <span class="n">State</span><span class="p">(</span> <span class="n">prize</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;prize&quot;</span> <span class="p">)</span>
+<span class="n">s3</span> <span class="o">=</span> <span class="n">State</span><span class="p">(</span> <span class="n">monty</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;monty&quot;</span> <span class="p">)</span>
+
+<span class="n">network</span> <span class="o">=</span> <span class="n">BayesianNetwork</span><span class="p">(</span> <span class="s2">&quot;Monty Hall Problem&quot;</span> <span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">add_states</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span><span class="p">,</span> <span class="n">s3</span><span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">s1</span><span class="p">,</span> <span class="n">s3</span><span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">s2</span><span class="p">,</span> <span class="n">s3</span><span class="p">)</span>
+<span class="n">network</span><span class="o">.</span><span class="n">bake</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Bayesian Networks utilize ConditionalProbabilityTable objects to represent conditional distributions. This distribution is made up of a table where each column represents the parent (or self) values except for the last column which represents the probability of the variable taking on that value given its parent values. It also takes in a list of parent distribution objects in the same order that they are used in the table. In the Monty Hall example, the monty distribution is dependent on both the guest and the prize distributions in that order and so the first column of the CPT is the value the guest takes and the second column is the value that the prize takes.</p>
+<p>The next step is to make predictions using this model. One of the strengths of Bayesian networks is their ability to infer the values of arbitrary &#8216;hidden variables&#8217; given the values from &#8216;observed variables.&#8217; These hidden and observed variables do not need to be specified beforehand, and the more variables which are observed the better the inference will be on the hidden variables.</p>
+<p>Lets say that the guest chooses door &#8216;A&#8217;. guest becomes an observed variable, while both prize and monty are hidden variables.</p>
+<p>... code-block:: python</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">beliefs</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">({</span> <span class="s1">&#39;guest&#39;</span> <span class="p">:</span> <span class="s1">&#39;A&#39;</span> <span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">beliefs</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">beliefs</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="s2">&quot;{}</span><span class="se">\t</span><span class="s2">{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span> <span class="n">state</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">belief</span> <span class="p">)</span> <span class="k">for</span> <span class="n">state</span><span class="p">,</span> <span class="n">belief</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span> <span class="n">network</span><span class="o">.</span><span class="n">states</span><span class="p">,</span> <span class="n">beliefs</span> <span class="p">)</span> <span class="p">)</span>
+<span class="go">prize   DiscreteDistribution({&#39;A&#39;: 0.3333333333333335, &#39;C&#39;: 0.3333333333333333, &#39;B&#39;: 0.3333333333333333})</span>
+<span class="go">guest   DiscreteDistribution({&#39;A&#39;: 1.0, &#39;C&#39;: 0.0, &#39;B&#39;: 0.0})</span>
+<span class="go">monty   DiscreteDistribution({&#39;A&#39;: 0.0, &#39;C&#39;: 0.5, &#39;B&#39;: 0.5})</span>
+</pre></div>
+</div>
+<p>Since we&#8217;ve observed the value that guest takes, we know there is a 100% chance it is that value. The prize distribution is unaffected because it is independent of the guest variable given that we don&#8217;t know the door that Monty opens.</p>
+<p>Now the next step is for Monty to open a door. Let&#8217;s say that Monty opens door &#8216;b&#8217;:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">beliefs</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">({</span><span class="s1">&#39;guest&#39;</span> <span class="p">:</span> <span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;monty&#39;</span> <span class="p">:</span> <span class="s1">&#39;B&#39;</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">print</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span> <span class="s2">&quot;{}</span><span class="se">\t</span><span class="s2">{}&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span> <span class="n">state</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">belief</span><span class="p">)</span> <span class="p">)</span> <span class="k">for</span> <span class="n">state</span><span class="p">,</span> <span class="n">belief</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span> <span class="n">network</span><span class="o">.</span><span class="n">states</span><span class="p">,</span> <span class="n">beliefs</span> <span class="p">)</span> <span class="p">)</span>
+<span class="go">guest   DiscreteDistribution({&#39;A&#39;: 1.0, &#39;C&#39;: 0.0, &#39;B&#39;: 0.0})</span>
+<span class="go">monty   DiscreteDistribution({&#39;A&#39;: 0.0, &#39;C&#39;: 0.0, &#39;B&#39;: 1.0})</span>
+<span class="go">prize   DiscreteDistribution({&#39;A&#39;: 0.3333333333333333, &#39;C&#39;: 0.6666666666666666, &#39;B&#39;: 0.0})</span>
+</pre></div>
+</div>
+<p>We&#8217;ve observed both guest and Monty so there is a 100% chance for those values. However, we see that probability of prize being &#8216;C&#8217; is 66% mimicking the mystery behind the Monty hall problem!</p>
+<div class="section" id="module-pomegranate.BayesianNetwork">
+<span id="api-reference"></span><h2>API Reference<a class="headerlink" href="#module-pomegranate.BayesianNetwork" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork">
+<em class="property">class </em><code class="descclassname">pomegranate.BayesianNetwork.</code><code class="descname">BayesianNetwork</code><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Bayesian Network Model.</p>
+<p>A Bayesian network is a directed graph where nodes represent variables, edges
+represent conditional dependencies of the children on their parents, and the
+lack of an edge represents a conditional independence.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>name</strong> : str, optional</p>
+<blockquote class="last">
+<div><p>The name of the model. Default is None</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="8%" />
+<col width="92%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>states</td>
+<td>(list, shape (n_states,)) A list of all the state objects in the model</td>
+</tr>
+<tr class="row-even"><td>graph</td>
+<td>(networkx.DiGraph) The underlying graph object.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.add_edge">
+<code class="descname">add_edge</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.add_edge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a transition from state a to state b which indicates that B is
+dependent on A in ways specified by the distribution.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.add_node">
+<code class="descname">add_node</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.add_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a node to the graph.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.add_nodes">
+<code class="descname">add_nodes</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.add_nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add multiple states to the graph.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.add_state">
+<code class="descname">add_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.add_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Another name for a node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.add_states">
+<code class="descname">add_states</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.add_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>Another name for a node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.add_transition">
+<code class="descname">add_transition</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.add_transition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transitions and edges are the same.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.bake">
+<code class="descname">bake</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.bake" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finalize the topology of the model.</p>
+<p>Assign a numerical index to every state and create the underlying arrays
+corresponding to the states and edges between the states. This method 
+must be called before any of the probability-calculating methods. This
+includes converting conditional probability tables into joint probability
+tables and creating a list of both marginal and table nodes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>None</strong></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.clear_summaries">
+<code class="descname">clear_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.clear_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Clear the summary statistics stored in the object.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.copy">
+<code class="descname">copy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a deep copy of this distribution object.</p>
+<p>This object will not be tied to any other distribution or connected
+in any form.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>None</strong></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>distribution</strong> : Distribution</p>
+<blockquote class="last">
+<div><p>A copy of the distribution with the same parameters.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.dense_transition_matrix">
+<code class="descname">dense_transition_matrix</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.dense_transition_matrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the dense transition matrix. Useful if the transitions of
+somewhat small models need to be analyzed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.edge_count">
+<code class="descname">edge_count</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.edge_count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the number of edges present in the model.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.fit">
+<code class="descname">fit</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit the model to data using MLE estimates.</p>
+<p>Fit the model to the data by updating each of the components of the model,
+which are univariate or multivariate distributions. This uses a simple
+MLE estimate to update the distributions according to their summarize or
+fit methods.</p>
+<p>This is a wrapper for the summarize and from_summaries methods.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>items</strong> : array-like, shape (n_samples, n_nodes)</p>
+<blockquote>
+<div><p>The data to train on, where each row is a sample and each column
+corresponds to the associated variable.</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_nodes), optional</p>
+<blockquote>
+<div><p>The weight of each sample as a positive double. Default is None.</p>
+</div></blockquote>
+<p><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>The inertia for updating the distributions, passed along to the
+distribution method. Default is 0.0.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.freeze">
+<code class="descname">freeze</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.freeze" title="Permalink to this definition">¶</a></dt>
+<dd><p>Freeze the distribution, preventing updates from occuring.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.from_json">
+<code class="descname">from_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.from_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read in a serialized Bayesian Network and return the appropriate object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>s</strong> : str</p>
+<blockquote>
+<div><p>A JSON formatted string containing the file.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>model</strong> : object</p>
+<blockquote class="last">
+<div><p>A properly initialized and baked model.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.from_samples">
+<code class="descname">from_samples</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.from_samples" title="Permalink to this definition">¶</a></dt>
+<dd><p>Learn the structure of the network from data.</p>
+<p>Find the structure of the network from data using a Bayesian structure
+learning score. This currently enumerates all the exponential number of
+structures and finds the best according to the score. This allows
+weights on the different samples as well.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_nodes)</p>
+<blockquote>
+<div><p>The data to fit the structure too, where each row is a sample and 
+each column corresponds to the associated variable.</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_nodes), optional</p>
+<blockquote>
+<div><p>The weight of each sample as a positive double. Default is None.</p>
+</div></blockquote>
+<p><strong>algorithm</strong> : str, one of &#8216;chow-liu&#8217;, &#8216;exact&#8217; optional</p>
+<blockquote>
+<div><p>The algorithm to use for learning the Bayesian network. Default is
+&#8216;chow-liu&#8217; which returns a tree structure.</p>
+</div></blockquote>
+<p><strong>max_parents</strong> : int, optional</p>
+<blockquote>
+<div><p>The maximum number of parents a node can have. If used, this means
+using the k-learn procedure. Can drastically speed up algorithms.
+If -1, no max on parents. Default is -1.</p>
+</div></blockquote>
+<p><strong>root</strong> : int, optional</p>
+<blockquote>
+<div><p>For algorithms which require a single root (&#8216;chow-liu&#8217;), this is the
+root for which all edges point away from. User may specify which 
+column to use as the root. Default is the first column.</p>
+</div></blockquote>
+<p><strong>constraint_graph</strong> : networkx.DiGraph or None, optional</p>
+<blockquote>
+<div><p>A directed graph showing valid parent sets for each variable. Each
+node is a set of variables, and edges represent which variables can
+be valid parents of those variables. The naive structure learning
+task is just all variables in a single node with a self edge,
+meaning that you know nothing about</p>
+</div></blockquote>
+<p><strong>pseudocount</strong> : double, optional</p>
+<blockquote>
+<div><p>A pseudocount to add to each possibility.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>model</strong> : BayesianNetwork</p>
+<blockquote class="last">
+<div><p>The learned BayesianNetwork.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.from_structure">
+<code class="descname">from_structure</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.from_structure" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a Bayesian network from a predefined structure.</p>
+<p>Pass in the structure of the network as a tuple of tuples and get a fit
+network in return. The tuple should contain n tuples, with one for each
+node in the graph. Each inner tuple should be of the parents for that
+node. For example, a three node graph where both node 0 and 1 have node
+2 as a parent would be specified as ((2,), (2,), ()).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>X</strong> : array-like, shape (n_samples, n_nodes)</p>
+<blockquote>
+<div><p>The data to fit the structure too, where each row is a sample and each column
+corresponds to the associated variable.</p>
+</div></blockquote>
+<p><strong>structure</strong> : tuple of tuples</p>
+<blockquote>
+<div><p>The parents for each node in the graph. If a node has no parents,
+then do not specify any parents.</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_nodes), optional</p>
+<blockquote>
+<div><p>The weight of each sample as a positive double. Default is None.</p>
+</div></blockquote>
+<p><strong>name</strong> : str, optional</p>
+<blockquote>
+<div><p>The name of the model. Default is None.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>model</strong> : BayesianNetwoork</p>
+<blockquote class="last">
+<div><p>A Bayesian network with the specified structure.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.from_summaries">
+<code class="descname">from_summaries</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.from_summaries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use MLE on the stored sufficient statistics to train the model.</p>
+<p>This uses MLE estimates on the stored sufficient statistics to train
+the model.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>inertia</strong> : double, optional</p>
+<blockquote>
+<div><p>The inertia for updating the distributions, passed along to the
+distribution method. Default is 0.0.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.log_probability">
+<code class="descname">log_probability</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.log_probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the log probability of a sample under the Bayesian network model.</p>
+<p>The log probability is just the sum of the log probabilities under each of
+the components. The log probability of a sample under the graph A -&gt; B is 
+just P(A)*P(B|A).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>sample</strong> : array-like, shape (n_nodes)</p>
+<blockquote>
+<div><p>The sample is a vector of points where each dimension represents the
+same variable as added to the graph originally. It doesn&#8217;t matter what
+the connections between these variables are, just that they are all
+ordered the same.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>logp</strong> : double</p>
+<blockquote class="last">
+<div><p>The log probability of that sample.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.marginal">
+<code class="descname">marginal</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.marginal" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the marginal probabilities of each variable in the graph.</p>
+<p>This is equivalent to a pass of belief propogation on a graph where
+no data has been given. This will calculate the probability of each
+variable being in each possible emission when nothing is known.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>None</strong></p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>marginals</strong> : array-like, shape (n_nodes)</p>
+<blockquote class="last">
+<div><p>An array of univariate distribution objects showing the marginal
+probabilities of that variable.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.node_count">
+<code class="descname">node_count</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.node_count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the number of nodes/states in the model</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.plot">
+<code class="descname">plot</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw this model&#8217;s graph using NetworkX and matplotlib.</p>
+<p>Note that this relies on networkx&#8217;s built-in graphing capabilities (and
+not Graphviz) and thus can&#8217;t draw self-loops.</p>
+<p>See networkx.draw_networkx() for the keywords you can pass in.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>**kwargs</strong> : any</p>
+<blockquote>
+<div><p>The arguments to pass into networkx.draw_networkx()</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.predict">
+<code class="descname">predict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Predict missing values of a data matrix using MLE.</p>
+<p>Impute the missing values of a data matrix using the maximally likely
+predictions according to the forward-backward algorithm. Run each
+sample through the algorithm (predict_proba) and replace missing values
+with the maximally likely predicted emission.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>items</strong> : array-like, shape (n_samples, n_nodes)</p>
+<blockquote>
+<div><p>Data matrix to impute. Missing values must be either None (if lists)
+or np.nan (if numpy.ndarray). Will fill in these values with the
+maximally likely ones.</p>
+</div></blockquote>
+<p><strong>max_iterations</strong> : int, optional</p>
+<blockquote>
+<div><p>Number of iterations to run loopy belief propogation for. Default
+is 100.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>items</strong> : array-like, shape (n_samples, n_nodes)</p>
+<blockquote class="last">
+<div><p>This is the data matrix with the missing values imputed.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.predict_proba">
+<code class="descname">predict_proba</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.predict_proba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the probabilities of each variable in the graph given evidence.</p>
+<p>This calculates the marginal probability distributions for each state given
+the evidence provided through loopy belief propogation. Loopy belief
+propogation is an approximate algorithm which is exact for certain graph
+structures.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>data</strong> : dict or array-like, shape &lt;= n_nodes, optional</p>
+<blockquote>
+<div><p>The evidence supplied to the graph. This can either be a dictionary
+with keys being state names and values being the observed values
+(either the emissions or a distribution over the emissions) or an
+array with the values being ordered according to the nodes incorporation
+in the graph (the order fed into .add_states/add_nodes) and None for
+variables which are unknown. If nothing is fed in then calculate the
+marginal of the graph. Default is {}.</p>
+</div></blockquote>
+<p><strong>max_iterations</strong> : int, optional</p>
+<blockquote>
+<div><p>The number of iterations with which to do loopy belief propogation.
+Usually requires only 1. Default is 100.</p>
+</div></blockquote>
+<p><strong>check_input</strong> : bool, optional</p>
+<blockquote>
+<div><p>Check to make sure that the observed symbol is a valid symbol for that
+distribution to produce. Default is True.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>probabilities</strong> : array-like, shape (n_nodes)</p>
+<blockquote class="last">
+<div><p>An array of univariate distribution objects showing the probabilities
+of each variable.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.probability">
+<code class="descname">probability</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.probability" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the probability of the given symbol under this distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>symbol</strong> : object</p>
+<blockquote>
+<div><p>The symbol to calculate the probability of</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>probability</strong> : double</p>
+<blockquote class="last">
+<div><p>The probability of that point under the distribution.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a random item sampled from this distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>n</strong> : int or None, optional</p>
+<blockquote>
+<div><p>The number of samples to return. Default is None, which is to
+generate a single sample.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>sample</strong> : double or object</p>
+<blockquote class="last">
+<div><p>Returns a sample from the distribution of a type in the support
+of the distribution.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.state_count">
+<code class="descname">state_count</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.state_count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the number of states present in the model.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.summarize">
+<code class="descname">summarize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.summarize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Summarize a batch of data and store the sufficient statistics.</p>
+<p>This will partition the dataset into columns which belong to their
+appropriate distribution. If the distribution has parents, then multiple
+columns are sent to the distribution. This relies mostly on the summarize
+function of the underlying distribution.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>items</strong> : array-like, shape (n_samples, n_nodes)</p>
+<blockquote>
+<div><p>The data to train on, where each row is a sample and each column
+corresponds to the associated variable.</p>
+</div></blockquote>
+<p><strong>weights</strong> : array-like, shape (n_nodes), optional</p>
+<blockquote>
+<div><p>The weight of each sample as a positive double. Default is None.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">None</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.thaw">
+<code class="descname">thaw</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.thaw" title="Permalink to this definition">¶</a></dt>
+<dd><p>Thaw the distribution, re-allowing updates to occur.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pomegranate.BayesianNetwork.BayesianNetwork.to_json">
+<code class="descname">to_json</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pomegranate.BayesianNetwork.BayesianNetwork.to_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Serialize the model to a JSON.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><p class="first"><strong>separators</strong> : tuple, optional</p>
+<blockquote>
+<div><p>The two separaters to pass to the json.dumps function for formatting.</p>
+</div></blockquote>
+<p><strong>indent</strong> : int, optional</p>
+<blockquote>
+<div><p>The indentation to use at each level. Passed to json.dumps for
+formatting.</p>
+</div></blockquote>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first"><strong>json</strong> : str</p>
+<blockquote class="last">
+<div><p>A properly formatted JSON object.</p>
+</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="FactorGraph.html" class="btn btn-neutral float-right" title="Factor Graphs" accesskey="n">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="MarkovChain.html" class="btn btn-neutral" title="Markov Chains" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2016, Jacob Schreiber.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.6.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
