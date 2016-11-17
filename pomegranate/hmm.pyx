@@ -1939,8 +1939,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 			vpath.append((path[i], self.states[path[i]]))
 
-		vpath.reverse()
-
 		free(path)
 		return logp, vpath if logp > NEGINF else None
 
@@ -2085,16 +2083,14 @@ cdef class HiddenMarkovModel( GraphModel ):
 		# Otherwise, do the traceback
 		# This holds the path, which we construct in reverse order
 		cdef int px = n, py = end_index, npx
+		cdef int length = 0
 
-		# This holds our current position (character, state) AKA (i, k).
-		# We start at the end state
-		i = 0
 		while px != 0 or py != self.start_index:
 			# Until we've traced back to the start...
 			# Put the position in the path, making sure to look up the state
 			# object to use instead of the state index.
-			path[i] = py
-			i += 1
+			path[length] = py
+			length += 1
 
 			# Go backwards
 			npx = tracebackx[px*m + py]
@@ -2104,7 +2100,11 @@ cdef class HiddenMarkovModel( GraphModel ):
 		# We've now reached the start (if we didn't raise an exception because
 		# we messed up the traceback)
 		# Record that we start at the start
-		path[i] = py
+		path[length] = py
+
+		for i in range((length + 1) / 2):
+			path[i], path[length-i] = path[length-i], path[i] 
+
 		free(tracebackx)
 		free(tracebacky)
 		free(v)
@@ -2346,7 +2346,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
 		return log_probability_sum, path
 
-	def fit( self, sequences, weights=None, stop_threshold=1E-9, min_iterations=0,
+	def fit( self, sequences, weights=None, labels=None, stop_threshold=1E-9, min_iterations=0,
 		max_iterations=1e8, algorithm='baum-welch', verbose=True,
 		transition_pseudocount=0, use_pseudocount=False, inertia=None, edge_inertia=0.0,
 		distribution_inertia=0.0, n_jobs=1  ):
@@ -2371,6 +2371,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 			An array of weights, one for each sequence to train on. If None,
 			all sequences are equaly weighted. Default is None.
 
+		labels : array-like or None, optional
+			An array of state labels for each sequence. This is only used in
+			'labeled' training. If used this must be comprised of n lists where
+			n is the number of sequences to train on, and each of those lists
+			must have one label per observation. Default is None.
+
 		stop_threshold : double, optional
 			The threshold the improvement ratio of the models log probability
 			in fitting the scores. Default is 1e-9.
@@ -2383,12 +2389,13 @@ cdef class HiddenMarkovModel( GraphModel ):
 			The maximum number of iterations to run Baum-Welch training for.
 			Default is 1e8.
 
-		algorithm : 'baum-welch', 'viterbi'
+		algorithm : 'baum-welch', 'viterbi', 'labeled'
 			The training algorithm to use. Baum-Welch uses the forward-backward
 			algorithm to train using a version of structured EM. Viterbi
 			iteratively runs the sequences through the Viterbi algorithm and
 			then uses hard assignments of observations to states using that.
-			Default is 'baum-welch'.
+			Default is 'baum-welch'. Labeled training requires that labels
+			are provided for each observation in each sequence.
 
 		verbose : bool, optional
 			Whether to print the improvement in the model fitting at each
@@ -2448,6 +2455,9 @@ cdef class HiddenMarkovModel( GraphModel ):
 													   sequences[i] ) ),
 											dtype='float64' )
 
+			if labels:
+				labels[i] = numpy.array(labels[i])
+
 		if isinstance( sequences, numpy.ndarray ):
 			sequences = sequences.astype('float64')
 
@@ -2456,7 +2466,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		else:
 			weights = numpy.array(weights, dtype='float64')
 
-		with Parallel( n_jobs=n_jobs, backend='threading' ) as parallel:
+		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 			while improvement > stop_threshold or iteration < min_iterations + 1:
 				self.from_summaries(inertia, transition_pseudocount, use_pseudocount,
 					edge_inertia, distribution_inertia)
@@ -2464,7 +2474,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 				if iteration >= max_iterations + 1:
 					break
 
-				log_probability_sum = self.summarize( sequences, weights, alg, n_jobs, parallel, False )
+				log_probability_sum = self.summarize(sequences, weights, labels, 
+					alg, n_jobs, parallel, False)
 
 				if iteration == 0:
 					initial_log_probability_sum = log_probability_sum
@@ -2489,8 +2500,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 			print( "Total Training Improvement: {}".format( improvement ) )
 		return improvement
 
-	def summarize( self, sequences, weights=None, algorithm='baum-welch', n_jobs=1, parallel=None,
-		check_input=True ):
+	def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch', 
+		n_jobs=1, parallel=None, check_input=True):
 		"""Summarize data into stored sufficient statistics for out-of-core
 		training. Only implemented for Baum-Welch training since Viterbi
 		is less memory intensive.
@@ -2507,13 +2518,23 @@ cdef class HiddenMarkovModel( GraphModel ):
 			An array of weights, one for each sequence to train on. If None,
 			all sequences are equaly weighted. Default is None.
 
+		labels : array-like or None, optional
+			An array of state labels for each sequence. This is only used in
+			'labeled' training. If used this must be comprised of n lists where
+			n is the number of sequences to train on, and each of those lists
+			must have one label per observation. Default is None.
+
+		algorithm : 'baum-welch', 'viterbi', 'labeled'
+			The training algorithm to use. Baum-Welch uses the forward-backward
+			algorithm to train using a version of structured EM. Viterbi
+			iteratively runs the sequences through the Viterbi algorithm and
+			then uses hard assignments of observations to states using that.
+			Default is 'baum-welch'. Labeled training requires that labels
+			are provided for each observation in each sequence.
+
 		n_jobs : int, optional
 			The number of threads to use when performing training. This
 			leads to exact updates. Default is 1.
-
-		algorithm : 'baum-welch' or 'viterbi', optional
-			The algorithm to use to collect the statistics, either Baum-Welch
-			or Viterbi training. Defaults to Baum-Welch.
 
 		parallel : joblib.Parallel or None, optional
 			The joblib threadpool. Passed between iterations of Baum-Welch so
@@ -2540,6 +2561,9 @@ cdef class HiddenMarkovModel( GraphModel ):
 			else:
 				weights_ndarray = numpy.array(weights, dtype='float64')
 			
+			if labels is not None:
+				labels = numpy.array(labels)
+
 			for i in range( len(sequences) ):
 				try:
 					sequences[i] = numpy.array( sequences[i], dtype='float64' )
@@ -2557,9 +2581,12 @@ cdef class HiddenMarkovModel( GraphModel ):
 		if algorithm == 'baum-welch':
 			return sum( parallel([ delayed( self._baum_welch_summarize, check_pickle=False )(
 					sequence, weight) for sequence, weight in zip(sequences, weights) ]) )
-		else:
+		elif algorithm == 'viterbi':
 			return sum( parallel([ delayed( self._viterbi_summarize, check_pickle=False )(
 					sequence, weight) for sequence, weight in zip(sequences, weights) ]) )
+		elif algorithm == 'labeled':
+			return sum( parallel([ delayed( self._labeled_summarize, check_pickle=False )(
+					sequence, label, weight) for sequence, label, weight in zip(sequences, labels, weights) ]) )
 
 	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, double weight):
 		"""Python wrapper for the summarization step.
@@ -2739,92 +2766,81 @@ cdef class HiddenMarkovModel( GraphModel ):
 		in the observations.
 		"""
 
-		cdef int* rpath = <int*> calloc( n+m, sizeof(int) )
-		cdef int* path = <int*> calloc( n+m, sizeof(int) )
-		cdef int* tied_states = self.tied_state_count
+		cdef int* path = <int*> calloc(n+m+1, sizeof(int))
+		memset(path, -1, (n+m+1)*sizeof(int))
+
+		cdef double log_probability = self._viterbi(sequence, path, n, m)
+		self.__labeled_summarize(sequence, path, weight, n, m)
+
+		free(path)
+		return log_probability * weight
+
+	cpdef double _labeled_summarize(self, numpy.ndarray sequence_ndarray, 
+		numpy.ndarray label_ndarray, double weight):
+		"""Python wrapper for the summarization step.
+
+		This is done to ensure compatibility with joblib's multithreading
+		API. It just calls the cython update, but provides a Python wrapper
+		which joblib can easily wrap.
+		"""
+
+		cdef double log_sequence_probability
+		cdef double* sequence = <double*> sequence_ndarray.data
+		cdef int i, n = sequence_ndarray.shape[0], m = len(self.states)
+		cdef int* labels = <int*> calloc(n+m+1, sizeof(int))
+		memset(labels, -1, (n+m+1)*sizeof(int))
+
+		for i in range(label_ndarray.shape[0]):
+			labels[i] = self.states.index(label_ndarray[i])
+			
+
+		with nogil:
+			log_sequence_probability = self.__labeled_summarize(sequence, 
+				labels, weight, n, m)
+
+		free(labels)
+		return self.log_probability( sequence_ndarray, check_input=False )
+
+	cdef double __labeled_summarize( self, double* sequence, int* states, 
+		double weight, int n, int m ) nogil:
+		"""Perform a re-estimation of the model parameters using labeled data.
+
+		This assumes that labels are passed in alongside the sequence and will
+		only update the appropriate states and transitions.
+		"""
+
+		cdef int i, j, k, l, li
+		cdef int past, present
+
 		cdef int* out_edges = self.out_edge_count
 		cdef void** distributions = self.distributions_ptr
 
 		cdef double* transitions = <double*> calloc(m*m, sizeof(double))
-		cdef double* weights = <double*> calloc(n, sizeof(double))
-		cdef int* visited = <int*> calloc( self.silent_start, sizeof(int) )
-		cdef int i, j, k, l, li, path_length
-
-		memset(visited, 0, self.silent_start*sizeof(int))
-		memset(rpath, -1, (n+m)*sizeof(int))
-		memset(path, -1, (n+m)*sizeof(int))
 		memset(transitions, 0, (m*m)*sizeof(double))
 
-		cdef int past, present
-		cdef double log_probability
+		j = 0
+		for i in range(1, n+m+1):
+			past = states[i-1]
+			present = states[i]
 
-		log_probability = self._viterbi(sequence, rpath, n, m)
+			if present == -1:
+				break
+			else:
+				transitions[past*m + present] += weight
 
-		if log_probability != NEGINF or True:
-			# Tally up the transitions seen in the Viterbi path
-			path_length = 0
-			while rpath[path_length] != -1:
-				path_length += 1
-
-			for i in range(path_length):
-				path[i] = rpath[path_length-i-1]
-
-			for i in range(1, path_length):
-				past = path[i-1]
-				present = path[i]
-				transitions[past*m + present] += 1
-
-			with gil:
-				for k in range(m):
-					for l in range( out_edges[k], out_edges[k+1] ):
-						li = self.out_transitions[l]
-						self.expected_transitions[l] += transitions[k*m + li] * weight
-
-			# Calculate emissions, including tied emissions.
+			if present < self.silent_start:
+				(<Model> distributions[present])._summarize(sequence+j*self.d, &weight, 1)
+				j += 1
+			
+		with gil:
 			for k in range(m):
-				# Assign weights to each state based on if they were seen. Primarily 0's.
-				if k < self.silent_start:
-					# If another state in the set of tied states has already
-					# been visited, we don't want to retrain.
-					if visited[k] == 1:
-						continue
-
-					# Mark that we've visited this state
-					visited[k] = 1
-					memset(weights, 0, n*sizeof(double))
-
-					# Mark that we've visited all other states in this state
-					# group.
-					for l in range( tied_states[k], tied_states[k+1] ):
-						li = self.tied[l]
-						visited[li] = 1
-
-					j = 0
-					for i in range(path_length):
-						if path[i] >= self.silent_start:
-							continue
-
-						if path[i] == k:
-							weights[j] = weight
-
-						for l in range( tied_states[k], tied_states[k+1] ):
-							li = self.tied[l]
-
-							if path[li] == k:
-								weights[j] = weight
-
-						j += 1
-
-					(<Model>distributions[k])._summarize(sequence, weights, n)
+				for l in range(out_edges[k], out_edges[k+1]):
+					li = self.out_transitions[l]
+					self.expected_transitions[l] += transitions[k*m + li]
 
 		self.summaries += 1
-
 		free(transitions)
-		free(visited)
-		free(path)
-		free(rpath)
-		free(weights)
-		return log_probability * weight
+		return 0
 
 	def from_summaries( self, inertia=None, transition_pseudocount=0,
 		use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0 ):
@@ -2882,11 +2898,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int* in_edges = self.in_edge_count
 		cdef int* out_edges = self.out_edge_count
 
-		# Define several helped variables.
 		cdef int* tied_states = self.tied_state_count
-
 		cdef double* norm
-		cdef int* visited = <int*> calloc( self.silent_start, sizeof(int) )
 
 		cdef double probability, tied_edge_probability
 		cdef int start, end
@@ -2963,22 +2976,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 							cexp( self.in_transition_log_probabilities[l] ) *
 							edge_inertia + probability * ( 1 - edge_inertia ) )
 
-			memset( visited, 0, self.silent_start*sizeof(int) )
 			for k in range( self.silent_start ):
-				# If this distribution has already been trained because it is tied
-				# to an earlier state, don't bother retraining it as that would
-				# waste time.
-				if visited[k] == 1:
-					continue
-
-				# Mark that we've visited this state
-				visited[k] = 1
-
-				# Mark that we've visited all states in this tied state group.
-				for l in range( tied_states[k], tied_states[k+1] ):
-					li = self.tied[l]
-					visited[li] = 1
-
 				# Re-estimate the emission distribution for every non-silent state.
 				# Take each emission weighted by the probability that we were in
 				# this state when it came out, given that the model generated the
@@ -2990,7 +2988,6 @@ cdef class HiddenMarkovModel( GraphModel ):
 						inertia=distribution_inertia )
 
 		free(norm)
-		free(visited)
 		free(expected_transitions)
 
 	def clear_summaries( self ):
