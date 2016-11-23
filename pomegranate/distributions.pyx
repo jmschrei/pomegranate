@@ -1521,7 +1521,7 @@ cdef class DiscreteDistribution( Distribution ):
 		characters = {}
 		total = 0
 
-		for character, weight in it.izip(items, weights):
+		for character, weight in izip(items, weights):
 			total += weight
 			if character in characters:
 				characters[character] += weight
