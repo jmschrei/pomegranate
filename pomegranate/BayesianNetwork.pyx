@@ -7,6 +7,7 @@ import time
 import networkx as nx
 import numpy
 cimport numpy
+import sys
 
 from joblib import Parallel
 from joblib import delayed
@@ -33,6 +34,13 @@ try:
 	import matplotlib.image
 except ImportError:
 	pygraphviz = None
+
+if sys.version_info[0] > 2:
+	# Set up for Python 3
+	xrange = range
+	izip = zip
+else:
+	izip = it.izip
 
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
@@ -620,7 +628,7 @@ cdef class BayesianNetwork( GraphModel ):
 		return model
 
 	@classmethod
-	def from_structure( cls, X, structure, weights=None, name=None ):
+	def from_structure( cls, X, structure, weights=None, name=None, state_names=None ):
 		"""Return a Bayesian network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -644,6 +652,9 @@ cdef class BayesianNetwork( GraphModel ):
 
 		name : str, optional
 			The name of the model. Default is None.
+
+		state_names : array-like, shape (n_nodes), optional
+			A list of meaningful names to be applied to nodes
 
 		Returns
 		-------
@@ -679,7 +690,10 @@ cdef class BayesianNetwork( GraphModel ):
 			else:
 				break
 
-		states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
+		if state_names is not None:
+			states = [State(node, name=name) for node, name in izip(nodes,state_names)]
+		else:
+			states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
 
 		model = BayesianNetwork(name=name)
 		model.add_nodes(*states)
@@ -695,7 +709,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 	@classmethod
 	def from_samples( cls, X, weights=None, algorithm='chow-liu', max_parents=-1,
-		 root=0, constraint_graph=None, pseudocount=0.0 ):
+		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -736,6 +750,9 @@ cdef class BayesianNetwork( GraphModel ):
 		pseudocount : double, optional
 			A pseudocount to add to each possibility.
 
+		state_names : array-like, shape (n_nodes), optional
+			A list of meaningful names to be applied to nodes
+
 		Returns
 		-------
 		model : BayesianNetwork
@@ -773,7 +790,7 @@ cdef class BayesianNetwork( GraphModel ):
 			structure = discrete_exact_graph(X_int, weights, key_count, 
 				pseudocount, max_parents)
 
-		return BayesianNetwork.from_structure(X, structure, weights)
+		return BayesianNetwork.from_structure(X, structure, weights,state_names=state_names)
 
 
 cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray, 
