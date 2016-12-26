@@ -466,6 +466,8 @@ cdef class BayesianNetwork( GraphModel ):
 		for state in self.states:
 			state.distribution.from_summaries(inertia)
 
+		self.bake()
+
 	def fit( self, items, weights=None, inertia=0.0 ):
 		"""Fit the model to data using MLE estimates.
 
@@ -526,22 +528,18 @@ cdef class BayesianNetwork( GraphModel ):
 		if self.d == 0:
 			raise ValueError("must bake model before using impute")
 
-		for i in range( len(items) ):
+		for i in range(len(items)):
 			obs = {}
 
-			for j, state in enumerate( self.states ):
+			for j, state in enumerate(self.states):
 				item = items[i][j]
 
-				if item not in (None, 'nan'):
-					try:
-						if not numpy.isnan(item):
-							obs[ state.name ] = item
-					except:
-						obs[ state.name ] = item
+				if item is not None:
+					obs[state.name] = item
 
-			imputation = self.predict_proba( obs  )
+			imputation = self.predict_proba(obs)
 
-			for j in range( len( self.states) ):
+			for j in range(len(self.states)):
 				items[i][j] = imputation[j].mle()
 
 		return items 
