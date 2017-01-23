@@ -1075,7 +1075,7 @@ cpdef discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 	structure = [None for i in range(d)]
 
 	for parent, child in constraint_graph.edges():
-		parent_sets[child] += parent
+		parent_sets[child] += (parent,)
 		if child == parent:
 			cycle[indices[child]] = 1
 
@@ -1089,11 +1089,10 @@ cpdef discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 					structure[parent] = tuple([parents[k] for k in local_structure[i]])
 
 		else:
-			for child in children:
-				logp, node_parents = discrete_find_best_parents(X, weights,
-					key_count, child, parents, max_parents, pseudocount)
+			logp, node_parents = discrete_find_best_parents(X, weights,
+				key_count, children, parents, max_parents, pseudocount)
 
-				structure[child] = node_parents
+			structure[children] = node_parents
 
 	return tuple(structure)
 
