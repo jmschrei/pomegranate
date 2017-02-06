@@ -2364,7 +2364,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		sequences : array-like
 			An array of some sort (list, numpy.ndarray, tuple..) of sequences,
 			where each sequence is a numpy array, which is 1 dimensional if
-			the HMM is a one dimensional array, or multidimensional of the HMM
+			the HMM is a one dimensional array, or multidimensional if the HMM
 			supports multiple dimensions.
 
 		weights : array-like or None, optional
@@ -2511,7 +2511,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		sequences : array-like
 			An array of some sort (list, numpy.ndarray, tuple..) of sequences,
 			where each sequence is a numpy array, which is 1 dimensional if
-			the HMM is a one dimensional array, or multidimensional of the HMM
+			the HMM is a one dimensional array, or multidimensional if the HMM
 			supports multiple dimensions.
 
 		weights : array-like or None, optional
