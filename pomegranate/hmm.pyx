@@ -362,6 +362,83 @@ cdef class HiddenMarkovModel( GraphModel ):
 			else:
 				self.add_state( state )
 
+	def split_state( self, state, name_of_new_state=None ):
+		"""The chosen State will be split and the new one will be set parallel to the splitted
+		state. The new State will get a slightly shifted Distribution depending on the chosen
+		Distribution and their shifting values.
+
+		Parameters
+		----------
+		state : State
+			A state object to be added to the model.
+		name_of_new_state: str
+			The name of the new state if an custom name scheme is in use
+
+		Returns
+		-------
+		new_state: State
+			The new State parallel to the old one
+		"""
+
+		if name_of_new_state is None:
+			name_of_new_state = state.name + '-split'
+
+		if state.distribution:
+			distribution_one, distribution_two = state.distribution.split()
+		else:
+			distribution_one = None
+			distribution_two = None
+
+		state.distribution = distribution_one
+
+		new_state = State( name=name_of_new_state,
+						   weight=state.weight, distribution=distribution_two )
+
+		self.add_state( new_state )
+
+		# Outgoing Edges
+
+		successor_states = self.graph.successors( state )
+
+		for successor_state in successor_states:
+
+			edge_data = self.graph.get_edge_data( state, successor_state )
+
+			# Exception for Self Loop
+
+			if successor_state.name == state.name:
+				successor_state = new_state
+
+			self.add_transition( new_state, successor_state, cexp( edge_data['probability'] ),
+								 edge_data['pseudocount'], edge_data['group'] )
+
+		# Incoming Edges
+
+		predecessor_states = self.graph.predecessors( state )
+
+		for predecessor_state in predecessor_states:
+
+			# Exception for Self Loop
+
+			if predecessor_state.name == state.name:
+				continue
+
+			edge_data = self.graph.get_edge_data( predecessor_state, state )
+
+			probability = cexp( edge_data['probability'] ) / 2
+			pseudocount = edge_data['pseudocount'] / 2
+			group = edge_data['group']
+
+			# Update old Edge
+
+			self.add_transition( predecessor_state, state, probability, pseudocount, group )
+
+			# Add new Edge
+
+			self.add_transition( predecessor_state, new_state, probability, pseudocount, group )
+
+		return new_state
+
 	def add_transition( self, a, b, probability, pseudocount=None, group=None ):
 		"""Add a transition from state a to state b.
 
@@ -461,6 +538,46 @@ cdef class HiddenMarkovModel( GraphModel ):
 			edges = izip( b, probabilities, pseudocounts, groups )
 			for end, probability, pseudocount, group in edges:
 				self.add_transition( a, end, probability, pseudocount, group )
+
+	def prune_transition( self, a, b ):
+		"""Prune a Transition between state a and b. The transition will be removed so that the
+		Graph is still valid. I.e. the summarized probability of all exiting transitions from a
+		add up to 1. Keep in mind to bake the model again after pruning.
+
+		Parameters
+		----------
+		a : State
+			The state that the edge originates from
+
+		b : State
+			The state that the edge goes to
+
+		Returns
+		-------
+		None
+		"""
+
+		origin_edge_data = self.graph.get_edge_data( a, b, default=None )
+
+		if origin_edge_data is None:
+			raise ValueError('Edge not existing.')
+
+		origin_edge_prob = cexp( origin_edge_data['probability'] )
+		origin_edge_pseudo_count = origin_edge_data['pseudocount']
+
+		self.graph.remove_edge( a, b )
+
+		successor_states = self.graph.successors( a )
+
+		for successor_state in successor_states:
+
+			edge_data = self.graph.get_edge_data( a, successor_state )
+			edge_prob = cexp( edge_data['probability'] )
+			edge_pseudo_count = edge_data['pseudocount']
+			edge_group = edge_data['group']
+
+			self.add_transition( a, successor_state, origin_edge_prob/2 + edge_prob,
+								 origin_edge_pseudo_count/2 + edge_pseudo_count, edge_group )
 
 	def dense_transition_matrix( self ):
 		"""Returns the dense transition matrix.
@@ -641,7 +758,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				plt.axis('off')
 		else:
 			warnings.warn("Install pygraphviz for nicer visualizations")
-			networkx.draw()
+			networkx.draw(self.graph)
 
 	def bake( self, verbose=False, merge="All" ):
 		"""Finalize the topology of the model.

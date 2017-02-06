@@ -44,7 +44,7 @@ DEF LOG_2_PI = 1.83787706641
 eps = numpy.finfo(numpy.float64).eps
 
 def log(value):
-	"""Return the natural log of the given value, or - nf if the value is 0."""
+	"""Return the natural log of the given value, or - inf if the value is 0."""
 
 	if isinstance( value, numpy.ndarray ):
 		to_return = numpy.zeros(( value.shape ))
@@ -254,6 +254,22 @@ cdef class Distribution( Model ):
 
 		import matplotlib.pyplot as plt
 		plt.hist( self.sample(n), **kwargs )
+
+	def split( self ):
+		"""The Distribution will be split into to new Distribution which ideally should
+		move in opposite directions along the main axis of the highest spread.
+
+		Parameters
+		----------
+		None
+
+		Returns
+		-------
+		distribution_one: Distribution
+		distribution_two: Distribution
+		"""
+
+		raise NotImplementedError
 
 	def to_json( self, separators=(',', ' :'), indent=4 ):
 		"""Serialize the distribution to a JSON.
@@ -647,9 +663,14 @@ cdef class NormalDistribution( Distribution ):
 			return
 
 		mu = self.summaries[1] / self.summaries[0]
-		var = self.summaries[2] / self.summaries[0] - self.summaries[1] ** 2.0 / self.summaries[0] ** 2.0
 
-		sigma = csqrt(var)
+		''' The Original Formula var = x2 / x0 - x1^2 / x0^2 could lead to ZeroDivision Errors
+		through extreme small values in x0 (i.e. 1.7^-300) which resulted in the
+		value 0 through the ** 2 operation.'''
+
+		var = self.summaries[2] / self.summaries[0] - (self.summaries[1] / self.summaries[0]) ** 2.0
+
+		sigma = csqrt(abs(var))
 		if sigma < min_std:
 			sigma = min_std
 
@@ -663,6 +684,23 @@ cdef class NormalDistribution( Distribution ):
 		"""Clear the summary statistics stored in the object."""
 
 		self.summaries = [0, 0, 0]
+
+	def split( self ):
+		"""
+		A simple but not ideal solution for splitting the Distribution according to the Book:
+		DOI: 10.1007/978-3-662-46726-8
+		Chapter: 9.2.3
+		"""
+		epsilon = 0.7
+
+		new_mu = self.mu / 2
+		sigma_one = self.sigma * ( 1 + epsilon )
+		sigma_two = self.sigma * ( 1 - epsilon )
+
+		distribution_one = NormalDistribution( new_mu, sigma_one )
+		distribution_two = NormalDistribution( new_mu, sigma_two )
+
+		return distribution_one, distribution_two
 
 	@classmethod
 	def from_samples( cls, items, weights=None, min_std=1e-5 ):
@@ -1492,6 +1530,10 @@ cdef class DiscreteDistribution( Distribution ):
 			for i in range(len(self.encoded_keys)):
 				self.encoded_counts[i] = 0
 
+	def split( self ):
+
+		return self.copy(), self.copy()
+
 	def to_json( self, separators=(',', ' :'), indent=4 ):
 		"""Serialize the distribution to a JSON.
 
@@ -2042,6 +2084,21 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for d in self.parameters[0]:
 			d.clear_summaries()
+
+	def split( self ):
+		"""Split all stored Distributions"""
+
+		distributions_one = []
+		distributions_two = []
+
+		for distribution in self.distributions:
+			dist_one, dist_two = distribution.split()
+			distributions_one.append(dist_one)
+			distributions_two.append(dist_two)
+
+		return IndependentComponentsDistribution(distributions_one), \
+			   IndependentComponentsDistribution(distributions_two)
+
 
 	def to_json( self, separators=(',', ' : '), indent=4 ):
 		"""Convert the distribution to JSON format."""
