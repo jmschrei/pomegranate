@@ -1,3 +1,4 @@
+#!python
 #cython: boundscheck=False
 #cython: cdivision=True
 # hmm.pyx: Yet Another Hidden Markov Model library

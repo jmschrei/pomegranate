@@ -1,3 +1,4 @@
+#!python
 #cython: boundscheck=False
 #cython: cdivision=True
 # kmeans.pyx

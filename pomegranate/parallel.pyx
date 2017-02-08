@@ -1,3 +1,4 @@
+#!python
 # parallel.py
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
