@@ -54,6 +54,32 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 
+def _check_input(sequence, model):
+	n = len(sequence)
+
+	if not model.discrete:
+		sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
+	elif model.multivariate and model.discrete:
+		sequence_ndarray = numpy.empty((n, model.d), dtype=numpy.float64)
+		for i in range(n):
+			for j in range(model.d):
+				if model.keymap[j] is {}:
+					sequence_ndarray[i, j] = sequence[i][j]
+				else:
+					try:
+						sequence_ndarray[i, j] = model.keymap[j][sequence[i][j]]
+					except:
+						raise ValueError("Symbol '{}' is not defined in a distribution".format(sequence[i][j]))
+	else:
+		sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
+		for i in range(n):
+			try:
+				sequence_ndarray[i] = model.keymap[0][sequence[i]]
+			except KeyError:
+				raise ValueError("Symbol '{}' is not defined in a distribution".format(sequence[i]))
+
+	return sequence_ndarray
+
 # Useful python-based array-intended operations
 def log(value):
 	"""Return the natural log of the value or -infinity if the value is 0."""
@@ -141,8 +167,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 	cdef double* in_transition_pseudocounts
 	cdef double* out_transition_pseudocounts
 	cdef double [:] state_weights
-	cdef bint discrete
-	cdef bint multivariate
+	cdef public bint discrete
+	cdef public bint multivariate
 	cdef int summaries
 	cdef int* tied_state_count
 	cdef int* tied
@@ -1053,15 +1079,27 @@ cdef class HiddenMarkovModel( GraphModel ):
 			for state in states:
 				state.distribution.bake( tuple(set(keys)) )
 
-		elif isinstance(dist, IndependentComponentsDistribution):
-			self.keymap = []
+		if self.d > 1:
+			keys = [[] for i in range(self.d)]
+			self.keymap = [{} for i in range(self.d)]
+			for state in self.states[:self.silent_start]:
+				d = state.distribution
+
+				if isinstance(d, IndependentComponentsDistribution):
+					for i in range(self.d):
+						di = d.distributions[i]
+						if isinstance(di, DiscreteDistribution):
+							self.discrete = 1
+							keys[i].extend(di.keys())
+
 			for i in range(self.d):
-				if isinstance(dist.distributions[i], DiscreteDistribution):
-					self.discrete = 1
-					keys = dist.distributions.keys()
-					self.keymap.append({ key: i for i, key in enumerate(set(keys)) })	
-				else:
-					self.keymap.append(None)
+				keys[i] = tuple(set(keys[i]))
+				self.keymap[i] = {key: j for j, key in enumerate(keys[i])}
+
+			for state in self.states[:self.silent_start]:
+				d = state.distribution
+				if isinstance(d, IndependentComponentsDistribution):
+					d.bake(keys)
 
 		self.distributions = numpy.empty(self.silent_start, dtype='object')
 		for i in range(self.silent_start):
@@ -1248,20 +1286,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int mv = self.multivariate
 
 		if check_input:
-			if not self.discrete:
-				sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
-			elif mv and self.discrete:
-				sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-				for i in range(n):
-					for j in range(self.d):
-						if self.keymap[j] is None:
-							sequence_ndarray[i, j] = sequence[i][j]
-						else:
-							sequence_ndarray[i, j] = self.keymap[j][sequence[i][j]]
-			else:
-				sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-				for i in range(n):
-					sequence_ndarray[i] = self.keymap[0][sequence[i]]
+			sequence_ndarray = _check_input(sequence, self)
 		else:
 			sequence_ndarray = sequence
 
@@ -1330,21 +1355,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef numpy.ndarray f_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 		cdef double* f
 
-		if not self.discrete:
-			sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
-		elif mv and self.discrete:
-			sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-			for i in range(n):
-				for j in range(self.d):
-					if self.keymap[j] is None:
-						sequence_ndarray[i, j] = sequence[i][j]
-					else:
-						sequence_ndarray[i, j] = self.keymap[j][sequence[i][j]]
-		else:
-			sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-			for i in range(n):
-				sequence_ndarray[i] = self.keymap[0][sequence[i]]
-
+		sequence_ndarray = _check_input(sequence, self)
 		sequence_data = <double*> sequence_ndarray.data
 
 		with nogil:
@@ -1514,21 +1525,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int mv = self.multivariate
 		cdef numpy.ndarray b_ndarray = numpy.zeros( (n+1, m), dtype=numpy.float64 )
 
-		if not self.discrete:
-			sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
-		elif mv and self.discrete:
-			sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-			for i in range(n):
-				for j in range(self.d):
-					if self.keymap[j] is None:
-						sequence_ndarray[i, j] = sequence[i][j]
-					else:
-						sequence_ndarray[i, j] = self.keymap[j][sequence[i][j]]
-		else:
-			sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-			for i in range(n):
-				sequence_ndarray[i] = self.keymap[0][sequence[i]]
-
+		sequence_ndarray = _check_input(sequence, self)
 		sequence_data = <double*> sequence_ndarray.data
 
 		with nogil:
@@ -1772,21 +1769,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int mv = self.multivariate
 		cdef void** distributions = <void**> self.distributions.data
 
-		if not self.discrete:
-			sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
-		elif mv and self.discrete:
-			sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-			for i in range(n):
-				for j in range(self.d):
-					if self.keymap[j] is None:
-						sequence_ndarray[i, j] = sequence[i][j]
-					else:
-						sequence_ndarray[i, j] = self.keymap[j][sequence[i][j]]
-		else:
-			sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-			for i in range(n):
-				sequence_ndarray[i] = self.keymap[0][sequence[i]]
-
+		sequence_ndarray = _check_input(sequence, self)
 		sequence_data = <double*> sequence_ndarray.data
 
 		return self._forward_backward( sequence_data, n )
@@ -1970,21 +1953,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef int* path = <int*> calloc(n+m, sizeof(int))
 		cdef list vpath = []
 
-		if not self.discrete:
-			sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
-		elif mv and self.discrete:
-			sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-			for i in range(n):
-				for j in range(self.d):
-					if self.keymap[j] is None:
-						sequence_ndarray[i, j] = sequence[i][j]
-					else:
-						sequence_ndarray[i, j] = self.keymap[j][sequence[i][j]]
-		else:
-			sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-			for i in range(n):
-				sequence_ndarray[i] = self.keymap[0][sequence[i]]
-
+		sequence_ndarray = _check_input(sequence, self)
 		sequence_data = <double*> sequence_ndarray.data
 		logp = self._viterbi(sequence_data, path, n, m)
 
@@ -2233,21 +2202,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef double* sequence_data
 		cdef double* r = <double*> r_ndarray.data
 
-		if not self.discrete:
-			sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
-		elif mv and self.discrete:
-			sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-			for i in range(n):
-				for j in range(self.d):
-					if self.keymap[j] is None:
-						sequence_ndarray[i, j] = sequence[i][j]
-					else:
-						sequence_ndarray[i, j] = self.keymap[j][sequence[i][j]]
-		else:
-			sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-			for i in range(n):
-				sequence_ndarray[i] = self.keymap[0][sequence[i]]
-
+		sequence_ndarray = _check_input(sequence, self)
 		sequence_data = <double*> sequence_ndarray.data
 
 		with nogil:
@@ -2501,36 +2456,18 @@ cdef class HiddenMarkovModel( GraphModel ):
 		cdef double last_log_probability_sum
 		cdef str alg = algorithm.lower()
 		cdef bint check_input = alg == 'viterbi'
+		cdef list X = []
 
 		if inertia is not None:
 			edge_inertia = inertia
 			distribution_inertia = inertia
 
-		for k in range(len(sequences)):
-			n = len(sequences[k])
-
-			if not self.discrete:
-				sequence_ndarray[i] = numpy.array(sequences[k], dtype=numpy.float64)
-			elif mv and self.discrete:
-				sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-				for i in range(n):
-					for j in range(self.d):
-						if self.keymap[j] is None:
-							sequence_ndarray[i, j] = sequences[k][i][j]
-						else:
-							sequence_ndarray[i, j] = self.keymap[j][sequences[k][i][j]]
-			else:
-				sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-				for i in range(n):
-					sequence_ndarray[i] = self.keymap[0][sequences[k][i]]
-
-			sequences[k] = sequence_ndarray
-
-		if isinstance( sequences, numpy.ndarray ):
-			sequences = sequences.astype('float64')
+		for sequence in sequences:
+			sequence_ndarray = _check_input(sequence, self)
+			X.append(sequence_ndarray)
 
 		if weights is None:
-			weights = numpy.ones(len(sequences), dtype='float64')
+			weights = numpy.ones(len(X), dtype='float64')
 		else:
 			weights = numpy.array(weights, dtype='float64')
 
@@ -2542,7 +2479,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 				if iteration >= max_iterations + 1:
 					break
 
-				log_probability_sum = self.summarize( sequences, weights, alg, n_jobs, parallel, False )
+				log_probability_sum = self.summarize(X, weights, alg, n_jobs, parallel, False)
 
 				if iteration == 0:
 					initial_log_probability_sum = log_probability_sum
@@ -2610,6 +2547,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 		"""
 
 		cdef int mv = self.multivariate
+		cdef list X = []
 
 		if self.d == 0:
 			raise ValueError("must bake model before summarizing data")
@@ -2620,38 +2558,21 @@ cdef class HiddenMarkovModel( GraphModel ):
 			else:
 				weights_ndarray = numpy.array(weights, dtype='float64')
 			
-			for k in range(len(sequences)):
-				n = len(sequences[k])
-
-				if not self.discrete:
-					sequence_ndarray = numpy.array(sequences[k], dtype=numpy.float64)
-				elif mv and self.discrete:
-					sequence_ndarray = numpy.empty((n, self.d), dtype=numpy.float64)
-					for i in range(n):
-						for j in range(self.d):
-							if self.keymap[j] is None:
-								sequence_ndarray[i, j] = sequences[k][i][j]
-							else:
-								sequence_ndarray[i, j] = self.keymap[j][sequences[k][i][j]]
-				else:
-					sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
-					for i in range(n):
-						sequence_ndarray[i] = self.keymap[0][sequences[k][i]]
-
-				sequences[k] = sequence_ndarray
-
-		if isinstance( sequences, numpy.ndarray ):
-			sequences = sequences.astype('float64')
+			for sequence in sequences:
+				sequence_ndarray = _check_input(sequence, self)
+				X.append(sequence_ndarray)
+		else:
+			X = sequences
 
 		if parallel is None:
 			parallel = Parallel( n_jobs=n_jobs, backend='threading' )
 
 		if algorithm == 'baum-welch':
 			return sum( parallel([ delayed( self._baum_welch_summarize, check_pickle=False )(
-					sequence, weight) for sequence, weight in zip(sequences, weights) ]) )
+					sequence, weight) for sequence, weight in zip(X, weights) ]) )
 		else:
 			return sum( parallel([ delayed( self._viterbi_summarize, check_pickle=False )(
-					sequence, weight) for sequence, weight in zip(sequences, weights) ]) )
+					sequence, weight) for sequence, weight in zip(X, weights) ]) )
 
 	cpdef double _baum_welch_summarize( self, numpy.ndarray sequence_ndarray, double weight):
 		"""Python wrapper for the summarization step.

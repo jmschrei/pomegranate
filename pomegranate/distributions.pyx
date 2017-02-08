@@ -1935,6 +1935,11 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.distributions, numpy.exp(self.weights), self.frozen)
 
+	def bake( self, keys ):
+		for i, distribution in enumerate(self.distributions):
+			if isinstance(distribution, DiscreteDistribution):
+				distribution.bake(keys[i])
+
 	def log_probability( self, symbol ):
 		"""
 		What's the probability of a given tuple under this mixture? It's the
@@ -1942,8 +1947,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype('float64')
-		cdef double* symbol_ptr = <double*> symbol_ndarray.data
+		cdef numpy.ndarray symbol_ndarray
+		cdef double* symbol_ptr
 		cdef double logp
 
 		if self.discrete:
@@ -1952,6 +1957,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 				logp += self.distributions[i].log_probability(symbol[i]) + self.weights[i]
 
 		else:
+			symbol_ndarray = numpy.array(symbol).astype('float64')
+			symbol_ptr = <double*> symbol_ndarray.data
 			with nogil:
 				logp = self._mv_log_probability( symbol_ptr )
 
