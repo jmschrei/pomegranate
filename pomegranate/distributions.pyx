@@ -41,6 +41,7 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
+eps = numpy.finfo(numpy.float64).eps
 
 def log(value):
 	"""Return the natural log of the given value, or - nf if the value is 0."""
@@ -1297,18 +1298,24 @@ cdef class DiscreteDistribution( Distribution ):
 
 	def __mul__( self, other ):
 		"""Multiply this by another distribution sharing the same keys."""
-
-		assert set( self.keys() ) == set( other.keys() )
+		assert set(self.keys()) == set(other.keys())
 		distribution, total = {}, 0.0
 
 		for key in self.keys():
-			distribution[key] = self.log_probability( key ) + other.log_probability( key )
-			total += cexp( distribution[key] )
+			x, y = self.probability(key), other.probability(key)
+			distribution[key] = (x + eps) * (y + eps)
+			total += distribution[key]
 
 		for key in self.keys():
-			distribution[key] = cexp( distribution[key] ) / total
+			distribution[key] /= total
 
-		return DiscreteDistribution( distribution )
+			if distribution[key] <= eps / total:
+				distribution[key] = 0.0
+			elif distribution[key] >= 1 - eps / total:
+				distribution[key] = 1.0
+
+		return DiscreteDistribution(distribution)
+
 
 	def equals( self, other ):
 		"""Return if the keys and values are equal"""
@@ -1521,7 +1528,7 @@ cdef class DiscreteDistribution( Distribution ):
 		characters = {}
 		total = 0
 
-		for character, weight in it.izip(items, weights):
+		for character, weight in izip(items, weights):
 			total += weight
 			if character in characters:
 				characters[character] += weight
@@ -2551,7 +2558,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 			log_probability[i] = self.values[idx]
 
-	def joint( self, neighbor_values=None ):
+	def joint(self, neighbor_values=None):
 		"""
 		This will turn a conditional probability table into a joint
 		probability table. If the data is already a joint, it will likely
@@ -2560,25 +2567,25 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 
 		neighbor_values = neighbor_values or self.parents+[None]
-		if isinstance( neighbor_values, dict ):
-			neighbor_values = [ neighbor_values.get( p, None ) for p in self.parents + [self]]
+		if isinstance(neighbor_values, dict):
+			neighbor_values = [neighbor_values.get(p, None) for p in self.parents + [self]]
 
 		table, total = [], 0
 		for key, idx in self.keymap.items():
 			scaled_val = self.values[idx]
 
-			for j, k in enumerate( key ):
+			for j, k in enumerate(key):
 				if neighbor_values[j] is not None:
-					scaled_val += neighbor_values[j].log_probability( k )
+					scaled_val += neighbor_values[j].log_probability(k)
 
 			scaled_val = cexp(scaled_val)
 			total += scaled_val
 			table.append( key + (scaled_val,) )
 
-		table = [ row[:-1] + (row[-1] / total,) for row in table ]
-		return JointProbabilityTable( table, self.parents )
+		table = [row[:-1] + (row[-1] / total if total > 0 else 1. / self.n,) for row in table]
+		return JointProbabilityTable(table, self.parents)
 
-	def marginal( self, neighbor_values=None ):
+	def marginal(self, neighbor_values=None):
 		"""
 		Calculate the marginal of the CPT. This involves normalizing to turn it
 		into a joint probability table, and then summing over the desired
@@ -2586,11 +2593,11 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""
 
 		# Convert from a dictionary to a list if necessary
-		if isinstance( neighbor_values, dict ):
-			neighbor_values = [ neighbor_values.get( d, None ) for d in self.parents ]
+		if isinstance(neighbor_values, dict):
+			neighbor_values = [neighbor_values.get(d, None) for d in self.parents]
 
 		# Get the index we're marginalizing over
-		i = -1 if neighbor_values == None else neighbor_values.index( None )
+		i = -1 if neighbor_values == None else neighbor_values.index(None)
 		return self.joint(neighbor_values).marginal(i)
 
 	def summarize(self, items, weights=None):
@@ -2649,7 +2656,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	def from_summaries( self, double inertia=0.0, double pseudocount=0.0 ):
 		"""Update the parameters of the distribution using sufficient statistics."""
 
-		cdef int i, k
+		cdef int i, k, idx
 
 		with nogil:
 			for i in range(self.n):
@@ -2666,7 +2673,8 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 					self.values[i] = -_log(self.k)
 
 		for i in range(self.n):
-			self.parameters[0][i][-1] = cexp(self.values[i])
+			idx = self.keymap[tuple(self.parameters[0][i][:-1])]
+			self.parameters[0][i][-1] = cexp(self.values[idx])
 
 		self.clear_summaries()
 
@@ -2852,33 +2860,34 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		"""
 
 		if isinstance(neighbor_values, dict):
-			neighbor_values = [ neighbor_values.get( d, None ) for d in self.parents ]
+			neighbor_values = [neighbor_values.get(d, None) for d in self.parents]
 		
 		if isinstance(neighbor_values, list):
 			wrt = neighbor_values.index(None)
 
 		# Determine the keys for the respective parent distribution
-		d = { k: 0 for k in self.parents[wrt].keys() }
+		d = {k: 0 for k in self.parents[wrt].keys()}
 		total = 0.0
 
 		for key, idx in self.keymap.items():
 			logp = self.values[idx]
 
 			if neighbor_values is not None:
-				for j, k in enumerate( key ):
+				for j, k in enumerate(key):
 					if j == wrt:
 						continue
 
-					logp += neighbor_values[j].log_probability( k )
+					logp += neighbor_values[j].log_probability(k)
 
-			p = cexp( logp )
-			d[ key[wrt] ] += p
+			p = cexp(logp)
+			d[key[wrt]] += p
 			total += p
 
 		for key, value in d.items():
-			d[key] = value / total
+			d[key] = value / total if total > 0 else 1. / len(self.parents[wrt].keys())
 
 		return DiscreteDistribution(d)
+
 
 	def summarize( self, items, weights=None ):
 		"""Summarize the data into sufficient statistics to store."""

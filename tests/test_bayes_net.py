@@ -8,14 +8,20 @@ These are unit tests for the Bayesian network part of pomegranate.
 
 from __future__ import division
 
-from pomegranate import (DiscreteDistribution,
-                         ConditionalProbabilityTable,
-                         State, BayesianNetwork)
+from pomegranate import DiscreteDistribution
+from pomegranate import ConditionalProbabilityTable
+from pomegranate import State
+from pomegranate import BayesianNetwork
+
 from nose.tools import with_setup
 from nose.tools import assert_equal
 from nose.tools import assert_raises
+from nose.tools import assert_almost_equal
+
 import random
 import numpy as np
+from numpy.testing import assert_array_equal
+import sys
 
 nan = np.nan
 
@@ -224,20 +230,20 @@ def teardown():
 
 @with_setup(setup_titanic, teardown)
 def test_titanic_network():
-    assert_equal(passenger.log_probability('survive'), np.log(0.6))
-    assert_equal(passenger.log_probability('survive'), np.log(0.6))
+    assert_almost_equal(passenger.log_probability('survive'), np.log(0.6))
+    assert_almost_equal(passenger.log_probability('survive'), np.log(0.6))
 
-    assert_equal(gender.log_probability(('survive', 'male')),   float("-inf"))
-    assert_equal(gender.log_probability(('survive', 'female')), 0.0)
-    assert_equal(gender.log_probability(('perish', 'male')),    0.0)
-    assert_equal(gender.log_probability(('perish', 'female')),  float("-inf"))
+    assert_almost_equal(gender.log_probability(('survive', 'male')),   float("-inf"))
+    assert_almost_equal(gender.log_probability(('survive', 'female')), 0.0)
+    assert_almost_equal(gender.log_probability(('perish', 'male')),    0.0)
+    assert_almost_equal(gender.log_probability(('perish', 'female')),  float("-inf"))
 
-    assert_equal(tclass.log_probability(('survive', 'first')), float("-inf"))
-    assert_equal(tclass.log_probability(('survive', 'second')), 0.0)
-    assert_equal(tclass.log_probability(('survive', 'third')), float("-inf"))
-    assert_equal(tclass.log_probability(('perish', 'first')), 0.0)
-    assert_equal(tclass.log_probability(('perish', 'second')), float("-inf"))
-    assert_equal(tclass.log_probability(('perish', 'third')), float("-inf"))
+    assert_almost_equal(tclass.log_probability(('survive', 'first')), float("-inf"))
+    assert_almost_equal(tclass.log_probability(('survive', 'second')), 0.0)
+    assert_almost_equal(tclass.log_probability(('survive', 'third')), float("-inf"))
+    assert_almost_equal(tclass.log_probability(('perish', 'first')), 0.0)
+    assert_almost_equal(tclass.log_probability(('perish', 'second')), float("-inf"))
+    assert_almost_equal(tclass.log_probability(('perish', 'third')), float("-inf"))
 
 
 @with_setup(setup_titanic, teardown)
@@ -268,8 +274,8 @@ def test_guest_titanic():
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty():
-    assert_equal(huge_monty.log_probability(('A', 'A', 'C')), np.log(0.5))
-    assert_equal(huge_monty.log_probability(('B', 'B', 'C')), np.log(0.5))
+    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), np.log(0.5))
+    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), np.log(0.5))
     assert_equal(huge_monty.log_probability(('C', 'C', 'C')), float("-inf"))
 
     data = [[True,  'A', 'A', 'C', 1, True],
@@ -287,15 +293,15 @@ def test_huge_monty():
 
     huge_monty_network.fit(data)
 
-    assert_equal(huge_monty.log_probability(('A', 'A', 'C')), np.log(0.6))
-    assert_equal(huge_monty.log_probability(('B', 'B', 'C')), np.log(0.5))
-    assert_equal(huge_monty.log_probability(('C', 'C', 'C')), np.log(0.75))
+    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), np.log(0.6))
+    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), np.log(0.5))
+    assert_almost_equal(huge_monty.log_probability(('C', 'C', 'C')), np.log(0.75))
 
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty_friend():
-    assert_equal(huge_monty_friend.log_probability(True), np.log(0.5))
-    assert_equal(huge_monty_friend.log_probability(False), np.log(0.5))
+    assert_almost_equal(huge_monty_friend.log_probability(True), np.log(0.5))
+    assert_almost_equal(huge_monty_friend.log_probability(False), np.log(0.5))
 
     data = [[True,  'A', 'A', 'C', 1, True],
             [True,  'A', 'A', 'C', 0, True],
@@ -312,15 +318,15 @@ def test_huge_monty_friend():
 
     huge_monty_network.fit(data)
 
-    assert_equal(huge_monty_friend.log_probability(True), np.log(7. / 12))
-    assert_equal(huge_monty_friend.log_probability(False), np.log(5. / 12))
+    assert_almost_equal(huge_monty_friend.log_probability(True), np.log(7. / 12))
+    assert_almost_equal(huge_monty_friend.log_probability(False), np.log(5. / 12))
 
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty_remaining():
-    assert_equal(huge_monty_remaining.log_probability(0), np.log(0.1))
-    assert_equal(huge_monty_remaining.log_probability(1), np.log(0.7))
-    assert_equal(huge_monty_remaining.log_probability(2), np.log(0.2))
+    assert_almost_equal(huge_monty_remaining.log_probability(0), np.log(0.1))
+    assert_almost_equal(huge_monty_remaining.log_probability(1), np.log(0.7))
+    assert_almost_equal(huge_monty_remaining.log_probability(2), np.log(0.2))
 
     data = [[True,  'A', 'A', 'C', 1, True],
             [True,  'A', 'A', 'C', 0, True],
@@ -337,20 +343,20 @@ def test_huge_monty_remaining():
 
     huge_monty_network.fit(data)
 
-    assert_equal(huge_monty_remaining.log_probability(0), np.log(3. / 12))
-    assert_equal(huge_monty_remaining.log_probability(1), np.log(5. / 12))
-    assert_equal(huge_monty_remaining.log_probability(2), np.log(4. / 12))
+    assert_almost_equal(huge_monty_remaining.log_probability(0), np.log(3. / 12))
+    assert_almost_equal(huge_monty_remaining.log_probability(1), np.log(5. / 12))
+    assert_almost_equal(huge_monty_remaining.log_probability(2), np.log(4. / 12))
 
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty_prize():
-    assert_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(huge_monty_prize.log_probability(
         (True,  True,  'A')), np.log(0.3))
-    assert_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(huge_monty_prize.log_probability(
         (True,  False, 'C')), np.log(0.4))
-    assert_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(huge_monty_prize.log_probability(
         (False, True,  'B')), np.log(0.9))
-    assert_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(huge_monty_prize.log_probability(
         (False, False, 'A')), float("-inf"))
 
     data = [[True,  'A', 'A', 'C', 1, True],
@@ -368,7 +374,7 @@ def test_huge_monty_prize():
 
     huge_monty_network.fit(data)
 
-    assert_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(huge_monty_prize.log_probability(
         (True, True, 'C')), np.log(0.5))
     assert_equal(huge_monty_prize.log_probability(
         (True, True, 'B')), float("-inf"))
@@ -377,12 +383,12 @@ def test_huge_monty_prize():
     b = huge_monty_prize.log_probability((True, False, 'B'))
     c = huge_monty_prize.log_probability((True, False, 'C'))
 
-    assert_equal(a, b)
-    assert_equal(b, c)
+    assert_almost_equal(a, b)
+    assert_almost_equal(b, c)
 
     assert_equal(huge_monty_prize.log_probability(
         (False, False, 'C')), float("-inf"))
-    assert_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(huge_monty_prize.log_probability(
         (False, True, 'C')), np.log(2. / 3))
 
 
@@ -450,30 +456,44 @@ def test_imputation():
            ['A', None, 'C'],
            ['A', 'B', 'C']]
 
-    monty_network.predict(obs)
+    predictions = monty_network.predict(obs)
 
-    assert_equal(obs[0], ['A', 'C', 'B'])
-    assert_equal(obs[1], ['A', 'B', 'C'])
-    assert_equal(obs[2], ['A', 'B', 'C'])
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', None, 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
 
 @with_setup(setup_monty, teardown)
 def test_numpy_imputation():
     obs = np.array([['A', None, 'B'],
-                    ['A', None, 'C'],
+                    ['A', nan, 'C'],
                     ['A', 'B', 'C']])
 
-    monty_network.predict(obs)
+    predictions = monty_network.predict(obs)
 
-    assert_equal(obs[0, 0], 'A')
-    assert_equal(obs[0, 1], 'C')
-    assert_equal(obs[0, 2], 'B')
-    assert_equal(obs[1, 0], 'A')
-    assert_equal(obs[1, 1], 'B')
-    assert_equal(obs[1, 2], 'C')
-    assert_equal(obs[2, 0], 'A')
-    assert_equal(obs[2, 1], 'B')
-    assert_equal(obs[2, 2], 'C')
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', np.nan, 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
 
 @with_setup(setup_monty, teardown)
