@@ -192,8 +192,8 @@ def setup_multivariate_gaussian():
 	global m1, m2, m3
 	model = HiddenMarkovModel( "Global Alignment")
 
-	i1 = UniformDistribution(-10, 10)
-	i2 = UniformDistribution(-10, 10)
+	i1 = UniformDistribution(-20, 20)
+	i2 = UniformDistribution(-20, 20)
 	# Define the distribution for insertions
 	i_d = IndependentComponentsDistribution([i1, i2])
 
