@@ -643,7 +643,7 @@ cdef class NormalDistribution( Distribution ):
 		min_std = self.min_std if self.min_std is not None else min_std
 
 		# If no summaries stored or the summary is frozen, don't do anything.
-		if self.summaries[0] == 0 or self.frozen == True:
+		if numpy.isclose(self.summaries[0], 0) or self.frozen == True:
 			return
 
 		mu = self.summaries[1] / self.summaries[0]

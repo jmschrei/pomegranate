@@ -749,7 +749,7 @@ cdef class GeneralMixtureModel(Model):
 		None
 		"""
 
-		if self.d == 0 or self.summaries_ndarray.sum() == 0:
+		if self.d == 0 or numpy.isclose(self.summaries_ndarray.sum(), 0):
 			return
 
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
