@@ -2741,6 +2741,9 @@ cdef class HiddenMarkovModel( GraphModel ):
                         weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] -
                             log_sequence_probability ) * weight[0]
 
+                        with gil:
+                            print(k, i, weights[i])
+
                     (<Model>distributions[k])._summarize(sequence, weights, n)
 
             # Update the master expected transitions vector representing the sparse matrix.
