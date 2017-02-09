@@ -2646,10 +2646,6 @@ cdef class HiddenMarkovModel( GraphModel ):
                 if self.multivariate:
                     e[l*n + i] = ((<Model>distributions[l])._mv_log_probability( sequence+i*dim ) +
                         self.state_weights[l])
-
-                    with gil:
-                        print(e[l*n + i])
-
                 else:
                     e[l*n + i] = ((<Model>distributions[l])._log_probability( sequence[i] ) +
                         self.state_weights[l])
@@ -2740,9 +2736,6 @@ cdef class HiddenMarkovModel( GraphModel ):
                         # sequence probability.
                         weights[i] = cexp( f[(i+1)*m + k] + b[(i+1)*m + k] -
                             log_sequence_probability ) * weight[0]
-
-                        with gil:
-                            print(k, i, weights[i])
 
                     (<Model>distributions[k])._summarize(sequence, weights, n)
 

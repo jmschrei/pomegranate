@@ -408,16 +408,16 @@ def test_bw_multivariate_discrete_train():
 
 @with_setup( setup_multivariate_gaussian, teardown )
 def test_bw_multivariate_gaussian_train():
-	seqs = [[[5, 8], [17, 18], [-3, -4]], [[6, 7], [17, 19], [-6, -7]], [[4, 6], [13, 7], [-4, -7]],
-	        [[6, 5], [17, 18], [-7, -5]]]
+	seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]], 
+			[[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
 
 	total_improvement = model.fit( seqs, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
-									 max_iterations=2 )
+									 max_iterations=5 )
 
-	assert_equal( round( total_improvement, 4 ), 86.4346 )
+	assert_equal( round( total_improvement, 4 ), 24.7013 )
 
 @with_setup( setup, teardown )
 def test_bw_train_json():
