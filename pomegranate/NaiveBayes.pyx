@@ -12,6 +12,7 @@ from libc.math cimport exp as cexp
 
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
+from .distributions import IndependentComponentsDistribution
 from .gmm import GeneralMixtureModel
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
@@ -31,17 +32,14 @@ import sys
 from joblib import Parallel
 from joblib import delayed
 
-cpdef numpy.ndarray _check_input(X, dict keymap):
+def _check_input(X, keymap):
 	"""Check the input to make sure that it is a properly formatted array."""
-
-	cdef numpy.ndarray X_ndarray
-
 	if isinstance(X, numpy.ndarray) and (X.dtype == 'float64'):
 		return X
 	elif isinstance(X, (int, float)):
 		X_ndarray = numpy.array([X], dtype='float64')
 	elif not isinstance(X, (numpy.ndarray, list, tuple)):
-		X_ndarray = numpy.array([keymap[X]], dtype='float64')
+		X_ndarray = numpy.array([keymap[0][X]], dtype='float64')
 	else:
 		try:
 			X_ndarray = numpy.array(X, dtype='float64')
@@ -51,11 +49,18 @@ cpdef numpy.ndarray _check_input(X, dict keymap):
 
 			if X.ndim == 1:
 				for i in range(X.shape[0]):
-					X_ndarray[i] = keymap[X[i]]
+					try:
+						X_ndarray[i] = keymap[0][X[i]]
+					except KeyError:
+						raise ValueError("Symbol '{}' is not defined in a distribution".format(keymap[0][X[i]]))
+
 			else:
 				for i in range(X.shape[0]):
 					for j in range(X.shape[1]):
-						X_ndarray[i, j] = keymap[X[i][j]]
+						try:
+							X_ndarray[i, j] = keymap[j][X[i][j]]
+						except KeyError:
+							raise ValueError("Symbol '{}' is not defined in a distribution".format(keymap[j][X[i][j]]))
 
 	return X_ndarray
 
@@ -113,7 +118,7 @@ cdef class NaiveBayes( Model ):
 	cdef double* weights_ptr
 	cdef public int n
 	cdef int hmm
-	cdef dict keymap
+	cdef public list keymap
 
 	def __init__( self, distributions=None, weights=None ):
 		if not callable(distributions) and not isinstance(distributions, (list, numpy.ndarray)):
@@ -154,13 +159,29 @@ cdef class NaiveBayes( Model ):
 			self.summaries = numpy.zeros_like(weights, dtype='float64')
 			self.summaries_ptr = <double*> self.summaries.data
 
-		if self.d > 0 and isinstance( self.distributions[0], DiscreteDistribution ):
-			keys = []
-			for d in self.distributions:
-				keys.extend( d.keys() )
-			self.keymap = { key: i for i, key in enumerate(set(keys)) }
-			for d in self.distributions:
-				d.bake( tuple(set(keys)) )
+			dist = distributions[0]
+			if isinstance( dist, DiscreteDistribution ) and self.hmm == 0:
+				keys = []
+				for distribution in distributions:
+					keys.extend( distribution.keys() )
+				self.keymap = [{ key: i for i, key in enumerate(set(keys)) }]
+				for distribution in distributions:
+					distribution.bake( tuple(set(keys)) )
+
+			elif isinstance(dist, IndependentComponentsDistribution) and self.hmm == 0:
+				self.keymap = []
+				for i in range(self.d):
+					if isinstance(distributions[i], DiscreteDistribution):
+						keys = dist.distributions[i].keys()
+						self.keymap.append({ key: i for i, key in enumerate(set(keys)) })
+					else:
+						self.keymap.append(None)
+
+				for distribution in distributions:
+					for i in range(self.d):
+						d = distribution.distributions[i]
+						if isinstance(d, DiscreteDistribution):
+							d.bake( tuple(set(self.keymap[i].keys())) )
 
 	def __reduce__( self ):
 		return self.__class__, (self.distributions, self.weights)

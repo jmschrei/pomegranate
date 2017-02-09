@@ -354,7 +354,7 @@ cdef class UniformDistribution( Distribution ):
 		# Store the parameters
 		self.start = start
 		self.end = end
-		self.summaries = [INF, NEGINF]
+		self.summaries = [INF, NEGINF, 0]
 		self.name = "UniformDistribution"
 		self.frozen = frozen
 		self.logp = -_log(end-start)
@@ -413,9 +413,11 @@ cdef class UniformDistribution( Distribution ):
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		cdef double minimum = INF, maximum = NEGINF
+		cdef double weight = 0.0
 		cdef int i
 
 		for i in range(n):
+			weight += weights[i]
 			if weights[i] > 0:
 				if items[i] < minimum:
 					minimum = items[i]
@@ -423,6 +425,7 @@ cdef class UniformDistribution( Distribution ):
 					maximum = items[i]
 
 		with gil:
+			self.summaries[2] += weight
 			if maximum > self.summaries[1]:
 				self.summaries[1] = maximum
 			if minimum < self.summaries[0]:
@@ -435,15 +438,15 @@ cdef class UniformDistribution( Distribution ):
 		"""
 
 		# If the distribution is frozen, don't bother with any calculation
-		if self.frozen == True:
+		if self.frozen == True or self.summaries[2] == 0:
 			return
 
-		minimum, maximum = self.summaries
+		minimum, maximum = self.summaries[:2]
 		self.start = minimum*(1-inertia) + self.start*inertia
 		self.end = maximum*(1-inertia) + self.end*inertia
 		self.logp = -_log(self.end - self.start)
 
-		self.summaries = [INF, NEGINF]
+		self.summaries = [INF, NEGINF, 0]
 
 	def clear_summaries( self ):
 		"""Clear the summary statistics stored in the object."""
@@ -1942,6 +1945,11 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.distributions, numpy.exp(self.weights), self.frozen)
 
+	def bake( self, keys ):
+		for i, distribution in enumerate(self.distributions):
+			if isinstance(distribution, DiscreteDistribution):
+				distribution.bake(keys[i])
+
 	def log_probability( self, symbol ):
 		"""
 		What's the probability of a given tuple under this mixture? It's the
@@ -1949,8 +1957,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
-		cdef numpy.ndarray symbol_ndarray = numpy.array(symbol).astype('float64')
-		cdef double* symbol_ptr = <double*> symbol_ndarray.data
+		cdef numpy.ndarray symbol_ndarray
+		cdef double* symbol_ptr
 		cdef double logp
 
 		if self.discrete:
@@ -1959,6 +1967,8 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 				logp += self.distributions[i].log_probability(symbol[i]) + self.weights[i]
 
 		else:
+			symbol_ndarray = numpy.array(symbol).astype('float64')
+			symbol_ptr = <double*> symbol_ndarray.data
 			with nogil:
 				logp = self._mv_log_probability( symbol_ptr )
 
