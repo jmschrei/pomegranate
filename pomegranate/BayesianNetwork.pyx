@@ -711,7 +711,8 @@ cdef class BayesianNetwork( GraphModel ):
 
 	@classmethod
 	def from_samples( cls, X, weights=None, algorithm='chow-liu', max_parents=-1,
-		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None):
+		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None, 
+		 n_jobs=1):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -755,6 +756,11 @@ cdef class BayesianNetwork( GraphModel ):
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
 
+		n_jobs : int, optional
+			The number of threads to use when learning the structure of the
+			network. Currently only helps if a constraint graph is used to
+			assist the structure learning task.
+
 		Returns
 		-------
 		model : BayesianNetwork
@@ -787,7 +793,7 @@ cdef class BayesianNetwork( GraphModel ):
 				pseudocount, root)
 		elif algorithm == 'exact' and constraint_graph is not None:
 			structure = discrete_exact_with_constraints(X_int, weights,
-				key_count, pseudocount, max_parents, constraint_graph)
+				key_count, pseudocount, max_parents, constraint_graph, n_jobs)
 		elif algorithm == 'exact':
 			structure = discrete_exact_graph(X_int, weights, key_count,
 				pseudocount, max_parents)
@@ -960,7 +966,7 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 
 		if k <= max_parents:
 			best_parents = parent_tuple
-			best_score = score_node(X, weights, m, combs, n, k+1, l, pseudocount)
+			best_score = discrete_score_node(X, weights, m, combs, n, k+1, l, pseudocount)
 		else:
 			best_parents = ()
 			best_score = NEGINF
@@ -1004,33 +1010,7 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 			combs, n_parents, k, length-1, ii+1)
 
 
-cdef double score_graph(int* X, double* weights, int* key_count, int n, int l,
-	tuple structure, double pseudocount):
-	cdef int i, j, d
-	cdef double logp
-
-	cdef int* m = <int*> calloc(l+2, sizeof(int))
-	cdef int* idxs = <int*> calloc(l, sizeof(int))
-
-	logp = 0.0
-	m[0] = 1
-	for i in range(l):
-		parents = structure[i] + (i,)
-		d = len(parents)
-
-		for j in range(d):
-			idxs[j] = parents[j]
-			m[j+1] = m[j] * key_count[parents[j]]
-		m[j+2] = m[j] * (key_count[parents[j]] - 1)
-
-		logp += score_node(X, weights, m, idxs, n, d, l, pseudocount)
-
-	free(m)
-	free(idxs)
-	return logp
-
-
-cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int d, int l, double pseudocount) nogil:
+cdef double discrete_score_node(int* X, double* weights, int* m, int* parents, int n, int d, int l, double pseudocount) nogil:
 	cdef int i, j, k, idx
 	cdef double logp = -_log(n) / 2 * m[d+1]
 	cdef double count, marginal_count
@@ -1063,9 +1043,9 @@ cdef double score_node(int* X, double* weights, int* m, int* parents, int n, int
 	return logp
 
 
-cpdef discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
+def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 	numpy.ndarray key_count, double pseudocount, int max_parents,
-	object constraint_graph):
+	object constraint_graph, int n_jobs):
 
 	n, d = X.shape[0], X.shape[1]
 	l = len(constraint_graph.nodes())
@@ -1074,34 +1054,52 @@ cpdef discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 	cycle = numpy.zeros(l)
 	structure = [None for i in range(d)]
 
-	for parent, child in constraint_graph.edges():
-		parent_sets[child] += parent
-		if child == parent:
-			cycle[indices[child]] = 1
+	for parents, children in constraint_graph.edges():
+		parent_sets[children] += parents
+		if children == parents:
+			cycle[indices[children]] = 1
 
+	tasks = []
 	for children, parents in parent_sets.items():
 		if cycle[indices[children]] == 1:
-			local_structure = discrete_exact_graph(X[:,parents].copy(), weights,
-				key_count[list(parents)], pseudocount, max_parents)
+			tasks.append((parents, children))
+		else:
+			for child in children:
+				tasks.append((parents, child))
 
+	with Parallel(n_jobs=n_jobs) as parallel:
+		local_structures = parallel( delayed(discrete_exact_with_constraints_task)(
+			X, weights, key_count, pseudocount, max_parents, parents, children) 
+			for parents, children in tasks)
+
+	for local_structure, (parents, children) in zip(local_structures, tasks):
+		if isinstance(children, tuple):
 			for i, parent in enumerate(parents):
 				if parent in children:
 					structure[parent] = tuple([parents[k] for k in local_structure[i]])
-
 		else:
-			for child in children:
-				logp, node_parents = discrete_find_best_parents(X, weights,
-					key_count, child, parents, max_parents, pseudocount)
-
-				structure[child] = node_parents
+			structure[children] = local_structure
 
 	return tuple(structure)
 
 
+def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
+	numpy.ndarray key_count, double pseudocount, int max_parents, tuple parents,
+	children):
+
+	if isinstance(children, tuple):
+		local_structure = discrete_exact_graph(X[:,parents].copy(), weights,
+			key_count[list(parents)], pseudocount, max_parents)
+	else:
+		logp, local_structure = discrete_find_best_parents(X, weights,
+			key_count, pseudocount, max_parents, parents, children)
+
+	return local_structure
+
+
 cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
-	int i, tuple parent_set, int max_parents, double pseudocount):
-
+	double pseudocount, int max_parents, tuple parent_set, int i):
 	cdef int j, k
 	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
 
@@ -1126,7 +1124,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 			m[k+1] = m[k] * key_count[i]
 			m[k+2] = m[k] * (key_count[i] - 1)
 
-			score = score_node(X, weights, m, combs, n, k+1, l, pseudocount)
+			score = discrete_score_node(X, weights, m, combs, n, k+1, l, pseudocount)
 
 			if score > best_score:
 				best_score = score
