@@ -232,29 +232,6 @@ cdef class Distribution( Model ):
 
 		self.summaries = []
 
-	def plot( self, n=1000, **kwargs ):
-		"""Plot the distribution by sampling from it.
-
-		This function will plot a histogram of samples drawn from a distribution
-		on the current open figure.
-
-		Parameters
-		----------
-		n : int, optional
-			The number of samples to draw from the distribution. Default is
-			1000.
-
-		**kwargs : arguments, optional
-			Arguments to pass to matplotlib's histogram function.
-
-		Returns
-		-------
-		None
-		"""
-
-		import matplotlib.pyplot as plt
-		plt.hist( self.sample(n), **kwargs )
-
 	def to_json( self, separators=(',', ' :'), indent=4 ):
 		"""Serialize the distribution to a JSON.
 
