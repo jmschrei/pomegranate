@@ -166,7 +166,8 @@ cdef class GeneralMixtureModel(Model):
 				weights = numpy.full_like(
 					distributions, 1.0 / len(distributions), dtype=float)
 			else:
-				weights = numpy.asarray(weights) / weights.sum()
+				weights = numpy.asarray(weights)
+				weights /= weights.sum()
 
 			self.weights = numpy.log(weights)
 			self.weights_ptr = <double*> self.weights.data

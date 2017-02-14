@@ -159,7 +159,9 @@ cdef class Model(object):
 		"""
 
 		import matplotlib.pyplot as plt
-		plt.hist( self.sample(n), **kwargs )
+		sampled_data = numpy.array(self.sample(n))
+		for i in range(sampled_data.shape[-1]):
+			plt.hist( sampled_data[..., i], **kwargs )
 
 	def probability( self, symbol ):
 		"""Return the probability of the given symbol under this distribution.
