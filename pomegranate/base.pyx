@@ -160,8 +160,12 @@ cdef class Model(object):
 
 		import matplotlib.pyplot as plt
 		sampled_data = numpy.array(self.sample(n))
-		for i in range(sampled_data.shape[-1]):
-			plt.hist( sampled_data[..., i], **kwargs )
+		if sampled_data.ndim > 1:
+			assert self.d == sampled_data.shape[-1]
+			for i in range(self.d):
+				plt.hist( sampled_data[..., i], **kwargs )
+		else:
+			plt.hist( sampled_data, **kwargs )
 
 	def probability( self, symbol ):
 		"""Return the probability of the given symbol under this distribution.
