@@ -1010,7 +1010,8 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 			combs, n_parents, k, length-1, ii+1)
 
 
-cdef double discrete_score_node(int* X, double* weights, int* m, int* parents, int n, int d, int l, double pseudocount) nogil:
+cdef double discrete_score_node(int* X, double* weights, int* m, int* parents, 
+	int n, int d, int l, double pseudocount) nogil:
 	cdef int i, j, k, idx
 	cdef double logp = -_log(n) / 2 * m[d+1]
 	cdef double count, marginal_count
@@ -1067,7 +1068,7 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 			for child in children:
 				tasks.append((parents, child))
 
-	with Parallel(n_jobs=n_jobs) as parallel:
+	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 		local_structures = parallel( delayed(discrete_exact_with_constraints_task)(
 			X, weights, key_count, pseudocount, max_parents, parents, children) 
 			for parents, children in tasks)
@@ -1124,7 +1125,9 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 			m[k+1] = m[k] * key_count[i]
 			m[k+2] = m[k] * (key_count[i] - 1)
 
-			score = discrete_score_node(X, weights, m, combs, n, k+1, l, pseudocount)
+			with nogil:
+				score = discrete_score_node(X, weights, m, combs, n, k+1, l, 
+					pseudocount)
 
 			if score > best_score:
 				best_score = score
