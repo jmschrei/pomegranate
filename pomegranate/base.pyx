@@ -484,7 +484,8 @@ cdef class State(object):
 		weight = d['weight']
 
 		c = d['distribution']['class']
-		dist = eval(c).from_json( json.dumps( d['distribution'] ) )
+		import pomegranate as _global_
+		dist = eval(c, _global_.__dict__).from_json( json.dumps( d['distribution'] ) )
 		return cls( dist, name, weight )
 
 
