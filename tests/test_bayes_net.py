@@ -20,6 +20,7 @@ from nose.tools import assert_almost_equal
 
 import random
 import numpy as np
+from numpy.testing import assert_array_equal
 import sys
 
 nan = np.nan
@@ -455,30 +456,44 @@ def test_imputation():
            ['A', None, 'C'],
            ['A', 'B', 'C']]
 
-    monty_network.predict(obs)
+    predictions = monty_network.predict(obs)
 
-    assert_equal(obs[0], ['A', 'C', 'B'])
-    assert_equal(obs[1], ['A', 'B', 'C'])
-    assert_equal(obs[2], ['A', 'B', 'C'])
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', None, 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
 
 @with_setup(setup_monty, teardown)
 def test_numpy_imputation():
     obs = np.array([['A', None, 'B'],
-                    ['A', None, 'C'],
+                    ['A', nan, 'C'],
                     ['A', 'B', 'C']])
 
-    monty_network.predict(obs)
+    predictions = monty_network.predict(obs)
 
-    assert_equal(obs[0, 0], 'A')
-    assert_equal(obs[0, 1], 'C')
-    assert_equal(obs[0, 2], 'B')
-    assert_equal(obs[1, 0], 'A')
-    assert_equal(obs[1, 1], 'B')
-    assert_equal(obs[1, 2], 'C')
-    assert_equal(obs[2, 0], 'A')
-    assert_equal(obs[2, 1], 'B')
-    assert_equal(obs[2, 2], 'C')
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', np.nan, 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
 
 @with_setup(setup_monty, teardown)
