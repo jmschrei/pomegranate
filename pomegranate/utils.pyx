@@ -118,8 +118,9 @@ cdef double gamma(double x) nogil:
 	cdef double den, num, result, z, y
 	cdef int i, n, arg_was_less_than_one
 
-	if x == 0.0:
-		return INF
+	with gil:
+		if numpy.isclose(x, 0.0):
+			return INF
 
 	if x < 0.001:
 		return 1.0 / (x * (1.0 + GAMMA * x));

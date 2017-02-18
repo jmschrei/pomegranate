@@ -49,7 +49,7 @@ def log(value):
 	if isinstance( value, numpy.ndarray ):
 		to_return = numpy.zeros(( value.shape ))
 		to_return[ value > 0 ] = numpy.log( value[ value > 0 ] )
-		to_return[ value == 0 ] = NEGINF
+		to_return[ numpy.isclose(value, 0) ] = NEGINF
 		return to_return
 	return _log( value )
 
@@ -415,7 +415,7 @@ cdef class UniformDistribution( Distribution ):
 		"""
 
 		# If the distribution is frozen, don't bother with any calculation
-		if self.frozen == True or self.summaries[2] == 0:
+		if self.frozen == True or numpy.isclose(self.summaries[2], 0):
 			return
 
 		minimum, maximum = self.summaries[:2]
@@ -752,7 +752,7 @@ cdef class LogNormalDistribution( Distribution ):
 		"""
 
 		# If no summaries stored or the summary is frozen, don't do anything.
-		if self.summaries[0] == 0 or self.frozen == True:
+		if numpy.isclose(self.summaries[0], 0) or self.frozen == True:
 			return
 
 		mu = self.summaries[1] / self.summaries[0]
@@ -870,7 +870,7 @@ cdef class ExponentialDistribution( Distribution ):
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
 
-		if self.frozen == True or self.summaries[0] == 0.0:
+		if self.frozen == True or numpy.isclose(self.summaries[0], 0):
 			return
 
 		self.rate = self.summaries[0] / self.summaries[1]
@@ -1103,7 +1103,7 @@ cdef class GammaDistribution( Distribution ):
 			# Force whatever we have to be a Numpy array
 			weights = numpy.asarray(weights)
 
-		if weights.sum() == 0:
+		if numpy.isclose(weights.sum(), 0):
 			# Since negative weights are banned, we must have no data.
 			# Don't change the parameters at all.
 			return
@@ -1164,12 +1164,12 @@ cdef class GammaDistribution( Distribution ):
 		# Really, start with new_shape set, and shape set to be far away from it
 		shape = float("inf")
 
-		if statistic != 0:
+		if not numpy.isclose(statistic, 0):
 			# Not going to have a divide by 0 problem here, so use the good
 			# estimate
 			new_shape =  (3 - statistic + csqrt((statistic - 3) ** 2 + 24 *
 				statistic)) / (12 * statistic)
-		if statistic == 0 or new_shape <= 0:
+		if numpy.isclose(statistic, 0) or new_shape <= 0:
 			# Try the current shape parameter
 			new_shape = self.parameters[0]
 
@@ -1189,7 +1189,7 @@ cdef class GammaDistribution( Distribution ):
 				statistic) / (1.0 / shape - scipy.special.polygamma(1, shape))
 
 			# Don't let shape escape from valid values
-			if abs(new_shape) == float("inf") or new_shape == 0:
+			if abs(new_shape) == float("inf") or numpy.isclose(new_shape, 0):
 				# Hack the shape parameter so we don't stop the loop if we land
 				# near it.
 				shape = new_shape
@@ -1440,7 +1440,7 @@ cdef class DiscreteDistribution( Distribution ):
 	def from_summaries( self, inertia=0.0 ):
 		"""Use the summaries in order to update the distribution."""
 
-		if self.summaries[1] == 0 or self.frozen == True:
+		if numpy.isclose(self.summaries[1], 0) or self.frozen == True:
 			return
 
 		if self.encoded_summary == 0:
@@ -2588,7 +2588,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		if weights is None:
 			weights = numpy.ones( len(items), dtype='float64' )
-		elif numpy.sum( weights ) == 0:
+		elif numpy.isclose(numpy.sum( weights ), 0):
 			return
 		else:
 			weights = numpy.asarray(weights, dtype='float64' )
@@ -2877,7 +2877,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		if weights is None:
 			weights = numpy.ones( len(items), dtype='float64' )
-		elif numpy.sum( weights ) == 0:
+		elif numpy.isclose(numpy.sum( weights ), 0):
 			return
 		else:
 			weights = numpy.asarray(weights, dtype='float64' )

@@ -88,7 +88,7 @@ def log(value):
     if isinstance( value, numpy.ndarray ):
         to_return = numpy.zeros(( value.shape ))
         to_return[ value > 0 ] = numpy.log( value[ value > 0 ] )
-        to_return[ value == 0 ] = NEGINF
+        to_return[ numpy.isclose(value, 0) ] = NEGINF
         return to_return
     return _log( value )
 
@@ -799,7 +799,7 @@ cdef class HiddenMarkovModel( GraphModel ):
                     continue
 
                 # If a silent state has a probability 1 transition out
-                if e['probability'] == 0.0 and a.is_silent():
+                if numpy.isclose(e['probability'], 0.0) and a.is_silent():
 
                     # Make sure the transition is an appropriate merger
                     if merge=='all' or ( merge=='partial' and b.is_silent() ):
@@ -2890,7 +2890,7 @@ cdef class HiddenMarkovModel( GraphModel ):
         if self.d == 0:
             raise ValueError("must bake model before using from summaries")
 
-        if self.summaries == 0:
+        if numpy.isclose(self.summaries, 0):
             return
 
         if inertia is not None:
