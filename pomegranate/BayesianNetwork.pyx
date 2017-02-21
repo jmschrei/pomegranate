@@ -796,7 +796,7 @@ cdef class BayesianNetwork( GraphModel ):
 				key_count, pseudocount, max_parents, constraint_graph, n_jobs)
 		elif algorithm == 'exact':
 			structure = discrete_exact_graph(X_int, weights, key_count,
-				pseudocount, max_parents)
+				pseudocount, max_parents, n_jobs)
 
 		return BayesianNetwork.from_structure(X, structure, weights,state_names=state_names)
 
@@ -874,13 +874,14 @@ cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights
 
 
 cdef discrete_exact_graph(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, double pseudocount, int max_parents):
+	numpy.ndarray key_count, double pseudocount, int max_parents, int n_jobs):
 
-	cdef int n = X.shape[0], d = X.shape[1]
-	cdef list parent_graphs = [{} for i in range(d)]
+	cdef int i, n = X.shape[0], d = X.shape[1]
+	cdef list parent_graphs = []
 
-	generate_parent_graphs(X, weights, key_count, parent_graphs, max_parents,
-		pseudocount)
+	parent_graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
+		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount, 
+			max_parents) for i in range(d) )
 
 	order_graph = nx.DiGraph()
 
@@ -909,11 +910,11 @@ cdef discrete_exact_graph(numpy.ndarray X, numpy.ndarray weights,
 	return tuple(structure)
 
 
-cdef void generate_parent_graphs(numpy.ndarray X_ndarray,
+def generate_parent_graph(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
-	list parent_graphs, int max_parents, double pseudocount):
+	int i, double pseudocount, int max_parents):
 
-	cdef int i, j, k
+	cdef int j, k
 	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
 
 	cdef int* X = <int*> X_ndarray.data
@@ -925,29 +926,32 @@ cdef void generate_parent_graphs(numpy.ndarray X_ndarray,
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef double* scores = <double*> calloc(2**(l-1), sizeof(double))
 
-	cdef list structures = [None for i in range(2**(l-1))]
+	cdef list structures = [None for j in range(2**(l-1))]
+	cdef dict parent_graph = {}
 
 	m[0] = 1
-	for i in range(l):
-		j = 0
-		for k in range(l):
-			if k != i:
-				parents[j] = k
-				j += 1
+	j = 0
+	for k in range(l):
+		if k != i:
+			parents[j] = k
+			j += 1
 
-		for k in range(l):
-			generate_parent_layer(X, weights, key_count, n, l, m, scores,
-				structures, parent_graphs, max_parents, pseudocount, i, parents,
-				combs, l-1, k, k, 0)
+	for k in range(l):
+		generate_parent_layer(X, weights, key_count, n, l, m, scores,
+			structures, parent_graph, pseudocount, max_parents, i, parents,
+			combs, l-1, k, k, 0)
 
 	free(m)
 	free(scores)
+	free(parents)
+	free(combs)
 	del structures
+	return parent_graph
 
 
 cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
-	int l, int* m, double* scores, list structures, list parent_graphs,
-	int max_parents, double pseudocount, int i, int* parents, int* combs,
+	int l, int* m, double* scores, list structures, dict parent_graph,
+	double pseudocount, int max_parents, int i, int* parents, int* combs,
 	int n_parents, int k, int length, int start):
 
 	cdef int ii, j, ij, idx
@@ -956,7 +960,7 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 
 	if length == 0:
 		parent_tuple = tuple(combs[j] for j in range(k))
-
+		
 		for j in range(k):
 			m[j+1] = m[j] * key_count[combs[j]]
 
@@ -966,7 +970,8 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 
 		if k <= max_parents:
 			best_parents = parent_tuple
-			best_score = discrete_score_node(X, weights, m, combs, n, k+1, l, pseudocount)
+			with nogil:
+				best_score = discrete_score_node(X, weights, m, combs, n, k+1, l, pseudocount)
 		else:
 			best_parents = ()
 			best_score = NEGINF
@@ -1000,13 +1005,13 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 		scores[idx] = best_score
 		structures[idx] = best_parents
 
-		parent_graphs[i][parent_tuple] = (best_parents, best_score)
+		parent_graph[parent_tuple] = (best_parents, best_score)
 		return
 
 	for ii in range(start, n_parents-length+1):
 		combs[k - length] = parents[ii]
 		generate_parent_layer(X, weights, key_count, n, l, m, scores,
-			structures, parent_graphs, max_parents, pseudocount, i, parents,
+			structures, parent_graph, pseudocount, max_parents, i, parents,
 			combs, n_parents, k, length-1, ii+1)
 
 
@@ -1090,7 +1095,7 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 
 	if isinstance(children, tuple):
 		local_structure = discrete_exact_graph(X[:,parents].copy(), weights,
-			key_count[list(parents)], pseudocount, max_parents)
+			key_count[list(parents)], pseudocount, max_parents, 1)
 	else:
 		logp, local_structure = discrete_find_best_parents(X, weights,
 			key_count, pseudocount, max_parents, parents, children)
