@@ -758,8 +758,10 @@ cdef class BayesianNetwork( GraphModel ):
 
 		n_jobs : int, optional
 			The number of threads to use when learning the structure of the
-			network. Currently only helps if a constraint graph is used to
-			assist the structure learning task.
+			network. If a constraint graph is provided, this will parallelize
+			the tasks as directed by the constraint graph. If one is not
+			provided it will parallelize the building of the parent graphs.
+			Both cases will provide large speed gains.
 
 		Returns
 		-------
@@ -960,7 +962,7 @@ cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
 
 	if length == 0:
 		parent_tuple = tuple(combs[j] for j in range(k))
-		
+
 		for j in range(k):
 			m[j+1] = m[j] * key_count[combs[j]]
 
