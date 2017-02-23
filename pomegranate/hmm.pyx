@@ -2497,7 +2497,7 @@ cdef class HiddenMarkovModel( GraphModel ):
                 else:
                     improvement = log_probability_sum - last_log_probability_sum
                     if verbose:
-                        print( "Training improvement: {}".format(improvement) )
+                        print( "Training improvement: {}".format(improvement), flush=True )
 
                 iteration +=1
                 last_log_probability_sum = log_probability_sum
@@ -2512,7 +2512,7 @@ cdef class HiddenMarkovModel( GraphModel ):
                 self.graph[self.states[k]][self.states[li]]['probability'] = prob
 
         if verbose:
-            print( "Total Training Improvement: {}".format( improvement ) )
+            print( "Total Training Improvement: {}".format( improvement ), flush=True )
         return improvement
 
     def summarize( self, sequences, weights=None, labels=None, algorithm='baum-welch', 
