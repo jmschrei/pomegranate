@@ -14,6 +14,14 @@ from scipy.linalg.cython_blas cimport dgemm
 cimport numpy
 import numpy
 
+try:
+	import tempfile
+	import pygraphviz
+	import matplotlib.pyplot as plt
+	import matplotlib.image
+except ImportError:
+	pygraphviz = None
+
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -202,3 +210,23 @@ cdef double lgamma(double x) nogil:
 		sum += c[6-i]
     
 	return (x - 0.5) * clog(x) - x + HALF_LOG2_PI + sum / x
+
+def plot_networkx(Q, edge_label=None):
+	G = pygraphviz.AGraph(directed=True)
+
+	for state in Q.nodes():
+		G.add_node(state, color='red')
+
+	for parent, child, data in Q.edges(data=True):
+		if edge_label:
+			G.add_edge(parent, child, label=data[edge_label])
+		else:
+			G.add_edge(parent, child)
+
+	with tempfile.NamedTemporaryFile() as tf:
+		G.draw(tf.name, format='png', prog='dot')
+		img = matplotlib.image.imread(tf.name)
+		plt.imshow(img)
+		plt.axis('off')
+
+	plt.show()

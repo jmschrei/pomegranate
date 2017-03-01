@@ -26,6 +26,7 @@ from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 from .utils cimport lgamma
+from .utils import plot_networkx
 
 try:
 	import tempfile
@@ -758,8 +759,10 @@ cdef class BayesianNetwork( GraphModel ):
 
 		n_jobs : int, optional
 			The number of threads to use when learning the structure of the
-			network. Currently only helps if a constraint graph is used to
-			assist the structure learning task.
+			network. If a constraint graph is provided, this will parallelize
+			the tasks as directed by the constraint graph. If one is not
+			provided it will parallelize the building of the parent graphs.
+			Both cases will provide large speed gains.
 
 		Returns
 		-------
@@ -796,7 +799,7 @@ cdef class BayesianNetwork( GraphModel ):
 				key_count, pseudocount, max_parents, constraint_graph, n_jobs)
 		elif algorithm == 'exact':
 			structure = discrete_exact_graph(X_int, weights, key_count,
-				pseudocount, max_parents)
+				pseudocount, max_parents, n_jobs)
 
 		return BayesianNetwork.from_structure(X, structure, weights,state_names=state_names)
 
@@ -873,14 +876,91 @@ cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights
 	return tuple(structure)
 
 
-cdef discrete_exact_graph(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, double pseudocount, int max_parents):
+def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
+	numpy.ndarray key_count, double pseudocount, int max_parents,
+	object constraint_graph, int n_jobs):
 
-	cdef int n = X.shape[0], d = X.shape[1]
-	cdef list parent_graphs = [{} for i in range(d)]
+	n, d = X.shape[0], X.shape[1]
+	l = len(constraint_graph.nodes())
+	parent_sets = { node : tuple() for node in constraint_graph.nodes() }
+	structure = [None for i in range(d)]
 
-	generate_parent_graphs(X, weights, key_count, parent_graphs, max_parents,
-		pseudocount)
+	for parents, children in constraint_graph.edges():
+		parent_sets[children] += parents
+
+	tasks = []
+	components = nx.strongly_connected_components(constraint_graph)
+	for component in components:
+		component = list(component)
+
+		if len(component) == 1:
+			children = component[0]
+			parents = parent_sets[children]
+
+			if children == parents:
+				tasks.append((0, parents, children))
+			elif set(children).issubset(set(parents)):
+				tasks.append((1, parents, children))
+			else:
+				if len(parents) > 0:
+					for child in children:
+						tasks.append((2, parents, child))
+		else:
+			parents = [parent_sets[children] for children in component]
+			tasks.append((3, parents, component))
+
+	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+		local_structures = parallel( delayed(discrete_exact_with_constraints_task)(
+			X, weights, key_count, pseudocount, max_parents, task, n_jobs) 
+			for task in tasks)
+
+	structure = [[] for i in range(d)]
+	for local_structure in local_structures:
+		for i in range(d):
+			structure[i] += list(local_structure[i])
+
+	return tuple(tuple(node) for node in structure)
+
+
+def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
+	numpy.ndarray key_count, double pseudocount, int max_parents, tuple task,
+	int n_jobs):
+
+	d = X.shape[1]
+	structure = [() for i in range(d)]
+	case, parents, children = task
+
+	if case == 0:
+		local_structure = discrete_exact_graph(X[:,parents].copy(), weights,
+			key_count[list(parents)], pseudocount, max_parents, n_jobs)
+
+		for i, parent in enumerate(parents):
+			structure[parent] = tuple([parents[k] for k in local_structure[i]])
+
+	elif case == 1:
+		structure = discrete_exact_slap(X, weights, task, key_count, 
+			pseudocount, max_parents, n_jobs)
+
+	elif case == 2:
+		logp, local_structure = discrete_find_best_parents(X, weights,
+			key_count, pseudocount, max_parents, parents, children)
+
+		structure[children] = local_structure
+
+	elif case == 3:
+		structure = discrete_exact_component(X, weights,
+			task, key_count, pseudocount, max_parents, n_jobs)
+
+	return tuple(structure)
+
+
+def discrete_exact_graph(X, weights, key_count, pseudocount, max_parents, n_jobs):
+	cdef int i, n = X.shape[0], d = X.shape[1]
+	cdef list parent_graphs = []
+
+	parent_graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
+		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount, 
+			max_parents) for i in range(d) )
 
 	order_graph = nx.DiGraph()
 
@@ -909,106 +989,172 @@ cdef discrete_exact_graph(numpy.ndarray X, numpy.ndarray weights,
 	return tuple(structure)
 
 
-cdef void generate_parent_graphs(numpy.ndarray X_ndarray,
-	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
-	list parent_graphs, int max_parents, double pseudocount):
+def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents, 
+	n_jobs):
 
-	cdef int i, j, k
-	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
+	cdef tuple parents = task[0], children = task[1]
+	cdef tuple outside_parents = tuple(i for i in parents if i not in children)
+	cdef int i, n = X.shape[0], d = X.shape[1]
+	cdef list parent_graphs = [None for i in range(max(parents)+1)]
+
+	graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
+		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount, 
+			max_parents) for i in children)
+
+	for i, child in enumerate(children):
+		parent_graphs[child] = graphs[i]
+
+	order_graph = nx.DiGraph()
+	for i in range(d+1):
+		for subset in it.combinations(children, i):
+			order_graph.add_node(subset + outside_parents)
+
+			for variable in subset:
+				parent = tuple(v for v in subset if v != variable)
+				parent += outside_parents
+
+				structure, weight = parent_graphs[variable][parent]
+				weight = -weight if weight < 0 else 0
+				order_graph.add_edge(parent, subset + outside_parents, weight=weight,
+					structure=structure)
+
+	path = nx.shortest_path(order_graph, source=outside_parents, target=parents,
+		weight='weight')
+
+	score, structure = 0, list(() for i in range(d))
+	for u, v in zip(path[:-1], path[1:]):
+		idx = list(set(v) - set(u))[0]
+		parents = order_graph.get_edge_data(u, v)['structure']
+		structure[idx] = parents
+		score -= order_graph.get_edge_data(u, v)['weight']
+
+	return tuple(structure)
+
+
+def discrete_exact_component(X, weights, task, key_count, pseudocount, 
+	max_parents, n_jobs):
+
+	cdef int i, n = X.shape[0], d = X.shape[1]
+	cdef double weight
+
+	_, parent_vars, children_vars = task
+	variable_set = set([])
+	for parents in parent_vars:
+		variable_set = variable_set.union(parents)
+	for children in children_vars:
+		variable_set = variable_set.union(children)
+
+	parent_sets = {}
+	for parents, children in zip(parent_vars, children_vars):
+		for child in children:
+			parent_sets[child] = parents
+
+	graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
+		delayed(generate_parent_graph)(X, weights, key_count, child, pseudocount, 
+			max_parents, parents) for child, parents in parent_sets.items())
+
+	parent_graphs = [None for i in range(d)]
+	for (child, _), graph in zip(parent_sets.items(), graphs):
+		parent_graphs[child] = graph
+
+
+	order_graph = nx.DiGraph()
+	order_graph.add_node(())
+	for variable in variable_set:
+		order_graph.add_node((variable,))
+
+		structure, weight = parent_graphs[variable][()]
+		weight = -weight if weight < 0 else 0
+		order_graph.add_edge((), (variable,), weight=weight, structure=structure)
+
+	last_layer = [(variable,) for variable in variable_set]
+	layer = []
+	for i in range(len(variable_set)-1):
+		seen_parent_sets = []
+		for parent_entry in last_layer:
+			for child in parent_entry:
+				child_set = parent_sets[child]
+				if child_set not in seen_parent_sets:
+					seen_parent_sets.append(child_set)
+					for parent in child_set:
+						parent_set = parent_sets[parent]
+
+						if parent not in parent_entry:
+							entry = tuple(sorted(parent_entry + (parent,)))
+							filtered_entry = tuple(variable for variable in parent_entry if variable in parent_set)
+							structure, weight = parent_graphs[parent][filtered_entry]
+							weight = -weight if weight < 0 else 0
+							order_graph.add_edge(parent_entry, entry, weight=weight, structure=structure)
+							layer.append(entry)
+
+		last_layer = layer
+		layer = []
+
+	path = nx.shortest_path(order_graph, source=(), target=tuple(range(d)),
+		weight='weight')
+
+	score, structure = 0, list( None for i in range(d) )
+	for u, v in zip(path[:-1], path[1:]):
+		idx = list(set(v) - set(u))[0]
+		parents = order_graph.get_edge_data(u, v)['structure']
+		structure[idx] = parents
+		score -= order_graph.get_edge_data(u, v)['weight']
+
+	return tuple(structure)
+
+
+def generate_parent_graph(numpy.ndarray X_ndarray,
+	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
+	int i, double pseudocount, int max_parents, tuple parent_set=()):
+
+	cdef int j, k, variable, l
+	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 
 	cdef int* X = <int*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
-	cdef int* m = <int*> calloc(l+2, sizeof(int))
-	cdef int* parents = <int*> calloc(l, sizeof(int))
-	cdef int* combs = <int*> calloc(l, sizeof(int))
+	cdef int* m = <int*> calloc(d+2, sizeof(int))
+	cdef int* parents = <int*> calloc(d, sizeof(int))
 
 	cdef double* weights = <double*> weights_ndarray.data
-	cdef double* scores = <double*> calloc(2**(l-1), sizeof(double))
+	cdef dict parent_graph = {}
+	cdef double best_score, score
+	cdef tuple subset, parent_subset, best_structure, structure
 
-	cdef list structures = [None for i in range(2**(l-1))]
+	if parent_set == ():
+		parent_set = tuple(set(range(d)) - set([i]))
 
 	m[0] = 1
-	for i in range(l):
-		j = 0
-		for k in range(l):
-			if k != i:
-				parents[j] = k
-				j += 1
+	for j in range(d+1):
+		for subset in it.combinations(parent_set, j):
+			if j <= max_parents:
+				for k, variable in enumerate(subset):
+					m[k+1] = m[k] * key_count_ndarray[variable]
+					parents[k] = variable
 
-		for k in range(l):
-			generate_parent_layer(X, weights, key_count, n, l, m, scores,
-				structures, parent_graphs, max_parents, pseudocount, i, parents,
-				combs, l-1, k, k, 0)
+				parents[j] = i
+				m[j+1] = m[j] * key_count[i]
+				m[j+2] = m[j] * (key_count[i] - 1)
+
+				best_structure = subset
+				with nogil:
+					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
+						d, pseudocount)
+			else:
+				best_structure, best_score = (), NEGINF
+
+			for k, variable in enumerate(subset):
+				parent_subset = tuple(l for l in subset if l != variable)
+				structure, score = parent_graph[parent_subset]
+
+				if score > best_score:
+					best_score = score
+					best_structure = structure
+
+			parent_graph[subset] = (best_structure, best_score)
 
 	free(m)
-	free(scores)
-	del structures
-
-
-cdef void generate_parent_layer(int* X, double* weights, int* key_count, int n,
-	int l, int* m, double* scores, list structures, list parent_graphs,
-	int max_parents, double pseudocount, int i, int* parents, int* combs,
-	int n_parents, int k, int length, int start):
-
-	cdef int ii, j, ij, idx
-	cdef double best_score
-	cdef tuple parent_tuple, best_parents
-
-	if length == 0:
-		parent_tuple = tuple(combs[j] for j in range(k))
-
-		for j in range(k):
-			m[j+1] = m[j] * key_count[combs[j]]
-
-		combs[k] = i
-		m[k+1] = m[k] * key_count[i]
-		m[k+2] = m[k] * (key_count[i] - 1)
-
-		if k <= max_parents:
-			best_parents = parent_tuple
-			best_score = discrete_score_node(X, weights, m, combs, n, k+1, l, pseudocount)
-		else:
-			best_parents = ()
-			best_score = NEGINF
-
-		for j in range(k):
-			ij, idx = 0, 0
-			for ii in range(l):
-				if ii == i:
-					continue
-
-				if ij < k and ij != j and combs[ij] == ii:
-					idx = idx * 2 + 1
-					ij += 1
-				else:
-					idx = idx * 2
-
-			if scores[idx] >= best_score:
-				best_score = scores[idx]
-				best_parents = structures[idx]
-
-		idx, ij = 0, 0
-		for ii in range(l):
-			if ii == i:
-				continue
-			if ij < k and combs[ij] == ii:
-				idx = idx * 2 + 1
-				ij += 1
-			else:
-				idx = idx * 2
-
-		scores[idx] = best_score
-		structures[idx] = best_parents
-
-		parent_graphs[i][parent_tuple] = (best_parents, best_score)
-		return
-
-	for ii in range(start, n_parents-length+1):
-		combs[k - length] = parents[ii]
-		generate_parent_layer(X, weights, key_count, n, l, m, scores,
-			structures, parent_graphs, max_parents, pseudocount, i, parents,
-			combs, n_parents, k, length-1, ii+1)
-
+	free(parents)
+	return parent_graph
 
 cdef double discrete_score_node(int* X, double* weights, int* m, int* parents, 
 	int n, int d, int l, double pseudocount) nogil:
@@ -1042,60 +1188,6 @@ cdef double discrete_score_node(int* X, double* weights, int* m, int* parents,
 	free(counts)
 	free(marginal_counts)
 	return logp
-
-
-def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, double pseudocount, int max_parents,
-	object constraint_graph, int n_jobs):
-
-	n, d = X.shape[0], X.shape[1]
-	l = len(constraint_graph.nodes())
-	parent_sets = { node : tuple() for node in constraint_graph.nodes() }
-	indices = { node : i for i, node in enumerate(constraint_graph.nodes()) }
-	cycle = numpy.zeros(l)
-	structure = [None for i in range(d)]
-
-	for parents, children in constraint_graph.edges():
-		parent_sets[children] += parents
-		if children == parents:
-			cycle[indices[children]] = 1
-
-	tasks = []
-	for children, parents in parent_sets.items():
-		if cycle[indices[children]] == 1:
-			tasks.append((parents, children))
-		else:
-			for child in children:
-				tasks.append((parents, child))
-
-	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-		local_structures = parallel( delayed(discrete_exact_with_constraints_task)(
-			X, weights, key_count, pseudocount, max_parents, parents, children) 
-			for parents, children in tasks)
-
-	for local_structure, (parents, children) in zip(local_structures, tasks):
-		if isinstance(children, tuple):
-			for i, parent in enumerate(parents):
-				if parent in children:
-					structure[parent] = tuple([parents[k] for k in local_structure[i]])
-		else:
-			structure[children] = local_structure
-
-	return tuple(structure)
-
-
-def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, double pseudocount, int max_parents, tuple parents,
-	children):
-
-	if isinstance(children, tuple):
-		local_structure = discrete_exact_graph(X[:,parents].copy(), weights,
-			key_count[list(parents)], pseudocount, max_parents)
-	else:
-		logp, local_structure = discrete_find_best_parents(X, weights,
-			key_count, pseudocount, max_parents, parents, children)
-
-	return local_structure
 
 
 cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
