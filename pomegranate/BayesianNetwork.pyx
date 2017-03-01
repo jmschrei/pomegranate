@@ -892,7 +892,6 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 	components = nx.strongly_connected_components(constraint_graph)
 	for component in components:
 		component = list(component)
-		print component
 
 		if len(component) == 1:
 			children = component[0]
@@ -932,7 +931,6 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 	case, parents, children = task
 
 	if case == 0:
-		print "self loop"
 		local_structure = discrete_exact_graph(X[:,parents].copy(), weights,
 			key_count[list(parents)], pseudocount, max_parents, n_jobs)
 
@@ -940,19 +938,16 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 			structure[parent] = tuple([parents[k] for k in local_structure[i]])
 
 	elif case == 1:
-		print "self loop + parents"
 		structure = discrete_exact_slap(X, weights, task, key_count, 
 			pseudocount, max_parents, n_jobs)
 
 	elif case == 2:
-		print "acyclic"
 		logp, local_structure = discrete_find_best_parents(X, weights,
 			key_count, pseudocount, max_parents, parents, children)
 
 		structure[children] = local_structure
 
 	elif case == 3:
-		print "cycle"
 		structure = discrete_exact_component(X, weights,
 			task, key_count, pseudocount, max_parents, n_jobs)
 
