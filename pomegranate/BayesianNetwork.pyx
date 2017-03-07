@@ -1109,6 +1109,9 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 		layer_child_sets = []
 		layer = []
 
+	plot_networkx(order_graph, 'weight')
+	plt.show()
+
 	path = nx.shortest_path(order_graph, source=(), target=tuple(sorted(variable_set)),
 		weight='weight')
 
@@ -1142,10 +1145,10 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 	if parent_set == ():
 		parent_set = tuple(set(range(d)) - set([i]))
 
-	d = len(parent_set)
+	cdef int n_parents = len(parent_set)
 
 	m[0] = 1
-	for j in range(d+1):
+	for j in range(n_parents+1):
 		for subset in it.combinations(parent_set, j):
 			if j <= max_parents:
 				for k, variable in enumerate(subset):
@@ -1157,6 +1160,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 				m[j+2] = m[j] * (key_count[i] - 1)
 
 				best_structure = subset
+
 				with nogil:
 					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
 						d, pseudocount)
@@ -1197,6 +1201,7 @@ cdef double discrete_score_node(int* X, double* weights, int* m, int* parents,
 		marginal_counts[idx] += weights[i]
 		k = parents[d-1]
 		idx += X[i*l+k] * m[d-1]
+
 		counts[idx] += weights[i]
 
 	for i in range(m[d]):
@@ -1204,7 +1209,7 @@ cdef double discrete_score_node(int* X, double* weights, int* m, int* parents,
 		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
 
 		if count > 0:
-			logp += count * _log( count / marginal_count )
+			logp += count * _log(count / marginal_count)
 
 	free(counts)
 	free(marginal_counts)
