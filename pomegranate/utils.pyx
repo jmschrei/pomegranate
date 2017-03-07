@@ -209,7 +209,7 @@ cdef double lgamma(double x) nogil:
     
 	return (x - 0.5) * clog(x) - x + HALF_LOG2_PI + sum / x
 
-def plot_networkx(Q, edge_label=None):
+def plot_networkx(Q, edge_label=None, filename=None):
 	G = pygraphviz.AGraph(directed=True)
 
 	for state in Q.nodes():
@@ -221,10 +221,11 @@ def plot_networkx(Q, edge_label=None):
 		else:
 			G.add_edge(parent, child)
 
-	with tempfile.NamedTemporaryFile() as tf:
-		G.draw(tf.name, format='png', prog='dot')
-		img = matplotlib.image.imread(tf.name)
-		plt.imshow(img)
-		plt.axis('off')
-
-	plt.show()
+	if filename is None:
+		with tempfile.NamedTemporaryFile() as tf:
+			G.draw(tf.name, format='png', prog='dot')
+			img = matplotlib.image.imread(tf.name)
+			plt.imshow(img)
+			plt.axis('off')
+	else:
+		G.draw(filename, format='pdf', prog='dot')

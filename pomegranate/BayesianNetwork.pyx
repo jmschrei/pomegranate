@@ -132,7 +132,7 @@ cdef class BayesianNetwork( GraphModel ):
 		free(self.parent_count)
 		free(self.parent_idxs)
 
-	def plot( self, **kwargs ):
+	def plot( self, filename=None, **kwargs ):
 		"""Draw this model's graph using NetworkX and matplotlib.
 
 		Note that this relies on networkx's built-in graphing capabilities (and
@@ -159,11 +159,15 @@ cdef class BayesianNetwork( GraphModel ):
 			for parent, child in self.edges:
 				G.add_edge(parent.name, child.name)
 
-			with tempfile.NamedTemporaryFile() as tf:
-				G.draw(tf.name, format='png', prog='dot')
-				img = matplotlib.image.imread(tf.name)
-				plt.imshow(img)
-				plt.axis('off')
+			if filename is None:
+				with tempfile.NamedTemporaryFile() as tf:
+					G.draw(tf.name, format='png', prog='dot')
+					img = matplotlib.image.imread(tf.name)
+					plt.imshow(img)
+					plt.axis('off')
+			else:
+				G.draw(filename, format='pdf', prog='dot')
+
 		else:
 			raise ValueError("must have pygraphviz installed for visualization")
 
@@ -1037,6 +1041,12 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef double weight
 
+	cdef int variable, child, parent
+	cdef tuple parent_set
+	cdef tuple entry, parent_entry, filtered_entry
+	cdef list last_layer, last_layer_child_sets, layer, layer_child_sets
+	cdef set child_set
+
 	_, parent_vars, children_vars = task
 	variable_set = set([])
 	for parents in parent_vars:
@@ -1044,10 +1054,13 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 	for children in children_vars:
 		variable_set = variable_set.union(children)
 
-	parent_sets = {}
+	parent_sets = {variable: () for variable in variable_set}
+	child_sets = {variable: () for variable in variable_set}
 	for parents, children in zip(parent_vars, children_vars):
 		for child in children:
-			parent_sets[child] = parents
+			parent_sets[child] += parents
+		for parent in parents:
+			child_sets[parent] += children
 
 	graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
 		delayed(generate_parent_graph)(X, weights, key_count, child, pseudocount, 
@@ -1056,7 +1069,6 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 	parent_graphs = [None for i in range(d)]
 	for (child, _), graph in zip(parent_sets.items(), graphs):
 		parent_graphs[child] = graph
-
 
 	order_graph = nx.DiGraph()
 	order_graph.add_node(())
@@ -1067,33 +1079,40 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 		weight = -weight if weight < 0 else 0
 		order_graph.add_edge((), (variable,), weight=weight, structure=structure)
 
-	last_layer = [(variable,) for variable in variable_set]
-	layer = []
-	for i in range(len(variable_set)-1):
-		seen_parent_sets = []
-		for parent_entry in last_layer:
-			for child in parent_entry:
-				child_set = parent_sets[child]
-				if child_set not in seen_parent_sets:
-					seen_parent_sets.append(child_set)
-					for parent in child_set:
-						parent_set = parent_sets[parent]
 
-						if parent not in parent_entry:
-							entry = tuple(sorted(parent_entry + (parent,)))
-							filtered_entry = tuple(variable for variable in parent_entry if variable in parent_set)
-							structure, weight = parent_graphs[parent][filtered_entry]
-							weight = -weight if weight < 0 else 0
-							order_graph.add_edge(parent_entry, entry, weight=weight, structure=structure)
-							layer.append(entry)
+	last_layer = [(variable,) for variable in variable_set]
+	last_layer_child_sets = [set(child_sets[variable]) for variable in variable_set]
+	layer, layer_child_sets = [], []
+
+	for i in range(len(variable_set)-1):
+		for parent_entry, child_set in zip(last_layer, last_layer_child_sets):
+			for child in child_set:
+				parent_set = parent_sets[child]
+				entry = tuple(sorted(parent_entry + (child,)))
+
+				filtered_entry = tuple(variable for variable in parent_entry if variable in parent_set)
+				structure, weight = parent_graphs[child][filtered_entry]
+				weight = -weight if weight < 0 else 0
+
+				order_graph.add_edge(parent_entry, entry, weight=weight, structure=structure)
+				layer.append(entry)
+
+				new_child_set = child_set - set([child])
+				for grandchild in child_sets[child]:
+					if grandchild not in parent_entry:
+						new_child_set.add(grandchild)
+
+				layer_child_sets.append(new_child_set)
 
 		last_layer = layer
+		last_layer_child_sets = layer_child_sets
+		layer_child_sets = []
 		layer = []
 
-	path = nx.shortest_path(order_graph, source=(), target=tuple(range(d)),
+	path = nx.shortest_path(order_graph, source=(), target=tuple(sorted(variable_set)),
 		weight='weight')
 
-	score, structure = 0, list( None for i in range(d) )
+	score, structure = 0, list(() for i in range(d))
 	for u, v in zip(path[:-1], path[1:]):
 		idx = list(set(v) - set(u))[0]
 		parents = order_graph.get_edge_data(u, v)['structure']
@@ -1122,6 +1141,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 	if parent_set == ():
 		parent_set = tuple(set(range(d)) - set([i]))
+
+	d = len(parent_set)
 
 	m[0] = 1
 	for j in range(d+1):
