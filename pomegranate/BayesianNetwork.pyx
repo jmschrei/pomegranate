@@ -1070,6 +1070,9 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 	for (child, _), graph in zip(parent_sets.items(), graphs):
 		parent_graphs[child] = graph
 
+	last_layer = []
+	last_layer_children = []
+
 	order_graph = nx.DiGraph()
 	order_graph.add_node(())
 	for variable in variable_set:
@@ -1079,13 +1082,16 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 		weight = -weight if weight < 0 else 0
 		order_graph.add_edge((), (variable,), weight=weight, structure=structure)
 
+		last_layer.append((variable,))
+		last_layer_children.append(set(child_sets[variable]))
 
-	last_layer = [(variable,) for variable in variable_set]
-	last_layer_child_sets = [set(child_sets[variable]) for variable in variable_set]
-	layer, layer_child_sets = [], []
+	layer = [] 
+	layer_children = []
+
+	seen_entries = {(variable,): 1 for variable in variable_set} 
 
 	for i in range(len(variable_set)-1):
-		for parent_entry, child_set in zip(last_layer, last_layer_child_sets):
+		for parent_entry, child_set in zip(last_layer, last_layer_children):
 			for child in child_set:
 				parent_set = parent_sets[child]
 				entry = tuple(sorted(parent_entry + (child,)))
@@ -1094,23 +1100,23 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 				structure, weight = parent_graphs[child][filtered_entry]
 				weight = -weight if weight < 0 else 0
 
-				order_graph.add_edge(parent_entry, entry, weight=weight, structure=structure)
-				layer.append(entry)
+				order_graph.add_edge(parent_entry, entry, weight=round(weight, 4), structure=structure)
 
 				new_child_set = child_set - set([child])
 				for grandchild in child_sets[child]:
-					if grandchild not in parent_entry:
+					if grandchild not in entry:
 						new_child_set.add(grandchild)
 
-				layer_child_sets.append(new_child_set)
+				if entry not in seen_entries:
+					seen_entries[entry] = 1
+					layer.append(entry)
+					layer_children.append(new_child_set)
 
 		last_layer = layer
-		last_layer_child_sets = layer_child_sets
-		layer_child_sets = []
-		layer = []
+		last_layer_children = layer_children
 
-	plot_networkx(order_graph, 'weight')
-	plt.show()
+		layer = []
+		layer_children = []
 
 	path = nx.shortest_path(order_graph, source=(), target=tuple(sorted(variable_set)),
 		weight='weight')
