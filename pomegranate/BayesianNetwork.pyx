@@ -883,6 +883,51 @@ cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights
 def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 	numpy.ndarray key_count, double pseudocount, int max_parents,
 	object constraint_graph, int n_jobs):
+	"""
+	This returns the optimal Bayesian network given a set of constraints.
+
+	This function controls the process of learning the Bayesian network by
+	taking in a constraint graph, identifying the strongly connected
+	components (SCCs) and solving each one using the appropriate algorithm.
+	This is mostly an internal function.
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	constraint_graph : networkx.DiGraph
+		A directed graph showing valid parent sets for each variable. Each
+		node is a set of variables, and edges represent which variables can
+		be valid parents of those variables. The naive structure learning
+		task is just all variables in a single node with a self edge,
+		meaning that you know nothing about
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelized both the creation of the parent
+		graphs for each variable and the solving of the SCCs.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in the network.
+	"""
 
 	n, d = X.shape[0], X.shape[1]
 	l = len(constraint_graph.nodes())
@@ -929,6 +974,54 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 	numpy.ndarray key_count, double pseudocount, int max_parents, tuple task,
 	int n_jobs):
+	"""
+	This is a wrapper for the function to be parallelzied by joblib.
+
+	This function takes in a single task as an id and a set of parents and
+	children and calls the appropriate function. This is mostly a wrapper for
+	joblib to parallelize.
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	task : tuple
+		A 3-tuple containing the id, the set of parents and the set of children
+		to learn a component of the Bayesian network over. The cases represent
+		a SCC of the following:
+
+			0 - Self loop and no parents
+			1 - Self loop and parents
+			2 - Parents and no self loop
+			3 - Multiple nodes
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelizes the creation of the parent graphs
+		for each task or the finding of best parents in case 2.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
+
 
 	d = X.shape[1]
 	structure = [() for i in range(d)]
@@ -959,6 +1052,44 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 
 
 def discrete_exact_graph(X, weights, key_count, pseudocount, max_parents, n_jobs):
+	"""
+	Find the optimal graph over a set of variables with no other knowledge.
+
+	This is the naive dynamic programming structure learning task where the 
+	optimal graph is identified from a set of variables using an order graph
+	and parent graphs. This can be used either when no constraint graph is
+	provided or for a SCC which is made up of a node containing a self-loop.
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelizes the creation of the parent graphs.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
+
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef list parent_graphs = []
 
@@ -995,6 +1126,47 @@ def discrete_exact_graph(X, weights, key_count, pseudocount, max_parents, n_jobs
 
 def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents, 
 	n_jobs):
+	"""
+	Find the optimal graph in a node with a Self Loop And Parents (SLAP).
+
+	Instead of just performing exact BNSL over the set of all parents and
+	removing the offending edges there are efficiencies that can be gained
+	by considering the structure. In particular, parents not coming from the
+	main node do not need to be considered in the order graph but simply
+	added to each entry after creation of the order graph. This is because
+	those variables occur earlier in the topological ordering but it doesn't
+	matter how they occur otherwise. Parent graphs must be defined over all
+	variables however.
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelizes the creation of the parent graphs.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
 
 	cdef tuple parents = task[0], children = task[1]
 	cdef tuple outside_parents = tuple(i for i in parents if i not in children)
@@ -1037,6 +1209,44 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 
 def discrete_exact_component(X, weights, task, key_count, pseudocount, 
 	max_parents, n_jobs):
+	"""
+	Find the optimal graph over a multi-node component of the constaint graph.
+
+	The general algorithm in this case is to begin with each variable and add
+	all possible single children for that entry recursively until completion.
+	This will result in a far sparser order graph than before. In addition, one
+	can eliminate entries from the parent graphs that contain invalid parents
+	as they are a fast of computational time. 
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelizes the creation of the parent graphs.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
 
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef double weight
@@ -1134,6 +1344,48 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 def generate_parent_graph(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
 	int i, double pseudocount, int max_parents, tuple parent_set=()):
+	"""
+	Generate a parent graph for a single variable over its parents.
+
+	This will generate the parent graph for a single parents given the data.
+	A parent graph is the dynamically generated best parent set and respective
+	score for each combination of parent variables. For example, if we are
+	generating a parent graph for x1 over x2, x3, and x4, we may calculate that
+	having x2 as a parent is better than x2,x3 and so store the value
+	of x2 in the node for x2,x3. 
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	parent_set : tuple, default ()
+		The variables which are possible parents for this variable. If nothing
+		is passed in then it defaults to all other variables, as one would
+		expect in the naive case. This allows for cases where we want to build
+		a parent graph over only a subset of the variables.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
+
 
 	cdef int j, k, variable, l
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
