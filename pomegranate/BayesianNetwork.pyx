@@ -546,7 +546,7 @@ cdef class BayesianNetwork( GraphModel ):
 					continue
 				obs[state.name] = item
 
-			imputation = self.predict_proba(obs)
+			imputation = self.predict_proba(obs, max_iterations)
 
 			for j in range(len(self.states)):
 				imputations[i][j] = imputation[j].mle()
