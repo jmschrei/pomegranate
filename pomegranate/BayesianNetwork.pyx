@@ -26,7 +26,9 @@ from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 from .utils cimport lgamma
+from .utils import PriorityQueue
 from .utils import plot_networkx
+
 
 try:
 	import tempfile
@@ -288,16 +290,17 @@ cdef class BayesianNetwork( GraphModel ):
 			if i > 0:
 				self.parent_count[i+1] += self.parent_count[i]
 
-	def log_probability( self, sample ):
-		"""Return the log probability of a sample under the Bayesian network model.
+	def log_probability(self, X):
+		"""Return the log probability of samples under the Bayesian network.
 
 		The log probability is just the sum of the log probabilities under each of
 		the components. The log probability of a sample under the graph A -> B is
-		just P(A)*P(B|A).
+		just P(A)*P(B|A). This will return a vector of log probabilities, one for each
+		sample.
 
 		Parameters
 		----------
-		sample : array-like, shape (n_nodes)
+		X : array-like, shape (n_samples, n_dim)
 			The sample is a vector of points where each dimension represents the
 			same variable as added to the graph originally. It doesn't matter what
 			the connections between these variables are, just that they are all
@@ -312,10 +315,13 @@ cdef class BayesianNetwork( GraphModel ):
 		if self.d == 0:
 			raise ValueError("must bake model before computing probability")
 
-		sample = numpy.array(sample, ndmin=2)
-		logp = 0.0
-		for i, state in enumerate( self.states ):
-			logp += state.distribution.log_probability( sample[0, self.idxs[i]] )
+		X = numpy.array(X, ndmin=2)
+		n, d = X.shape
+
+		logp = numpy.zeros(n, dtype='float64')
+		for i in range(n):
+			for j, state in enumerate(self.states):
+				logp[i] += state.distribution.log_probability(X[i, self.idxs[j]])
 
 		return logp
 
@@ -715,15 +721,16 @@ cdef class BayesianNetwork( GraphModel ):
 		return model
 
 	@classmethod
-	def from_samples( cls, X, weights=None, algorithm='chow-liu', max_parents=-1,
-		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None, 
+	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
+		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None, name=None,
 		 n_jobs=1):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
 		learning score. This currently enumerates all the exponential number of
 		structures and finds the best according to the score. This allows
-		weights on the different samples as well.
+		weights on the different samples as well. The score that is optimized
+		is the minimum description length (MDL).
 
 		Parameters
 		----------
@@ -734,9 +741,17 @@ cdef class BayesianNetwork( GraphModel ):
 		weights : array-like, shape (n_nodes), optional
 			The weight of each sample as a positive double. Default is None.
 
-		algorithm : str, one of 'chow-liu', 'exact' optional
+		algorithm : str, one of 'chow-liu', 'greedy', 'exact', 'exact-dp' optional
 			The algorithm to use for learning the Bayesian network. Default is
-			'chow-liu' which returns a tree structure.
+			'greedy' that greedily attempts to find the best structure, and
+			frequently can identify the optimal structure. 'exact' uses DP/A* 
+			to find the optimal Bayesian network, and 'exact-dp' tries to find
+			the shortest path on the entire order lattice, which is more memory
+			and computationally expensive. 'exact' and 'exact-dp' should give
+			identical results, with 'exact-dp' remaining an option mostly for
+			debugging reasons. 'chow-liu' will return the optimal tree-like
+			structure for the Bayesian network, which is a very fast
+			approximation but not always the best network.
 
 		max_parents : int, optional
 			The maximum number of parents a node can have. If used, this means
@@ -760,6 +775,9 @@ cdef class BayesianNetwork( GraphModel ):
 
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
+
+		name : str, optional
+			The name of the model. Default is None.
 
 		n_jobs : int, optional
 			The number of threads to use when learning the structure of the
@@ -802,13 +820,143 @@ cdef class BayesianNetwork( GraphModel ):
 			structure = discrete_exact_with_constraints(X_int, weights,
 				key_count, pseudocount, max_parents, constraint_graph, n_jobs)
 		elif algorithm == 'exact':
-			structure = discrete_exact_graph(X_int, weights, key_count,
+			structure = discrete_exact_a_star(X_int, weights, key_count,
 				pseudocount, max_parents, n_jobs)
+		elif algorithm == 'greedy':
+			structure = discrete_greedy(X_int, weights, key_count,
+				pseudocount, max_parents, n_jobs)
+		elif algorithm == 'exact-dp':
+			structure = discrete_exact_dp(X_int, weights, key_count,
+				pseudocount, max_parents, n_jobs)
+		else:
+			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		return BayesianNetwork.from_structure(X, structure, weights,state_names=state_names)
+		return BayesianNetwork.from_structure(X, structure, weights, name, 
+			state_names)
 
 
-cdef tuple discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray,
+cdef class ParentGraph(object):
+	"""
+	Generate a parent graph for a single variable over its parents.
+
+	This will generate the parent graph for a single parents given the data.
+	A parent graph is the dynamically generated best parent set and respective
+	score for each combination of parent variables. For example, if we are
+	generating a parent graph for x1 over x2, x3, and x4, we may calculate that
+	having x2 as a parent is better than x2,x3 and so store the value
+	of x2 in the node for x2,x3. 
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	parent_set : tuple, default ()
+		The variables which are possible parents for this variable. If nothing
+		is passed in then it defaults to all other variables, as one would
+		expect in the naive case. This allows for cases where we want to build
+		a parent graph over only a subset of the variables.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
+
+	cdef int i, n, d, max_parents
+	cdef tuple parent_set
+	cdef double pseudocount
+	cdef public double all_parents_score
+	cdef dict values
+	cdef numpy.ndarray X
+	cdef numpy.ndarray weights
+	cdef numpy.ndarray key_count
+	cdef int* m
+	cdef int* parents
+
+	def __init__(self, X, weights, key_count, i, pseudocount, max_parents):
+		self.X = X
+		self.weights = weights
+		self.key_count = key_count
+		self.i = i
+		self.pseudocount = pseudocount
+		self.max_parents = max_parents
+		self.values = {}
+		self.n = X.shape[0]
+		self.d = X.shape[1]
+		self.m = <int*> calloc(self.d+2, sizeof(int))
+		self.parents = <int*> calloc(self.d, sizeof(int))
+
+	def __len__(self):
+		return len(self.values)
+
+	def __dealloc__(self):
+		free(self.m)
+		free(self.parents)
+
+	def calculate_value(self, value):
+		cdef int k, parent, l = len(value)
+
+		cdef int* X = <int*> self.X.data
+		cdef int* key_count = <int*> self.key_count.data
+		cdef int* m = self.m
+		cdef int* parents = self.parents
+
+		cdef double* weights = <double*> self.weights.data
+		cdef double score
+
+		m[0] = 1
+		for k, parent in enumerate(value):
+			m[k+1] = m[k] * key_count[parent]
+			parents[k] = parent
+
+		parents[l] = self.i
+		m[l+1] = m[l] * key_count[self.i]
+		m[l+2] = m[l] * (key_count[self.i] - 1)
+
+		with nogil:
+			score = discrete_score_node(X, weights, m, parents, self.n, 
+				l+1, self.d, self.pseudocount)
+
+		return score
+
+	def __getitem__(self, value):
+		if value in self.values:
+			return self.values[value]
+
+		if len(value) > self.max_parents:
+			best_parents, best_score = (), NEGINF
+		else:
+			best_parents, best_score = value, self.calculate_value(value)
+		
+		for variable in value:
+			parent_subset = tuple(parent for parent in value if parent != variable)
+			parents, score = self[parent_subset]
+
+			if score > best_score:
+				best_score = score
+				best_parents = parents
+
+		self.values[value] = (best_parents, best_score)
+		return self.values[value]
+
+
+def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray,
 	numpy.ndarray key_count_ndarray, double pseudocount, int root):
 	cdef int i, j, k, l, lj, lk, Xj, Xk, xj, xk
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
@@ -1028,8 +1176,8 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 	case, parents, children = task
 
 	if case == 0:
-		local_structure = discrete_exact_graph(X[:,parents].copy(), weights,
-			key_count[list(parents)], pseudocount, max_parents, n_jobs)
+		local_structure = discrete_exact_a_star(X[:,parents].copy(), weights,
+			key_count[list(parents)], pseudocount, max_parents, False, n_jobs)
 
 		for i, parent in enumerate(parents):
 			structure[parent] = tuple([parents[k] for k in local_structure[i]])
@@ -1051,7 +1199,7 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 	return tuple(structure)
 
 
-def discrete_exact_graph(X, weights, key_count, pseudocount, max_parents, n_jobs):
+def discrete_exact_dp(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
@@ -1059,6 +1207,9 @@ def discrete_exact_graph(X, weights, key_count, pseudocount, max_parents, n_jobs
 	optimal graph is identified from a set of variables using an order graph
 	and parent graphs. This can be used either when no constraint graph is
 	provided or for a SCC which is made up of a node containing a self-loop.
+	This is a reference implementation that uses the naive shortest path
+	algorithm over the entire order graph. The 'exact' option uses the A* path
+	in order to avoid considering the full order graph.
 
 	Parameters
 	----------
@@ -1123,6 +1274,170 @@ def discrete_exact_graph(X, weights, key_count, pseudocount, max_parents, n_jobs
 
 	return tuple(structure)
 
+
+def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_jobs):
+	"""
+	Find the optimal graph over a set of variables with no other knowledge.
+
+	This is the naive dynamic programming structure learning task where the 
+	optimal graph is identified from a set of variables using an order graph
+	and parent graphs. This can be used either when no constraint graph is
+	provided or for a SCC which is made up of a node containing a self-loop.
+	It uses DP/A* in order to find the optimal graph without considering all
+	possible topological sorts. A greedy version of the algorithm can be used 
+	that massively reduces both the computational and memory cost while frequently 
+	producing the optimal graph. 
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelizes the creation of the parent graphs.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
+
+	cdef int i, n = X.shape[0], d = X.shape[1]
+	cdef list parent_graphs = []
+
+	parent_graphs = [ParentGraph(X, weights, key_count, i, pseudocount, max_parents) for i in range(d)]
+
+	other_variables = {}
+	for i in range(d):
+		other_variables[i] = tuple(j for j in range(d) if j != i)
+
+	o = PriorityQueue()
+	closed = {}
+
+	h = sum(parent_graphs[i][other_variables[i]][1] for j in range(d))
+	o.push(((), h, [() for i in range(d)]), 0)
+	while not o.empty():
+		weight, (variables, g, structure) = o.pop()
+
+		if variables in closed:
+			continue
+		else:
+			closed[variables] = 1
+
+		if len(variables) == d:
+			return tuple(structure)
+
+		out_set = tuple(i for i in range(d) if i not in variables)
+		for i in out_set:
+			pg = parent_graphs[i]
+			parents, c = pg[variables]
+
+			e = g - c
+			f = weight - c + pg[other_variables[i]][1]
+
+			local_structure = structure[:]
+			local_structure[i] = parents
+
+			new_variables = tuple(sorted(variables + (i,)))
+			entry = (new_variables, e, local_structure)
+
+			prev_entry = o.get(new_variables)
+			if prev_entry is not None:
+				if prev_entry[0] > f:
+					o.delete(new_variables)
+					o.push(entry, f)
+			else:
+				o.push(entry, f)
+
+
+def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
+	"""
+	Find the optimal graph over a set of variables with no other knowledge.
+
+	This is the naive dynamic programming structure learning task where the 
+	optimal graph is identified from a set of variables using an order graph
+	and parent graphs. This can be used either when no constraint graph is
+	provided or for a SCC which is made up of a node containing a self-loop.
+	It uses DP/A* in order to find the optimal graph without considering all
+	possible topological sorts. A greedy version of the algorithm can be used 
+	that massively reduces both the computational and memory cost while frequently 
+	producing the optimal graph. 
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	greedy : bool, default is True
+		Whether the use a heuristic in order to massive reduce computation
+		and memory time, but without the guarantee of finding the best
+		network.
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelizes the creation of the parent graphs.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
+
+	cdef int i, n = X.shape[0], d = X.shape[1]
+	cdef list parent_graphs = []
+
+	parent_graphs = [ParentGraph(X, weights, key_count, i, pseudocount, max_parents) for i in range(d)]
+	structure, seen_variables, unseen_variables = [() for i in range(d)], (), set(range(d))
+
+	for i in range(d):
+		best_score = NEGINF
+		best_variable = -1
+		best_parents = None
+
+		for j in unseen_variables:
+			parents, score = parent_graphs[j][seen_variables]
+
+			if score > best_score:
+				best_score = score
+				best_variable = j
+				best_parents = parents
+
+		structure[best_variable] = best_parents
+		seen_variables = tuple(sorted(seen_variables + (best_variable,)))
+		unseen_variables = unseen_variables - set([best_variable])
+
+	return tuple(structure)
 
 def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents, 
 	n_jobs):

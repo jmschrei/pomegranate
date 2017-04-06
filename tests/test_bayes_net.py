@@ -18,13 +18,17 @@ from nose.tools import assert_equal
 from nose.tools import assert_raises
 from nose.tools import assert_almost_equal
 
-import random
-import numpy as np
+import random, numpy
 from numpy.testing import assert_array_equal
 import sys
 
-nan = np.nan
+nan = numpy.nan
+numpy.random.seed(1)
 
+datasets = [numpy.random.randint(2, size=(10, 4)),
+            numpy.random.randint(2, size=(100, 5)),
+            numpy.random.randint(2, size=(1000, 7)),
+            numpy.random.randint(2, size=(100, 9))]
 
 def setup_monty():
     # Build a model of the Monty Hall Problem
@@ -230,8 +234,8 @@ def teardown():
 
 @with_setup(setup_titanic, teardown)
 def test_titanic_network():
-    assert_almost_equal(passenger.log_probability('survive'), np.log(0.6))
-    assert_almost_equal(passenger.log_probability('survive'), np.log(0.6))
+    assert_almost_equal(passenger.log_probability('survive'), numpy.log(0.6))
+    assert_almost_equal(passenger.log_probability('survive'), numpy.log(0.6))
 
     assert_almost_equal(gender.log_probability(('survive', 'male')),   float("-inf"))
     assert_almost_equal(gender.log_probability(('survive', 'female')), 0.0)
@@ -274,8 +278,8 @@ def test_guest_titanic():
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty():
-    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), np.log(0.5))
-    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), np.log(0.5))
+    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), numpy.log(0.5))
+    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), numpy.log(0.5))
     assert_equal(huge_monty.log_probability(('C', 'C', 'C')), float("-inf"))
 
     data = [[True,  'A', 'A', 'C', 1, True],
@@ -293,15 +297,15 @@ def test_huge_monty():
 
     huge_monty_network.fit(data)
 
-    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), np.log(0.6))
-    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), np.log(0.5))
-    assert_almost_equal(huge_monty.log_probability(('C', 'C', 'C')), np.log(0.75))
+    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), numpy.log(0.6))
+    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), numpy.log(0.5))
+    assert_almost_equal(huge_monty.log_probability(('C', 'C', 'C')), numpy.log(0.75))
 
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty_friend():
-    assert_almost_equal(huge_monty_friend.log_probability(True), np.log(0.5))
-    assert_almost_equal(huge_monty_friend.log_probability(False), np.log(0.5))
+    assert_almost_equal(huge_monty_friend.log_probability(True), numpy.log(0.5))
+    assert_almost_equal(huge_monty_friend.log_probability(False), numpy.log(0.5))
 
     data = [[True,  'A', 'A', 'C', 1, True],
             [True,  'A', 'A', 'C', 0, True],
@@ -318,15 +322,15 @@ def test_huge_monty_friend():
 
     huge_monty_network.fit(data)
 
-    assert_almost_equal(huge_monty_friend.log_probability(True), np.log(7. / 12))
-    assert_almost_equal(huge_monty_friend.log_probability(False), np.log(5. / 12))
+    assert_almost_equal(huge_monty_friend.log_probability(True), numpy.log(7. / 12))
+    assert_almost_equal(huge_monty_friend.log_probability(False), numpy.log(5. / 12))
 
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty_remaining():
-    assert_almost_equal(huge_monty_remaining.log_probability(0), np.log(0.1))
-    assert_almost_equal(huge_monty_remaining.log_probability(1), np.log(0.7))
-    assert_almost_equal(huge_monty_remaining.log_probability(2), np.log(0.2))
+    assert_almost_equal(huge_monty_remaining.log_probability(0), numpy.log(0.1))
+    assert_almost_equal(huge_monty_remaining.log_probability(1), numpy.log(0.7))
+    assert_almost_equal(huge_monty_remaining.log_probability(2), numpy.log(0.2))
 
     data = [[True,  'A', 'A', 'C', 1, True],
             [True,  'A', 'A', 'C', 0, True],
@@ -343,19 +347,19 @@ def test_huge_monty_remaining():
 
     huge_monty_network.fit(data)
 
-    assert_almost_equal(huge_monty_remaining.log_probability(0), np.log(3. / 12))
-    assert_almost_equal(huge_monty_remaining.log_probability(1), np.log(5. / 12))
-    assert_almost_equal(huge_monty_remaining.log_probability(2), np.log(4. / 12))
+    assert_almost_equal(huge_monty_remaining.log_probability(0), numpy.log(3. / 12))
+    assert_almost_equal(huge_monty_remaining.log_probability(1), numpy.log(5. / 12))
+    assert_almost_equal(huge_monty_remaining.log_probability(2), numpy.log(4. / 12))
 
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty_prize():
     assert_almost_equal(huge_monty_prize.log_probability(
-        (True,  True,  'A')), np.log(0.3))
+        (True,  True,  'A')), numpy.log(0.3))
     assert_almost_equal(huge_monty_prize.log_probability(
-        (True,  False, 'C')), np.log(0.4))
+        (True,  False, 'C')), numpy.log(0.4))
     assert_almost_equal(huge_monty_prize.log_probability(
-        (False, True,  'B')), np.log(0.9))
+        (False, True,  'B')), numpy.log(0.9))
     assert_almost_equal(huge_monty_prize.log_probability(
         (False, False, 'A')), float("-inf"))
 
@@ -375,7 +379,7 @@ def test_huge_monty_prize():
     huge_monty_network.fit(data)
 
     assert_almost_equal(huge_monty_prize.log_probability(
-        (True, True, 'C')), np.log(0.5))
+        (True, True, 'C')), numpy.log(0.5))
     assert_equal(huge_monty_prize.log_probability(
         (True, True, 'B')), float("-inf"))
 
@@ -389,7 +393,7 @@ def test_huge_monty_prize():
     assert_equal(huge_monty_prize.log_probability(
         (False, False, 'C')), float("-inf"))
     assert_almost_equal(huge_monty_prize.log_probability(
-        (False, True, 'C')), np.log(2. / 3))
+        (False, True, 'C')), numpy.log(2. / 3))
 
 
 def discrete_equality(x, y, z=8):
@@ -475,7 +479,7 @@ def test_imputation():
 
 @with_setup(setup_monty, teardown)
 def test_numpy_imputation():
-    obs = np.array([['A', None, 'B'],
+    obs = numpy.array([['A', None, 'B'],
                     ['A', nan, 'C'],
                     ['A', 'B', 'C']])
 
@@ -491,7 +495,7 @@ def test_numpy_imputation():
     assert_array_equal(obs,
                        [
                          ['A', None, 'B'],
-                         ['A', np.nan, 'C'],
+                         ['A', numpy.nan, 'C'],
                          ['A', 'B', 'C']
                        ])
 
@@ -512,3 +516,43 @@ def test_raise_error():
 
     obs = [['A', 'C', 'D']]
     assert_raises(ValueError, monty_network.predict, obs)
+
+
+def test_exact_structure_learning():
+    logps = -19.8282, -345.9527, -4847.59688, -604.0190
+    for X, logp in zip(datasets, logps):
+        model = BayesianNetwork.from_samples(X, algorithm='exact')
+        model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
+        assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+
+def test_from_structure():
+    X = datasets[1]
+    structure = ((1, 2), (4,), (), (), (3,))
+    model = BayesianNetwork.from_structure(X, structure=structure)
+
+    assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+
+def test_parallel_structure_learning():
+    logps = -19.8282, -345.9527, -4847.59688, -604.0190
+    for X, logp in zip(datasets, logps):
+        model = BayesianNetwork.from_samples(X, algorithm='exact')
+        model2 = BayesianNetwork.from_samples(X, algorithm='exact', n_jobs=2)
+        assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+
+
+def test_greedy_structure_learning():
+    logps = -19.8282, -345.9527, -4847.59688, -611.0356
+    for X, logp in zip(datasets, logps):
+        model = BayesianNetwork.from_samples(X, algorithm='greedy')
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+
+
+def test_chow_liu_structure_learning():
+    logps = -19.8282, -344.248785, -4842.40158, -603.2370
+    for X, logp in zip(datasets, logps):
+        model = BayesianNetwork.from_samples(X, algorithm='chow-liu')
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)

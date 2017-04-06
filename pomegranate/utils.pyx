@@ -13,6 +13,8 @@ from scipy.linalg.cython_blas cimport dgemm
 cimport numpy
 import numpy
 
+import heapq, itertools
+
 try:
 	import tempfile
 	import pygraphviz
@@ -27,6 +29,44 @@ DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 DEF GAMMA = 0.577215664901532860606512090
 DEF HALF_LOG2_PI = 0.91893853320467274178032973640562
+
+cdef class PriorityQueue(object):
+	cdef int n
+	cdef public list pq
+	cdef dict entries
+
+	def __init__(self):
+		self.n = 0
+		self.pq = []
+		self.entries = {}
+
+	def push(self, item, weight):
+		entry = [weight, item]
+		self.entries[item[0]] = entry
+		heapq.heappush(self.pq, entry)
+		self.n += 1
+
+	def get(self, variables):
+		return self.entries.get(variables, None)
+
+	def delete(self, variables):
+		entry = self.entries.pop(variables)
+		entry[-1] = None
+		self.n -= 1
+
+	def empty(self):
+		return self.n == 0
+
+	def pop(self):
+		while not self.empty():
+			weight, item = heapq.heappop(self.pq)
+			if item is not None:
+				del self.entries[item[0]]
+				self.n -= 1
+				return weight, item
+		else:
+			raise KeyError("Attempting to pop from an empty priority queue")
+
 
 cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil:
 	cdef double alpha = 1
