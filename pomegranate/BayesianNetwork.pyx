@@ -134,7 +134,7 @@ cdef class BayesianNetwork( GraphModel ):
 		free(self.parent_count)
 		free(self.parent_idxs)
 
-	def plot( self, filename=None, **kwargs ):
+	def plot(self, filename=None, **kwargs):
 		"""Draw this model's graph using NetworkX and matplotlib.
 
 		Note that this relies on networkx's built-in graphing capabilities (and
@@ -173,7 +173,7 @@ cdef class BayesianNetwork( GraphModel ):
 		else:
 			raise ValueError("must have pygraphviz installed for visualization")
 
-	def bake( self ):
+	def bake(self):
 		"""Finalize the topology of the model.
 
 		Assign a numerical index to every state and create the underlying arrays
@@ -350,7 +350,7 @@ cdef class BayesianNetwork( GraphModel ):
 				log_probability[i] += logp
 
 
-	def marginal( self ):
+	def marginal(self):
 		"""Return the marginal probabilities of each variable in the graph.
 
 		This is equivalent to a pass of belief propogation on a graph where
@@ -373,7 +373,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 		return self.graph.marginal()
 
-	def predict_proba( self, data={}, max_iterations=100, check_input=True ):
+	def predict_proba(self, data={}, max_iterations=100, check_input=True):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
 		This calculates the marginal probability distributions for each state given
@@ -457,7 +457,7 @@ cdef class BayesianNetwork( GraphModel ):
 			else:
 				state.distribution.summarize( [ item[i] for item in items ], weights )
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""Use MLE on the stored sufficient statistics to train the model.
 
 		This uses MLE estimates on the stored sufficient statistics to train
@@ -469,17 +469,23 @@ cdef class BayesianNetwork( GraphModel ):
 			The inertia for updating the distributions, passed along to the
 			distribution method. Default is 0.0.
 
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects hidden
+			Markov models defined over discrete distributions. Default is 0.
+
 		Returns
 		-------
 		None
 		"""
 
 		for state in self.states:
-			state.distribution.from_summaries(inertia)
+			state.distribution.from_summaries(inertia, pseudocount)
 
 		self.bake()
 
-	def fit( self, items, weights=None, inertia=0.0 ):
+	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
 		"""Fit the model to data using MLE estimates.
 
 		Fit the model to the data by updating each of the components of the model,
@@ -502,16 +508,22 @@ cdef class BayesianNetwork( GraphModel ):
 			The inertia for updating the distributions, passed along to the
 			distribution method. Default is 0.0.
 
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects hidden
+			Markov models defined over discrete distributions. Default is 0.
+
 		Returns
 		-------
 		None
 		"""
 
 		self.summarize(items, weights)
-		self.from_summaries(inertia)
+		self.from_summaries(inertia, pseudocount)
 		self.bake()
 
-	def predict( self, items, max_iterations=100 ):
+	def predict(self, items, max_iterations=100):
 		"""Predict missing values of a data matrix using MLE.
 
 		Impute the missing values of a data matrix using the maximally likely
@@ -559,10 +571,10 @@ cdef class BayesianNetwork( GraphModel ):
 
 		return imputations
 
-	def impute( self, *args, **kwargs ):
+	def impute(self, *args, **kwargs):
 		raise Warning("method 'impute' has been depricated, please use 'predict' instead")
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
+	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
 
 		Parameters
@@ -595,7 +607,7 @@ cdef class BayesianNetwork( GraphModel ):
 		return json.dumps( model, separators=separators, indent=indent )
 
 	@classmethod
-	def from_json( cls, s ):
+	def from_json(cls, s):
 		"""Read in a serialized Bayesian Network and return the appropriate object.
 
 		Parameters
@@ -641,7 +653,8 @@ cdef class BayesianNetwork( GraphModel ):
 		return model
 
 	@classmethod
-	def from_structure( cls, X, structure, weights=None, name=None, state_names=None ):
+	def from_structure(cls, X, structure, weights=None, pseudocount=0.0, 
+		name=None, state_names=None):
 		"""Return a Bayesian network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -662,6 +675,11 @@ cdef class BayesianNetwork( GraphModel ):
 
 		weights : array-like, shape (n_nodes), optional
 			The weight of each sample as a positive double. Default is None.
+
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Default is 0.
 
 		name : str, optional
 			The name of the model. Default is None.
@@ -687,7 +705,8 @@ cdef class BayesianNetwork( GraphModel ):
 
 		for i, parents in enumerate(structure):
 			if len(parents) == 0:
-				nodes[i] = DiscreteDistribution.from_samples(X[:,i], weights=weights_ndarray)
+				nodes[i] = DiscreteDistribution.from_samples(X[:,i], weights=weights_ndarray,
+					pseudocount=pseudocount)
 
 		while True:
 			for i, parents in enumerate(structure):
@@ -698,7 +717,7 @@ cdef class BayesianNetwork( GraphModel ):
 					else:
 						nodes[i] = ConditionalProbabilityTable.from_samples(X[:,parents+(i,)],
 							parents=[nodes[parent] for parent in parents],
-							weights=weights_ndarray)
+							weights=weights_ndarray, pseudocount=pseudocount)
 						break
 			else:
 				break
@@ -771,7 +790,9 @@ cdef class BayesianNetwork( GraphModel ):
 			meaning that you know nothing about
 
 		pseudocount : double, optional
-			A pseudocount to add to each possibility.
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Default is 0.
 
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
@@ -831,7 +852,7 @@ cdef class BayesianNetwork( GraphModel ):
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		return BayesianNetwork.from_structure(X, structure, weights, name, 
+		return BayesianNetwork.from_structure(X, structure, weights, pseudocount, name, 
 			state_names)
 
 

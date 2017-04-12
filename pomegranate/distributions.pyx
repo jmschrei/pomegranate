@@ -2441,7 +2441,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 	encode for.
 	"""
 
-	def __init__( self, table, parents, frozen=False ):
+	def __init__(self, table, parents, frozen=False):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2497,12 +2497,12 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.parameters[0], self.parents, self.frozen)
 
-	def __str__( self ):
+	def __str__(self):
 		return "\n".join(
 					"\t".join( map( str, key + (cexp( self.values[idx] ),)))
 							for key, idx in self.keymap.items() )
 
-	def __len__( self ):
+	def __len__(self):
 		return self.k
 
 	def keys( self ):
@@ -2513,7 +2513,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		return tuple(set(row[-1] for row in self.keymap.keys()))
 
-	def bake( self, keys ):
+	def bake(self, keys):
 		"""Order the inputs according to some external global ordering."""
 
 		keymap, marginal_keymap, values = [], set([]), []
@@ -2533,7 +2533,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		self.keymap = OrderedDict(keymap)
 
-	def sample( self, parent_values={} ):
+	def sample(self, parent_values={}):
 		"""Return a random sample from the conditional probability table."""
 
 		keys = self.keymap.keys()
@@ -2559,7 +2559,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			if values_[i] > a:
 				return keys[idxs[i]][-1]
 
-	def log_probability( self, symbol ):
+	def log_probability(self, symbol):
 		"""
 		Return the log probability of a value, which is a tuple in proper
 		ordering, like the training data.
@@ -2568,7 +2568,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		idx = self.keymap[tuple(symbol)]
 		return self.values[idx]
 
-	cdef double _mv_log_probability( self, double* symbol ) nogil:
+	cdef double _mv_log_probability(self, double* symbol) nogil:
 		cdef int i, idx = 0
 
 		for i in range(self.m+1):
@@ -2576,7 +2576,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		return self.values[idx]
 
-	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
@@ -2681,7 +2681,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		free(counts)
 		free(marginal_counts)
 
-	def from_summaries( self, double inertia=0.0, double pseudocount=0.0 ):
+	def from_summaries(self, double inertia=0.0, double pseudocount=0.0):
 		"""Update the parameters of the distribution using sufficient statistics."""
 
 		cdef int i, k, idx
@@ -2706,20 +2706,20 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 
 		self.clear_summaries()
 
-	def clear_summaries( self ):
+	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
 
 		with nogil:
 			memset(self.counts, 0, self.n*sizeof(double))
 			memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
 
-	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
 		"""Update the parameters of the table based on the data."""
 
-		self.summarize( items, weights )
-		self.from_summaries( inertia )
+		self.summarize(items, weights)
+		self.from_summaries(inertia, pseudocount)
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
+	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
 
 		Parameters
@@ -2751,7 +2751,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 		return json.dumps( model, separators=separators, indent=indent )
 
 	@classmethod
-	def from_samples(cls, X, parents, weights=None):
+	def from_samples(cls, X, parents, weights=None, pseudocount=0.0):
 		"""Learn the table from data."""
 
 		X = numpy.array(X)
@@ -2764,7 +2764,7 @@ cdef class ConditionalProbabilityTable( MultivariateDistribution ):
 			table.append( list(key) + [1./len(keys[-1]),] )
 
 		d = ConditionalProbabilityTable(table, parents)
-		d.fit(X, weights)
+		d.fit(X, weights, pseudocount=pseudocount)
 		return d
 
 cdef class JointProbabilityTable( MultivariateDistribution ):
@@ -2775,7 +2775,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 	by the marginals of each parent.
 	"""
 
-	def __cinit__( self, table, parents, frozen=False ):
+	def __cinit__(self, table, parents, frozen=False):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -2812,24 +2812,24 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		free(self.values)
 		free(self.counts)
 
-	def __reduce__( self ):
+	def __reduce__(self):
 		return self.__class__, (self.parameters[0], self.parents, self.frozen)
 
-	def __str__( self ):
+	def __str__(self):
 		return "\n".join(
 					"\t".join( map( str, key + (cexp(self.values[idx] ),) ) )
 							for key, idx in self.keymap.items() )
 
-	def __len__( self ):
+	def __len__(self):
 		return self.k
 
-	def sample( self, n=None ):
+	def sample(self, n=None):
 		a = numpy.random.uniform(0, 1)
 		for i in range(self.n):
 			if cexp(self.values[i]) > a:
 				return self.keymap.keys()[i][-1]
 
-	def bake( self, keys ):
+	def bake(self, keys):
 		"""Order the inputs according to some external global ordering."""
 
 		keymap, values = [], []
@@ -2843,10 +2843,10 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		self.keymap = OrderedDict(keymap)
 
-	def keys( self ):
+	def keys(self):
 		return tuple(set(row[-1] for row in self.parameters[2].keys()))
 
-	def log_probability( self, symbol ):
+	def log_probability(self, symbol):
 		"""
 		Return the log probability of a value, which is a tuple in proper
 		ordering, like the training data.
@@ -2855,7 +2855,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		key = self.keymap[tuple(symbol)]
 		return self.values[key]
 
-	cdef double _mv_log_probability( self, double* symbol ) nogil:
+	cdef double _mv_log_probability(self, double* symbol) nogil:
 		cdef int i, idx = 0
 
 		for i in range(self.m+1):
@@ -2863,7 +2863,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		return self.values[idx]
 
-	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
@@ -2873,7 +2873,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 			log_probability[i] = self.values[idx]
 
-	def marginal( self, wrt=-1, neighbor_values=None ):
+	def marginal(self, wrt=-1, neighbor_values=None):
 		"""
 		Determine the marginal of this table with respect to the index of one
 		variable. The parents are index 0..n-1 for n parents, and the final
@@ -2917,7 +2917,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		return DiscreteDistribution(d)
 
 
-	def summarize( self, items, weights=None ):
+	def summarize(self, items, weights=None):
 		"""Summarize the data into sufficient statistics to store."""
 
 		if len(items) == 0 or self.frozen == True:
@@ -2960,7 +2960,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		free(counts)
 
-	def from_summaries( self, double inertia=0.0, double pseudocount=0.0 ):
+	def from_summaries(self, double inertia=0.0, double pseudocount=0.0):
 		"""Update the parameters of the distribution using sufficient statistics."""
 
 		cdef int i, k
@@ -2977,20 +2977,20 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 
 		self.clear_summaries()
 
-	def clear_summaries( self ):
+	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
 
 		self.count = 0
 		with nogil:
 			memset(self.counts, 0, self.n*sizeof(double))
 
-	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
+	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
 		"""Update the parameters of the table based on the data."""
 
-		self.summarize( items, weights )
-		self.from_summaries( inertia, pseudocount )
+		self.summarize(items, weights)
+		self.from_summaries(inertia, pseudocount)
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
+	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
 
 		Parameters
@@ -3021,7 +3021,7 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 		return json.dumps( model, separators=separators, indent=indent )
 
 	@classmethod
-	def from_samples(cls, X, parents, weights=None):
+	def from_samples(cls, X, parents, weights=None, pseudocount=0.0):
 		"""Learn the table from data."""
 
 		X = numpy.array(X)
@@ -3035,5 +3035,5 @@ cdef class JointProbabilityTable( MultivariateDistribution ):
 			table.append( list(key) + [1./m,] )
 
 		d = ConditionalProbabilityTable(table, parents)
-		d.fit(X, weights)
+		d.fit(X, weights, pseudocount=pseudocount)
 		return d
