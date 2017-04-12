@@ -53,7 +53,7 @@ def log(value):
 		return to_return
 	return _log( value )
 
-def weight_set( items, weights ):
+def weight_set(items, weights):
 	"""Converts both items and weights to appropriate numpy arrays.
 
 	Convert the items into a numpy array with 64-bit floats, and the weight
@@ -62,11 +62,9 @@ def weight_set( items, weights ):
 	"""
 
 	items = numpy.array(items, dtype=numpy.float64)
-	if weights is None:
-		# Weight everything 1 if no weights specified
+	if weights is None: # Weight everything 1 if no weights specified
 		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
-	else:
-		# Force whatever we have to be a Numpy array
+	else: # Force whatever we have to be a Numpy array
 		weights = numpy.array(weights, dtype=numpy.float64)
 
 	return items, weights
@@ -755,7 +753,7 @@ cdef class LogNormalDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set( items, weights )
+		items, weights = weight_set(items, weights)
 		if weights.sum() <= 0:
 			return
 
@@ -861,7 +859,7 @@ cdef class ExponentialDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set( items, weights )
+		items, weights = weight_set(items, weights)
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
@@ -983,7 +981,7 @@ cdef class BetaDistribution( Distribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set( items, weights )
+		items, weights = weight_set(items, weights)
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
@@ -1417,7 +1415,7 @@ cdef class DiscreteDistribution( Distribution ):
 			return numpy.array(samples)
 			
 
-	def fit( self, items, weights=None, inertia=0.0 ):
+	def fit( self, items, weights=None, inertia=0.0, pseudocount=0.0 ):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -1428,7 +1426,7 @@ cdef class DiscreteDistribution( Distribution ):
 			return
 
 		self.summarize( items, weights )
-		self.from_summaries( inertia )
+		self.from_summaries( inertia, pseudocount )
 
 	def summarize( self, items, weights=None ):
 		"""Reduce a set of obervations to sufficient statistics."""
@@ -1460,30 +1458,34 @@ cdef class DiscreteDistribution( Distribution ):
 
 		free( encoded_counts )
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries( self, inertia=0.0, pseudocount=0.0 ):
 		"""Use the summaries in order to update the distribution."""
 
 		if self.summaries[1] == 0 or self.frozen == True:
 			return
 
 		if self.encoded_summary == 0:
-			_sum = sum( self.summaries[0].values() )
+			values = self.summaries[0].values()
+			_sum = sum(values) + pseudocount * len(values)
 			characters = {}
 			for key, value in self.summaries[0].items():
-				self.dist[key] = self.dist[key]*inertia + (1-inertia)*value / _sum
-				self.log_dist[key] = _log( self.dist[key] )
+				value += pseudocount
+				self.dist[key] = self.dist[key]*inertia + (1-inertia)*(value / _sum)
+				self.log_dist[key] = _log(self.dist[key])
 
-			self.bake( self.encoded_keys )
+			self.bake(self.encoded_keys)
 		else:
 			n = len(self.encoded_keys)
 			for i in range(n):
+				_sum = self.summaries[1] + pseudocount * n
+				value = self.encoded_counts[i] + pseudocount
+
 				key = self.encoded_keys[i]
-				self.dist[key] = (self.dist[key]*inertia +
-					(1-inertia)*self.encoded_counts[i] / self.summaries[1])
-				self.log_dist[key] = _log( self.dist[key] )
+				self.dist[key] = self.dist[key]*inertia + (1-inertia)*(value / _sum)
+				self.log_dist[key] = _log(self.dist[key])
 				self.encoded_counts[i] = 0
 
-			self.bake( self.encoded_keys )
+			self.bake(self.encoded_keys)
 
 		self.summaries = [{ key: 0 for key in self.keys() }, 0]
 
@@ -1522,26 +1524,28 @@ cdef class DiscreteDistribution( Distribution ):
 						   }, separators=separators, indent=indent )
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
+	def from_samples( cls, items, weights=None, pseudocount=0 ):
 		"""Fit a distribution to some data without pre-specifying it."""
 
 		if weights is None:
 			weights = numpy.ones( len(items) )
 
-		characters = {}
+		symbols = {}
 		total = 0
 
-		for character, weight in izip(items, weights):
+		for symbol, weight in izip(items, weights):
 			total += weight
-			if character in characters:
-				characters[character] += weight
+			if symbol in symbols:
+				symbols[symbol] += weight
 			else:
-				characters[character] = weight
+				symbols[symbol] = weight
 
-		for character, weight in characters.items():
-			characters[character] = weight / total
+		n = len(symbols)
 
-		d = DiscreteDistribution(characters)
+		for symbol, weight in symbols.items():
+			symbols[symbol] = (weight + pseudocount) / (total + pseudocount * n)
+
+		d = DiscreteDistribution(symbols)
 		return d
 
 
@@ -1998,7 +2002,7 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		else:
 			return numpy.array([self.sample() for i in range(n)])
 
-	def fit( self, items, weights=None, inertia=0 ):
+	def fit(self, items, weights=None, inertia=0, pseudocount=0.0):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -2008,17 +2012,17 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		if self.frozen:
 			return
 
-		self.summarize( items, weights )
-		self.from_summaries( inertia )
+		self.summarize(items, weights)
+		self.from_summaries(inertia, pseudocount)
 
-	def summarize( self, items, weights=None ):
+	def summarize(self, items, weights=None):
 		"""
 		Take in an array of items and reduce it down to summary statistics. For
 		a multivariate distribution, this involves just passing the appropriate
 		data down to the appropriate distributions.
 		"""
 
-		items, weights = weight_set( items, weights )
+		items, weights = weight_set(items, weights)
 		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
 		cdef int n = items.shape[0]
@@ -2032,9 +2036,9 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for i in range(n):
 			for j in range(d):
-				( <Model> self.distributions_ptr[j] )._summarize( items+i*d+j, weights+i, 1 )
+				(<Model> self.distributions_ptr[j])._summarize(items+i*d+j, weights+i, 1)
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""
 		Use the collected summary statistics in order to update the
 		distributions.
@@ -2045,24 +2049,45 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 			return
 
 		for d in self.parameters[0]:
-			d.from_summaries(inertia=inertia)
+			if isinstance(d, DiscreteDistribution):
+				d.from_summaries(inertia=inertia, pseudocount=pseudocount)
+			else:
+				d.from_summaries(inertia=inertia)
 
-	def clear_summaries( self ):
+	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
 
 		for d in self.parameters[0]:
 			d.clear_summaries()
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
+	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Convert the distribution to JSON format."""
 
-		return json.dumps( {
+		return json.dumps({
 								'class' : 'Distribution',
 								'name'  : self.name,
 								'parameters' : [[ json.loads( dist.to_json() ) for dist in self.parameters[0] ],
 								                 self.parameters[1] ],
 								'frozen' : self.frozen
-						   }, separators=separators, indent=indent )
+						   }, separators=separators, indent=indent)
+
+	@classmethod
+	def from_samples(self, items, weights=None, distribution_weights=None, 
+		pseudocount=0.0, distributions=None):
+		"""Create a new independent components distribution from data."""
+
+		if distributions is None:
+			raise ValueError("must pass in a list of distribution callables")
+
+		items, weights = weight_set(items, weights)
+		n, d = items.shape
+
+		if callable(distributions):
+			distributions = [distributions.from_samples(items[:,i], weights) for i in range(d)]
+		else:
+			distributions = [distributions[i].from_samples(items[:,i], weights) for i in range(d)]
+
+		return IndependentComponentsDistribution(distributions, distribution_weights)
 
 
 cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
@@ -2180,7 +2205,7 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set( items, weights )
+		items, weights = weight_set(items, weights)
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
@@ -2357,7 +2382,7 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set( items, weights )
+		items, weights = weight_set(items, weights)
 
 		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data

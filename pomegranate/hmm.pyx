@@ -2368,7 +2368,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 
     def fit( self, sequences, weights=None, labels=None, stop_threshold=1E-9, min_iterations=0,
         max_iterations=1e8, algorithm='baum-welch', verbose=True,
-        transition_pseudocount=0, use_pseudocount=False, inertia=None, edge_inertia=0.0,
+        transition_pseudocount=0, emission_pseudocount=0.0, use_pseudocount=False, 
+        inertia=None, edge_inertia=0.0,
         distribution_inertia=0.0, n_jobs=1  ):
         """Fit the model to data using either Baum-Welch or Viterbi training.
 
@@ -2425,9 +2426,18 @@ cdef class HiddenMarkovModel( GraphModel ):
             A pseudocount to add to all transitions to add a prior to the
             MLE estimate of the transition probability. Default is 0.
 
+        emission_pseudocount : int, optional
+            A pseudocount to add to the emission of each distribution. This
+            effectively smoothes the states to prevent 0. probability symbols
+            if they don't happen to occur in the data. Only effects hidden
+            Markov models defined over discrete distributions. Default is 0.
+
         use_pseudocount : bool, optional
-            Whether to use pseudocounts when updatiing the transition
-            probability parameters. Default is False.
+            Whether to use the pseudocounts defined in the `add_edge` method
+            for edge-specific pseudocounts when updating the transition
+            probability parameters. Does not effect the `transition_pseudocount`
+            and `emission_pseudocount` parameters, but can be used in addition
+            to them. Default is False.
 
         inertia : double or None, optional, range [0, 1]
             If double, will set both edge_inertia and distribution_inertia to
@@ -2483,7 +2493,8 @@ cdef class HiddenMarkovModel( GraphModel ):
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
-                self.from_summaries(inertia, transition_pseudocount, use_pseudocount,
+                self.from_summaries(inertia, transition_pseudocount,
+                    emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
 
                 if iteration >= max_iterations + 1:
@@ -2855,7 +2866,8 @@ cdef class HiddenMarkovModel( GraphModel ):
         return 0
 
     def from_summaries( self, inertia=None, transition_pseudocount=0,
-        use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0 ):
+        emission_pseudocount=0.0, use_pseudocount=False, edge_inertia=0.0, 
+        distribution_inertia=0.0 ):
         """Fit the model to the stored summary statistics.
 
         Parameters
@@ -2869,9 +2881,18 @@ cdef class HiddenMarkovModel( GraphModel ):
             A pseudocount to add to all transitions to add a prior to the
             MLE estimate of the transition probability. Default is 0.
 
+        emission_pseudocount : int, optional
+            A pseudocount to add to the emission of each distribution. This
+            effectively smoothes the states to prevent 0. probability symbols
+            if they don't happen to occur in the data. Only effects hidden
+            Markov models defined over discrete distributions. Default is 0.
+
         use_pseudocount : bool, optional
-            Whether to use pseudocounts when updatiing the transition
-            probability parameters. Default is False.
+            Whether to use the pseudocounts defined in the `add_edge` method
+            for edge-specific pseudocounts when updating the transition
+            probability parameters. Does not effect the `transition_pseudocount`
+            and `emission_pseudocount` parameters, but can be used in addition
+            to them. Default is False.
 
         edge_inertia : bool, optional, range [0, 1]
             Whether to use inertia when updating the transition probability
@@ -2896,17 +2917,18 @@ cdef class HiddenMarkovModel( GraphModel ):
             edge_inertia = inertia
             distribution_inertia = inertia
 
-        self._from_summaries( transition_pseudocount, use_pseudocount,
-            edge_inertia, distribution_inertia )
+        self._from_summaries(transition_pseudocount, emission_pseudocount, 
+            use_pseudocount, edge_inertia, distribution_inertia)
 
-        memset( self.expected_transitions, 0, self.n_edges*sizeof(double) )
+        memset(self.expected_transitions, 0, self.n_edges*sizeof(double))
         self.summaries = 0
 
-    cdef void _from_summaries(self, double transition_pseudocount,
-        bint use_pseudocount, double edge_inertia, double distribution_inertia ):
+    cdef void _from_summaries(self, double transition_pseudocount, 
+        double emission_pseudocount, bint use_pseudocount, double edge_inertia, 
+        double distribution_inertia):
         """Update the transition matrix and emission distributions."""
 
-        cdef int k, i, l, li, m = len( self.states ), n, idx
+        cdef int k, i, l, li, m = len(self.states), n, idx
         cdef int* in_edges = self.in_edge_count
         cdef int* out_edges = self.out_edge_count
 
@@ -2917,11 +2939,11 @@ cdef class HiddenMarkovModel( GraphModel ):
         cdef int start, end
         cdef int* tied_edges = self.tied_edge_group_size
 
-        cdef double* expected_transitions = <double*> calloc( m*m, sizeof(double) )
+        cdef double* expected_transitions = <double*> calloc(m*m, sizeof(double))
 
         with nogil:
-            for k in range( m ):
-                for l in range( out_edges[k], out_edges[k+1] ):
+            for k in range(m):
+                for l in range(out_edges[k], out_edges[k+1]):
                     li = self.out_transitions[l]
                     expected_transitions[k*m + li] = self.expected_transitions[l]
 
@@ -2932,63 +2954,63 @@ cdef class HiddenMarkovModel( GraphModel ):
             # probabilities)
             # See http://stackoverflow.com/a/8904762/402891
             # Only modifies transitions for states a transition was observed from.
-            norm = <double*> calloc( m, sizeof(double) )
+            norm = <double*> calloc(m, sizeof(double))
 
             # Go through the tied state groups and add transitions from each member
             # in the group to the other members of the group.
             # For each group defined.
-            for k in range( self.n_tied_edge_groups-1 ):
+            for k in range(self.n_tied_edge_groups-1):
                 tied_edge_probability = 0.
 
                 # For edge in this group, get the sum of the edges
-                for l in range( tied_edges[k], tied_edges[k+1] ):
+                for l in range(tied_edges[k], tied_edges[k+1]):
                     start = self.tied_edges_starts[l]
                     end = self.tied_edges_ends[l]
                     tied_edge_probability += expected_transitions[start*m + end]
 
                 # Update each entry
-                for l in range( tied_edges[k], tied_edges[k+1] ):
+                for l in range(tied_edges[k], tied_edges[k+1]):
                     start = self.tied_edges_starts[l]
                     end = self.tied_edges_ends[l]
                     expected_transitions[start*m + end] = tied_edge_probability
 
             # Calculate the regularizing norm for each node
-            for k in range( m ):
-                for l in range( out_edges[k], out_edges[k+1] ):
+            for k in range(m):
+                for l in range(out_edges[k], out_edges[k+1]):
                     li = self.out_transitions[l]
                     norm[k] += expected_transitions[k*m + li] + \
                         transition_pseudocount + \
                         self.out_transition_pseudocounts[l] * use_pseudocount
 
             # For every node, update the transitions appropriately
-            for k in range( m ):
+            for k in range(m):
                 # Recalculate each transition out from that node and update
                 # the vector of out transitions appropriately
                 if norm[k] > 0:
-                    for l in range( out_edges[k], out_edges[k+1] ):
+                    for l in range(out_edges[k], out_edges[k+1]):
                         li = self.out_transitions[l]
-                        probability = ( expected_transitions[k*m + li] +
+                        probability = (expected_transitions[k*m + li] +
                             transition_pseudocount +
                             self.out_transition_pseudocounts[l] * use_pseudocount)\
                             / norm[k]
                         self.out_transition_log_probabilities[l] = _log(
-                            cexp( self.out_transition_log_probabilities[l] ) *
-                            edge_inertia + probability * ( 1 - edge_inertia ) )
+                            cexp(self.out_transition_log_probabilities[l]) *
+                            edge_inertia + probability * (1 - edge_inertia))
 
                 # Recalculate each transition in to that node and update the
                 # vector of in transitions appropriately
-                for l in range( in_edges[k], in_edges[k+1] ):
+                for l in range(in_edges[k], in_edges[k+1]):
                     li = self.in_transitions[l]
                     if norm[li] > 0:
-                        probability = ( expected_transitions[li*m + k] +
+                        probability = (expected_transitions[li*m + k] +
                             transition_pseudocount +
-                            self.in_transition_pseudocounts[l] * use_pseudocount )\
+                            self.in_transition_pseudocounts[l] * use_pseudocount)\
                             / norm[li]
                         self.in_transition_log_probabilities[l] = _log(
-                            cexp( self.in_transition_log_probabilities[l] ) *
-                            edge_inertia + probability * ( 1 - edge_inertia ) )
+                            cexp(self.in_transition_log_probabilities[l] ) *
+                            edge_inertia + probability * (1 - edge_inertia))
 
-            for k in range( self.silent_start ):
+            for k in range(self.silent_start):
                 # Re-estimate the emission distribution for every non-silent state.
                 # Take each emission weighted by the probability that we were in
                 # this state when it came out, given that the model generated the
@@ -2996,8 +3018,12 @@ cdef class HiddenMarkovModel( GraphModel ):
                 # states by only training that distribution one time, since many
                 # states are pointing to the same distribution object.
                 with gil:
-                    self.states[k].distribution.from_summaries(
-                        inertia=distribution_inertia )
+                    if self.discrete:
+                        self.states[k].distribution.from_summaries(
+                            inertia=distribution_inertia, pseudocount=emission_pseudocount)
+                    else:
+                        self.states[k].distribution.from_summaries(
+                            inertia=distribution_inertia)
 
         free(norm)
         free(expected_transitions)
