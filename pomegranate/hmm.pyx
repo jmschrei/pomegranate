@@ -3020,10 +3020,10 @@ cdef class HiddenMarkovModel( GraphModel ):
                 with gil:
                     if self.discrete:
                         self.states[k].distribution.from_summaries(
-                            inertia=distribution_inertia, pseudocount=emission_pseudocount)
+                            distribution_inertia, emission_pseudocount)
                     else:
                         self.states[k].distribution.from_summaries(
-                            inertia=distribution_inertia)
+                            distribution_inertia)
 
         free(norm)
         free(expected_transitions)

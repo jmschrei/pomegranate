@@ -2050,9 +2050,9 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 
 		for d in self.parameters[0]:
 			if isinstance(d, DiscreteDistribution):
-				d.from_summaries(inertia=inertia, pseudocount=pseudocount)
+				d.from_summaries(inertia, pseudocount)
 			else:
-				d.from_summaries(inertia=inertia)
+				d.from_summaries(inertia)
 
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
