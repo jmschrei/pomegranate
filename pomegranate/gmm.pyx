@@ -523,8 +523,8 @@ cdef class GeneralMixtureModel(Model):
 
 		free(r)
 
-	def fit( self, X, weights=None, inertia=0.0, stop_threshold=0.1,
-		max_iterations=1e8, verbose=False ):
+	def fit(self, X, weights=None, inertia=0.0, stop_threshold=0.1,
+		max_iterations=1e8, pseudocount=0.0, verbose=False):
 		"""Fit the model to new data using EM.
 
 		This method fits the components of the model to new data using the EM
@@ -564,6 +564,12 @@ cdef class GeneralMixtureModel(Model):
 			model is improving per iteration.
 			Default is 1e8.
 
+		pseudocount : double, optional, positive
+            A pseudocount to add to the emission of each distribution. This
+            effectively smoothes the states to prevent 0. probability symbols
+            if they don't happen to occur in the data. Only effects mixture
+            models defined over discrete distributions. Default is 0.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations.
@@ -584,7 +590,7 @@ cdef class GeneralMixtureModel(Model):
 			weights = numpy.array(weights, dtype='float64')
 
 		while improvement > stop_threshold and iteration < max_iterations + 1:
-			self.from_summaries(inertia)
+			self.from_summaries(inertia, pseudocount)
 			log_probability_sum = self.summarize(X, weights)
 
 			if iteration == 0:
@@ -728,7 +734,7 @@ cdef class GeneralMixtureModel(Model):
 		free(summaries)
 		return log_probability_sum
 
-	def from_summaries(self, inertia=0.0, **kwargs):
+	def from_summaries(self, inertia=0.0, pseudocount=0.0, **kwargs):
 		"""Fit the model to the collected sufficient statistics.
 
 		Fit the parameters of the model to the sufficient statistics gathered
@@ -743,6 +749,14 @@ cdef class GeneralMixtureModel(Model):
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. If discrete data, will
+			smooth both the prior probabilities of each component and the
+			emissions of each component. Otherwise, will only smooth the prior
+			probabilities of each component. Default is 0.
+
 		Returns
 		-------
 		None
@@ -751,9 +765,15 @@ cdef class GeneralMixtureModel(Model):
 		if self.d == 0 or self.summaries_ndarray.sum() == 0:
 			return
 
+		self.summaries_ndarray += pseudocount
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
+
 		for i, distribution in enumerate(self.distributions):
-			distribution.from_summaries(inertia, **kwargs)
+			if isinstance(distribution, DiscreteDistribution):
+				distribution.from_summaries(inertia, pseudocount)
+			else:
+				distribution.from_summaries(inertia, **kwargs)
+			
 			self.weights[i] = _log(self.summaries_ndarray[i])
 			self.summaries_ndarray[i] = 0.
 

@@ -230,13 +230,22 @@ def test_discrete():
 	d.fit(list('ABAABBAAAAAAAAAAAAAAAAAA'))
 	assert_equal(d.parameters[0], {'A': 0.25, 'B': 0.75})
 
+	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'])
+	assert_equal(d.parameters[0], {'A': 0.75, 'B': 0.25})
+
+	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'], pseudocount=0.5)
+	assert_equal(d.parameters[0], {'A': 0.70, 'B': 0.30})
+
+	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'], pseudocount=6)
+	assert_equal(d.parameters[0], {'A': 0.5625, 'B': 0.4375})
+
 	e = Distribution.from_json(d.to_json())
 	assert_equal(e.name, "DiscreteDistribution")
-	assert_equal(e.parameters[0], {'A': 0.25, 'B': 0.75})
+	assert_equal(e.parameters[0], {'A': 0.5625, 'B': 0.4375})
 
 	f = pickle.loads(pickle.dumps(e))
 	assert_equal(f.name, "DiscreteDistribution")
-	assert_equal(f.parameters[0], {'A': 0.25, 'B': 0.75})
+	assert_equal(f.parameters[0], {'A': 0.5625, 'B': 0.4375})
 
 
 @with_setup(setup, teardown)
@@ -584,6 +593,44 @@ def test_independent():
 	assert_equal(f.parameters[0][1].parameters[0], -2.5)
 	assert_equal(f.parameters[0][1].parameters[1], 15)
 
+	X = np.array([[0.5, 0.2, 0.7],
+		          [0.3, 0.1, 0.9],
+		          [0.4, 0.3, 0.8],
+		          [0.3, 0.3, 0.9],
+		          [0.3, 0.2, 0.6],
+		          [0.5, 0.2, 0.8]])
+
+	d = IndependentComponentsDistribution.from_samples(X, 
+		distributions=NormalDistribution)
+	assert_almost_equal(d.parameters[0][0].parameters[0], 0.38333, 4)
+	assert_almost_equal(d.parameters[0][0].parameters[1], 0.08975, 4)
+	assert_almost_equal(d.parameters[0][1].parameters[0], 0.21666, 4)
+	assert_almost_equal(d.parameters[0][1].parameters[1], 0.06872, 4)
+	assert_almost_equal(d.parameters[0][2].parameters[0], 0.78333, 4)
+	assert_almost_equal(d.parameters[0][2].parameters[1], 0.10672, 4)
+
+	d = IndependentComponentsDistribution.from_samples(X, 
+		distributions=ExponentialDistribution)
+	assert_almost_equal(d.parameters[0][0].parameters[0], 2.6087, 4)
+	assert_almost_equal(d.parameters[0][1].parameters[0], 4.6154, 4)
+	assert_almost_equal(d.parameters[0][2].parameters[0], 1.2766, 4)
+
+	d = IndependentComponentsDistribution.from_samples(X, 
+		distributions=[NormalDistribution, NormalDistribution, NormalDistribution])
+	assert_almost_equal(d.parameters[0][0].parameters[0], 0.38333, 4)
+	assert_almost_equal(d.parameters[0][0].parameters[1], 0.08975, 4)
+	assert_almost_equal(d.parameters[0][1].parameters[0], 0.21666, 4)
+	assert_almost_equal(d.parameters[0][1].parameters[1], 0.06872, 4)
+	assert_almost_equal(d.parameters[0][2].parameters[0], 0.78333, 4)
+	assert_almost_equal(d.parameters[0][2].parameters[1], 0.10672, 4)
+
+	d = IndependentComponentsDistribution.from_samples(X, 
+		distributions=[NormalDistribution, LogNormalDistribution, ExponentialDistribution])
+	assert_almost_equal(d.parameters[0][0].parameters[0], 0.38333, 4)
+	assert_almost_equal(d.parameters[0][0].parameters[1], 0.08975, 4)
+	assert_almost_equal(d.parameters[0][1].parameters[0], -1.5898, 4)
+	assert_almost_equal(d.parameters[0][1].parameters[1], 0.36673, 4)
+	assert_almost_equal(d.parameters[0][2].parameters[0], 1.27660, 4)
 
 def test_conditional():
 	phditis = DiscreteDistribution({True: 0.01, False: 0.99})
