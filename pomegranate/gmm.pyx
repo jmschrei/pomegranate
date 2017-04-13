@@ -523,8 +523,8 @@ cdef class GeneralMixtureModel(Model):
 
 		free(r)
 
-	def fit( self, X, weights=None, inertia=0.0, stop_threshold=0.1,
-		max_iterations=1e8, pseudocount=0.0, verbose=False ):
+	def fit(self, X, weights=None, inertia=0.0, stop_threshold=0.1,
+		max_iterations=1e8, pseudocount=0.0, verbose=False):
 		"""Fit the model to new data using EM.
 
 		This method fits the components of the model to new data using the EM
@@ -750,10 +750,12 @@ cdef class GeneralMixtureModel(Model):
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
 		pseudocount : double, optional
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects hidden
-            Markov models defined over discrete distributions. Default is 0.
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. If discrete data, will
+			smooth both the prior probabilities of each component and the
+			emissions of each component. Otherwise, will only smooth the prior
+			probabilities of each component. Default is 0.
 
 		Returns
 		-------
@@ -763,7 +765,9 @@ cdef class GeneralMixtureModel(Model):
 		if self.d == 0 or self.summaries_ndarray.sum() == 0:
 			return
 
+		self.summaries_ndarray += pseudocount
 		self.summaries_ndarray /= self.summaries_ndarray.sum()
+
 		for i, distribution in enumerate(self.distributions):
 			if isinstance(distribution, DiscreteDistribution):
 				distribution.from_summaries(inertia, pseudocount)

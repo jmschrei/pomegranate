@@ -2367,7 +2367,7 @@ cdef class HiddenMarkovModel( GraphModel ):
         return log_probability_sum, path
 
     def fit( self, sequences, weights=None, labels=None, stop_threshold=1E-9, min_iterations=0,
-        max_iterations=1e8, algorithm='baum-welch', verbose=True,
+        max_iterations=1e8, algorithm='baum-welch', verbose=True, pseudocount=None,
         transition_pseudocount=0, emission_pseudocount=0.0, use_pseudocount=False, 
         inertia=None, edge_inertia=0.0,
         distribution_inertia=0.0, n_jobs=1  ):
@@ -2422,11 +2422,17 @@ cdef class HiddenMarkovModel( GraphModel ):
             Whether to print the improvement in the model fitting at each
             iteration. Default is True.
 
-        transition_pseudocount : int, optional
+        pseudocount : double, optional
+            A pseudocount to add to both transitions and emissions. If supplied,
+            it will override both transition_pseudocount and emission_pseudocount
+            in the same way that specifying `inertia` will override both 
+            `edge_inertia` and `distribution_inertia`. Default is None.
+
+        transition_pseudocount : double, optional
             A pseudocount to add to all transitions to add a prior to the
             MLE estimate of the transition probability. Default is 0.
 
-        emission_pseudocount : int, optional
+        emission_pseudocount : double, optional
             A pseudocount to add to the emission of each distribution. This
             effectively smoothes the states to prevent 0. probability symbols
             if they don't happen to occur in the data. Only effects hidden
@@ -2475,10 +2481,6 @@ cdef class HiddenMarkovModel( GraphModel ):
         cdef bint check_input = alg == 'viterbi'
         cdef list X = []
 
-        if inertia is not None:
-            edge_inertia = inertia
-            distribution_inertia = inertia
-
         for sequence in sequences:
             sequence_ndarray = _check_input(sequence, self)
             X.append(sequence_ndarray)
@@ -2493,7 +2495,7 @@ cdef class HiddenMarkovModel( GraphModel ):
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
-                self.from_summaries(inertia, transition_pseudocount,
+                self.from_summaries(inertia, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
 
@@ -2865,9 +2867,9 @@ cdef class HiddenMarkovModel( GraphModel ):
         free(transitions)
         return 0
 
-    def from_summaries( self, inertia=None, transition_pseudocount=0,
-        emission_pseudocount=0.0, use_pseudocount=False, edge_inertia=0.0, 
-        distribution_inertia=0.0 ):
+    def from_summaries(self, inertia=None, pseudocount=None, 
+        transition_pseudocount=0.0, emission_pseudocount=0.0, 
+        use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0):
         """Fit the model to the stored summary statistics.
 
         Parameters
@@ -2877,11 +2879,17 @@ cdef class HiddenMarkovModel( GraphModel ):
             needing to set both of them. If None, use the values passed
             in to those variables. Default is None.
 
-        transition_pseudocount : int, optional
+        pseudocount : double, optional
+            A pseudocount to add to both transitions and emissions. If supplied,
+            it will override both transition_pseudocount and emission_pseudocount
+            in the same way that specifying `inertia` will override both 
+            `edge_inertia` and `distribution_inertia`. Default is None.
+
+        transition_pseudocount : double, optional
             A pseudocount to add to all transitions to add a prior to the
             MLE estimate of the transition probability. Default is 0.
 
-        emission_pseudocount : int, optional
+        emission_pseudocount : double, optional
             A pseudocount to add to the emission of each distribution. This
             effectively smoothes the states to prevent 0. probability symbols
             if they don't happen to occur in the data. Only effects hidden
@@ -2916,6 +2924,10 @@ cdef class HiddenMarkovModel( GraphModel ):
         if inertia is not None:
             edge_inertia = inertia
             distribution_inertia = inertia
+
+        if pseudocount is not None:
+            transition_pseudocount = pseudocount
+            emission_pseudocount = pseudocount
 
         self._from_summaries(transition_pseudocount, emission_pseudocount, 
             use_pseudocount, edge_inertia, distribution_inertia)

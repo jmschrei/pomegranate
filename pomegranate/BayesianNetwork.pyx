@@ -436,7 +436,6 @@ cdef class BayesianNetwork( GraphModel ):
 		weights : array-like, shape (n_nodes), optional
 			The weight of each sample as a positive double. Default is None.
 
-
 		Returns
 		-------
 		None
@@ -472,8 +471,7 @@ cdef class BayesianNetwork( GraphModel ):
 		pseudocount : double, optional
 			A pseudocount to add to the emission of each distribution. This
 			effectively smoothes the states to prevent 0. probability symbols
-			if they don't happen to occur in the data. Only effects hidden
-			Markov models defined over discrete distributions. Default is 0.
+			if they don't happen to occur in the data. Default is 0.
 
 		Returns
 		-------

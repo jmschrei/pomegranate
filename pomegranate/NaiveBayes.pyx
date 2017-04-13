@@ -66,7 +66,7 @@ def _check_input(X, keymap):
 
 cdef double NEGINF = float("-inf")
 
-cdef class NaiveBayes( Model ):
+cdef class NaiveBayes(Model):
 	"""A Naive Bayes model, a supervised alternative to GMM.
 
 	Parameters
@@ -120,7 +120,7 @@ cdef class NaiveBayes( Model ):
 	cdef int hmm
 	cdef public list keymap
 
-	def __init__( self, distributions=None, weights=None ):
+	def __init__(self, distributions=None, weights=None):
 		if not callable(distributions) and not isinstance(distributions, (list, numpy.ndarray)):
 			raise ValueError("must either give initial distributions or constructor")
 
@@ -183,7 +183,7 @@ cdef class NaiveBayes( Model ):
 						if isinstance(d, DiscreteDistribution):
 							d.bake( tuple(set(self.keymap[i].keys())) )
 
-	def __reduce__( self ):
+	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
 
 	def __str__( self ):
@@ -221,7 +221,7 @@ cdef class NaiveBayes( Model ):
 
 		return numpy.exp( self.predict_log_proba(X) )
 
-	def predict_log_proba( self, X ):
+	def predict_log_proba(self, X):
 		"""Calculate the posterior log P(M|D) for data.
 
 		Calculate the log probability of each item having been generated from
@@ -284,7 +284,7 @@ cdef class NaiveBayes( Model ):
 
 		return y if self.hmm == 1 else y.reshape(self.n, n).T
 
-	cdef void _predict_log_proba( self, double* X, double* y, int n, int d ) nogil:
+	cdef void _predict_log_proba(self, double* X, double* y, int n, int d) nogil:
 		cdef double y_sum, logp
 		cdef int i, j
 
@@ -304,7 +304,7 @@ cdef class NaiveBayes( Model ):
 			for j in range(self.n):
 				y[j*n + i] -= y_sum
 
-	def predict( self, X ):
+	def predict(self, X):
 		"""Predict the most likely component which generated each sample.
 
 		Calculate the posterior P(M|D) for each sample and return the index
@@ -365,7 +365,7 @@ cdef class NaiveBayes( Model ):
 
 		return y
 
-	cdef void _predict( self, double* X, int* y, int n, int d) nogil:
+	cdef void _predict(self, double* X, int* y, int n, int d) nogil:
 		cdef int i, j
 		cdef double max_logp, logp
 		cdef double* r = <double*> calloc(n*self.n, sizeof(double))
@@ -387,7 +387,7 @@ cdef class NaiveBayes( Model ):
 
 		free(r)
 
-	def fit( self, X, y, weights=None, n_jobs=1, inertia=0.0 ):
+	def fit(self, X, y, weights=None, n_jobs=1, inertia=0.0, pseudocount=0.0):
 		"""Fit the Naive Bayes model to the data by passing data to their components.
 
 		Parameters
@@ -413,14 +413,19 @@ cdef class NaiveBayes( Model ):
 		inertia : double, optional
 			Inertia used for the training the distributions.
 
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Default is 0.
+
 		Returns
 		-------
 		self : object
 			Returns the fitted model
 		"""
 
-		self.summarize( X, y, weights, n_jobs=n_jobs )
-		self.from_summaries( inertia )
+		self.summarize(X, y, weights, n_jobs=n_jobs)
+		self.from_summaries(inertia, pseudocount)
 		return self
 
 	def summarize( self, X, y, weights=None, n_jobs=1 ):
@@ -497,13 +502,21 @@ cdef class NaiveBayes( Model ):
 			parallel( delay(self.distributions[i], X[y==i], weights[y==i]) for i in range(n) )
 
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""Fit the Naive Bayes model to the stored sufficient statistics.
 
 		Parameters
 		----------
 		inertia : double, optional
 			Inertia used for the training the distributions.
+
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. If discrete data, will
+			smooth both the prior probabilities of each component and the
+			emissions of each component. Otherwise, will only smooth the prior
+			probabilities of each component. Default is 0.
 
 		Returns
 		-------
@@ -512,14 +525,15 @@ cdef class NaiveBayes( Model ):
 		"""
 
 		n = len(self.distributions)
-		self.summaries /= self.summaries.sum()
-
-		self.distributions = numpy.array( self.distributions )
-		self.distributions_ptr = <void**> self.distributions.data
+		self.summaries = (self.summaries + pseudocount) / (self.summaries.sum() + pseudocount * n)
 
 		for i in range(n):
-			if not isinstance( self.distributions[i], HiddenMarkovModel ):
-				self.distributions[i].from_summaries(inertia=inertia)
+			distribution = self.distributions[i]
+			if not isinstance(distribution, HiddenMarkovModel):
+				if isinstance(distribution, DiscreteDistribution):
+					distribution.from_summaries(inertia, pseudocount)
+				else:
+					distribution.from_summaries(inertia)
 
 			self.weights[i] = self.summaries[i]
 
