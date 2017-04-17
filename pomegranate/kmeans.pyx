@@ -7,6 +7,7 @@ from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.string cimport memcpy
+from libc.math cimport log10 as clog10
 
 from .base cimport Model
 
@@ -18,6 +19,132 @@ cimport numpy
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
+
+def initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k, 
+	init='first-k', double oversampling_factor=0.95):
+	"""Initialize the centroids for kmeans given a dataset.
+
+	This function will take in a dataset and return the centroids found using
+	some method. This is the initialization step of kmeans.
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n_samples, n_dim)
+		The dataset to identify centroids in.
+
+	weights : numpy.ndarray, shape=(n_samples,)
+		The weights associated with each of the samples.
+
+	k : int
+		The number of centroids to extract.
+
+	init : str, one of 'first-k', 'random', 'kmeans++'
+		'first-k' : use the first k samples as the centroids
+		'random' : randomly select k samples as the centroids
+		'kmeans++' : use the kmeans++ initialization algorithm, which
+			iteratively selects the next centroid randomly, but weighted
+			based on distance to nearest centroid, to be likely to choose
+			good initializations
+
+	Returns
+	-------
+
+	"""
+
+	cdef int n = X.shape[0], d = X.shape[1]
+	cdef int count, i, j, l, m
+	cdef double distance
+	cdef numpy.ndarray centroids
+	cdef numpy.ndarray min_distance
+	cdef numpy.ndarray min_idxs
+
+	cdef double* X_ptr = <double*> X.data
+	cdef double* weights_ptr = <double*> weights.data
+	cdef double* min_distance_ptr
+	cdef double* centroids_ptr
+	cdef int* min_idxs_ptr
+	cdef double phi
+
+	weights = weights / weights.sum()
+
+	if init not in ('first-k', 'random', 'kmeans++', 'kmeans||'):
+		raise ValueError("initialization must be one of 'first-k', 'random', 'kmeans++', or 'kmeans||'")
+
+	if init == 'first-k':
+		centroids = X[:k].copy()
+
+	elif init == 'random':
+		idxs = numpy.random.choice(n, size=k, replace=False, p=weights)
+		centroids = X[idxs].copy()
+
+	elif init == 'kmeans++':
+		centroids = numpy.zeros((k, d), dtype='float64')
+		centroids_ptr = <double*> centroids.data
+
+		idx = numpy.random.choice(n, p=weights)
+		centroids[0] = X[idx]
+
+		min_distance = numpy.zeros(n, dtype='float64') + INF
+		min_distance_ptr = <double*> min_distance.data
+
+		for m in range(k-1):
+			for i in range(n):
+				distance = 0
+				for j in range(d):
+					distance += (X_ptr[i*d + j] - centroids_ptr[m*d + j]) ** 2
+				distance *= weights_ptr[i]
+
+				if distance < min_distance_ptr[i]:
+					min_distance_ptr[i] = distance
+					
+			idx = numpy.random.choice(n, p=min_distance / min_distance.sum())
+			centroids[m+1] = X[idx]
+
+	elif init == 'kmeans||':
+		phi = 0
+
+		centroids = numpy.zeros((1, d))
+		idx = numpy.random.choice(n, p=weights)
+		centroids[0] = X[idx]
+
+		min_distance = ((X - centroids[0]) ** 2).sum(axis=1)
+		min_distance_ptr = <double*> min_distance.data
+
+		min_idxs = numpy.zeros(n, dtype='int32')
+		min_idxs_ptr = <int*> min_idxs.data
+
+		phi = min_distance.sum()
+		count = 1
+
+		for iteration in range(int(clog10(phi))):
+			prob = numpy.random.uniform(0, 1, size=(n,))
+			thresh = oversampling_factor * min_distance / phi
+
+			centroids = numpy.concatenate((centroids, X[prob < thresh]))
+			centroids_ptr = <double*> centroids.data
+			m = centroids.shape[0] - count
+
+			if m > 0:
+				for i in range(n):
+					for l in range(m):
+						distance = 0
+						for j in range(d):
+							distance += (X_ptr[i*d + j] - centroids_ptr[(l + count)*d + j]) ** 2
+
+						if distance < min_distance_ptr[i]:
+							phi += distance - min_distance_ptr[i]
+							min_distance_ptr[i] = distance
+							min_idxs_ptr[i] = l + count
+
+				count = centroids.shape[0]
+
+		w = numpy.bincount(min_idxs)
+
+		clf = Kmeans(k, 'kmeans++', 1)
+		clf.fit(centroids, w)
+		centroids = clf.centroids
+
+	return centroids
 
 cdef class Kmeans(Model):
 	"""A kmeans model.
@@ -48,19 +175,23 @@ cdef class Kmeans(Model):
 	"""
 
 	cdef public int k
+	cdef int n_init
+	cdef str init
 	cdef public numpy.ndarray centroids
 	cdef double* centroids_ptr
 	cdef double* summary_sizes
 	cdef double* summary_weights
 
-	def __init__(self, k, centroids=None):
+	def __init__(self, k, init='kmeans++', n_init=10):
 		self.k = k
 		self.d = 0
+		self.n_init = n_init
 
-		if centroids is not None:
-			self.centroids = numpy.array(centroids, dtype='float64')
+		if isinstance(init, (list, numpy.ndarray)):
+			self.centroids = numpy.array(init, dtype='float64', ndmin=2)
 			self.centroids_ptr = <double*> self.centroids.data
-			self.d = self.centroids.shape[1]
+		elif isinstance(init, str):
+			self.init = init
 
 	def __dealloc__(self):
 		free(self.summary_sizes)
@@ -87,6 +218,8 @@ cdef class Kmeans(Model):
 		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
 		cdef int* y_ptr = <int*> y.data
 
+		self.d = X.shape[1]
+
 		with nogil:
 			self._predict(X_ptr, y_ptr, n)
 		
@@ -103,7 +236,7 @@ cdef class Kmeans(Model):
 				dist = 0.0
 
 				for l in range(d):
-					dist += ( self.centroids_ptr[j*d + l] - X[i*d + l] ) ** 2.0
+					dist += (X[i*d + l] - self.centroids_ptr[j*d + l]) ** 2.0
 
 				if dist < min_dist:
 					min_dist = dist
@@ -150,31 +283,41 @@ cdef class Kmeans(Model):
 		None
 		"""
 
-		initial_log_probability_sum = NEGINF
-		iteration, improvement = 0, INF
+		best_centroids, best_distance = None, INF
 
-		while improvement > stop_threshold and iteration < max_iterations + 1:
-			self.from_summaries(inertia)
-			log_probability_sum = self.summarize(X, weights)
+		for i in range(self.n_init):
+			self.d = 0
+			initial_distance_sum = INF
+			iteration, improvement = 0, INF
 
-			if iteration == 0:
-				initial_log_probability_sum = log_probability_sum
-			else:
-				improvement = log_probability_sum - last_log_probability_sum
+			while improvement > stop_threshold and iteration < max_iterations + 1:
+				self.from_summaries(inertia)
+				distance_sum = self.summarize(X, weights)
 
-				if verbose:
-					print("Improvement: {}".format(improvement))
+				if iteration == 0:
+					initial_distance_sum = distance_sum
+				else:
+					improvement = distance_sum - last_distance_sum
 
-			iteration += 1
-			last_log_probability_sum = log_probability_sum
+					if verbose:
+						print("Improvement: {}".format(improvement))
 
-		self.clear_summaries()
+				iteration += 1
+				last_distance_sum = distance_sum
 
-		if verbose:
-			print("Total Improvement: {}".format(
-				last_log_probability_sum - initial_log_probability_sum))
+			self.clear_summaries()
+			total_improvement = last_distance_sum - initial_distance_sum
 
-		return last_log_probability_sum - initial_log_probability_sum
+			if verbose:
+				print("Total Improvement: {}".format(total_improvement))
+
+			if last_distance_sum < best_distance:
+				best_centroids = self.centroids.copy()
+				best_distance = last_distance_sum
+
+		self.centroids = best_centroids
+		self.centroids_ptr = <double*> self.centroids.data
+		return best_distance
 
 	def summarize(self, X, weights=None):
 		"""Summarize the points into sufficient statistics for a future update.
@@ -216,10 +359,12 @@ cdef class Kmeans(Model):
 			self.d = d
 			self.centroids = numpy.zeros((self.k, d))
 			self.centroids_ptr = <double*> self.centroids.data
+
+			self.centroids = initialize_centroids(X, weights_ndarray, self.k, self.init)
+			self.centroids_ptr = <double*> self.centroids.data
+
 			self.summary_sizes = <double*> calloc(self.k, sizeof(double))
 			self.summary_weights = <double*> calloc(self.k*d, sizeof(double))
-
-			memcpy(self.centroids_ptr, X_ptr, self.k*d*sizeof(double))
 			memset(self.summary_sizes, 0 ,self.k*sizeof(double))
 			memset(self.summary_weights, 0, self.k*d*sizeof(double))
 
@@ -243,13 +388,13 @@ cdef class Kmeans(Model):
 				dist = 0.0
 
 				for l in range(d):
-					dist += ( self.centroids_ptr[j*d + l] - X[i*d + l] ) ** 2.0
+					dist += (self.centroids_ptr[j*d + l] - X[i*d + l]) ** 2.0
 
 				if dist < min_dist:
 					min_dist = dist
 					y = j
 
-			total_dist -= min_dist
+			total_dist += min_dist
 			summary_sizes[y] += weights[i]
 
 			for l in range(d):

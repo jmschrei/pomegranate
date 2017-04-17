@@ -128,15 +128,17 @@ cdef class GeneralMixtureModel(Model):
 	cdef double* summaries_ptr
 	cdef dict keymap
 	cdef int n
+	cdef str init
 	cdef public bint is_vl_
 
-	def __init__(self, distributions, weights=None, n_components=None):
+	def __init__(self, distributions, weights=None, n_components=None, init='kmeans++'):
 		if not callable(distributions) and not isinstance(distributions, list):
 			raise ValueError("must either give initial distributions "
 			                 "or constructor")
 
 		self.d = 0
 		self.is_vl_ = False
+		self.init = init
 
 		if callable(distributions):
 			if distributions == DiscreteDistribution:
@@ -221,7 +223,7 @@ cdef class GeneralMixtureModel(Model):
 
 		return samples if n > 1 else samples[0]
 
-	cpdef log_probability(self, X):
+	def log_probability(self, X):
 		"""Calculate the log probability of a point under the distribution.
 
 		The probability of a point is the sum of the probabilities of each
@@ -438,7 +440,7 @@ cdef class GeneralMixtureModel(Model):
 			for j in range(self.n):
 				y[j*n + i] -= y_sum
 
-	cpdef predict(self, X):
+	def predict(self, X):
 		"""Predict the most likely component which generated each sample.
 
 		Calculate the posterior P(M|D) for each sample and return the index
@@ -660,7 +662,7 @@ cdef class GeneralMixtureModel(Model):
 		# If not initialized then we need to do kmeans initialization.
 		if self.d == 0:
 			X_ndarray = _check_input(X, self.keymap)
-			kmeans = Kmeans(self.n)
+			kmeans = Kmeans(self.n, self.init)
 			kmeans.fit(X_ndarray, max_iterations=1)
 			y = kmeans.predict(X_ndarray)
 
