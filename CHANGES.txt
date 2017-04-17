@@ -46,7 +46,7 @@ v0.2.4
 FactorGraphs were not working properly. This was due to the wrong keys being returned by the ConditionalProbabilityTable.keys() function. What a lame error.
 
 v0.2.5
-Finite state machines changes to add keys on transitions, instead of weird in distributions. Significant portions of the code removed as unneccesary.
+Finite state machines changes to add keys on transitions, instead of weird in distributions. Significant portions of the code removed as unnecessary.
 
 v0.2.6
 Added restarting of finite state machines.
