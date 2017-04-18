@@ -280,6 +280,8 @@ cdef class FactorGraph( GraphModel ):
 		# This is the flooding message schedule for loopy belief propogation.
 		iteration = 0
 		while iteration < max_iterations:
+			if verbose:
+				print "Iteration: %d" % (iteration)
 			# UPDATE MESSAGES LEAVING THE MARGINAL NODES 
 			for i, state in enumerate( self.states ):
 				# Ignore factor nodes for now
@@ -348,6 +350,7 @@ cdef class FactorGraph( GraphModel ):
 			# Calculate the current estimates on the marginals to compare to the
 			# last iteration, so that we can stop if we reach convergence.
 			done = 1
+			max_dist = -100000.0
 			for i in xrange( len( self.states ) ):
 				if self.marginals[i] == 0:
 					continue
@@ -360,6 +363,13 @@ cdef class FactorGraph( GraphModel ):
 
 				if not current_distributions[i].equals( prior_distributions[i] ):
 					done = 0
+
+				d = current_distributions[i].distance( prior_distributions[i] )
+				if d > max_dist:
+					max_dist = d
+
+			if verbose:
+				print "MaxDist: %f" % (max_dist)
 
 			# If we have converged, then we're done!
 			if done == 1:
