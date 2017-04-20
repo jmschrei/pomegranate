@@ -39,7 +39,7 @@ else:
 
 setup(
     name='pomegranate',
-    version='0.6.1',
+    version='0.7.0',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=['pomegranate'],
