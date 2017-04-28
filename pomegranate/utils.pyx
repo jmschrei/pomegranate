@@ -269,3 +269,28 @@ def plot_networkx(Q, edge_label=None, filename=None):
 			plt.axis('off')
 	else:
 		G.draw(filename, format='pdf', prog='dot')
+
+def _check_input(X, keymap):
+	"""Check the input to make sure that it is a properly formatted array."""
+
+	cdef numpy.ndarray X_ndarray
+
+	try:
+		X_ndarray = numpy.array(X, dtype='float64', ndmin=2)
+	except:
+		if not isinstance(X, (numpy.ndarray, list, tuple)):
+			X_ndarray = numpy.array(keymap[0][X], dtype='float64', ndmin=2)
+		else:
+			X = numpy.array(X)
+			X_ndarray = numpy.empty(X.shape, dtype='float64')
+
+			if X.ndim == 1:
+				for i in range(X.shape[0]):
+					X_ndarray[i] = keymap[0][X[i]]
+			else:
+				for i in range(X.shape[0]):
+					for j in range(X.shape[1]):
+						X_ndarray[i, j] = keymap[j][X[i, j]]
+
+
+	return X_ndarray

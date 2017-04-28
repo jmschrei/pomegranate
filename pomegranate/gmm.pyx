@@ -16,39 +16,16 @@ cimport numpy
 from .base cimport Model
 from .kmeans import Kmeans
 from .distributions cimport Distribution
-from .distributions import DiscreteDistribution
+from .distributions import DiscreteDistribution, IndependentComponentsDistribution
+from .bayes cimport BayesModel
 from .utils cimport _log
 from .utils cimport pair_lse
-
+from .utils import _check_input
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
-
-cpdef numpy.ndarray _check_input(X, dict keymap):
-	"""Check the input to make sure that it is a properly formatted array."""
-
-	cdef numpy.ndarray X_ndarray
-	if isinstance(X, numpy.ndarray) and (X.dtype == 'float64'):
-		return X
-
-	try:
-		X_ndarray = numpy.array(X, dtype='float64')
-	except ValueError:
-		X_ndarray = numpy.empty(X.shape, dtype='float64')
-
-		if X.ndim == 1:
-			for i in range(X.shape[0]):
-				X_ndarray[i] = keymap[X[i]]
-		else:
-			for i in range(X.shape[0]):
-				for j in range(X.shape[1]):
-					X_ndarray[i, j] = keymap[X[i][j]]
-
-	return X_ndarray
-
-
-cdef class GeneralMixtureModel(Model):
+cdef class GeneralMixtureModel(BayesModel):
 	"""A General Mixture Model.
 
 	This mixture model can be a mixture of any distribution as long as they
@@ -66,11 +43,6 @@ cdef class GeneralMixtureModel(Model):
 	weights : array-like, optional, shape (n_components,)
 		The prior probabilities corresponding to each component. Does not
 		need to sum to one, but will be normalized to sum to one internally.
-		Defaults to None.
-
-	n_components : int, optional
-		If a callable is passed into distributions then this is the number
-		of components to initialize using the kmeans++ algorithm.
 		Defaults to None.
 
 	Attributes
@@ -119,411 +91,11 @@ cdef class GeneralMixtureModel(Model):
 	}], dtype=object)
 	"""
 
-	cdef public numpy.ndarray distributions
-	cdef object distribution_callable
-	cdef public numpy.ndarray weights
-	cdef numpy.ndarray summaries_ndarray
-	cdef void** distributions_ptr
-	cdef double* weights_ptr
-	cdef double* summaries_ptr
-	cdef dict keymap
-	cdef int n
-	cdef str init
-	cdef public bint is_vl_
-
-	def __init__(self, distributions, weights=None, n_components=None, init='kmeans++'):
-		if not callable(distributions) and not isinstance(distributions, list):
-			raise ValueError("must either give initial distributions "
-			                 "or constructor")
-
-		self.d = 0
-		self.is_vl_ = False
-		self.init = init
-
-		if callable(distributions):
-			if distributions == DiscreteDistribution:
-				raise ValueError("cannot fit a discrete GMM "
-				                 "without pre-initialized distributions")
-			self.n = n_components
-			self.distribution_callable = distributions
-
-		else:
-			if len(distributions) < 2:
-				raise ValueError("must have at least two distributions "
-				                 "for general mixture models")
-
-			for dist in distributions:
-				if callable(dist):
-					raise TypeError("must have initialized distributions")
-				elif self.d == 0:
-					self.d = dist.d
-				elif self.d != dist.d:
-					raise TypeError("mis-matching dimensions "
-					                "between distributions")
-				if dist.model == 'HiddenMarkovModel':
-					self.is_vl_ = True
-
-			if weights is None:
-				weights = numpy.full_like(
-					distributions, 1.0 / len(distributions), dtype=float)
-			else:
-				weights = numpy.asarray(weights) / weights.sum()
-
-			self.weights = numpy.log(weights)
-			self.weights_ptr = <double*> self.weights.data
-
-			self.distributions = numpy.array(distributions)
-			self.distributions_ptr = <void**> self.distributions.data
-
-			self.summaries_ndarray = numpy.zeros_like(weights, dtype='float64')
-			self.summaries_ptr = <double*> self.summaries_ndarray.data
-
-			self.n = len(distributions)
-
-		if self.d > 0 and isinstance(self.distributions[0],
-		                             DiscreteDistribution):
-			keys = []
-			for d in self.distributions:
-				keys.extend( d.keys() )
-			self.keymap = { key: i for i, key in enumerate(set(keys)) }
-			for d in self.distributions:
-				d.bake( tuple(set(keys)) )
+	def __init__(self, distributions, weights=None):
+		super(GeneralMixtureModel, self).__init__(distributions, weights)
 
 	def __reduce__(self):
-		return self.__class__, (self.distributions.tolist(),
-		                        numpy.exp(self.weights),
-		                        self.n)
-
-	def sample(self, n=1):
-		"""Generate a sample from the model.
-
-		First, randomly select a component weighted by the prior probability,
-		Then, use the sample method from that component to generate a sample.
-
-		Parameters
-		----------
-		n : int, optional
-			The number of samples to generate. Defaults to 1.
-
-		Returns
-		-------
-		sample : array-like or object
-			A randomly generated sample from the model of the type modelled
-			by the emissions. An integer if using most distributions, or an
-			array if using multivariate ones, or a string for most discrete
-			distributions. If n=1 return an object, if n>1 return an array
-			of the samples.
-		"""
-
-		samples = []
-		for i in range(n):
-			d = numpy.random.choice(self.distributions,
-			                        p=numpy.exp(self.weights))
-			samples.append(d.sample())
-
-		return samples if n > 1 else samples[0]
-
-	def log_probability(self, X):
-		"""Calculate the log probability of a point under the distribution.
-
-		The probability of a point is the sum of the probabilities of each
-		distribution multiplied by the weights. Thus, the log probability is
-		the sum of the log probability plus the log prior.
-
-		This is the python interface.
-
-		Parameters
-		----------
-		X : numpy.ndarray, shape=(n, d) or (n, m, d)
-			The samples to calculate the log probability of. Each row is a
-			sample and each column is a dimension. If emissions are HMMs then
-			shape is (n, m, d) where m is variable length for each obervation,
-			and X becomes an array of n (m, d)-shaped arrays.
-
-		Returns
-		-------
-		log_probability : double
-			The log probabiltiy of the point under the distribution.
-		"""
-
-		cdef int i, j, n, d, m
-
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "log_probability method.")
-		elif self.is_vl_ or self.d == 1:
-			n, d = len(X), self.d
-		elif self.d > 1 and X.ndim == 1:
-			n, d = 1, len(X)
-		else:
-			n, d = X.shape
-
-		cdef numpy.ndarray logp_ndarray = numpy.zeros(n)
-		cdef double* logp = <double*> logp_ndarray.data
-
-		cdef numpy.ndarray X_ndarray
-		cdef double* X_ptr 
-
-		if not self.is_vl_:
-			X_ndarray = numpy.array(X)
-			X_ptr = <double*> X_ndarray.data
-
-		with nogil:
-			for i in range(n):
-				if self.is_vl_:
-					with gil:
-						X_ndarray = numpy.array(X[i])
-						X_ptr = <double*> X_ndarray.data
-					logp[i] = self._vl_log_probability(X_ptr, n)
-				elif d == 1:
-					logp[i] = self._log_probability(X_ptr[i])
-				else:
-					logp[i] = self._mv_log_probability(X_ptr+i*d)
-
-		return logp_ndarray
-
-	cdef double _log_probability(self, double X) nogil:
-		cdef int i
-		cdef double log_probability_sum = NEGINF
-		cdef double log_probability
-
-		for i in range(self.n):
-			log_probability = \
-				(<Model> self.distributions_ptr[i])._log_probability(X) \
-				+ self.weights_ptr[i]
-			log_probability_sum = \
-				pair_lse(log_probability_sum, log_probability)
-
-		return log_probability_sum
-
-	cdef double _mv_log_probability(self, double* X) nogil:
-		cdef int i
-		cdef double log_probability_sum = NEGINF
-		cdef double log_probability
-
-		for i in range(self.n):
-			log_probability = \
-				(<Model> self.distributions_ptr[i])._mv_log_probability(X) \
-				+ self.weights_ptr[i]
-			log_probability_sum = \
-				pair_lse(log_probability_sum, log_probability)
-
-		return log_probability_sum
-
-	cdef double _vl_log_probability(self, double* X, int n) nogil:
-		cdef int i
-		cdef double log_probability_sum = NEGINF
-		cdef double log_probability
-
-		for i in range(self.n):
-			log_probability = \
-				(<Model> self.distributions_ptr[i])._vl_log_probability(X, n) \
-				+ self.weights_ptr[i]
-			log_probability_sum = \
-				pair_lse(log_probability_sum, log_probability)
-
-		return log_probability_sum
-
-	def predict_proba(self, X):
-		"""Calculate the posterior P(M|D) for data.
-
-		Calculate the probability of each item having been generated from
-		each component in the model. This returns normalized probabilities
-		such that each row should sum to 1.
-
-		Since calculating the log probability is much faster, this is just
-		a wrapper which exponentiates the log probability matrix.
-
-		Parameters
-		----------
-		X : array-like, shape (n_samples, n_dimensions)
-			The samples to do the prediction on. Each sample is a row and each
-			column corresponds to a dimension in that sample. For univariate
-			distributions, a single array may be passed in.
-
-		Returns
-		-------
-		probability : array-like, shape (n_samples, n_components)
-			The normalized probability P(M|D) for each sample. This is the
-			probability that the sample was generated from each component.
-		"""
-
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "predict_proba method.")
-
-		return numpy.exp(self.predict_log_proba(X))
-
-	def predict_log_proba(self, X):
-		"""Calculate the posterior log P(M|D) for data.
-
-		Calculate the log probability of each item having been generated from
-		each component in the model. This returns normalized log probabilities
-		such that the probabilities should sum to 1
-
-		This is a sklearn wrapper for the original posterior function.
-
-		Parameters
-		----------
-		X : array-like, shape (n_samples, n_dimensions)
-			The samples to do the prediction on. Each sample is a row and each
-			column corresponds to a dimension in that sample. For univariate
-			distributions, a single array may be passed in.
-
-		Returns
-		-------
-		y : array-like, shape (n_samples, n_components)
-			The normalized log probability log P(M|D) for each sample. This is
-			the probability that the sample was generated from each component.
-		"""
-
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "predict_log_proba method.")
-
-		cdef int i, n, d
-		cdef numpy.ndarray X_ndarray
-		cdef double* X_ptr
-		cdef numpy.ndarray y
-		cdef double* y_ptr
-
-		if self.is_vl_:
-			n, d = len(X), self.d
-		elif self.d == 1:
-			n, d = X.shape[0], 1
-		elif self.d > 1 and X.ndim == 1:
-			n, d = 1, len(X)
-		else:
-			n, d = X.shape
-
-		y = numpy.zeros((n, self.n), dtype='float64')
-		y_ptr = <double*> y.data
-
-		if not self.is_vl_:
-			X_ndarray = _check_input(X, self.keymap)
-			X_ptr = <double*> X_ndarray.data
-
-		with nogil:
-			if not self.is_vl_:
-				self._predict_log_proba(X_ptr, y_ptr, n, d)
-			else:
-				for i in range(n):
-					with gil:
-						X_ndarray = _check_input(X[i], self.keymap)
-						X_ptr = <double*> X_ndarray.data
-						d = len(X_ndarray)
-
-					self._predict_log_proba(X_ptr, y_ptr+i*self.n, 1, d)
-		
-		return y if self.is_vl_ else y.reshape(self.n, n).T
-
-	cdef void _predict_log_proba(self, double* X, double* y,
-	                             int n, int d) nogil:
-		cdef double y_sum, logp
-		cdef int i, j
-
-		for j in range(self.n):
-			if self.is_vl_:
-				y[j] = (<Model> self.distributions_ptr[j]) \
-					._vl_log_probability(X, d)
-			else:
-				(<Model> self.distributions_ptr[j]) \
-					._v_log_probability(X, y+j*n, n)
-
-		for i in range(n):
-			y_sum = NEGINF
-
-			for j in range(self.n):
-				y[j*n + i] += self.weights_ptr[j]
-				y_sum = pair_lse(y_sum, y[j*n + i])
-
-			for j in range(self.n):
-				y[j*n + i] -= y_sum
-
-	def predict(self, X):
-		"""Predict the most likely component which generated each sample.
-
-		Calculate the posterior P(M|D) for each sample and return the index
-		of the component most likely to fit it. This corresponds to a simple
-		argmax over the responsibility matrix.
-
-		This is a sklearn wrapper for the maximum_a_posteriori method.
-
-		Parameters
-		----------
-		X : array-like, shape (n_samples, n_dimensions)
-			The samples to do the prediction on. Each sample is a row and each
-			column corresponds to a dimension in that sample. For univariate
-			distributions, a single array may be passed in.
-
-		Returns
-		-------
-		y : array-like, shape (n_samples,)
-			The predicted component which fits the sample the best.
-		"""
-
-		cdef int i, n, d
-
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "predict method.")
-
-		if self.is_vl_:
-			n, d = len(X), self.d
-		elif self.d == 1:
-			n, d = X.shape[0], 1
-		elif self.d > 1 and X.ndim == 1:
-			n, d = 1, len(X)
-		else:
-			n, d = X.shape
-
-		cdef numpy.ndarray X_ndarray
-		cdef double* X_ptr
-
-		cdef numpy.ndarray y = numpy.zeros(n, dtype='int32')
-		cdef int* y_ptr = <int*> y.data
-
-		if not self.is_vl_:
-			X_ndarray = _check_input(X, self.keymap)
-			X_ptr = <double*> X_ndarray.data
-
-		with nogil:
-			if not self.is_vl_:
-				self._predict(X_ptr, y_ptr, n, d)
-			else:
-				for i in range(n):
-					with gil:
-						X_ndarray = _check_input(X[i], self.keymap)
-						X_ptr = <double*> X_ndarray.data
-						d = len(X_ndarray)
-
-					self._predict(X_ptr, y_ptr+i, 1, d)
-
-		return y
-
-	cdef void _predict( self, double* X, int* y, int n, int d) nogil:
-		cdef int i, j
-		cdef double max_logp, logp
-		cdef double* r = <double*> calloc(n*self.n, sizeof(double))
-
-		for j in range(self.n):
-			if self.is_vl_:
-				r[j] = (<Model> self.distributions_ptr[j]) \
-					._vl_log_probability(X, d)
-			else:
-				(<Model> self.distributions_ptr[j]) \
-					._v_log_probability(X, r+j*n, n)
-
-		for i in range(n):
-			max_logp = NEGINF
-
-			for j in range(self.n):
-				logp = r[j*n + i] + self.weights_ptr[j]
-				if logp > max_logp:
-					max_logp = logp
-					y[i] = j
-
-		free(r)
+		return self.__class__, (self.distributions.tolist(), numpy.exp(self.weights))
 
 	def fit(self, X, weights=None, inertia=0.0, stop_threshold=0.1,
 		max_iterations=1e8, pseudocount=0.0, verbose=False):
@@ -659,19 +231,6 @@ cdef class GeneralMixtureModel(Model):
 		else:
 			weights_ndarray = numpy.array(weights, dtype='float64')
 
-		# If not initialized then we need to do kmeans initialization.
-		if self.d == 0:
-			X_ndarray = _check_input(X, self.keymap)
-			kmeans = Kmeans(self.n, self.init)
-			kmeans.fit(X_ndarray, max_iterations=1)
-			y = kmeans.predict(X_ndarray)
-
-			distributions = [
-				self.distribution_callable.from_samples(X_ndarray[y==i])
-				for i in range(self.n) ]
-			
-			self.__init__(distributions)
-
 		cdef double* X_ptr
 		cdef double* weights_ptr = <double*> weights_ndarray.data
 
@@ -736,54 +295,6 @@ cdef class GeneralMixtureModel(Model):
 		free(summaries)
 		return log_probability_sum
 
-	def from_summaries(self, inertia=0.0, pseudocount=0.0, **kwargs):
-		"""Fit the model to the collected sufficient statistics.
-
-		Fit the parameters of the model to the sufficient statistics gathered
-		during the summarize calls. This should return an exact update.
-
-		Parameters
-		----------
-		inertia : double, optional
-			The weight of the previous parameters of the model. The new
-			parameters will roughly be
-			old_param*inertia + new_param*(1-inertia),
-			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters. Default is 0.0.
-
-		pseudocount : double, optional
-			A pseudocount to add to the emission of each distribution. This
-			effectively smoothes the states to prevent 0. probability symbols
-			if they don't happen to occur in the data. If discrete data, will
-			smooth both the prior probabilities of each component and the
-			emissions of each component. Otherwise, will only smooth the prior
-			probabilities of each component. Default is 0.
-
-		Returns
-		-------
-		None
-		"""
-
-		if self.d == 0 or self.summaries_ndarray.sum() == 0:
-			return
-
-		self.summaries_ndarray += pseudocount
-		self.summaries_ndarray /= self.summaries_ndarray.sum()
-
-		for i, distribution in enumerate(self.distributions):
-			if isinstance(distribution, DiscreteDistribution):
-				distribution.from_summaries(inertia, pseudocount)
-			else:
-				distribution.from_summaries(inertia, **kwargs)
-			
-			self.weights[i] = _log(self.summaries_ndarray[i])
-			self.summaries_ndarray[i] = 0.
-
-	def clear_summaries(self):
-		self.summaries_ndarray *= 0
-		for distribution in self.distributions:
-			distribution.clear_summaries()
-
 	def to_json(self):
 		separators=(',', ' : ')
 		indent=4
@@ -803,4 +314,125 @@ cdef class GeneralMixtureModel(Model):
 		distributions = [ Distribution.from_json(json.dumps(j))
 		                  for j in d['distributions'] ]
 		model = GeneralMixtureModel(distributions, numpy.array( d['weights'] ))
+		return model
+
+	@classmethod
+	def from_samples(self, distributions, n_components, X, weights=None, 
+		n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0, 
+		stop_threshold=0.1, max_iterations=1e8, pseudocount=0.0, verbose=False):
+		"""Create a mixture model directly from the given dataset.
+
+		First, k-means will be run using the given initializations, in order to
+		define initial clusters for the points. These clusters are used to
+		initialize the distributions used. Then, EM is run to refine the
+		parameters of these distributions.
+
+		A homogenous mixture can be defined by passing in a single distribution
+		callable as the first parameter and specifying the number of components,
+		while a heterogeneous mixture can be defined by passing in a list of
+		callables of the appropriate type.
+
+		Parameters
+		----------
+		distributions : array-like, shape (n_components,) or callable
+			The components of the model. If array, corresponds to the initial
+			distributions of the components. If callable, must also pass in the
+			number of components and kmeans++ will be used to initialize them.
+
+		n_components : int
+			If a callable is passed into distributions then this is the number
+			of components to initialize using the kmeans++ algorithm.
+
+		X : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+			Default is None.
+
+		n_init : int, optional
+			The number of initializations of k-means to do before choosing
+			the best. Default is 1.
+
+		init : str, optional
+			The initialization algorithm to use for the initial k-means
+			clustering. Must be one of 'first-k', 'random', 'kmeans++',
+			or 'kmeans||'. Default is 'kmeans++'.
+
+		max_kmeans_iterations : int, optional
+			The maximum number of iterations to run kmeans for in the
+			initialization step. Default is 1.
+
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be
+			old_param*inertia + new_param*(1-inertia),
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters.
+			Default is 0.0.
+
+		stop_threshold : double, optional, positive
+			The threshold at which EM will terminate for the improvement of
+			the model. If the model does not improve its fit of the data by
+			a log probability of 0.1 then terminate.
+			Default is 0.1.
+
+		max_iterations : int, optional, positive
+			The maximum number of iterations to run EM for. If this limit is
+			hit then it will terminate training, regardless of how well the
+			model is improving per iteration.
+			Default is 1e8.
+
+		pseudocount : double, optional, positive
+            A pseudocount to add to the emission of each distribution. This
+            effectively smoothes the states to prevent 0. probability symbols
+            if they don't happen to occur in the data. Only effects mixture
+            models defined over discrete distributions. Default is 0.
+
+		verbose : bool, optional
+			Whether or not to print out improvement information over
+			iterations.
+			Default is False.
+		"""
+
+		if not callable(distributions) and not isinstance(distributions, list):
+			raise ValueError("must either give initial distributions "
+			                 "or constructor")
+
+		if callable(distributions):
+			if distributions == DiscreteDistribution:
+				raise ValueError("cannot fit a discrete GMM "
+				                 "without pre-initialized distributions")
+			
+			distributions = [distributions for i in range(n_components)]
+
+		else:
+			n_components = len(distributions)
+			if n_components < 2:
+				raise ValueError("must have at least two distributions "
+				                 "for general mixture models")
+
+			for dist in distributions:
+				if not callable(dist):
+					raise ValueError("must pass in uninitialized distributions")
+
+		X = numpy.array(X)
+		n, d = X.shape
+
+		kmeans = Kmeans(n_components, init=init, n_init=n_init)
+		kmeans.fit(X, weights=weights, max_iterations=max_kmeans_iterations)
+		y = kmeans.predict(X)
+
+		print X.shape
+
+		distributions = [distribution.from_samples(X[y == i]) for i, distribution in enumerate(distributions)]
+		class_weights = numpy.array([(y == i).mean() for i in range(n_components)])
+
+		model = GeneralMixtureModel(distributions, class_weights)
+		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold, 
+			max_iterations=max_iterations, pseudocount=pseudocount, 
+			verbose=verbose)
+
 		return model

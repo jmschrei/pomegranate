@@ -333,6 +333,13 @@ cdef class Distribution( Model ):
 			                                     d['frozen']) )
 			return dist
 
+	@classmethod
+	def from_samples(cls, items, weights=None, **kwargs):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		distribution = cls.blank()
+		distribution.fit(items, weights, **kwargs)
+		return distribution
 
 cdef class UniformDistribution( Distribution ):
 	"""A uniform distribution between two values."""
@@ -452,12 +459,8 @@ cdef class UniformDistribution( Distribution ):
 		self.summaries = [INF, NEGINF]
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls(0, 1)
-		d.fit(items, weights)
-		return d
+	def blank(cls):
+		return UniformDistribution(0, 0)
 
 cdef class BernoulliDistribution( Distribution ):
 	"""A Bernoulli distribution describing the probability of a binary variable."""
@@ -540,10 +543,8 @@ cdef class BernoulliDistribution( Distribution ):
 		self.from_summaries(inertia)
 
 	@classmethod
-	def from_samples(self, items, weights=None):
-		d = BernoulliDistribution(0.5)
-		d.fit(items, weights)
-		return d
+	def blank(cls):
+		return BernoulliDistribution(0)
 
 cdef class NormalDistribution( Distribution ):
 	"""
@@ -666,12 +667,8 @@ cdef class NormalDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None, min_std=1e-5 ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls(0, 1)
-		d.fit(items, weights, min_std=min_std)
-		return d
+	def blank(cls):
+		return NormalDistribution(0, 0)
 
 cdef class LogNormalDistribution( Distribution ):
 	"""
@@ -793,12 +790,8 @@ cdef class LogNormalDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None, min_std=1e-5 ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls(0, 1)
-		d.fit(items, weights, min_std=min_std)
-		return d
+	def blank(cls):
+		return LogNormalDistribution(0, 0)
 
 cdef class ExponentialDistribution( Distribution ):
 	"""
@@ -904,12 +897,8 @@ cdef class ExponentialDistribution( Distribution ):
 		self.summaries = [0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls(1)
-		d.fit(items, weights)
-		return d
+	def blank(cls):
+		return ExponentialDistribution(0)
 
 
 cdef class BetaDistribution( Distribution ):
@@ -1026,12 +1015,8 @@ cdef class BetaDistribution( Distribution ):
 		self.summaries = [0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls(1, 1)
-		d.fit(items, weights)
-		return d
+	def blank(cls):
+		return BetaDistribution(0, 0)
 
 
 cdef class GammaDistribution( Distribution ):
@@ -1243,12 +1228,8 @@ cdef class GammaDistribution( Distribution ):
 		self.summaries = [0, 0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls(1)
-		d.fit(items, weights)
-		return d
+	def blank(cls):
+		return GammaDistribution(0, 0)
 
 
 cdef class DiscreteDistribution( Distribution ):
@@ -1548,6 +1529,10 @@ cdef class DiscreteDistribution( Distribution ):
 		d = DiscreteDistribution(symbols)
 		return d
 
+	@classmethod
+	def blank(cls):
+		return DiscreteDistribution({})
+
 
 cdef class PoissonDistribution(Distribution):
 	"""
@@ -1662,12 +1647,9 @@ cdef class PoissonDistribution(Distribution):
 		self.summaries = [0, 0]
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
+	def blank(cls):
+		return PoissonDistribution(0)
 
-		d = cls(0)
-		d.fit(items, weights)
-		return d
 
 cdef class KernelDensity( Distribution ):
 	"""An abstract kernel density, with shared properties and methods."""
@@ -1747,12 +1729,8 @@ cdef class KernelDensity( Distribution ):
 		self.weights = <double*> self.weights_ndarray.data
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls([])
-		d.fit(items, weights)
-		return d
+	def blank(cls):
+		return cls([])
 
 
 cdef class GaussianKernelDensity( KernelDensity ):
@@ -1836,14 +1814,6 @@ cdef class UniformKernelDensity( KernelDensity ):
 			samples = [numpy.random.uniform(mu-band, mu+band) for mu in mus]
 			return numpy.array(samples)
 
-	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls([])
-		d.fit(items, weights)
-		return d
-
 
 cdef class TriangleKernelDensity( KernelDensity ):
 	"""
@@ -1886,14 +1856,6 @@ cdef class TriangleKernelDensity( KernelDensity ):
 			mus = numpy.random.choice( self.parameters[0], n, p=self.parameters[2])
 			samples = [numpy.random.triangular(mu-band, mu+band, mu) for mu in mus]
 			return numpy.array(samples)
-
-	@classmethod
-	def from_samples( cls, items, weights=None ):
-		"""Fit a distribution to some data without pre-specifying it."""
-
-		d = cls([])
-		d.fit(items, weights)
-		return d
 
 cdef class MultivariateDistribution( Distribution ):
 	"""
@@ -2318,13 +2280,18 @@ cdef class MultivariateGaussianDistribution( MultivariateDistribution ):
 		self.w_sum = 0.0
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
+	def from_samples(cls, items, weights=None, **kwargs):
 		"""Fit a distribution to some data without pre-specifying it."""
 
-		n = len(items[0])
-		d = cls( numpy.ones(n), numpy.eye(n) )
-		d.fit(items, weights)
-		return d
+		distribution = cls.blank(items.shape[1])
+		distribution.fit(items, weights, **kwargs)
+		return distribution
+
+	@classmethod
+	def blank(cls, d=2):
+		mu = numpy.zeros(d)
+		cov = numpy.eye(d)
+		return MultivariateGaussianDistribution(mu, cov)
 
 
 cdef class DirichletDistribution( MultivariateDistribution ):
@@ -2427,11 +2394,16 @@ cdef class DirichletDistribution( MultivariateDistribution ):
 		self.from_summaries(inertia, pseudocount)
 
 	@classmethod
-	def from_samples( cls, items, weights=None ):
-		d = len(items[0])
-		dist = DirichletDistribution(numpy.zeros(d))
-		dist.fit(items, weights)
-		return dist
+	def from_samples(cls, items, weights=None, **kwargs):
+		"""Fit a distribution to some data without pre-specifying it."""
+
+		distribution = cls.blank(items.shape[1])
+		distribution.fit(items, weights, **kwargs)
+		return distribution
+
+	@classmethod
+	def blank(cls, d=2):
+		return DirichletDistribution(numpy.zeros(d))
 
 
 cdef class ConditionalProbabilityTable( MultivariateDistribution ):
