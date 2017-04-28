@@ -38,6 +38,11 @@ try:
 except ImportError:
 	pygraphviz = None
 
+try:
+	import pandas as pd
+except:
+	pd = None
+
 if sys.version_info[0] > 2:
 	# Set up for Python 3
 	xrange = range
@@ -531,7 +536,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_nodes)
+		items : array-like, shape (n_samples, n_nodes), pandas.DataFrame
 			Data matrix to impute. Missing values must be either None (if lists)
 			or np.nan (if numpy.ndarray). Will fill in these values with the
 			maximally likely ones.
@@ -542,12 +547,21 @@ cdef class BayesianNetwork( GraphModel ):
 
 		Returns
 		-------
-		items : numpy.ndarray, shape (n_samples, n_nodes)
+		items : numpy.ndarray, shape (n_samples, n_nodes), pandas.DataFrame
 			This is the data matrix with the missing values imputed.
 		"""
 
 		if self.d == 0:
 			raise ValueError("must bake model before using impute")
+
+
+		if pd:
+			if isinstance(items, pd.DataFrame):
+				items_indexes = items.index
+				items_columns = items.columns
+				items = items.values.copy()
+			else:
+				items_indexes = None
 
 		imputations = numpy.copy(items)
 		for i in range(len(items)):
@@ -566,6 +580,10 @@ cdef class BayesianNetwork( GraphModel ):
 
 			for j in range(len(self.states)):
 				imputations[i][j] = imputation[j].mle()
+
+		if pd:
+			if items_indexes is not None:
+				imputations = pd.DataFrame(imputations, columns=items_columns, index=items_indexes)
 
 		return imputations
 
