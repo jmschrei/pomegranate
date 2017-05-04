@@ -1,20 +1,18 @@
 #cython: boundscheck=False
 #cython: cdivision=True
-# NaiveBayes.pyx
+# BayesClassifier.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 import json
 import numpy
 cimport numpy
 
-from .base cimport Model
 from .bayes cimport BayesModel
-from .distributions cimport Distribution
-from .distributions import DiscreteDistribution
-from .distributions import IndependentComponentsDistribution
-from .distributions import MultivariateGaussianDistribution
-from .distributions import DirichletDistribution
+from .distributions import Distribution
 from .gmm import GeneralMixtureModel
+from .hmm import HiddenMarkovModel
+from .BayesianNetwork import BayesianNetwork
+
 from .utils import _convert
 
 from joblib import Parallel
@@ -23,18 +21,17 @@ from joblib import delayed
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
-cdef class NaiveBayes(BayesModel):
-	"""A naive Bayes model, a supervised alternative to GMM.
-
-	A naive Bayes classifier, that treats each dimension independently from
-	each other. This is a simpler version of the Bayes Classifier, that can
-	use any distribution with any covariance structure, including Bayesian
-	networks and hidden Markov models.
+cdef class BayesClassifier(BayesModel):
+	"""A Naive Bayes model, a supervised alternative to GMM.
 
 	Parameters
 	----------
-	models : list
-		A list of initialized distributions.
+	models : list or constructor
+		Must either be a list of initialized distribution/model objects, or
+		the constructor for a distribution object:
+
+		* Initialized : NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
+		* Constructor : NaiveBayes(NormalDistribution)
 
 	weights : list or numpy.ndarray or None, default None
 		The prior probabilities of the components. If None is passed in then
@@ -51,23 +48,24 @@ cdef class NaiveBayes(BayesModel):
 	Examples
 	--------
 	>>> from pomegranate import *
+	>>> clf = NaiveBayes( NormalDistribution )
 	>>> X = [0, 2, 0, 1, 0, 5, 6, 5, 7, 6]
 	>>> y = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1]
-	>>> clf = NaiveBayes.from_samples(NormalDistribution, X, y)
+	>>> clf.fit(X, y)
 	>>> clf.predict_proba([6])
-	array([[0.01973451,  0.98026549]])
+	array([[ 0.01973451,  0.98026549]])
 
 	>>> from pomegranate import *
 	>>> clf = NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
 	>>> clf.predict_log_proba([[0], [1], [2], [-1]])
 	array([[-1.1836569 , -0.36550972],
 		   [-0.79437677, -0.60122959],
-		   [-0.26751248, -1.4493653],
+		   [-0.26751248, -1.4493653 ],
 		   [-1.09861229, -0.40546511]])
 	"""
 
 	def __init__(self, distributions, weights=None):
-		super(NaiveBayes, self).__init__(distributions, weights)
+		super(BayesClassifier, self).__init__(distributions, weights)
 
 	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
@@ -113,7 +111,7 @@ cdef class NaiveBayes(BayesModel):
 		self.from_summaries(inertia, pseudocount)
 		return self
 
-	def summarize(self, X, y, weights=None, n_jobs=1):
+	def summarize( self, X, y, weights=None, n_jobs=1 ):
 		"""Summarize data into stored sufficient statistics for out-of-core training.
 
 		Parameters
@@ -140,54 +138,63 @@ cdef class NaiveBayes(BayesModel):
 		X = _convert(X)
 		y = _convert(y)
 
-		if X.ndim == 2 and self.d != X.shape[1]:
-			raise ValueError("input data rows do not match model dimension")
-		elif X.ndim == 1 and self.d > 1:
-			raise ValueError("input data rows do not match model dimension")
+		if self.d > 0 and not isinstance( self.distributions[0], HiddenMarkovModel ):
+			if X.ndim > 2:
+				raise ValueError("input data has too many dimensions")
+			elif X.ndim == 2 and self.d != X.shape[1]:
+				raise ValueError("input data rows do not match model dimension")
 
 		if weights is None:
 			weights = numpy.ones(X.shape[0], dtype='float64') / X.shape[0]
 		else:
 			weights = numpy.array(weights, dtype='float64') / numpy.sum(weights)
 
-		delay = delayed(lambda model, x, weights: model.summarize(x, weights), check_pickle=False)
-		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-			parallel(delay(self.distributions[i], X[y==i], weights[y==i]) for i in range(self.n))
+		if self.is_vl_:
+			for i in range(self.n):
+				self.distributions[i].fit( list(X[y==i]), weights=weights[y==i], n_jobs=n_jobs )
+		else:
+			delay = delayed(lambda model, x, weights: model.summarize(x, weights), check_pickle=False)
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				parallel( delay(self.distributions[i], X[y==i], weights[y==i]) for i in range(self.n) )
 
 		for i in range(self.n):
 			self.summaries[i] += weights[y == i].sum()
 
-	def to_json(self, separators=(',', ' : '), indent=4):
+	def to_json( self, separators=(',', ' : '), indent=4 ):
 		if self.d == 0:
 			raise ValueError("must fit components to the data before prediction")
 
-		nb = {
-			'class' : 'NaiveBayes',
-			'models' : [json.loads(model.to_json()) for model in self.distributions],
+		model = {
+			'class' : 'BayesClassifier',
+			'models' : [ json.loads( model.to_json() ) for model in self.distributions ],
 			'weights' : self.weights.tolist()
 		}
 
-		return json.dumps(nb, separators=separators, indent=indent)
+		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_json(cls, s):
+	def from_json( cls, s ):
 		try:
-			d = json.loads(s)
+			d = json.loads( s )
 		except:
 			try:
-				with open(s, 'r') as f:
-					d = json.load(f)
+				with open( s, 'r' ) as f:
+					d = json.load( f )
 			except:
 				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
 		models = list()
 		for j in d['models']:
 			if j['class'] == 'Distribution':
-				models.append(Distribution.from_json(json.dumps(j)))
+				models.append( Distribution.from_json( json.dumps(j) ) )
 			elif j['class'] == 'GeneralMixtureModel':
-				models.append(GeneralMixtureModel.from_json(json.dumps(j)))
+				models.append( GeneralMixtureModel.from_json( json.dumps(j) ) )
+			elif j['class'] == 'HiddenMarkovModel':
+				models.append( HiddenMarkovModel.from_json( json.dumps(j) ) )
+			elif j['class'] == 'BayesianNetwork':
+				models.append( BayesianNetwork.from_json( json.dumps(j) ) )
 
-		nb = NaiveBayes(models, numpy.array(d['weights']))
+		nb = BayesClassifier( models, numpy.array( d['weights'] ) )
 		return nb
 
 	@classmethod
@@ -237,16 +244,10 @@ cdef class NaiveBayes(BayesModel):
 			The fit naive Bayes model.
 		"""
 
-		ICD = IndependentComponentsDistribution
-		if distributions in (MultivariateGaussianDistribution, DirichletDistribution):
-			raise ValueError("naive Bayes only supports independent features. Use BayesClassifier instead")
-		elif isinstance(distributions, (list, numpy.ndarray, tuple)):
+		if isinstance(distributions, (list, numpy.ndarray, tuple)):
 			for distribution in distributions:
 				if not callable(distribution):
 					raise ValueError("must pass in class constructors, not initiated distributions (i.e. NormalDistribution)")
-				elif distribution in (MultivariateGaussianDistribution, DirichletDistribution):
-					raise ValueError("naive Bayes only supported independent features. Use BayesClassifier instead")
-
 
 		X = numpy.array(X)
 		y = numpy.array(y)
@@ -255,12 +256,12 @@ cdef class NaiveBayes(BayesModel):
 		n_components = numpy.unique(y).shape[0]
 		if callable(distributions):
 			if d > 1:
-				distributions = [ICD([distributions.blank() for j in range(d)]) for i in range(n_components)]
+				distributions = [distributions.blank(d) for i in range(n_components)]
 			else:
-				distributions = [distributions.blank() for i in range(n_components)]
+				distributions = [distribution.blank() for i in range(n_components)]
 		else:
-			distributions = [ICD([distribution.blank() for distribution in distributions]) for i in range(n_components)]
+			distributions = [distribution.blank() for distribution in distributions]
 
-		model = NaiveBayes(distributions)
+		model = BayesClassifier(distributions)
 		model.fit(X, y, weights=weights, pseudocount=pseudocount, n_jobs=n_jobs)
 		return model

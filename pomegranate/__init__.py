@@ -35,16 +35,20 @@ elif os.name == 'posix':
 
     pyximport.install()
 
-from .hmm import *
-from .kmeans import *
-from .BayesianNetwork import *
-from .FactorGraph import *
-from .fsm import *
-from .distributions import *
 from .base import *
-from .gmm import *
-from .NaiveBayes import *
-from .MarkovChain import *
 from .parallel import *
+
+from .distributions import *
+from .kmeans import Kmeans
+from .gmm import GeneralMixtureModel
+from .NaiveBayes import NaiveBayes
+from .BayesClassifier import BayesClassifier
+from .MarkovChain import MarkovChain
+from .hmm import HiddenMarkovModel
+from .BayesianNetwork import BayesianNetwork
+from .FactorGraph import FactorGraph
+from .fsm import FiniteStateMachine
+
+
 
 __version__ = '0.7.0'
