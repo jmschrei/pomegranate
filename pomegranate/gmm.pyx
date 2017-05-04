@@ -425,8 +425,6 @@ cdef class GeneralMixtureModel(BayesModel):
 		kmeans.fit(X, weights=weights, max_iterations=max_kmeans_iterations)
 		y = kmeans.predict(X)
 
-		print X.shape
-
 		distributions = [distribution.from_samples(X[y == i]) for i, distribution in enumerate(distributions)]
 		class_weights = numpy.array([(y == i).mean() for i in range(n_components)])
 

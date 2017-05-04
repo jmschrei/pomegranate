@@ -57,7 +57,7 @@ def test_constructors():
 
 @with_setup(setup_univariate, teardown)
 def test_univariate_log_proba():
-	logs = model.predict_log_proba(np.array([ 5, 3, 1, -1 ]))
+	logs = model.predict_log_proba(np.array([[5], [3], [1], [-1]]))
 
 	assert_almost_equal(logs[0][0], -0.40634848776410526)
 	assert_almost_equal(logs[0][1], -1.0968478669939319)
@@ -73,7 +73,7 @@ def test_univariate_log_proba():
 
 @with_setup(setup_univariate, teardown)
 def test_univariate_proba():
-	probs = model.predict_proba(np.array([ 5, 3, 1, -1 ]))
+	probs = model.predict_proba(np.array([[5], [3], [1], [-1]]))
 
 	assert_almost_equal(probs[0][0], 0.66607800693933361)
 	assert_almost_equal(probs[0][1], 0.33392199306066628)
@@ -89,7 +89,7 @@ def test_univariate_proba():
 
 @with_setup(setup_univariate, teardown)
 def test_univariate_prediction():
-	predicts = model.predict(np.array([ 5, 3, 1, -1 ]))
+	predicts = model.predict(np.array([[5], [3], [1], [-1]]))
 
 	assert_equal(predicts[0], 0)
 	assert_equal(predicts[1], 0)
@@ -112,7 +112,7 @@ def test_univariate_fit():
 
 	model.fit(X, y)
 
-	data = np.array([5, 3, 1, -1])
+	data = np.array([[5], [3], [1], [-1]])
 
 	# test univariate log probabilities
 	logs = model.predict_log_proba(data)
@@ -149,20 +149,20 @@ def test_univariate_fit():
 @with_setup(setup_univariate, teardown)
 def test_raise_errors():
 	# check raises no errors when converting values
-	model.predict_log_proba(5)
-	model.predict_log_proba(4.5)
-	model.predict_log_proba([5, 6])
-	model.predict_log_proba(np.array([5, 6]) )
+	model.predict_log_proba([[5]])
+	model.predict_log_proba([[4.5]])
+	model.predict_log_proba([[5], [6]])
+	model.predict_log_proba(np.array([[5], [6]]) )
 
-	model.predict_proba(5)
-	model.predict_proba(4.5)
-	model.predict_proba([5, 6])
-	model.predict_proba(np.array([5, 6]))
+	model.predict_proba([[5]])
+	model.predict_proba([[4.5]])
+	model.predict_proba([[5], [6]])
+	model.predict_proba(np.array([[5], [6]]))
 
-	model.predict(5)
-	model.predict(4.5)
-	model.predict([5, 6])
-	model.predict(np.array([5, 6]))
+	model.predict([[5]])
+	model.predict([[4.5]])
+	model.predict([[5], [6]])
+	model.predict(np.array([[5], [6]]))
 
 @with_setup(setup_univariate, teardown)
 def test_pickling():

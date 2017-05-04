@@ -1987,10 +1987,13 @@ cdef class IndependentComponentsDistribution( MultivariateDistribution ):
 		items, weights = weight_set(items, weights)
 		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
+		#cdef int n = items.shape[0]
 
-		with nogil:
-			self._summarize(items_ptr, weights_ptr, n)
+		#with nogil:
+		#	self._summarize(items_ptr, weights_ptr, n)
+
+		for j, distribution in enumerate(self.distributions):
+			distribution.summarize(items[:,j], weights)
 
 	cdef double _summarize( self, double* items, double* weights, SIZE_t n ) nogil:
 		cdef SIZE_t i, j, d = self.d

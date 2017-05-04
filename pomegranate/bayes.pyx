@@ -92,7 +92,9 @@ cdef class BayesModel(Model):
 		self.summaries_ptr = <double*> self.summaries.data
 
 		dist = distributions[0]
-		if isinstance(dist, DiscreteDistribution) and self.is_vl_ == 0:
+		if self.is_vl_ == 1:
+			pass
+		elif isinstance(dist, DiscreteDistribution):
 			keys = []
 			for distribution in distributions:
 				keys.extend(distribution.keys())
@@ -100,7 +102,7 @@ cdef class BayesModel(Model):
 			for distribution in distributions:
 				distribution.bake(tuple(set(keys)))
 
-		elif isinstance(dist, IndependentComponentsDistribution) and self.is_vl_ == 0:
+		elif isinstance(dist, IndependentComponentsDistribution) and dist.discrete:
 			self.keymap = []
 			for i in range(self.d):
 				if isinstance(distributions[i], DiscreteDistribution):
@@ -174,10 +176,7 @@ cdef class BayesModel(Model):
 
 		cdef int i, j, n, d, m
 
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "log_probability method.")
-		elif self.is_vl_ or self.d == 1:
+		if self.is_vl_ or self.d == 1:
 			n, d = len(X), self.d
 		elif self.d > 1 and X.ndim == 1:
 			n, d = 1, len(X)
@@ -194,7 +193,7 @@ cdef class BayesModel(Model):
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
 			if d != self.d:
-				raise ValueError("sample ohas {} dimensions but model has {} dimensions".format(d, self.d))
+				raise ValueError("sample has {} dimensions but model has {} dimensions".format(d, self.d))
 
 		with nogil:
 			for i in range(n):
@@ -232,6 +231,15 @@ cdef class BayesModel(Model):
 
 		return log_probability_sum
 
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+		cdef int i, j, d = self.d
+
+		for i in range(n):
+			if d > 1:
+				log_probability[i] = (<Model> self)._mv_log_probability(X+i*d) + self.weights_ptr[j]
+			else:
+				log_probability[i] = (<Model> self)._log_probability(X[i]) + self.weights_ptr[j]
+
 	cdef double _vl_log_probability(self, double* X, int n) nogil:
 		cdef int i
 		cdef double log_probability_sum = NEGINF
@@ -267,10 +275,6 @@ cdef class BayesModel(Model):
 			probability that the sample was generated from each component.
 		"""
 
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "predict_proba method.")
-
 		return numpy.exp(self.predict_log_proba(X))
 
 	def predict_log_proba(self, X):
@@ -303,24 +307,15 @@ cdef class BayesModel(Model):
 		cdef numpy.ndarray y
 		cdef double* y_ptr
 
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "predict method.")
-
 		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
-		else:
-			X_ndarray = X
-
-		if self.is_vl_:
-			n, d = len(X_ndarray), self.d
-		elif self.d == 1:
-			n, d = len(X_ndarray[0]), 1
-		else:
-			n, d = len(X_ndarray), len(X_ndarray[0])
+			n, d = X_ndarray.shape[0], X_ndarray.shape[1]
 			if d != self.d:
 				raise ValueError("sample only has {} dimensions but should have {} dimensions".format(d, self.d))
+		else:
+			X_ndarray = X
+			n, d = len(X_ndarray), self.d
 
 		y = numpy.zeros((n, self.n), dtype='float64')
 		y_ptr = <double*> y.data
@@ -342,21 +337,18 @@ cdef class BayesModel(Model):
 						d = len(X_ndarray)
 
 					self._predict_log_proba(X_ptr, y_ptr+i*self.n, 1, d)
-		
+
 		return y if self.is_vl_ else y.reshape(self.n, n).T
 
-	cdef void _predict_log_proba(self, double* X, double* y,
-	                             int n, int d) nogil:
+	cdef void _predict_log_proba(self, double* X, double* y, int n, int d) nogil:
 		cdef double y_sum, logp
 		cdef int i, j
 
 		for j in range(self.n):
 			if self.is_vl_:
-				y[j] = (<Model> self.distributions_ptr[j]) \
-					._vl_log_probability(X, d)
+				y[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
 			else:
-				(<Model> self.distributions_ptr[j]) \
-					._v_log_probability(X, y+j*n, n)
+				(<Model> self.distributions_ptr[j])._v_log_probability(X, y+j*n, n)
 
 		for i in range(n):
 			y_sum = NEGINF
@@ -397,24 +389,16 @@ cdef class BayesModel(Model):
 		cdef numpy.ndarray y
 		cdef int* y_ptr
 
-		if self.d == 0:
-			raise ValueError("must first fit model before using "
-			                 "predict method.")
-
 		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
-		else:
-			X_ndarray = X
-
-		if self.is_vl_:
-			n, d = len(X_ndarray), self.d
-		elif self.d == 1:
-			n, d = len(X_ndarray[0]), 1
-		else:
 			n, d = len(X_ndarray), len(X_ndarray[0])
 			if d != self.d:
 				raise ValueError("sample only has {} dimensions but should have {} dimensions".format(d, self.d))
+		else:
+			X_ndarray = X
+			n, d = len(X_ndarray), self.d
+
 
 		y = numpy.zeros(n, dtype='int32')
 		y_ptr = <int*> y.data
@@ -440,11 +424,9 @@ cdef class BayesModel(Model):
 
 		for j in range(self.n):
 			if self.is_vl_:
-				r[j] = (<Model> self.distributions_ptr[j]) \
-					._vl_log_probability(X, d)
+				r[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
 			else:
-				(<Model> self.distributions_ptr[j]) \
-					._v_log_probability(X, r+j*n, n)
+				(<Model> self.distributions_ptr[j])._v_log_probability(X, r+j*n, n)
 
 		for i in range(n):
 			max_logp = NEGINF
@@ -547,7 +529,7 @@ cdef class BayesModel(Model):
 		None
 		"""
 
-		if self.d == 0 or self.summaries.sum() == 0:
+		if self.summaries.sum() == 0:
 			return
 
 		self.summaries += pseudocount

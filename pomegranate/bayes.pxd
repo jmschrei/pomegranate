@@ -16,7 +16,7 @@ cdef class BayesModel(Model):
 	cdef double* summaries_ptr
 	
 	cdef object keymap
-	cdef int n
+	cdef public int n
 	cdef public bint is_vl_
 
 	cdef double _log_probability(self, double X) nogil

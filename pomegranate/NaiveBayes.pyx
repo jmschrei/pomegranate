@@ -259,7 +259,7 @@ cdef class NaiveBayes(BayesModel):
 			else:
 				distributions = [distributions.blank() for i in range(n_components)]
 		else:
-			distributions = [distribution.blank() for distribution in distributions]
+			distributions = [ICD([distribution.blank() for distribution in distributions]) for i in range(n_components)]
 
 		model = NaiveBayes(distributions)
 		model.fit(X, y, weights=weights, pseudocount=pseudocount, n_jobs=n_jobs)
