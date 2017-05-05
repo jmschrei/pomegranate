@@ -2368,14 +2368,16 @@ cdef class HiddenMarkovModel(GraphModel):
         return log_probability_sum, path
 
     def fit(self, sequences, weights=None, labels=None, stop_threshold=1E-9, min_iterations=0,
-        max_iterations=1e8, algorithm='baum-welch', verbose=True, pseudocount=None,
+        max_iterations=1e8, algorithm='baum-welch', verbose=False, pseudocount=None,
         transition_pseudocount=0, emission_pseudocount=0.0, use_pseudocount=False, 
         inertia=None, edge_inertia=0.0, distribution_inertia=0.0, n_jobs=1):
-        """Fit the model to data using either Baum-Welch or Viterbi training.
+        """Fit the model to data using either Baum-Welch, Viterbi, or supervised training.
 
         Given a list of sequences, performs re-estimation on the model
-        parameters. The two supported algorithms are "baum-welch" and
-        "viterbi," indicating their respective algorithm.
+        parameters. The two supported algorithms are "baum-welch", "viterbi",
+        and "labeled", indicating their respective algorithm. "labeled" 
+        corresponds to supervised learning that requires passing in a matching
+        list of labels for each symbol seen in the sequences.
 
         Training supports a wide variety of other options including using
         edge pseudocounts and either edge or distribution inertia.
@@ -2486,7 +2488,7 @@ cdef class HiddenMarkovModel(GraphModel):
             X.append(sequence_ndarray)
 
         if labels:
-            labels = numpy.array(labels)
+            labels = numpy.array(labels) 
 
         if weights is None:
             weights = numpy.ones(len(X), dtype='float64')
@@ -3278,17 +3280,116 @@ cdef class HiddenMarkovModel(GraphModel):
     @classmethod
     def from_samples(cls, distribution, n_components, X, weights=None, 
         labels=None, stop_threshold=1e-9, min_iterations=0, 
-        max_iterations=1e8, algorithm='baum-welch', verbose=True, n_init=1, 
+        max_iterations=1e8, algorithm='baum-welch', verbose=False, n_init=1, 
         init='kmeans++', max_kmeans_iterations=1, pseudocount=None, 
         transition_pseudocount=0, emission_pseudocount=0.0, 
         use_pseudocount=False, inertia=None, edge_inertia=0.0, 
         distribution_inertia=0.0, n_jobs=1):
-        """Learn the structure of a HMM directly from data.
+        """Learn the transitions and emissions of a model directly from data.
 
-        derp. 
+        This method will learn both the transition matrix, emission distributions,
+        and start probabilities for each state. This will only return a dense
+        graph without any silent states or explicit transitions to an end state.
+        Currently all components must be defined as the same distribution, but
+        soon this restriction will be removed.
+
+        If learning a multinomial HMM over discrete characters, the initial
+        emisison probabilities are initialized randomly. If learning a
+        continuous valued HMM, such as a Gaussian HMM, then kmeans clustering
+        is used first to identify initial clusters.
+
+        Regardless of the type of model, the transition matrix and start
+        probabilities are initialized uniformly. Then the specified learning
+        algorithm (Baum-Welch recommended) is used to refine the parameters
+        of the model.
 
         Parameters
         ----------
+        distributions : callable
+            The emission distribution of the components of the model.
+
+        n_components : int
+            The number of states (or components) to initialize.
+
+        X : array-like
+            An array of some sort (list, numpy.ndarray, tuple..) of sequences,
+            where each sequence is a numpy array, which is 1 dimensional if
+            the HMM is a one dimensional array, or multidimensional if the HMM
+            supports multiple dimensions.
+
+        weights : array-like or None, optional
+            An array of weights, one for each sequence to train on. If None,
+            all sequences are equaly weighted. Default is None.
+
+        labels : array-like or None, optional
+            An array of state labels for each sequence. This is only used in
+            'labeled' training. If used this must be comprised of n lists where
+            n is the number of sequences to train on, and each of those lists
+            must have one label per observation. Default is None.
+
+        stop_threshold : double, optional
+            The threshold the improvement ratio of the models log probability
+            in fitting the scores. Default is 1e-9.
+
+        min_iterations : int, optional
+            The minimum number of iterations to run Baum-Welch training for.
+            Default is 0.
+
+        max_iterations : int, optional
+            The maximum number of iterations to run Baum-Welch training for.
+            Default is 1e8.
+
+        algorithm : 'baum-welch', 'viterbi', 'labeled'
+            The training algorithm to use. Baum-Welch uses the forward-backward
+            algorithm to train using a version of structured EM. Viterbi
+            iteratively runs the sequences through the Viterbi algorithm and
+            then uses hard assignments of observations to states using that.
+            Default is 'baum-welch'. Labeled training requires that labels
+            are provided for each observation in each sequence.
+
+        verbose : bool, optional
+            Whether to print the improvement in the model fitting at each
+            iteration. Default is True.
+
+        pseudocount : double, optional
+            A pseudocount to add to both transitions and emissions. If supplied,
+            it will override both transition_pseudocount and emission_pseudocount
+            in the same way that specifying `inertia` will override both 
+            `edge_inertia` and `distribution_inertia`. Default is None.
+
+        transition_pseudocount : double, optional
+            A pseudocount to add to all transitions to add a prior to the
+            MLE estimate of the transition probability. Default is 0.
+
+        emission_pseudocount : double, optional
+            A pseudocount to add to the emission of each distribution. This
+            effectively smoothes the states to prevent 0. probability symbols
+            if they don't happen to occur in the data. Only effects hidden
+            Markov models defined over discrete distributions. Default is 0.
+
+        use_pseudocount : bool, optional
+            Whether to use the pseudocounts defined in the `add_edge` method
+            for edge-specific pseudocounts when updating the transition
+            probability parameters. Does not effect the `transition_pseudocount`
+            and `emission_pseudocount` parameters, but can be used in addition
+            to them. Default is False.
+
+        inertia : double or None, optional, range [0, 1]
+            If double, will set both edge_inertia and distribution_inertia to
+            be that value. If None, will not override those values. Default is
+            None.
+
+        edge_inertia : bool, optional, range [0, 1]
+            Whether to use inertia when updating the transition probability
+            parameters. Default is 0.0.
+
+        distribution_inertia : double, optional, range [0, 1]
+            Whether to use inertia when updating the distribution parameters.
+            Default is 0.0.
+
+        n_jobs : int, optional
+            The number of threads to use when performing training. This
+            leads to exact updates. Default is 1.
 
         Returns
         -------
@@ -3297,18 +3398,30 @@ cdef class HiddenMarkovModel(GraphModel):
         """
 
 
-        X = _check_input(X)
         X_concat = numpy.concatenate(X)
-        clf = Kmeans(n_components)
-        clf.fit(X_concat)
-        y = clf.predict(X_concat)
+        if X_concat.ndim == 1:
+            X_concat = X_concat.reshape(X_concat.shape[0], 1)
 
-        distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+        if distribution is DiscreteDistribution:
+            keymap = numpy.unique(X_concat)
+
+            distributions = []
+            for i in range(n_components):
+                emissions = numpy.random.uniform(0, 1, len(keymap))
+                emissions /= emissions.sum()
+
+                distribution = DiscreteDistribution({key: value for key, value in zip(keymap, emissions)})
+                distributions.append(distribution)
+        else:
+            clf = Kmeans(n_components, init=init, n_init=n_init)
+            clf.fit(X_concat, weights, max_iterations=max_kmeans_iterations)
+            y = clf.predict(X_concat)
+
+            distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+        
         transition_matrix = numpy.ones((n_components, n_components)) / n_components
         start_probabilities = numpy.ones(n_components) / n_components
-
         model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities)
-
 
         model.fit(X, weights, labels, stop_threshold, min_iterations,
             max_iterations, algorithm, verbose, pseudocount, 
