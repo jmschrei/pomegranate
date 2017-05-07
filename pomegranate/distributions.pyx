@@ -140,13 +140,13 @@ cdef class Distribution(Model):
 
 		return self.__class__(*self.parameters)
 
-	def log_probability(self, symbol):
-		"""Return the log probability of the given symbol under this distribution.
+	def log_probability(self, X):
+		"""Return the log probability of the given X under this distribution.
 
 		Parameters
 		----------
-		symbol : double
-			The symbol to calculate the log probability of (overriden for
+		X : double
+			The X to calculate the log probability of (overriden for
 			DiscreteDistributions)
 
 		Returns
@@ -163,15 +163,15 @@ cdef class Distribution(Model):
 		cdef double* logp_ptr
 
 
-		if isinstance(symbol, (int, float)):
-			logp = self._log_probability(symbol)
+		if isinstance(X, (int, float)):
+			logp = self._log_probability(X)
 			return logp
 		else:
-			n = len(symbol)
+			n = len(X)
 			logp_array = numpy.empty(n, dtype='float64')
 			logp_ptr = <double*> logp_array.data
 
-			X_ndarray = numpy.array(symbol, dtype='float64')
+			X_ndarray = numpy.array(X, dtype='float64')
 			X_ptr = <double*> X_ndarray.data
 
 			self._v_log_probability(X_ptr, logp_ptr, n)
@@ -385,15 +385,15 @@ cdef class UniformDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.start, self.end, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			if symbol[i] >= self.start and symbol[i] <= self.end:
+			if X[i] >= self.start and X[i] <= self.end:
 				log_probability[i] = self.logp
 			else:
 				log_probability[i] = NEGINF
@@ -506,15 +506,15 @@ cdef class BernoulliDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.p, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = self.logp[<int> symbol[i]]
+			log_probability[i] = self.logp[<int> X[i]]
 
 	def sample(self, n=None):
 		return numpy.random.choice(2, p=[1-self.p, self.p], size=n)
@@ -593,15 +593,15 @@ cdef class NormalDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = self.log_sigma_sqrt_2_pi - ((symbol[i] - self.mu) ** 2) /\
+			log_probability[i] = self.log_sigma_sqrt_2_pi - ((X[i] - self.mu) ** 2) /\
 				self.two_sigma_squared
 
 	def sample(self, n=None):
@@ -715,16 +715,16 @@ cdef class LogNormalDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = -_log(symbol[i] * self.sigma * SQRT_2_PI) \
-				- 0.5 * ((_log(symbol[i]) - self.mu) / self.sigma) ** 2			
+			log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) \
+				- 0.5 * ((_log(X[i]) - self.mu) / self.sigma) ** 2			
 
 	def sample(self, n=None):
 		"""Return a sample from this distribution."""
@@ -837,15 +837,15 @@ cdef class ExponentialDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.rate, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = self.log_rate - self.rate * symbol[i]
+			log_probability[i] = self.log_rate - self.rate * X[i]
 
 	def sample(self, n=None):
 		return numpy.random.exponential(1. / self.parameters[0], n)
@@ -949,20 +949,20 @@ cdef class BetaDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
 		cdef double beta_norm = self.beta_norm
 		cdef int i
 
 		for i in range(n):
-			log_probability[i] = beta_norm + (alpha-1)*_log(symbol[i]) + \
-				(beta-1)*_log(1-symbol[i])
+			log_probability[i] = beta_norm + (alpha-1)*_log(X[i]) + \
+				(beta-1)*_log(1-X[i])
 
 	def sample(self, n=None):
 		"""Return a random sample from the beta distribution."""
@@ -1067,19 +1067,19 @@ cdef class GammaDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
 		cdef int i
 
 		for i in range(n):
 			log_probability[i] = (_log(beta) * alpha - lgamma(alpha) + 
-				_log(symbol[i]) * (alpha - 1) - beta * symbol[i])
+				_log(X[i]) * (alpha - 1) - beta * X[i])
 
 	def sample(self, n=None):
 		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1])
@@ -1380,26 +1380,26 @@ cdef class DiscreteDistribution(Distribution):
 			self.encoded_counts[i] = 0
 			self.encoded_log_probability[i] = self.log_dist.get(key, NEGINF)
 
-	def log_probability(self, symbol):
-		"""Return the log prob of the symbol under this distribution."""
+	def log_probability(self, X):
+		"""Return the log prob of the X under this distribution."""
 
-		return self.__log_probability(symbol)
+		return self.__log_probability(X)
 
-	cdef double __log_probability(self, symbol):
-		return self.log_dist.get(symbol, NEGINF)
+	cdef double __log_probability(self, X):
+		return self.log_dist.get(X, NEGINF)
 
-	cdef public double _log_probability(self, double symbol) nogil:
+	cdef public double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			if symbol[i] < 0 or symbol[i] > self.n:
+			if X[i] < 0 or X[i] > self.n:
 				log_probability[i] = NEGINF
 			else:
-				log_probability[i] = self.encoded_log_probability[<int> symbol[i]]
+				log_probability[i] = self.encoded_log_probability[<int> X[i]]
 
 	def sample(self, n=None):
 		if n is None:
@@ -1528,22 +1528,22 @@ cdef class DiscreteDistribution(Distribution):
 		if weights is None:
 			weights = numpy.ones(len(items))
 
-		symbols = {}
+		Xs = {}
 		total = 0
 
-		for symbol, weight in izip(items, weights):
+		for X, weight in izip(items, weights):
 			total += weight
-			if symbol in symbols:
-				symbols[symbol] += weight
+			if X in Xs:
+				Xs[X] += weight
 			else:
-				symbols[symbol] = weight
+				Xs[X] = weight
 
-		n = len(symbols)
+		n = len(Xs)
 
-		for symbol, weight in symbols.items():
-			symbols[symbol] = (weight + pseudocount) / (total + pseudocount * n)
+		for X, weight in Xs.items():
+			Xs[X] = (weight + pseudocount) / (total + pseudocount * n)
 
-		d = DiscreteDistribution(symbols)
+		d = DiscreteDistribution(Xs)
 		return d
 
 	@classmethod
@@ -1575,24 +1575,24 @@ cdef class PoissonDistribution(Distribution):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.l, self.frozen)
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double f
 		cdef int i, j
 
 		for i in range(n):
 			f = 1.0
 
-			if symbol[i] < 0 or self.l == 0:
+			if X[i] < 0 or self.l == 0:
 				log_probability[i] = NEGINF
-			elif symbol[i] > 0:
-				for j in range(2, <int>symbol[i] + 1):
+			elif X[i] > 0:
+				for j in range(2, <int>X[i] + 1):
 					f *= j
-				log_probability[i] = symbol[i] * self.logl - self.l - _log(f)
+				log_probability[i] = X[i] * self.logl - self.l - _log(f)
 
 	def sample(self, n=None):
 		return numpy.random.poisson(self.l, n)
@@ -1760,12 +1760,12 @@ cdef class GaussianKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "GaussianKernelDensity"
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
 		cdef int i, j
 
@@ -1775,7 +1775,7 @@ cdef class GaussianKernelDensity(KernelDensity):
 			for j in range(self.n):
 				mu = self.points[j]
 				w = self.weights[j]
-				prob += w * scalar * cexp(-0.5*((mu-symbol[i]) / b) ** 2)
+				prob += w * scalar * cexp(-0.5*((mu-X[i]) / b) ** 2)
 
 			log_probability[i] = _log(prob)
 
@@ -1800,12 +1800,12 @@ cdef class UniformKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "UniformKernelDensity"
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
 		cdef int i, j
 
@@ -1816,7 +1816,7 @@ cdef class UniformKernelDensity(KernelDensity):
 				mu = self.points[j]
 				w = self.weights[j]
 
-				if fabs(mu - symbol[i]) <= b:
+				if fabs(mu - X[i]) <= b:
 					prob += w
 
 			log_probability[i] = _log(prob)
@@ -1842,12 +1842,12 @@ cdef class TriangleKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "TriangleKernelDensity"
 
-	cdef double _log_probability(self, double symbol) nogil:
+	cdef double _log_probability(self, double X) nogil:
 		cdef double logp
-		self._v_log_probability(&symbol, &logp, 1)
+		self._v_log_probability(&X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob
 		cdef double hinge, b = self.bandwidth
 		cdef int i, j
@@ -1858,7 +1858,7 @@ cdef class TriangleKernelDensity(KernelDensity):
 			for j in range(self.n):
 				mu = self.points[j]
 				w = self.weights[j]
-				hinge = b - fabs(mu - symbol[i])
+				hinge = b - fabs(mu - X[i])
 				if hinge > 0:
 					prob += hinge * w
 
@@ -1879,12 +1879,12 @@ cdef class MultivariateDistribution(Distribution):
 	An object to easily identify multivariate distributions such as tables.
 	"""
 
-	def log_probability(self, symbol):
-		"""Return the log probability of the given symbol under this distribution.
+	def log_probability(self, X):
+		"""Return the log probability of the given X under this distribution.
 
 		Parameters
 		----------
-		symbol : list or numpy.ndarray
+		X : list or numpy.ndarray
 			The point or points to calculate the log probability of. If one
 			point is passed in, then it will return a single log probability.
 			If a vector of points is passed in, then it will return a vector
@@ -1908,17 +1908,17 @@ cdef class MultivariateDistribution(Distribution):
 		cdef double* logp_ptr
 
 
-		if isinstance(symbol[0], (int, float)) or len(symbol) == 1:
-			X_ndarray = numpy.array(symbol, dtype='float64')
+		if isinstance(X[0], (int, float)) or len(X) == 1:
+			X_ndarray = numpy.array(X, dtype='float64')
 			X_ptr = <double*> X_ndarray.data
 			logp = self._mv_log_probability(X_ptr)
 			return logp
 		else:
-			n = len(symbol)
+			n = len(X)
 			logp_array = numpy.empty(n, dtype='float64')
 			logp_ptr = <double*> logp_array.data
 
-			X_ndarray = numpy.array(symbol, dtype='float64')
+			X_ndarray = numpy.array(X, dtype='float64')
 			X_ptr = <double*> X_ndarray.data
 
 			self._v_log_probability(X_ptr, logp_ptr, n)
@@ -1976,60 +1976,60 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 			if isinstance(distribution, DiscreteDistribution):
 				distribution.bake(keys[i])
 
-	def log_probability(self, symbol):
+	def log_probability(self, X):
 		"""
 		What's the probability of a given tuple under this mixture? It's the
-		product of the probabilities of each symbol in the tuple under their
+		product of the probabilities of each X in the tuple under their
 		respective distribution, which is the sum of the log probabilities.
 		"""
 
 		cdef int i, j, n
-		cdef numpy.ndarray symbol_ndarray
-		cdef double* symbol_ptr
+		cdef numpy.ndarray X_ndarray
+		cdef double* X_ptr
 		cdef double logp
 		cdef numpy.ndarray logp_array
 		cdef double* logp_ptr
 
 		if self.discrete:
-			if not isinstance(symbol[0], (list, numpy.ndarray)) or len(symbol) == 1:
+			if not isinstance(X[0], (list, numpy.ndarray)) or len(X) == 1:
 				logp = 0
 				for i in range(self.d):
-					logp += self.distributions[i].log_probability(symbol[i]) + self.weights[i]
+					logp += self.distributions[i].log_probability(X[i]) + self.weights[i]
 				return logp
 
 			else:
-				n = len(symbol)
+				n = len(X)
 				logp_array = numpy.zeros(n)
 				for i in range(n):
 					for j in range(self.d):
-						logp_array[i] += self.distributions[j].log_probability(symbol[i][j]) + self.weights[j]
+						logp_array[i] += self.distributions[j].log_probability(X[i][j]) + self.weights[j]
 				return logp_array
 
 		else:
-			symbol_ndarray = numpy.array(symbol, dtype='float64')
-			symbol_ptr = <double*> symbol_ndarray.data
+			X_ndarray = numpy.array(X, dtype='float64')
+			X_ptr = <double*> X_ndarray.data
 
-			if isinstance(symbol[0], (int, float)) or len(symbol[0]) == 1:
+			if isinstance(X[0], (int, float)) or len(X[0]) == 1:
 				with nogil:
-					logp = self._mv_log_probability(symbol_ptr)
+					logp = self._mv_log_probability(X_ptr)
 				return logp
 			else:
-				n = len(symbol)
+				n = len(X)
 				logp_array = numpy.empty(n, dtype='float64')
 				logp_ptr = <double*> logp_array.data
 
 				with nogil:
-					self._v_log_probability(symbol_ptr, logp_ptr, n)
+					self._v_log_probability(X_ptr, logp_ptr, n)
 
 				return logp_array
 
 
-	cdef double _mv_log_probability(self, double* symbol) nogil:
+	cdef double _mv_log_probability(self, double* X) nogil:
 		cdef double logp
-		self._v_log_probability(symbol, &logp, 1)
+		self._v_log_probability(X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, d = self.d
 		cdef double logp
 
@@ -2037,7 +2037,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 			logp = 0.0
 
 			for j in range(d):
-				logp += (<Model> self.distributions_ptr[j])._log_probability(symbol[i*d+j])
+				logp += (<Model> self.distributions_ptr[j])._log_probability(X[i*d+j])
 				logp += self.weights_ptr[j]	
 
 			log_probability[i] = logp
@@ -2194,19 +2194,19 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		free(self.pair_sum)
 
 
-	cdef double _mv_log_probability(self, double* symbol) nogil:
+	cdef double _mv_log_probability(self, double* X) nogil:
 		"""Cython optimized function for log probability calculation."""
 
 		cdef SIZE_t i, j, d = self.d
 		cdef double logp
-		self._v_log_probability(symbol, &logp, 1)
+		self._v_log_probability(X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* logp, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* logp, int n) nogil:
 		cdef int i, j, d = self.d
 
 		cdef double* dot = <double*> calloc(n*d, sizeof(double))
-		mdot(symbol, self._inv_cov, dot, n, d, d)
+		mdot(X, self._inv_cov, dot, n, d, d)
 
 		for i in range(n):
 			logp[i] = 0
@@ -2394,12 +2394,12 @@ cdef class DirichletDistribution(MultivariateDistribution):
 		self.summaries_ndarray = numpy.zeros(self.d, dtype='float64')
 		self.summaries_ptr = <double*> self.summaries_ndarray.data
 
-	cdef double _mv_log_probability(self, double* symbol) nogil:
+	cdef double _mv_log_probability(self, double* X) nogil:
 		cdef double logp
-		self._v_log_probability(symbol, &logp, 1)
+		self._v_log_probability(X, &logp, 1)
 		return logp
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, d = self.d
 		cdef double logp
 
@@ -2407,7 +2407,7 @@ cdef class DirichletDistribution(MultivariateDistribution):
 			log_probability[i] = self.beta_norm
 
 			for j in range(d):
-				log_probability[i] += self.alphas_ptr[j] * _log(symbol[i*d + j])
+				log_probability[i] += self.alphas_ptr[j] * _log(X[i*d + j])
 
 	def sample(self, n=None):
 		return numpy.random.dirichlet(self.alphas, n)
@@ -2600,30 +2600,30 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			if values_[i] > a:
 				return keys[idxs[i]][-1]
 
-	def log_probability(self, symbol):
+	def log_probability(self, X):
 		"""
 		Return the log probability of a value, which is a tuple in proper
 		ordering, like the training data.
 		"""
 
-		idx = self.keymap[tuple(symbol)]
+		idx = self.keymap[tuple(X)]
 		return self.values[idx]
 
-	cdef double _mv_log_probability(self, double* symbol) nogil:
+	cdef double _mv_log_probability(self, double* X) nogil:
 		cdef int i, idx = 0
 
 		for i in range(self.m+1):
-			idx += self.idxs[i] * <int> symbol[self.m-i]
+			idx += self.idxs[i] * <int> X[self.m-i]
 
 		return self.values[idx]
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
 			idx = 0
 			for j in range(self.m+1):
-				idx += self.idxs[j] * <int> symbol[self.m-j]
+				idx += self.idxs[j] * <int> X[self.m-j]
 
 			log_probability[i] = self.values[idx]
 
@@ -2887,30 +2887,30 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 	def keys(self):
 		return tuple(set(row[-1] for row in self.parameters[2].keys()))
 
-	def log_probability(self, symbol):
+	def log_probability(self, X):
 		"""
 		Return the log probability of a value, which is a tuple in proper
 		ordering, like the training data.
 		"""
 
-		key = self.keymap[tuple(symbol)]
+		key = self.keymap[tuple(X)]
 		return self.values[key]
 
-	cdef double _mv_log_probability(self, double* symbol) nogil:
+	cdef double _mv_log_probability(self, double* X) nogil:
 		cdef int i, idx = 0
 
 		for i in range(self.m+1):
-			idx += self.idxs[i] * <int> symbol[self.m-i]
+			idx += self.idxs[i] * <int> X[self.m-i]
 
 		return self.values[idx]
 
-	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil:
+	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
 			idx = 0
 			for j in range(self.m+1):
-				idx += self.idxs[j] * <int> symbol[self.m-j]
+				idx += self.idxs[j] * <int> X[self.m-j]
 
 			log_probability[i] = self.values[idx]
 
