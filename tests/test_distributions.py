@@ -12,6 +12,7 @@ from pomegranate import (Distribution,
 						 TriangleKernelDensity,
 						 UniformKernelDensity,
 						 IndependentComponentsDistribution,
+						 MultivariateGaussianDistribution,
 						 ConditionalProbabilityTable,
 						 BernoulliDistribution)
 
@@ -21,8 +22,7 @@ from nose.tools import assert_equal
 from nose.tools import assert_not_equal
 from nose.tools import assert_less_equal
 import pickle
-import numpy as np
-
+import numpy
 
 def setup():
 	'''
@@ -74,6 +74,7 @@ def test_normal():
 
 	d = NormalDistribution(5, 1e-10)
 	assert_almost_equal(d.log_probability(1e100), -4.9999999999999994e+219)
+
 
 	d.fit([0, 2, 3, 2, 100], weights=[0, 5, 2, 3, 200])
 	assert_equal(round(d.parameters[0], 4), 95.3429)
@@ -127,7 +128,7 @@ def test_uniform():
 	assert_equal(d.log_probability(-0.0001), float("-inf"))
 
 	for i in range(10):
-		data = np.random.randn(100) * 100
+		data = numpy.random.randn(100) * 100
 		d.fit(data)
 		assert_equal(d.parameters[0], data.min())
 		assert_equal(d.parameters[1], data.max())
@@ -593,7 +594,7 @@ def test_independent():
 	assert_equal(f.parameters[0][1].parameters[0], -2.5)
 	assert_equal(f.parameters[0][1].parameters[1], 15)
 
-	X = np.array([[0.5, 0.2, 0.7],
+	X = numpy.array([[0.5, 0.2, 0.7],
 		          [0.3, 0.1, 0.9],
 		          [0.4, 0.3, 0.8],
 		          [0.3, 0.3, 0.9],
@@ -710,3 +711,29 @@ def test_monty():
 				 monty.log_probability(('B', 'A', 'C')))
 	assert_equal(monty.log_probability(('B', 'B', 'A')), float("-inf"))
 	assert_equal(monty.log_probability(('C', 'C', 'B')), float("-inf"))
+
+def test_univariate_log_probability():
+	distributions = [UniformDistribution, NormalDistribution, ExponentialDistribution,
+					 GammaDistribution, LogNormalDistribution]
+	X = numpy.abs(numpy.random.randn(100))
+
+	for distribution in distributions:
+		d = distribution.from_samples(X)
+		logp = d.log_probability(X)
+
+		for i in range(100):
+			assert_almost_equal(d.log_probability(X[i]), logp[i])
+
+def test_multivariate_log_probability():
+	X = numpy.random.randn(100, 5)
+	
+	d = MultivariateGaussianDistribution.from_samples(X)
+	logp = d.log_probability(X)
+	for i in range(100):
+		assert_almost_equal(d.log_probability(X[i]), logp[i])
+
+	d = IndependentComponentsDistribution.from_samples(X, distributions=NormalDistribution)
+	logp = d.log_probability(X)
+	for i in range(100):
+		assert_almost_equal(d.log_probability(X[i]), logp[i])
+
