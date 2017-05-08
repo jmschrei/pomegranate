@@ -46,12 +46,5 @@ script:
 - python setup.py test
 after_success:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then python setup.py bdist_wheel fi
-deploy:
-  provider: releases
-  api_key:
-    secure: MwOvWR12meTyIxkNuaSPw2TFDPAsCYgUix/5wkRhumYDxHoy/+tAF608SEu14Y6Xj5mEef91jBH7/kEoAnQy65rofu7DJINEt11Ce/FngZWz8+xpbD/vB/quE6HOASi40M1GwqwbmvwYsV8xrqKrGk7AkapuNwQMEQV2G6OvBmg4TaxOehp0yLYinna083LyYya2PIXvX72siEou2ocSc40YIVrhJSR4sFF2+jwEYthT7ECOWNRNoruS4fHcmNJqgYIdZM7tpDKiBeeMb2cO6MwvBy4SQFtkJ97RkjQH8wwTB0aR9uV6SI26cuA5WycDZClED+X4xk9yyZVTvKndZi+hAldUjgPqydehqbc2BYxQp4/pcpVRFY4DJjXqtFn934PnAbDeBLwLSQ6QESICjNM2Lx+23proiFS8BoeokyguzG2LqL8eyfDpK8hF33T2INj0YlvN49nki5CPLLJs5YeJIkFTi40fpQdk92kPdwuOMIHSm83xBqUt84ffUV1Ln7tarGLTYDoUcEUPMeiF6MY5SKSD5AfK+Age0SH1oNMNsPU32na2wSbIce1sGjAv7Y48PjFPBg7SF5eaESsPfmRdMEG2BtvySdUPP+gXijO+SfGrKvZWSsuHQfWrl3tVkOpyERHGPzRhwCvEwpcxORjIf+2gIFFo0j///nrqx98=
-  file: dist/*.whl
-  file_glob: true
-  skip_cleanup: true
-  on:
-    tags: true
+# deploy:
+# This is where you can deploy to PyPI
