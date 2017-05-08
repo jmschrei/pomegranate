@@ -162,19 +162,19 @@ cdef class Distribution(Model):
 		cdef double* X_ptr
 		cdef double* logp_ptr
 
+		n = 1 if isinstance(X, (int, float)) else len(X)
 
-		if isinstance(X, (int, float)):
-			logp = self._log_probability(X)
-			return logp
+		logp_array = numpy.empty(n, dtype='float64')
+		logp_ptr = <double*> logp_array.data
+
+		X_ndarray = numpy.array(X, dtype='float64')
+		X_ptr = <double*> X_ndarray.data
+
+		self._log_probability(X_ptr, logp_ptr, n)
+
+		if n == 1:
+			return logp_array[0]
 		else:
-			n = len(X)
-			logp_array = numpy.empty(n, dtype='float64')
-			logp_ptr = <double*> logp_array.data
-
-			X_ndarray = numpy.array(X, dtype='float64')
-			X_ptr = <double*> X_ndarray.data
-
-			self._v_log_probability(X_ptr, logp_ptr, n)
 			return logp_array
 
 	def summarize(self, items, weights=None):
@@ -210,8 +210,7 @@ cdef class Distribution(Model):
 
 			self.summaries = [items, weights]
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
-
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
 		pass
 
 	def from_summaries(self, inertia=0.0):
@@ -385,12 +384,7 @@ cdef class UniformDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.start, self.end, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			if X[i] >= self.start and X[i] <= self.end:
@@ -428,12 +422,12 @@ cdef class UniformDistribution(Distribution):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = items.shape[0]
 
 		with nogil:
 			self._summarize(items_p, weights_p, n)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
 		cdef double minimum = INF, maximum = NEGINF
 		cdef double weight = 0.0
 		cdef int i
@@ -506,12 +500,7 @@ cdef class BernoulliDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.p, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = self.logp[<int> X[i]]
@@ -526,13 +515,13 @@ cdef class BernoulliDistribution(Distribution):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = items.shape[0]
 
 		with nogil:
 			self._summarize(items_p, weights_p, n)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
-		cdef SIZE_t i
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+		cdef int i
 		cdef double w_sum = 0, x_sum = 0
 
 		for i in range(n):
@@ -593,12 +582,7 @@ cdef class NormalDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = self.log_sigma_sqrt_2_pi - ((X[i] - self.mu) ** 2) /\
@@ -620,8 +604,8 @@ cdef class NormalDistribution(Distribution):
 		self.summarize(items, weights)
 		self.from_summaries(inertia, min_std)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
-		cdef SIZE_t i
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+		cdef int i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 
 		for i in range(n):
@@ -646,7 +630,7 @@ cdef class NormalDistribution(Distribution):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = items.shape[0]
 
 		with nogil:
 			self._summarize(items_p, weights_p, n)
@@ -715,12 +699,7 @@ cdef class LogNormalDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) \
@@ -743,10 +722,10 @@ cdef class LogNormalDistribution(Distribution):
 		self.summarize(items, weights)
 		self.from_summaries(inertia, min_std)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 
-		cdef SIZE_t i
+		cdef int i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 		cdef double log_item
 
@@ -773,7 +752,7 @@ cdef class LogNormalDistribution(Distribution):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = items.shape[0]
 
 		with nogil:
 			self._summarize(items_p, weights_p, n)
@@ -837,12 +816,7 @@ cdef class ExponentialDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.rate, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = self.log_rate - self.rate * X[i]
@@ -873,16 +847,16 @@ cdef class ExponentialDistribution(Distribution):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = items.shape[0]
 
 		with nogil:
 			self._summarize(items_p, weights_p, n)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
 		"""Cython function to get the MLE estimate for an exponential."""
 
 		cdef double xw_sum = 0, w = 0
-		cdef SIZE_t i
+		cdef int i
 
 		# Calculate the average, which is the MLE mu estimate
 		for i in range(n):
@@ -949,12 +923,7 @@ cdef class BetaDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
 		cdef double beta_norm = self.beta_norm
@@ -991,16 +960,16 @@ cdef class BetaDistribution(Distribution):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = items.shape[0]
 
 		with nogil:
 			self._summarize(items_p, weights_p, n)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
 		"""Cython optimized function for summarizing some data."""
 
 		cdef double alpha = 0, beta = 0
-		cdef SIZE_t i
+		cdef int i
 
 		for i in range(n):
 			if items[i] == 1:
@@ -1067,12 +1036,7 @@ cdef class GammaDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
 		cdef int i
@@ -1388,12 +1352,7 @@ cdef class DiscreteDistribution(Distribution):
 	cdef double __log_probability(self, X):
 		return self.log_dist.get(X, NEGINF)
 
-	cdef public double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			if X[i] < 0 or X[i] > self.n:
@@ -1439,7 +1398,7 @@ cdef class DiscreteDistribution(Distribution):
 		for i in xrange(len(items)):
 			characters[items[i]] += weights[i]
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
 		cdef int i
 		self.encoded_summary = 1
 
@@ -1447,7 +1406,7 @@ cdef class DiscreteDistribution(Distribution):
 		memset(encoded_counts, 0, self.n*sizeof(double))
 
 		for i in range(n):
-			encoded_counts[<SIZE_t> items[i]] += weights[i]
+			encoded_counts[<int> items[i]] += weights[i]
 
 		with gil:
 			for i in range(self.n):
@@ -1575,12 +1534,7 @@ cdef class PoissonDistribution(Distribution):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.l, self.frozen)
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double f
 		cdef int i, j
 
@@ -1622,12 +1576,12 @@ cdef class PoissonDistribution(Distribution):
 
 		cdef double* items_p = <double*> (<numpy.ndarray> items).data
 		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = items.shape[0]
 
 		with nogil:
 			self._summarize(items_p, weights_p, n)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n) nogil:
 		"""Cython optimized function to calculate the summary statistics."""
 
 		cdef double x_sum = 0.0, w_sum = 0.0
@@ -1760,12 +1714,7 @@ cdef class GaussianKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "GaussianKernelDensity"
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
 		cdef int i, j
 
@@ -1800,12 +1749,7 @@ cdef class UniformKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "UniformKernelDensity"
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
 		cdef int i, j
 
@@ -1842,12 +1786,7 @@ cdef class TriangleKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "TriangleKernelDensity"
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef double logp
-		self._v_log_probability(&X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob
 		cdef double hinge, b = self.bandwidth
 		cdef int i, j
@@ -1901,27 +1840,31 @@ cdef class MultivariateDistribution(Distribution):
 		"""
 
 		cdef int i, n
-		cdef double logp
 		cdef numpy.ndarray logp_array
 		cdef numpy.ndarray X_ndarray
 		cdef double* X_ptr
 		cdef double* logp_ptr
 
-
 		if isinstance(X[0], (int, float)) or len(X) == 1:
-			X_ndarray = numpy.array(X, dtype='float64')
-			X_ptr = <double*> X_ndarray.data
-			logp = self._mv_log_probability(X_ptr)
-			return logp
+			n = 1
 		else:
 			n = len(X)
-			logp_array = numpy.empty(n, dtype='float64')
-			logp_ptr = <double*> logp_array.data
 
-			X_ndarray = numpy.array(X, dtype='float64')
-			X_ptr = <double*> X_ndarray.data
+		X_ndarray = numpy.array(X, dtype='float64')
+		X_ptr = <double*> X_ndarray.data
 
-			self._v_log_probability(X_ptr, logp_ptr, n)
+		logp_array = numpy.empty(n, dtype='float64')
+		logp_ptr = <double*> logp_array.data
+
+		X_ndarray = numpy.array(X, dtype='float64')
+		X_ptr = <double*> X_ndarray.data
+
+		with nogil:
+			self._log_probability(X_ptr, logp_ptr, n)
+		
+		if n == 1:
+			return logp_array[0]
+		else:
 			return logp_array
 
 cdef class IndependentComponentsDistribution(MultivariateDistribution):
@@ -1958,11 +1901,10 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		self.discrete = isinstance(distributions[0], DiscreteDistribution)
 
 		if weights is not None:
-			weights = numpy.array(weights, dtype=numpy.float64)
+			self.weights = numpy.array(weights, dtype=numpy.float64)
 		else:
-			weights = numpy.ones(self.d, dtype=numpy.float64)
+			self.weights = numpy.ones(self.d, dtype=numpy.float64)
 
-		self.weights = numpy.log(weights)
 		self.weights_ptr = <double*> self.weights.data
 		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
@@ -1991,56 +1933,51 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		cdef double* logp_ptr
 
 		if self.discrete:
-			if not isinstance(X[0], (list, numpy.ndarray)) or len(X) == 1:
-				logp = 0
-				for i in range(self.d):
-					logp += self.distributions[i].log_probability(X[i]) + self.weights[i]
-				return logp
-
+			if not isinstance(X[0], (list, tuple, numpy.ndarray)) or len(X) == 1:
+				n = 1
 			else:
 				n = len(X)
-				logp_array = numpy.zeros(n)
-				for i in range(n):
-					for j in range(self.d):
-						logp_array[i] += self.distributions[j].log_probability(X[i][j]) + self.weights[j]
+
+			logp_array = numpy.zeros(n)
+			for i in range(n):
+				for j in range(self.d):
+					logp_array[i] += self.distributions[j].log_probability(X[i][j]) * self.weights[j]
+
+			if n == 1:
+				return logp_array[0]
+			else:
 				return logp_array
 
 		else:
+			if isinstance(X[0], (int, float)) or len(X) == 1:
+				n = 1
+			else:
+				n = len(X)
+
 			X_ndarray = numpy.array(X, dtype='float64')
 			X_ptr = <double*> X_ndarray.data
 
-			if isinstance(X[0], (int, float)) or len(X[0]) == 1:
-				with nogil:
-					logp = self._mv_log_probability(X_ptr)
-				return logp
+			logp_array = numpy.empty(n, dtype='float64')
+			logp_ptr = <double*> logp_array.data
+
+			with nogil:
+				self._log_probability(X_ptr, logp_ptr, n)
+
+			if n == 1:
+				return logp_array[0]
 			else:
-				n = len(X)
-				logp_array = numpy.empty(n, dtype='float64')
-				logp_ptr = <double*> logp_array.data
-
-				with nogil:
-					self._v_log_probability(X_ptr, logp_ptr, n)
-
 				return logp_array
 
-
-	cdef double _mv_log_probability(self, double* X) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
+		cdef int i, j
 		cdef double logp
-		self._v_log_probability(X, &logp, 1)
-		return logp
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
-		cdef int i, j, d = self.d
-		cdef double logp
+		memset(log_probability, 0, n*sizeof(double))
 
 		for i in range(n):
-			logp = 0.0
-
-			for j in range(d):
-				logp += (<Model> self.distributions_ptr[j])._log_probability(X[i*d+j])
-				logp += self.weights_ptr[j]	
-
-			log_probability[i] = logp
+			for j in range(self.d):
+				(<Model> self.distributions_ptr[j])._log_probability(X+i*self.d+j, &logp, 1)
+				log_probability[i] += logp * self.weights_ptr[j]
 
 	def sample(self, n=None):
 		if n is None:
@@ -2048,7 +1985,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		else:
 			return numpy.array([self.sample() for i in range(n)])
 
-	def fit(self, items, weights=None, inertia=0, pseudocount=0.0):
+	def fit(self, X, weights=None, inertia=0, pseudocount=0.0):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -2058,34 +1995,30 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		if self.frozen:
 			return
 
-		self.summarize(items, weights)
+		self.summarize(X, weights)
 		self.from_summaries(inertia, pseudocount)
 
-	def summarize(self, items, weights=None):
+	def summarize(self, X, weights=None):
 		"""
 		Take in an array of items and reduce it down to summary statistics. For
 		a multivariate distribution, this involves just passing the appropriate
 		data down to the appropriate distributions.
 		"""
 
-		items, weights = weight_set(items, weights)
-		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		X, weights = weight_set(X, weights)
+		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
-		#cdef int n = items.shape[0]
-
-		#with nogil:
-		#	self._summarize(items_ptr, weights_ptr, n)
 
 		for j, distribution in enumerate(self.distributions):
-			distribution.summarize(items[:,j], weights)
+			distribution.summarize(X[:,j], weights)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
-		cdef SIZE_t i, j, d = self.d
+	cdef double _summarize(self, double* X, double* weights, int n) nogil:
+		cdef int i, j, d = self.d
 		cdef double logp = 0.0
 
 		for i in range(n):
 			for j in range(d):
-				(<Model> self.distributions_ptr[j])._summarize(items+i*d+j, weights+i, 1)
+				(<Model> self.distributions_ptr[j])._summarize(X+i*d+j, weights+i, 1)
 
 	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""
@@ -2121,20 +2054,20 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 						   }, separators=separators, indent=indent)
 
 	@classmethod
-	def from_samples(self, items, weights=None, distribution_weights=None, 
+	def from_samples(self, X, weights=None, distribution_weights=None, 
 		pseudocount=0.0, distributions=None):
 		"""Create a new independent components distribution from data."""
 
 		if distributions is None:
 			raise ValueError("must pass in a list of distribution callables")
 
-		items, weights = weight_set(items, weights)
-		n, d = items.shape
+		X, weights = weight_set(X, weights)
+		n, d = X.shape
 
 		if callable(distributions):
-			distributions = [distributions.from_samples(items[:,i], weights) for i in range(d)]
+			distributions = [distributions.from_samples(X[:,i], weights) for i in range(d)]
 		else:
-			distributions = [distributions[i].from_samples(items[:,i], weights) for i in range(d)]
+			distributions = [distributions[i].from_samples(X[:,i], weights) for i in range(d)]
 
 		return IndependentComponentsDistribution(distributions, distribution_weights)
 
@@ -2193,16 +2126,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		free(self.column_sum)
 		free(self.pair_sum)
 
-
-	cdef double _mv_log_probability(self, double* X) nogil:
-		"""Cython optimized function for log probability calculation."""
-
-		cdef SIZE_t i, j, d = self.d
-		cdef double logp
-		self._v_log_probability(X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* logp, int n) nogil:
+	cdef void _log_probability(self, double* X, double* logp, int n) nogil:
 		cdef int i, j, d = self.d
 
 		cdef double* dot = <double*> calloc(n*d, sizeof(double))
@@ -2218,15 +2142,10 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		free(dot)
 
 	def sample(self, n=None):
-		"""
-		Sample from the mixture. First, choose a distribution to sample from
-		according to the weights, then sample from that distribution.
-		"""
-
 		return numpy.random.multivariate_normal(self.parameters[0],
 			self.parameters[1], n)
 
-	def fit(self, items, weights=None, inertia=0):
+	def fit(self, X, weights=None, inertia=0):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -2236,39 +2155,38 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		if self.frozen:
 			return
 
-		self.summarize(items, weights)
+		self.summarize(X, weights)
 		self.from_summaries(inertia)
 
-	def summarize(self, items, weights=None):
+	def summarize(self, X, weights=None):
 		"""
 		Take in a series of items and their weights and reduce it down to a
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set(items, weights)
+		X, weights = weight_set(X, weights)
 
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
+		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
 
-		cdef SIZE_t n = items.shape[0]
-		d = items.shape[1]
+		cdef int n = X.shape[0], d = X.shape[1]
 
 		if self.d != d:
 			raise ValueError("trying to fit data with {} dimensions to distribution \
 				with {} distributions".format(d, self.d))
 
 		with nogil:
-			self._summarize(items_p, weights_p, n)
+			self._summarize(X_ptr, weights_ptr, n)
 
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* X, double* weights, int n) nogil:
 		"""Calculate sufficient statistics for a minibatch.
 
 		The sufficient statistics for a multivariate gaussian update is the sum of
 		each column, and the sum of the outer products of the vectors.
 		"""
 
-		cdef SIZE_t i, j, k, d = self.d
+		cdef int i, j, k, d = self.d
 		cdef double w_sum = 0.0
 		cdef double* column_sum = <double*> calloc(d, sizeof(double))
 		cdef double* pair_sum = <double*> calloc(d*d, sizeof(double))
@@ -2285,10 +2203,10 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 			w_sum += weights[i]
 
 			for j in range(d):
-				y[i*d + j] = items[i*d + j] * weights[i]
+				y[i*d + j] = X[i*d + j] * weights[i]
 				column_sum[j] += y[i*d + j]
 
-		dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, items, &d, &beta, pair_sum, &d)
+		dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, X, &d, &beta, pair_sum, &d)
 
 		with gil:
 			self.w_sum += w_sum
@@ -2314,7 +2232,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		if self.frozen == True or self.w_sum < 1e-7:
 			return
 
-		cdef SIZE_t d = self.d, i, j, k
+		cdef int d = self.d, i, j, k
 		cdef double* column_sum = self.column_sum
 		cdef double* pair_sum = self.pair_sum
 		cdef double* u = self._mu_new
@@ -2358,11 +2276,11 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		self.w_sum = 0.0
 
 	@classmethod
-	def from_samples(cls, items, weights=None, **kwargs):
+	def from_samples(cls, X, weights=None, **kwargs):
 		"""Fit a distribution to some data without pre-specifying it."""
 
-		distribution = cls.blank(items.shape[1])
-		distribution.fit(items, weights, **kwargs)
+		distribution = cls.blank(X.shape[1])
+		distribution.fit(X, weights, **kwargs)
 		return distribution
 
 	@classmethod
@@ -2394,12 +2312,7 @@ cdef class DirichletDistribution(MultivariateDistribution):
 		self.summaries_ndarray = numpy.zeros(self.d, dtype='float64')
 		self.summaries_ptr = <double*> self.summaries_ndarray.data
 
-	cdef double _mv_log_probability(self, double* X) nogil:
-		cdef double logp
-		self._v_log_probability(X, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, d = self.d
 		cdef double logp
 
@@ -2412,23 +2325,23 @@ cdef class DirichletDistribution(MultivariateDistribution):
 	def sample(self, n=None):
 		return numpy.random.dirichlet(self.alphas, n)
 
-	def summarize(self, items, weights=None):
+	def summarize(self, X, weights=None):
 		"""
 		Take in a series of items and their weights and reduce it down to a
 		summary statistic to be used in training later.
 		"""
 
-		items, weights = weight_set(items, weights)
+		X, weights = weight_set(X, weights)
 
-		cdef double* items_ptr = <double*> (<numpy.ndarray> items).data
+		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
 
-		cdef SIZE_t n = items.shape[0]
+		cdef int n = X.shape[0]
 
 		with nogil:
-			self._summarize(items_ptr, weights_ptr, n)
+			self._summarize(X_ptr, weights_ptr, n)
 
-	cdef double _summarize(self, double* items, double* weights, SIZE_t n) nogil:
+	cdef double _summarize(self, double* X, double* weights, int n) nogil:
 		"""Calculate sufficient statistics for a minibatch.
 
 		The sufficient statistics for a dirichlet distribution is just the
@@ -2439,7 +2352,7 @@ cdef class DirichletDistribution(MultivariateDistribution):
 
 		for i in range(n):
 			for j in range(d):
-				self.summaries_ptr[j] += items[i*d + j] * weights[i]
+				self.summaries_ptr[j] += X[i*d + j] * weights[i]
 
 	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""Update the internal parameters of the distribution."""
@@ -2458,16 +2371,16 @@ cdef class DirichletDistribution(MultivariateDistribution):
 	def clear_summaries(self):
 		self.summaries_ndarray *= 0
 
-	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
-		self.summarize(items, weights)
+	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0):
+		self.summarize(X, weights)
 		self.from_summaries(inertia, pseudocount)
 
 	@classmethod
-	def from_samples(cls, items, weights=None, **kwargs):
+	def from_samples(cls, X, weights=None, **kwargs):
 		"""Fit a distribution to some data without pre-specifying it."""
 
-		distribution = cls.blank(items.shape[1])
-		distribution.fit(items, weights, **kwargs)
+		distribution = cls.blank(X.shape[1])
+		distribution.fit(X, weights, **kwargs)
 		return distribution
 
 	@classmethod
@@ -2609,15 +2522,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		idx = self.keymap[tuple(X)]
 		return self.values[idx]
 
-	cdef double _mv_log_probability(self, double* X) nogil:
-		cdef int i, idx = 0
-
-		for i in range(self.m+1):
-			idx += self.idxs[i] * <int> X[self.m-i]
-
-		return self.values[idx]
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
@@ -2896,15 +2801,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		key = self.keymap[tuple(X)]
 		return self.values[key]
 
-	cdef double _mv_log_probability(self, double* X) nogil:
-		cdef int i, idx = 0
-
-		for i in range(self.m+1):
-			idx += self.idxs[i] * <int> X[self.m-i]
-
-		return self.values[idx]
-
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):

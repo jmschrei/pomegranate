@@ -325,12 +325,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 		return logp
 
-	cdef double _mv_log_probability(self, double* symbol) nogil:
-		cdef double logp
-		self._v_log_probability(symbol, &logp, 1)
-		return logp
-
-	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
+	cdef void _log_probability( self, double* symbol, double* log_probability, int n ) nogil:
 		cdef int i, j, l, li, k
 		cdef double logp
 		cdef double* sym = <double*> calloc(self.d, sizeof(double))
@@ -346,7 +341,7 @@ cdef class BayesianNetwork( GraphModel ):
 					k = l - self.parent_count[j]
 					sym[k] = symbol[i*self.d + li]
 
-				(<Model> self.distributions_ptr[j])._v_log_probability(sym, &logp, 1)
+				(<Model> self.distributions_ptr[j])._log_probability(sym, &logp, 1)
 				log_probability[i] += logp
 
 
