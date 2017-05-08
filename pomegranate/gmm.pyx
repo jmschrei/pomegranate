@@ -262,11 +262,9 @@ cdef class GeneralMixtureModel(BayesModel):
 
 		for j in range(self.n):
 			if self.is_vl_:
-				r[j*n] = (<Model> self.distributions_ptr[j]) \
-					._vl_log_probability(X, n)
+				r[j*n] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, n)
 			else:
-				(<Model> self.distributions_ptr[j]) \
-					._v_log_probability(X, r+j*n, n)
+				(<Model> self.distributions_ptr[j])._log_probability(X, r+j*n, n)
 
 		for i in range(n):
 			total = NEGINF
