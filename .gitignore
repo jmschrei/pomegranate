@@ -6,3 +6,7 @@
 build
 *.so
 .idea/
+dist/
+.eggs/
+*.egg-info/
+*.pyd

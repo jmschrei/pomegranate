@@ -1,35 +1,50 @@
-# Travis file provided by conda
-
 language: python
-python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-
+matrix:
+  include:
+  - os: osx
+    language: generic
+    env: PYTHON=2.7
+  - os: osx
+    language: generic
+    env: PYTHON=3.4
+  - os: osx
+    language: generic
+    env: PYTHON=3.5
+  - os: osx
+    language: generic
+    env: PYTHON=3.6
+  - os: linux
+    language: generic
+    env: PYTHON=2.7
+  - os: linux
+    language: generic
+    env: PYTHON=3.4
+  - os: linux
+    language: generic
+    env: PYTHON=3.5
+  - os: linux
+    language: generic
+    env: PYTHON=3.6
+before_install:
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then if [[ "$PYTHON" == "2.7" ]]; then wget
+  http://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh -O miniconda.sh;
+  else wget http://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+  -O miniconda.sh; fi else if [[ "$PYTHON" == "2.7" ]]; then wget http://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+  -O miniconda.sh; else wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  -O miniconda.sh; fi fi
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+- conda info -a
+- conda create -q -n test-environment python=$PYTHON numpy scipy
+- source activate test-environment
+- pip install -r dev-requirements.txt
 install:
-  - sudo apt-get update
-
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  # Useful for debugging any issues with conda
-  - conda info -a
-
-  # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION cython numpy scipy nose networkx
-  - source activate test-environment
-  - pip install joblib
-  - python setup.py install
-
-script: nosetests -s -v
+- python setup.py install
+script:
+- python setup.py test
+after_success:
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then python setup.py bdist_wheel fi
+# deploy:
+# This is where you can deploy to PyPI
