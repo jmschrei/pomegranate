@@ -258,7 +258,7 @@ cdef class Model(object):
 		"""Clear the summary statistics stored in the object."""
 		return NotImplementedError
 
-	cdef void _v_log_probability( self, double* symbol,
+	cdef void _log_probability( self, double* symbol,
 								  double* log_probability, int n ) nogil:
 		pass
 

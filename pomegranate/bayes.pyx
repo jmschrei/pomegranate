@@ -203,20 +203,20 @@ cdef class BayesModel(Model):
 						X_ptr = <double*> X_ndarray.data
 					logp[i] = self._vl_log_probability(X_ptr, n)
 			else:
-				self._v_log_probability(X_ptr, logp, n)
+				self._log_probability(X_ptr, logp, n)
 
 		return logp_ndarray
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, d = self.d
 		cdef double* logp = <double*> calloc(n, sizeof(double))
 
-		(<Model> self.distributions_ptr[0])._v_log_probability(X, log_probability, n)
+		(<Model> self.distributions_ptr[0])._log_probability(X, log_probability, n)
 		for i in range(n):
 			log_probability[i] += self.weights_ptr[0]
 
 		for j in range(1, self.n):
-			(<Model> self.distributions_ptr[j])._v_log_probability(X, logp, n)
+			(<Model> self.distributions_ptr[j])._log_probability(X, logp, n)
 			for i in range(n):
 				log_probability[i] = pair_lse(log_probability[i], logp[i] + self.weights_ptr[j])
 
@@ -328,7 +328,7 @@ cdef class BayesModel(Model):
 			if self.is_vl_:
 				y[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
 			else:
-				(<Model> self.distributions_ptr[j])._v_log_probability(X, y+j*n, n)
+				(<Model> self.distributions_ptr[j])._log_probability(X, y+j*n, n)
 
 		for i in range(n):
 			y_sum = NEGINF
@@ -406,7 +406,7 @@ cdef class BayesModel(Model):
 			if self.is_vl_:
 				r[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
 			else:
-				(<Model> self.distributions_ptr[j])._v_log_probability(X, r+j*n, n)
+				(<Model> self.distributions_ptr[j])._log_probability(X, r+j*n, n)
 
 		for i in range(n):
 			max_logp = NEGINF

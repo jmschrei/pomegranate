@@ -1388,7 +1388,7 @@ cdef class HiddenMarkovModel(GraphModel):
             e = <double*> calloc(n*self.silent_start, sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
-                    (<Model> distributions[l])._v_log_probability(sequence+i*dim, e+l*n+i, 1)
+                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
                     e[l*n + i] += self.state_weights[l]
         else:
             e = emissions
@@ -1554,7 +1554,7 @@ cdef class HiddenMarkovModel(GraphModel):
             e = <double*> calloc(n*self.silent_start, sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
-                    (<Model> distributions[l])._v_log_probability(sequence+i*dim, e+l*n+i, 1)
+                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
                     e[l*n + i] += self.state_weights[l]
         else:
             e = emissions
@@ -1792,7 +1792,7 @@ cdef class HiddenMarkovModel(GraphModel):
         # Calculate the emissions table
         for l in range(self.silent_start):
             for i in range(n):
-                (<Model> distributions[l])._v_log_probability(sequence+i*dim, e+l*n+i, 1)
+                (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
                 e[l*n + i] += self.state_weights[l]
 
         f = self._forward(sequence, n, e)
@@ -1978,7 +1978,7 @@ cdef class HiddenMarkovModel(GraphModel):
         # Fill in the emission table
         for l in range(self.silent_start):
             for i in range(n):
-                (<Model> distributions[l])._v_log_probability(sequence+i*dim, e+l*n+i, 1)
+                (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
                 e[l*n + i] += self.state_weights[l]
 
         for i in range(m):
@@ -2209,7 +2209,7 @@ cdef class HiddenMarkovModel(GraphModel):
             e = <double*> calloc(n*self.silent_start, sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
-                    (<Model> distributions[l])._v_log_probability(sequence+i*dim, e+l*n+i, 1)
+                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
                     e[l*n + i] += self.state_weights[l]
         else:
             e = emissions
@@ -2638,7 +2638,7 @@ cdef class HiddenMarkovModel(GraphModel):
         e = <double*> calloc(n*self.silent_start, sizeof(double))
         for l in range(self.silent_start):
             for i in range(n):
-                (<Model> distributions[l])._v_log_probability(sequence+i*dim, e+l*n+i, 1)
+                (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
                 e[l*n + i] += self.state_weights[l]
 
         f = self._forward(sequence, n, e)

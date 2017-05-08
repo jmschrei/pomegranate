@@ -170,7 +170,7 @@ cdef class Distribution(Model):
 		X_ndarray = numpy.array(X, dtype='float64')
 		X_ptr = <double*> X_ndarray.data
 
-		self._v_log_probability(X_ptr, logp_ptr, n)
+		self._log_probability(X_ptr, logp_ptr, n)
 
 		if n == 1:
 			return logp_array[0]
@@ -384,7 +384,7 @@ cdef class UniformDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.start, self.end, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			if X[i] >= self.start and X[i] <= self.end:
@@ -500,7 +500,7 @@ cdef class BernoulliDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.p, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = self.logp[<int> X[i]]
@@ -582,7 +582,7 @@ cdef class NormalDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = self.log_sigma_sqrt_2_pi - ((X[i] - self.mu) ** 2) /\
@@ -699,7 +699,7 @@ cdef class LogNormalDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.mu, self.sigma, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) \
@@ -816,7 +816,7 @@ cdef class ExponentialDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.rate, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			log_probability[i] = self.log_rate - self.rate * X[i]
@@ -923,7 +923,7 @@ cdef class BetaDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
 		cdef double beta_norm = self.beta_norm
@@ -1036,7 +1036,7 @@ cdef class GammaDistribution(Distribution):
 		"""Serialize distribution for pickling."""
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
 		cdef int i
@@ -1352,7 +1352,7 @@ cdef class DiscreteDistribution(Distribution):
 	cdef double __log_probability(self, X):
 		return self.log_dist.get(X, NEGINF)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
 			if X[i] < 0 or X[i] > self.n:
@@ -1534,7 +1534,7 @@ cdef class PoissonDistribution(Distribution):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.l, self.frozen)
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double f
 		cdef int i, j
 
@@ -1714,7 +1714,7 @@ cdef class GaussianKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "GaussianKernelDensity"
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
 		cdef int i, j
 
@@ -1749,7 +1749,7 @@ cdef class UniformKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "UniformKernelDensity"
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob, b = self.bandwidth
 		cdef int i, j
 
@@ -1786,7 +1786,7 @@ cdef class TriangleKernelDensity(KernelDensity):
 	def __cinit__(self, points=[], bandwidth=1, weights=None, frozen=False):
 		self.name = "TriangleKernelDensity"
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef double mu, w, scalar = 1.0 / SQRT_2_PI, prob
 		cdef double hinge, b = self.bandwidth
 		cdef int i, j
@@ -1860,7 +1860,7 @@ cdef class MultivariateDistribution(Distribution):
 		X_ptr = <double*> X_ndarray.data
 
 		with nogil:
-			self._v_log_probability(X_ptr, logp_ptr, n)
+			self._log_probability(X_ptr, logp_ptr, n)
 		
 		if n == 1:
 			return logp_array[0]
@@ -1961,14 +1961,14 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 			logp_ptr = <double*> logp_array.data
 
 			with nogil:
-				self._v_log_probability(X_ptr, logp_ptr, n)
+				self._log_probability(X_ptr, logp_ptr, n)
 
 			if n == 1:
 				return logp_array[0]
 			else:
 				return logp_array
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j
 		cdef double logp
 
@@ -1976,7 +1976,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 
 		for i in range(n):
 			for j in range(self.d):
-				(<Model> self.distributions_ptr[j])._v_log_probability(X+i*self.d+j, &logp, 1)
+				(<Model> self.distributions_ptr[j])._log_probability(X+i*self.d+j, &logp, 1)
 				log_probability[i] += logp * self.weights_ptr[j]
 
 	def sample(self, n=None):
@@ -2126,7 +2126,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		free(self.column_sum)
 		free(self.pair_sum)
 
-	cdef void _v_log_probability(self, double* X, double* logp, int n) nogil:
+	cdef void _log_probability(self, double* X, double* logp, int n) nogil:
 		cdef int i, j, d = self.d
 
 		cdef double* dot = <double*> calloc(n*d, sizeof(double))
@@ -2312,7 +2312,7 @@ cdef class DirichletDistribution(MultivariateDistribution):
 		self.summaries_ndarray = numpy.zeros(self.d, dtype='float64')
 		self.summaries_ptr = <double*> self.summaries_ndarray.data
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, d = self.d
 		cdef double logp
 
@@ -2522,7 +2522,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		idx = self.keymap[tuple(X)]
 		return self.values[idx]
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
@@ -2801,7 +2801,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		key = self.keymap[tuple(X)]
 		return self.values[key]
 
-	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
