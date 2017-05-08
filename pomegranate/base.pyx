@@ -258,21 +258,15 @@ cdef class Model(object):
 		"""Clear the summary statistics stored in the object."""
 		return NotImplementedError
 
-	cdef double _log_probability( self, double symbol ) nogil:
-		return NEGINF
-
-	cdef double _mv_log_probability( self, double* symbol ) nogil:
-		return NEGINF
+	cdef void _v_log_probability( self, double* symbol,
+								  double* log_probability, int n ) nogil:
+		pass
 
 	cdef double _vl_log_probability( self, double* symbol, int n ) nogil:
 		return NEGINF
 
 	cdef double _summarize( self, double* items,
 		                    double* weights, int n ) nogil:
-		pass
-
-	cdef void _v_log_probability( self, double* symbol,
-								  double* log_probability, int n ) nogil:
 		pass
 
 

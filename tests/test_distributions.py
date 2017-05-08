@@ -21,6 +21,7 @@ from nose.tools import assert_almost_equal
 from nose.tools import assert_equal
 from nose.tools import assert_not_equal
 from nose.tools import assert_less_equal
+from nose.tools import assert_true
 import pickle
 import numpy
 
@@ -55,6 +56,10 @@ def discrete_equality(x, y, z=8):
 def test_normal():
 	d = NormalDistribution(5, 2)
 	e = NormalDistribution(5., 2.)
+
+	assert_true(isinstance(d.log_probability(5), float))
+	assert_true(isinstance(d.log_probability([5]), float))
+	assert_true(isinstance(d.log_probability([5, 6]), numpy.ndarray))
 
 	assert_almost_equal(d.log_probability(5), -1.61208571, 8)
 	assert_equal(d.log_probability(5), e.log_probability(5))
@@ -524,8 +529,8 @@ def test_independent():
 										   ExponentialDistribution(2)],
 										  weights=[18., 1.])
 
-	assert_equal(round(d.log_probability((4, 1)), 4), -0.1536)
-	assert_equal(round(d.log_probability((100, 0.001)), 4), -1126.1556)
+	assert_equal(round(d.log_probability((4, 1)), 4), -32.5744)
+	assert_equal(round(d.log_probability((100, 0.001)), 4), -20334.5764)
 
 	d.fit([(5, 1), (5.2, 1.7), (4.7, 1.9), (4.9, 2.4), (4.5, 1.2)])
 

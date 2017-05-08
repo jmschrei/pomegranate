@@ -3,22 +3,15 @@
 
 cimport numpy
 
-ctypedef numpy.npy_intp SIZE_t
-
-
 cdef class Model(object):
 	cdef public str name
 	cdef public int d
 	cdef public bint frozen
 	cdef public str model
-
-	cdef double _log_probability( self, double symbol ) nogil
-	cdef double _mv_log_probability( self, double* symbol ) nogil
-	cdef double _vl_log_probability( self, double* symbol, int n ) nogil
-	cdef void _v_log_probability( self, double* symbol,
-	                              double* log_probability, int n ) nogil
-	cdef double _summarize( self, double* items, double* weights,
-	                        SIZE_t n ) nogil
+	
+	cdef double _vl_log_probability(self, double* symbol, int n) nogil
+	cdef void _v_log_probability(self, double* symbol, double* log_probability, int n) nogil
+	cdef double _summarize(self, double* items, double* weights, int n) nogil
 
 
 cdef class GraphModel(Model):

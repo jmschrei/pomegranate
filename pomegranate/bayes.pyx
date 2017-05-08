@@ -196,49 +196,29 @@ cdef class BayesModel(Model):
 				raise ValueError("sample has {} dimensions but model has {} dimensions".format(d, self.d))
 
 		with nogil:
-			for i in range(n):
-				if self.is_vl_:
+			if self.is_vl_:
+				for i in range(n):
 					with gil:
 						X_ndarray = numpy.array(X[i])
 						X_ptr = <double*> X_ndarray.data
 					logp[i] = self._vl_log_probability(X_ptr, n)
-				elif d == 1:
-					logp[i] = self._log_probability(X_ptr[i])
-				else:
-					logp[i] = self._mv_log_probability(X_ptr+i*d)
+			else:
+				self._v_log_probability(X_ptr, logp, n)
 
 		return logp_ndarray
 
-	cdef double _log_probability(self, double X) nogil:
-		cdef int i
-		cdef double log_probability_sum = NEGINF
-		cdef double log_probability
-
-		for i in range(self.n):
-			log_probability = (<Model> self.distributions_ptr[i])._log_probability(X) + self.weights_ptr[i]
-			log_probability_sum = pair_lse(log_probability_sum, log_probability)
-
-		return log_probability_sum
-
-	cdef double _mv_log_probability(self, double* X) nogil:
-		cdef int i
-		cdef double log_probability_sum = NEGINF
-		cdef double log_probability
-
-		for i in range(self.n):
-			log_probability = (<Model> self.distributions_ptr[i])._mv_log_probability(X) + self.weights_ptr[i]
-			log_probability_sum = pair_lse(log_probability_sum, log_probability)
-
-		return log_probability_sum
-
 	cdef void _v_log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, d = self.d
+		cdef double* logp = <double*> calloc(n, sizeof(double))
 
+		(<Model> self.distributions_ptr[0])._v_log_probability(X, log_probability, n)
 		for i in range(n):
-			if d > 1:
-				log_probability[i] = (<Model> self)._mv_log_probability(X+i*d) + self.weights_ptr[j]
-			else:
-				log_probability[i] = (<Model> self)._log_probability(X[i]) + self.weights_ptr[j]
+			log_probability[i] += self.weights_ptr[0]
+
+		for j in range(1, self.n):
+			(<Model> self.distributions_ptr[j])._v_log_probability(X, logp, n)
+			for i in range(n):
+				log_probability[i] = pair_lse(log_probability[i], logp[i] + self.weights_ptr[j])
 
 	cdef double _vl_log_probability(self, double* X, int n) nogil:
 		cdef int i

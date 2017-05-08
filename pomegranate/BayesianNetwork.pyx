@@ -325,11 +325,6 @@ cdef class BayesianNetwork( GraphModel ):
 
 		return logp
 
-	cdef double _mv_log_probability(self, double* symbol) nogil:
-		cdef double logp
-		self._v_log_probability(symbol, &logp, 1)
-		return logp
-
 	cdef void _v_log_probability( self, double* symbol, double* log_probability, int n ) nogil:
 		cdef int i, j, l, li, k
 		cdef double logp
