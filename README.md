@@ -8,10 +8,14 @@ pomegranate is a package for probabilistic and graphical models for Python, impl
 * General Mixture Models
 * Hidden Markov Models
 * Naive Bayes
+* Bayes Classifiers
 * Markov Chains
 * Discrete Bayesian Networks
+
+To support the above algorithms, it has efficient implementations of the following:
+
+* Kmeans
 * Factor Graphs
-* Finite State Machines
 
 See the tutorial below, or the more in depth tutorials in the `tutorials` folder with examples in IPython notebooks. See [the website](http://pomegranate.readthedocs.org/en/latest/) for further information.
 

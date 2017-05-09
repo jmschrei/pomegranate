@@ -1,5 +1,5 @@
 # __init__.py: pomegranate
-# Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
+# Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
 
 """
@@ -18,6 +18,5 @@ from .MarkovChain import MarkovChain
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 from .FactorGraph import FactorGraph
-from .fsm import FiniteStateMachine
 
 __version__ = '0.7.1'
