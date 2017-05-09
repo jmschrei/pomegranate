@@ -879,7 +879,7 @@ def test_discrete_from_samples():
 	logp3 = sum(map(model3.log_probability, X))
 
 	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp1)
+	assert_greater(logp3, logp1)
 
 @with_setup(setup_gaussian_dense, teardown)
 def test_gaussian_from_samples():
@@ -892,7 +892,7 @@ def test_gaussian_from_samples():
 	logp3 = sum(map(model3.log_probability, X))
 
 	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp1)
+	assert_greater(logp3, logp1)
 
 @with_setup(setup_multivariate_gaussian_dense, teardown)
 def test_multivariate_gaussian_from_samples():
@@ -905,7 +905,7 @@ def test_multivariate_gaussian_from_samples():
 	logp3 = sum(map(model3.log_probability, X))
 
 	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp1)
+	assert_greater(logp3, logp1)
 
 @with_setup(setup_poisson_dense, teardown)
 def test_poisson_from_samples():
@@ -918,4 +918,4 @@ def test_poisson_from_samples():
 	logp3 = sum(map(model3.log_probability, X))
 
 	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp1)
+	assert_greater(logp3, logp1)
