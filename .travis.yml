@@ -44,7 +44,11 @@ install:
 - python setup.py install
 script:
 - python setup.py test
-after_success:
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then python setup.py bdist_wheel fi
-# deploy:
-# This is where you can deploy to PyPI
+deploy:
+  provider: pypi
+  user: "jmschreiber"
+  password:
+    secure: "DJZlYMOGZ8ng41Zy+EgLNe48J+J7O6oT99vnIgHLf+vh6NZFDDVFnPAEP2X0t+BD7wqyvUqpYz256mPgpYmciapCsPU3/Y7+vGuX+Hyn9WnHadc5bzsCRnCsmbJQUPXjADlFD/lJil5FvKipUET/vCN+curDQUVtPHWpGMrxtp0="
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true

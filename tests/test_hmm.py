@@ -844,8 +844,32 @@ def test_dimension():
 
 	assert_raises(ValueError, hmmb.bake)
 
-@with_setup(setup, teardown)
-def test_serialization():
+
+def test_serialization_univariate():
+	s1 = State(NormalDistribution(1, 2))
+	s2 = State(NormalDistribution(5, 1))
+	s3 = State(NormalDistribution(8, 2))
+
+	hmm1 = HiddenMarkovModel()
+
+	hmm1.add_transition(hmm1.start, s1, 1)
+	hmm1.add_transition(s1, s1, 0.8)
+	hmm1.add_transition(s1, s2, 0.2)
+	hmm1.add_transition(s2, s2, 0.9)
+	hmm1.add_transition(s2, s3, 0.1)
+	hmm1.add_transition(s3, s3, 0.95)
+	hmm1.add_transition(s3, hmm1.end, 0.05)
+
+	hmm1.bake()
+
+	hmm2 = pickle.loads(pickle.dumps(hmm1))
+
+	for i in range(10):
+		sequence = numpy.random.randn(10)
+		assert_almost_equal(hmm1.log_probability(sequence), hmm2.log_probability(sequence))
+
+
+def test_serialization_multivariate():
 	s1 = State(MultivariateGaussianDistribution([1, 4], [[.1, 0], [0, 1]]))
 	s2 = State(MultivariateGaussianDistribution([-1, 1], [[1, 0], [0, 7]]))
 	s3 = State(MultivariateGaussianDistribution([3, 5], [[.5, 0], [0, 6]]))
@@ -865,57 +889,38 @@ def test_serialization():
 	hmm2 = pickle.loads(pickle.dumps(hmm1))
 
 	for i in range(10):
-		sequence = hmm1.sample(10)
+		sequence = numpy.random.randn(10, 2)
 		assert_almost_equal(hmm1.log_probability(sequence), hmm2.log_probability(sequence))
+
 
 @with_setup(setup_discrete_dense, teardown)
 def test_discrete_from_samples():
 	X = [model.sample() for i in range(25)]
 	model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25)
-	model3 = HiddenMarkovModel.from_samples(DiscreteDistribution, 2, X, max_iterations=25)
 
 	logp1 = sum(map(model.log_probability, X))
 	logp2 = sum(map(model2.log_probability, X))
-	logp3 = sum(map(model3.log_probability, X))
 
 	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp3)
+
 
 @with_setup(setup_gaussian_dense, teardown)
 def test_gaussian_from_samples():
 	X = [model.sample() for i in range(25)]
 	model2 = HiddenMarkovModel.from_samples(NormalDistribution, 4, X, max_iterations=25)
-	model3 = HiddenMarkovModel.from_samples(NormalDistribution, 2, X, max_iterations=25)
 
 	logp1 = sum(map(model.log_probability, X))
 	logp2 = sum(map(model2.log_probability, X))
-	logp3 = sum(map(model3.log_probability, X))
 
 	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp3)
+
 
 @with_setup(setup_multivariate_gaussian_dense, teardown)
 def test_multivariate_gaussian_from_samples():
 	X = [model.sample() for i in range(25)]
 	model2 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution, 4, X, max_iterations=25)
-	model3 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution, 2, X, max_iterations=25)
 
 	logp1 = sum(map(model.log_probability, X))
 	logp2 = sum(map(model2.log_probability, X))
-	logp3 = sum(map(model3.log_probability, X))
 
 	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp3)
-
-@with_setup(setup_poisson_dense, teardown)
-def test_poisson_from_samples():
-	X = [model.sample() for i in range(25)]
-	model2 = HiddenMarkovModel.from_samples(PoissonDistribution, 4, X, max_iterations=25)
-	model3 = HiddenMarkovModel.from_samples(PoissonDistribution, 2, X, max_iterations=25)
-
-	logp1 = sum(map(model.log_probability, X))
-	logp2 = sum(map(model2.log_probability, X))
-	logp3 = sum(map(model3.log_probability, X))
-
-	assert_greater(logp2, logp1)
-	assert_greater(logp2, logp3)
