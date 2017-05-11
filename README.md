@@ -38,7 +38,7 @@ To run the tests, you also must have `nose` installed.
 
 ### User Installation
 
-pomegranate is now pip installable! Install using `pip install pomegranate`. You can get the bleeding edge using the following:
+pomegranate is now pip installable! Install using `pip install pomegranate`. Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. You can get the bleeding edge using the following:
 
 ```
 git clone https://github.com/jmschrei/pomegranate.git
