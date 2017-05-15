@@ -14,13 +14,13 @@ Markov chains can almost be represented by a single conditional probability tabl
 
 .. code-block:: python
 
-	>>> from pomegranate import *
-	>>> d1 = DiscreteDistribution({'A': 0.25, 'B': 0.75})
-	>>> d2 = ConditionalProbabilityTable([['A', 'A', 0.1],
+	from pomegranate import *
+	d1 = DiscreteDistribution({'A': 0.25, 'B': 0.75})
+	d2 = ConditionalProbabilityTable([['A', 'A', 0.1],
 	                                      ['A', 'B', 0.9],
 	                                      ['B', 'A', 0.6],
 	                                      ['B', 'B', 0.4]], [d1])
-	>>> d3 = ConditionalProbabilityTable([['A', 'A', 'A', 0.4],
+	d3 = ConditionalProbabilityTable([['A', 'A', 'A', 0.4],
 	                                      ['A', 'A', 'B', 0.6],
 	                                      ['A', 'B', 'A', 0.8],
 	                                      ['A', 'B', 'B', 0.2],
@@ -28,7 +28,7 @@ Markov chains can almost be represented by a single conditional probability tabl
 	                                      ['B', 'A', 'B', 0.1],
 	                                      ['B', 'B', 'A', 0.2],
 	                                      ['B', 'B', 'B', 0.8]], [d1, d2])
-	>>> model = MarkovChain([d1, d2, d3])
+	model = MarkovChain([d1, d2, d3])
 
 Probability
 -----------

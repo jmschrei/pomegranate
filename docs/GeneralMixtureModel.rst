@@ -5,32 +5,51 @@ General Mixture Models
 
 `IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_2_General_Mixture_Models.ipynb>`_
 
-General Mixture Models (GMMs) are an unsupervised model composed of multiple distributions (commonly also referred to as components) and corresponding weights. This allows you to model more sophisticated phenomena probabilistically. A common task is to figure out which component a new data point comes from given only a large quantity of unlabelled data.
+General Mixture models (GMMs) are an unsupervised probabilistic model composed of multiple distributions (commonly referred to as components) and corresponding weights. This allows you to model more complex distributions corresponding to a singular underlying phenomena. For a full tutorial on what a mixture model is and how to use them, see the above tutorial.
 
 Initialization
 --------------
 
-General Mixture Models can be initialized in two ways depending on if you know the initial parameters of the distributions of not. If you do know the prior parameters of the distributions then you can pass them in as a list. These do not have to be the same distribution--you can mix and match distributions as you want. You can also pass in the weights, or the prior probability of a sample belonging to that component of the model.
+General Mixture Models can be initialized in two ways depending on if you know the initial parameters of the model or not: (1) passing in a list of pre-initialized distributions, or (2) running the ``from_samples`` class method on data. The initial parameters can be either a pre-specified model that is ready to be used for prediction, or the initialization for expectation-maximization. Otherwise, if the second initialization option is chosen, then k-means is used to initialize the distributions. The distributions passed for each component don't have to be the same type, and if an ``IndependentComponentDistribution`` object is passed in, then the dimensions don't need to be modeled by the same distribution.
+
+Here is an example of a traditional multivariate Gaussian mixture where we pass in pre-initialized distributions. We can also pass in the weight of each component, which serves as the prior probability of a sample belonging to that component when doing predictions.
 
 .. code-block:: python
 	
-	>>> from pomegranate import *
-	>>> gmm = GeneralMixtureModel([NormalDistribution(5, 2), NormalDistribution(1, 2)], weights=[0.33, 0.67])
+	from pomegranate import *
+	d1 = MultivariateGaussianDistribution([1, 6, 3], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+	d2 = MultivariateGaussianDistribution([2, 8, 4], [[1, 0, 0], [0, 1, 0], [0, 0, 2]])
+	d3 = MultivariateGaussianDistribution([0, 4, 8], [[2, 0, 0], [0, 3, 0], [0, 0, 1]])
+	model = GeneralMixtureModel([d1, d2, d3], weights=[0.25, 0.60, 0.15])
 
-
-If you do not know the initial parameters, then the components can be initialized using kmeans to find initial clusters. Initial parameters for the models are then extracted from the clusters and EM is used to fine tune the model.
+Alternatively, if we want to model each dimension differently, then we can replace the multivariate Gaussian distributions with ``IndependentComponentsDistribution`` objects.
 
 .. code-block:: python
 
-	>>> from pomegranate import *
-	>>> gmm = GeneralMixtureModel( NormalDistribution, n_components=2 )
+	from pomegranate import *
+	d1 = IndependentComponentsDistributions([NormalDistribution(5, 2), ExponentialDistribution(1), LogNormalDistribution(0.4, 0.1)])
+	d2 = IndependentComponentsDistributions([NormalDistribution(3, 1), ExponentialDistribution(2), LogNormalDistribution(0.8, 0.2)])
+	model = GeneralMixtureModel([d1, d2], weights=[0.66, 0.34])
 
-This allows any distribution in pomegranate to be natively used in GMMs.
+If we do not know the parameters of our distributions beforehand and want to learn them entirely from data, then we can use the ``from_samples`` class method. This method will run k-means to initialize the components, using the returned clusters to initialize all parameters of the distributions, i.e. both mean and covariances for multivariate Gaussian distributions. Afterwards, execptation-maximization is used to refine the parameters of the model, iterating until convergence.
 
-Log Probability
+.. code-block:: python
+	
+	from pomegranate import *
+	model = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=3, X=X)
+
+If we want to model each dimension using a different distribution, then we can pass in a list of callables and they will be initialized using k-means as well.
+
+.. code-block:: python
+
+	from pomegranate import *
+	model = GeneralMixtureModel.from_samples([NormalDistribution, ExponentialDistribution, LogNormalDistribution], n_components=5, X=X)
+
+
+Probability
 ---------------
 
-The probability of a point is the sum of its probability under each of the components, multiplied by the weight of each component c, :math:`P(D|M) = \sum\limits_{c \in M} P(D|c)`. This is easily calculated by summing the probability under each distribution in the mixture model and multiplying by the appropriate weights, and then taking the log.
+The probability of a point is the sum of its probability under each of the components, multiplied by the weight of each component c, :math:`P = \sum\limits_{i \in M} P(D|M_{i})P(M_{i})`. The ``probability`` method returns the probability of each sample under the entire mixture, and the ``log_probability`` method returns the log of that value.  
 
 Prediction
 ----------
