@@ -45,10 +45,10 @@ While there is a large variety of univariate distributions, multivariate distrib
 
 .. code-block:: python
 
-    >>> d1 = NormalDistribution(5, 2)
-    >>> d2 = LogNormalDistribution(1, 0.3)
-    >>> d3 = ExponentialDistribution(4)
-    >>> d = IndependentComponentsDistribution([d1, d2, d3])
+    d1 = NormalDistribution(5, 2)
+    d2 = LogNormalDistribution(1, 0.3)
+    d3 = ExponentialDistribution(4)
+    d = IndependentComponentsDistribution([d1, d2, d3])
 
 Initialization
 --------------
@@ -57,20 +57,20 @@ Initializing a distribution is simple and done just by passing in the distributi
 
 .. code-block:: python
 
-    >>> from pomegranate import *
-    >>> a = NormalDistribution(5, 2)
+    from pomegranate import *
+    a = NormalDistribution(5, 2)
 
 However, frequently we don't know the parameters of the distribution beforehand or would like to directly fit this distribution to some data. We can do this through the `from_samples` class method.
 
 .. code-block:: python
 
-    >>> b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
+    b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
 
 If we want to fit the model to weighted samples, we can just pass in an array of the relative weights of each sample as well.
 
 .. code-block:: python
 
-    >>> b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
+    b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
 
 Probability
 -----------
@@ -79,26 +79,26 @@ Distributions are typically used to calculate the probability of some sample. Th
 
 .. code-block:: python
 
-    >>> a = NormalDistribution(5, 2)
-    >>> a.log_probability(8)
+    a = NormalDistribution(5, 2)
+    a.log_probability(8)
     -2.737085713764219
-    >>> a.probability(8)
+    a.probability(8)
     0.064758797832971712
-    >>> b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
-    >>> b.log_probability(8)
+    b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
+    b.log_probability(8)
     -4.437779569430167
 
 These methods work for univariate distributions, kernel densities, and multivariate distributions all the same. For a multivariate distribution you'll have to pass in an array for the full sample.
 
 .. code-block:: python
     
-    >>> d1 = NormalDistribution(5, 2)
-    >>> d2 = LogNormalDistribution(1, 0.3)
-    >>> d3 = ExponentialDistribution(4)
-    >>> d = IndependentComponentsDistribution([d1, d2, d3])
+    d1 = NormalDistribution(5, 2)
+    d2 = LogNormalDistribution(1, 0.3)
+    d3 = ExponentialDistribution(4)
+    d = IndependentComponentsDistribution([d1, d2, d3])
     >>>
-    >>> X = [6.2, 0.4, 0.9]
-    >>> d.log_probability(X)
+    X = [6.2, 0.4, 0.9]
+    d.log_probability(X)
     -23.205411733352875
 
 Fitting
@@ -108,9 +108,9 @@ We may wish to fit the distribution to new data, either overriding the previous 
 
 .. code-block:: python
 
-    >>> d = NormalDistribution(5, 2)
-    >>> d.fit([1, 5, 7, 3, 2, 4, 3, 5, 7, 8, 2, 4, 6, 7, 2, 4, 5, 1, 3, 2, 1])
-    >>> d
+    d = NormalDistribution(5, 2)
+    d.fit([1, 5, 7, 3, 2, 4, 3, 5, 7, 8, 2, 4, 6, 7, 2, 4, 5, 1, 3, 2, 1])
+    d
     {
         "frozen" :false,
         "class" :"Distribution",
@@ -125,9 +125,9 @@ Training can be done on weighted samples by passing an array of weights in along
 
 .. code-block:: python
 
-    >>> d = NormalDistribution(5, 2)
-    >>> d.fit([1, 5, 7, 3, 2, 4], weights=[0.5, 0.75, 1, 1.25, 1.8, 0.33])
-    >>> d
+    d = NormalDistribution(5, 2)
+    d.fit([1, 5, 7, 3, 2, 4], weights=[0.5, 0.75, 1, 1.25, 1.8, 0.33])
+    d
     {
         "frozen" :false,
         "class" :"Distribution",
