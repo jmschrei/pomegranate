@@ -70,7 +70,8 @@ cdef class BayesClassifier(BayesModel):
 	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
 
-	def fit(self, X, y, weights=None, n_jobs=1, inertia=0.0, pseudocount=0.0):
+	def fit(self, X, y, weights=None, n_jobs=1, inertia=0.0, pseudocount=0.0,
+		stop_threshold=0.1, max_iterations=1e8, verbose=False):
 		"""Fit the Naive Bayes model to the data by passing data to their components.
 
 		Parameters
@@ -101,6 +102,23 @@ cdef class BayesClassifier(BayesModel):
 			effectively smoothes the states to prevent 0. probability symbols
 			if they don't happen to occur in the data. Default is 0.
 
+		stop_threshold : double, optional, positive
+			The threshold at which EM will terminate for the improvement of
+			the model. If the model does not improve its fit of the data by
+			a log probability of 0.1 then terminate. Only required if doing
+			semisupervised learning. Default is 0.1.
+
+		max_iterations : int, optional, positive
+			The maximum number of iterations to run EM for. If this limit is
+			hit then it will terminate training, regardless of how well the
+			model is improving per iteration. Only required if doing
+			semisupervised learning. Default is 1e8.
+
+		verbose : bool, optional
+			Whether or not to print out improvement information over
+			iterations. Only required if doing semisupervised learning.
+			Default is False.
+
 		Returns
 		-------
 		self : object
@@ -109,6 +127,51 @@ cdef class BayesClassifier(BayesModel):
 
 		self.summarize(X, y, weights, n_jobs=n_jobs)
 		self.from_summaries(inertia, pseudocount)
+
+		semisupervised = -1 in y
+		if semisupervised:
+			initial_log_probability_sum = NEGINF
+			iteration, improvement = 0, INF
+			n_classes = numpy.unique(y).shape[0]
+
+			unsupervised = GeneralMixtureModel(self.distributions)
+
+			labeled_X = X[y != -1]
+			labeled_y = y[y != -1]
+			labeled_weights = None if weights is None else weights[y != -1]
+
+			unlabeled_X = X[y == -1]
+			unlabeled_weights = None if weights is None else weights[y == -1]
+
+			while improvement > stop_threshold and iteration < max_iterations + 1:
+				self.from_summaries(inertia, pseudocount)
+				unsupervised.weights[:] = self.weights
+
+				self.summarize(labeled_X, labeled_y, labeled_weights)
+				unsupervised.summaries[:] = self.summaries
+
+				log_probability_sum = unsupervised.summarize(unlabeled_X, unlabeled_weights)
+				self.summaries[:] = unsupervised.summaries
+
+				if iteration == 0:
+					initial_log_probability_sum = log_probability_sum
+				else:
+					improvement = log_probability_sum - last_log_probability_sum
+
+					if verbose:
+						print("Improvement: {}".format(improvement))
+
+				iteration += 1
+				last_log_probability_sum = log_probability_sum
+
+			self.clear_summaries()
+
+			if verbose:
+				print("Total Improvement: {}".format(
+					last_log_probability_sum - initial_log_probability_sum))
+
+			return last_log_probability_sum - initial_log_probability_sum
+
 		return self
 
 	def summarize( self, X, y, weights=None, n_jobs=1 ):
@@ -145,9 +208,9 @@ cdef class BayesClassifier(BayesModel):
 				raise ValueError("input data rows do not match model dimension")
 
 		if weights is None:
-			weights = numpy.ones(X.shape[0], dtype='float64') / X.shape[0]
+			weights = numpy.ones(X.shape[0], dtype='float64')
 		else:
-			weights = numpy.array(weights, dtype='float64') / numpy.sum(weights)
+			weights = numpy.array(weights, dtype='float64')
 
 		if self.is_vl_:
 			for i in range(self.n):

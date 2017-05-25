@@ -512,8 +512,8 @@ cdef class BayesModel(Model):
 		if self.summaries.sum() == 0:
 			return
 
-		self.summaries += pseudocount
-		self.summaries /= self.summaries.sum()
+		summaries = self.summaries + pseudocount
+		summaries /= summaries.sum()
 
 		for i, distribution in enumerate(self.distributions):
 			if isinstance(distribution, DiscreteDistribution):
@@ -521,9 +521,9 @@ cdef class BayesModel(Model):
 			else:
 				distribution.from_summaries(inertia, **kwargs)
 			
-			self.weights[i] = _log(self.summaries[i])
+			self.weights[i] = _log(summaries[i])
 			self.summaries[i] = 0.
-
+		
 		return self
 
 	def clear_summaries(self):
