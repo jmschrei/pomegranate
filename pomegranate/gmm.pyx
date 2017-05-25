@@ -158,11 +158,6 @@ cdef class GeneralMixtureModel(BayesModel):
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
 
-		if weights is None:
-			weights = numpy.ones(len(X), dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
-
 		while improvement > stop_threshold and iteration < max_iterations + 1:
 			self.from_summaries(inertia, pseudocount)
 			log_probability_sum = self.summarize(X, weights)

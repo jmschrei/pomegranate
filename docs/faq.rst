@@ -3,6 +3,38 @@
 FAQ
 ===
 
+**Can I create a usable model if I already know the parameters I want, but don't have data to fit to?**
+
+Yes! pomegranate has two ways of initializing models, either by starting off with pre-initialized distributions or by using the ``Model.from_samples`` class method. In the case where you have a model that you'd like to use you can create the model manually and use it to make predictions without the need to fit it to data.
+
+**How do I create a model directly from data?**
+
+pomegranate attempts to closely follow the scikit-learn API. However, a major area in which it diverges is in the initialization of models directly from data. Typically in scikit-learn one would create an estimator and then call the ``fit`` function on the training data. In pomegranate one would use the ``Model.from_samples`` class method, such as ``BayesianNetwork.from_samples(X)``, to learn a model directly from data.
+
+**What is the difference between ``fit`` and ``from_samples``?**
+
+The ``fit`` method trains an initialized model, whereas the ``from_samples`` class method will first initialize the model and then train it. These are separated out because frequently a person already knows a good initialization, such as the structure of the Bayesian network but maybe not the parameters, and wants to fine-tune that initialization instead of learning everything directly from data. This also simplifies the backend by allowing the ``fit`` function to assume that the model is initialized instead of having to check to see if it is initialized, and if not then initialize it. This is particularly useful in structured models such as Bayesian networks or hidden Markov models where the ``Model.from_samples`` task is really structure learning + parameter learning, because it allows the ``fit`` function to be solely parameter learning.
+
+**How can I use pomegranate for semi-supervised learning?**
+
+When using one of the supervised models (such as naive Bayes or Bayes classifiers) simply pass in the label -1 for samples that you do not have a label for.
+
+**How can I use out-of-core learning in pomegranate?**
+
+Once a model has been initialized the ``summarize`` method can be used on arbitrarily sized chunks of the data to reduce them into their sufficient statistics. These sufficient statistics are additive, meaning that if they are calculated for all chunks of a dataset and then added together they can yield exact updates. Once all chunks have been summarized then ``from_summaries`` is called to update the parameters of the model based on these added sufficient statistics. Out-of-core computing is supported by allowing the user to load up chunks of data from memory, summarize it, discard it, and move on to the next chunk.
+
+**Does pomegranate support parallelization?**
+
+Yes! pomegranate supports parallelized model fitting and model predictions, both in a data-parallel manner. Since the backend is written in cython the global interpreter lock (GIL) can be released and multi-threaded training can be supported via joblib. This means that parallelization is utilized time isn't spent piping data from one process to another nor are multiple copies of the model made. 
+
+**Does pomegranate support GPUs?**
+
+Currently pomegranate does not support GPUs.
+
+**Does pomegranate support distributed computing?**
+
+Currently pomegranate is not set up for a distributed environment, though the pieces are currently there to make this possible.
+
 **How can I cite pomegranate?**
 
 I don't currently have a research paper which can be cited, but the GitHub repository can be.
@@ -19,7 +51,6 @@ I don't currently have a research paper which can be cited, but the GitHub repos
 		commit = {enter commit that you used}
 	}
 
-
 **How does pomegranate compare to other packages?**
 
 A comparison of the features between pomegranate and others in the python ecosystem can be seen in the following two plots.
@@ -34,18 +65,4 @@ Models can be stacked more than once, though. For example, a "naive" Bayes class
 
 **How can pomegranate be faster than numpy?**
 
-pomegranate has been shown to be faster than numpy at updating univariate and multivariate gaussians. One of the reasons is because when you use numpy you have to use ```numpy.mean(X)``` and ```numpy.cov(X)``` which requires two full passes of the data. pomegranate uses additive sufficient statistics to reduce a dataset down to a fixed set of numbers which can be used to get an exact update. 
- This allows pomegranate to calculate both mean and covariance in a single pass of the dataset. In addition, one of the reasons that numpy is so fast is its use of BLAS. pomegranate also uses BLAS, but uses the cython level calls to BLAS so that the data doesn't have to pass between cython and python multiple times.
-
-**Does pomegranate support parallelization?**
-
-Yes! pomegranate supports parallelized model fitting and model predictions, both in a data-parallel manner. Since the backend is written in cython the global interpreter lock (GIL) can be released and multi-threaded training can be supported via joblib. This means that parallelization is utilized time isn't spent piping data from one process to another nor are multiple copies of the model made. 
-
-**Does pomegranate support GPUs?**
-
-Currently pomegranate does not support GPUs.
-
-**Does pomegranate support distributed computing?**
-
-Currently pomegranate is not set up for a distributed environment, though the pieces are currently there to make this possible.
-
+pomegranate has been shown to be faster than numpy at updating univariate and multivariate gaussians. One of the reasons is because when you use numpy you have to use ``numpy.mean(X)`` and ``numpy.cov(X)`` which requires two full passes of the data. pomegranate uses additive sufficient statistics to reduce a dataset down to a fixed set of numbers which can be used to get an exact update. This allows pomegranate to calculate both mean and covariance in a single pass of the dataset. In addition, one of the reasons that numpy is so fast is its use of BLAS. pomegranate also uses BLAS, but uses the cython level calls to BLAS so that the data doesn't have to pass between cython and python multiple times.
