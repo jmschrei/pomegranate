@@ -329,7 +329,7 @@ cdef class Distribution(Model):
 		elif 'Table' in d['name']:
 			parents = [Distribution.from_json(json.dumps(j)) for j in d['parents']]
 			table = []
-			
+
 			for row in d['table']:
 				table.append([])
 				for item in row:
@@ -536,7 +536,7 @@ cdef class BernoulliDistribution(Distribution):
 	def from_summaries(self, inertia=0.0):
 		"""Update the parameters of the distribution from the summaries."""
 
-		p = self.summaries[1] / self.summaries[0] 
+		p = self.summaries[1] / self.summaries[0]
 		self.p = self.p * inertia + p * (1-inertia)
 		self.logp[0] = _log(1-p)
 		self.logp[1] = _log(p)
@@ -703,7 +703,7 @@ cdef class LogNormalDistribution(Distribution):
 		cdef int i
 		for i in range(n):
 			log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) \
-				- 0.5 * ((_log(X[i]) - self.mu) / self.sigma) ** 2			
+				- 0.5 * ((_log(X[i]) - self.mu) / self.sigma) ** 2
 
 	def sample(self, n=None):
 		"""Return a sample from this distribution."""
@@ -1042,7 +1042,7 @@ cdef class GammaDistribution(Distribution):
 		cdef int i
 
 		for i in range(n):
-			log_probability[i] = (_log(beta) * alpha - lgamma(alpha) + 
+			log_probability[i] = (_log(beta) * alpha - lgamma(alpha) +
 				_log(X[i]) * (alpha - 1) - beta * X[i])
 
 	def sample(self, n=None):
@@ -1366,11 +1366,11 @@ cdef class DiscreteDistribution(Distribution):
 			for key, value in self.items():
 				if value >= rand:
 					return key
-				rand -= value		
+				rand -= value
 		else:
 			samples = [self.sample() for i in range(n)]
 			return numpy.array(samples)
-			
+
 
 	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
 		"""
@@ -1861,7 +1861,7 @@ cdef class MultivariateDistribution(Distribution):
 
 		with nogil:
 			self._log_probability(X_ptr, logp_ptr, n)
-		
+
 		if n == 1:
 			return logp_array[0]
 		else:
@@ -2054,7 +2054,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 						   }, separators=separators, indent=indent)
 
 	@classmethod
-	def from_samples(self, X, weights=None, distribution_weights=None, 
+	def from_samples(self, X, weights=None, distribution_weights=None,
 		pseudocount=0.0, distributions=None):
 		"""Create a new independent components distribution from data."""
 
@@ -2105,7 +2105,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		self._inv_dot_mu = <double*> calloc(d, sizeof(double))
 
 		chol = scipy.linalg.cholesky(self.cov, lower=True)
-		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), 
+		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
 			lower=True).T
 		self._inv_cov = <double*> self.inv_cov.data
 		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
@@ -2245,7 +2245,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		for j in range(d):
 			for k in range(d):
-				cov = (pair_sum[j*d + k] - column_sum[j]*u[k]- column_sum[k]*u[j] + 
+				cov = (pair_sum[j*d + k] - column_sum[j]*u[k]- column_sum[k]*u[j] +
 					self.w_sum*u[j]*u[k]) / self.w_sum
 				self._cov[j*d + k] = self._cov[j*d + k] * inertia + cov * (1-inertia)
 
@@ -2263,7 +2263,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		_, self._log_det = numpy.linalg.slogdet(self.cov)
 
-		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), 
+		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
 			lower=True).T
 		self._inv_cov = <double*> self.inv_cov.data
 		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
@@ -2305,7 +2305,7 @@ cdef class DirichletDistribution(MultivariateDistribution):
 		self.name = "DirichletDistribution"
 		self.frozen = frozen
 		self.d = len(alphas)
-		
+
 		self.alphas = numpy.array(alphas, dtype='float64')
 		self.alphas_ptr = <double*> self.alphas.data
 		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alpha) for alpha in alphas])
@@ -2361,8 +2361,8 @@ cdef class DirichletDistribution(MultivariateDistribution):
 			return
 
 		self.summaries_ndarray += pseudocount
-		alphas = self.summaries_ndarray * (1-inertia) + self.alphas * inertia 
-		
+		alphas = self.summaries_ndarray * (1-inertia) + self.alphas * inertia
+
 		self.alphas = alphas
 		self.alphas_ptr = <double*> self.alphas.data
 		self.beta_norm = lgamma(sum(alphas)) - sum([lgamma(alpha) for alpha in alphas])
@@ -2415,7 +2415,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		memset(self.counts, 0, self.n*sizeof(double))
 		memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
-		
+
 		self.idxs[0] = 1
 		self.idxs[1] = self.k
 		for i in range(self.m-1):
@@ -2434,7 +2434,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		marginal_keys = []
 		for i, row in enumerate(table[::self.k]):
-			marginal_keys.append((tuple(row[:-2]), i)) 
+			marginal_keys.append((tuple(row[:-2]), i))
 
 		self.marginal_keymap = OrderedDict(marginal_keys)
 		self.parents = parents
@@ -2478,7 +2478,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		marginal_keys = []
 		for i, row in enumerate(keys[::self.k]):
-			marginal_keys.append((tuple(row[:-1]), i)) 
+			marginal_keys.append((tuple(row[:-1]), i))
 
 		self.marginal_keymap = OrderedDict(marginal_keys)
 
@@ -2487,31 +2487,28 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		self.keymap = OrderedDict(keymap)
 
-	def sample(self, parent_values={}):
+	def sample(self, parent_values=None):
 		"""Return a random sample from the conditional probability table."""
+		if parent_values is None:
+			parent_values = {}
 
-		keys = self.keymap.keys()
 		for parent in self.parents:
 			if parent not in parent_values:
 				parent_values[parent] = parent.sample()
 
-		n = len(keys)
-		idxs = []
-		values_ = []
-
-		for i in range(n):
+		sample_cands = []
+		sample_vals = []
+		for key, ind in self.keymap.items():
 			for j, parent in enumerate(self.parents):
-				if parent_values[parent] != keys[i][j]:
+				if parent_values[parent] != key[j]:
 					break
 			else:
-				idxs.append(i)
-				values_.append(cexp(self.values[i]))
+				sample_cands.append(key[-1])
+				sample_vals.append(cexp(self.values[ind]))
 
-		values_ = numpy.cumsum(values_)
-		a = numpy.random.uniform(0, 1)
-		for i in range(len(values_)):
-			if values_[i] > a:
-				return keys[idxs[i]][-1]
+		sample_vals /= numpy.sum(sample_vals)
+		sample_ind = numpy.where(numpy.random.multinomial(1, sample_vals))[0][0]
+		return sample_cands[sample_ind]
 
 	def log_probability(self, X):
 		"""
@@ -2591,12 +2588,12 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 	cdef void __summarize(self, items, double [:] weights):
 		cdef int i, n = len(items)
-		cdef tuple item 
+		cdef tuple item
 
 		for i in range(n):
 			key = self.keymap[tuple(items[i])]
 			self.counts[key] += weights[i]
-			
+
 			key = self.marginal_keymap[tuple(items[i][:-1])]
 			self.marginal_counts[key] += weights[i]
 
@@ -2637,10 +2634,10 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 				k = i / self.k
 
 				if self.marginal_counts[k] > 0:
-					probability = ((self.counts[i] + pseudocount) / 
+					probability = ((self.counts[i] + pseudocount) /
 						(self.marginal_counts[k] + pseudocount * self.k))
 
-					self.values[i] = _log(cexp(self.values[i])*inertia + 
+					self.values[i] = _log(cexp(self.values[i])*inertia +
 						probability*(1-inertia))
 
 				else:
@@ -2739,7 +2736,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.count = 0
 
 		memset(self.counts, 0, self.n*sizeof(double))
-		
+
 		self.idxs[0] = 1
 		self.idxs[1] = self.k
 		for i in range(self.m-1):
@@ -2827,7 +2824,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		if isinstance(neighbor_values, dict):
 			neighbor_values = [neighbor_values.get(d, None) for d in self.parents]
-		
+
 		if isinstance(neighbor_values, list):
 			wrt = neighbor_values.index(None)
 
@@ -2872,7 +2869,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 	cdef void __summarize(self, items, double [:] weights):
 		cdef int i, n = len(items)
-		cdef tuple item 
+		cdef tuple item
 
 		for i in range(n):
 			key = self.keymap[tuple(items[i])]
@@ -2907,7 +2904,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		with nogil:
 			for i in range(self.n):
 				probability = ((self.counts[i] + p) / (self.count + p * self.k))
-				self.values[i] = _log(cexp(self.values[i])*inertia + 
+				self.values[i] = _log(cexp(self.values[i])*inertia +
 					probability*(1-inertia))
 
 		for i in range(self.n):
