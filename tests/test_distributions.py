@@ -22,7 +22,6 @@ from nose.tools import assert_equal
 from nose.tools import assert_not_equal
 from nose.tools import assert_less_equal
 from nose.tools import assert_true
-from sklearn.utils.testing import assert_array_almost_equal
 import pickle
 import numpy
 
@@ -753,7 +752,8 @@ def test_cpd_sampling():
 	# P(B) = 0.1*0.9 + 0.9*0.3 = 0.36
 	true = [0.64, 0.36]
 	est = numpy.bincount([0 if d2.sample() == "A" else 1 for i in range(1000)]) / 1000.0
-	assert_array_almost_equal(est, true, 1)
+	assert_almost_equal(est[0], true[0], 1)
+	assert_almost_equal(est[1], true[1], 1)
 
 	# when A is observed, it reduces to [0.1, 0.9]
 	true1 = [0.1, 0.9]
@@ -762,7 +762,8 @@ def test_cpd_sampling():
 	est = numpy.bincount(
 		[0 if d2.sample(parent_values=par_val) == "A" else 1 for i in range(1000)]
 		) / 1000.0
-	assert_array_almost_equal(est, true1, 1)
+	assert_almost_equal(est[0], true1[0], 1)
+	assert_almost_equal(est[1], true1[1], 1)
 
 	true2= [0.7, 0.3]
 	par_val = {}
@@ -770,4 +771,5 @@ def test_cpd_sampling():
 	est = numpy.bincount(
 		[0 if d2.sample(parent_values=par_val) == "A" else 1 for i in range(1000)]
 		) / 1000.0
-	assert_array_almost_equal(est, true2, 1)
+	assert_almost_equal(est[0], true2[0], 1)
+	assert_almost_equal(est[1], true2[1], 1)
