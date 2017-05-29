@@ -470,7 +470,7 @@ def test_uniform_kernel():
 @with_setup(setup, teardown)
 def test_bernoulli():
 	d = BernoulliDistribution(0.6)
-	assert_equal(d.probability(0), 0.4) 
+	assert_equal(d.probability(0), 0.4)
 	assert_equal(d.probability(1), 0.6)
 	assert_equal(d.parameters[0], 1-d.probability(0))
 	assert_equal(d.parameters[0], d.probability(1))
@@ -606,7 +606,7 @@ def test_independent():
 		          [0.3, 0.2, 0.6],
 		          [0.5, 0.2, 0.8]])
 
-	d = IndependentComponentsDistribution.from_samples(X, 
+	d = IndependentComponentsDistribution.from_samples(X,
 		distributions=NormalDistribution)
 	assert_almost_equal(d.parameters[0][0].parameters[0], 0.38333, 4)
 	assert_almost_equal(d.parameters[0][0].parameters[1], 0.08975, 4)
@@ -615,13 +615,13 @@ def test_independent():
 	assert_almost_equal(d.parameters[0][2].parameters[0], 0.78333, 4)
 	assert_almost_equal(d.parameters[0][2].parameters[1], 0.10672, 4)
 
-	d = IndependentComponentsDistribution.from_samples(X, 
+	d = IndependentComponentsDistribution.from_samples(X,
 		distributions=ExponentialDistribution)
 	assert_almost_equal(d.parameters[0][0].parameters[0], 2.6087, 4)
 	assert_almost_equal(d.parameters[0][1].parameters[0], 4.6154, 4)
 	assert_almost_equal(d.parameters[0][2].parameters[0], 1.2766, 4)
 
-	d = IndependentComponentsDistribution.from_samples(X, 
+	d = IndependentComponentsDistribution.from_samples(X,
 		distributions=[NormalDistribution, NormalDistribution, NormalDistribution])
 	assert_almost_equal(d.parameters[0][0].parameters[0], 0.38333, 4)
 	assert_almost_equal(d.parameters[0][0].parameters[1], 0.08975, 4)
@@ -630,7 +630,7 @@ def test_independent():
 	assert_almost_equal(d.parameters[0][2].parameters[0], 0.78333, 4)
 	assert_almost_equal(d.parameters[0][2].parameters[1], 0.10672, 4)
 
-	d = IndependentComponentsDistribution.from_samples(X, 
+	d = IndependentComponentsDistribution.from_samples(X,
 		distributions=[NormalDistribution, LogNormalDistribution, ExponentialDistribution])
 	assert_almost_equal(d.parameters[0][0].parameters[0], 0.38333, 4)
 	assert_almost_equal(d.parameters[0][0].parameters[1], 0.08975, 4)
@@ -731,7 +731,7 @@ def test_univariate_log_probability():
 
 def test_multivariate_log_probability():
 	X = numpy.random.randn(100, 5)
-	
+
 	d = MultivariateGaussianDistribution.from_samples(X)
 	logp = d.log_probability(X)
 	for i in range(100):
@@ -742,3 +742,34 @@ def test_multivariate_log_probability():
 	for i in range(100):
 		assert_almost_equal(d.log_probability(X[i]), logp[i])
 
+def test_cpd_sampling():
+	d1 = DiscreteDistribution({"A": 0.1, "B": 0.9})
+	d2 = ConditionalProbabilityTable(
+		[["A", "A", 0.1], ["A", "B", 0.9], ["B", "A", 0.7], ["B", "B", 0.3]],
+		[d1])
+
+	# P(A) = 0.1*0.1 + 0.9*0.7 = 0.64
+	# P(B) = 0.1*0.9 + 0.9*0.3 = 0.36
+	true = [0.64, 0.36]
+	est = numpy.bincount([0 if d2.sample() == "A" else 1 for i in range(1000)]) / 1000.0
+	assert_almost_equal(est[0], true[0], 1)
+	assert_almost_equal(est[1], true[1], 1)
+
+	# when A is observed, it reduces to [0.1, 0.9]
+	true1 = [0.1, 0.9]
+	par_val = {}
+	par_val[d1] = "A"
+	est = numpy.bincount(
+		[0 if d2.sample(parent_values=par_val) == "A" else 1 for i in range(1000)]
+		) / 1000.0
+	assert_almost_equal(est[0], true1[0], 1)
+	assert_almost_equal(est[1], true1[1], 1)
+
+	true2= [0.7, 0.3]
+	par_val = {}
+	par_val[d1] = "B"
+	est = numpy.bincount(
+		[0 if d2.sample(parent_values=par_val) == "A" else 1 for i in range(1000)]
+		) / 1000.0
+	assert_almost_equal(est[0], true2[0], 1)
+	assert_almost_equal(est[1], true2[1], 1)
