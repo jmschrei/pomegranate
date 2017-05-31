@@ -2271,12 +2271,8 @@ cdef class HiddenMarkovModel(GraphModel):
 
         Returns
         -------
-        logp : double
-            The log probability of the sequence under the Viterbi path
-
-        path : list of tuples
-            Tuples of (state index, state object) of the states along the
-            Viterbi path.
+        path : list of integers
+            A list of the ids of states along the MAP or the Viterbi path.
         """
 
         if self.d == 0:
