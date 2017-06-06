@@ -46,7 +46,7 @@ cd pomegranate
 python setup.py install
 ```
 
-Lastly, you can also download the zip and manually move the files into your site-packages folder (or your PYTHON_PATH, if you've changed it).
+Lastly, you can also download the zip and manually move the files into your site-packages folder (or a directory on your `PYTHONPATH`, if you've changed it).
 
 To build from source on Windows machines, you may need to download a C++ compiler. For Python 2 this minimal version of Visual Studio 2008 works well: https://www.microsoft.com/en-us/download/details.aspx?id=44266. For Python 3 this version of the Visual Studio Build Tools has been reported to work: http://go.microsoft.com/fwlink/?LinkId=691126. 
 
