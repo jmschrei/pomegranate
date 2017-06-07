@@ -2,6 +2,7 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 cimport numpy
+import json
 import numpy
 import sys
 
@@ -42,7 +43,7 @@ cdef class FactorGraph( GraphModel ):
 		Make a new graphical model. Name is an optional string used to name
 		the model when output. Name may not contain spaces or newlines.
 		"""
-		
+
 		self.name = name or str( id(self) )
 		self.states = []
 		self.edges = []
@@ -82,12 +83,12 @@ cdef class FactorGraph( GraphModel ):
 		else:
 			raise ValueError("must have pygraphviz installed for visualization")
 
-	def bake( self ): 
+	def bake( self ):
 		"""Finalize the topology of the model.
 
 		Assign a numerical index to every state and create the underlying arrays
-		corresponding to the states and edges between the states. This method 
-		must be called before any of the probability-calculating methods. This 
+		corresponding to the states and edges between the states. This method
+		must be called before any of the probability-calculating methods. This
 		is the same as the HMM bake, except that at the end it sets current
 		state information.
 
@@ -124,7 +125,7 @@ cdef class FactorGraph( GraphModel ):
 			if not isinstance( node.distribution, MultivariateDistribution ):
 				self.marginals[i] = 1
 			if node.name.endswith( '-joint' ):
-				self.marginals[i] = 0 
+				self.marginals[i] = 0
 
 		# Now we need to find a way of storing edges for a state in a manner
 		# that can be called in the cythonized methods below. This is basically
@@ -249,7 +250,7 @@ cdef class FactorGraph( GraphModel ):
 		in_messages = numpy.empty( m, dtype=Distribution )
 
 		# Explicitly calculate the distributions at each round so we can test
-		# for convergence. 
+		# for convergence.
 		prior_distributions = distributions.copy()
 		current_distributions = numpy.empty( m, dtype=Distribution )
 
@@ -280,7 +281,7 @@ cdef class FactorGraph( GraphModel ):
 		# This is the flooding message schedule for loopy belief propogation.
 		iteration = 0
 		while iteration < max_iterations:
-			# UPDATE MESSAGES LEAVING THE MARGINAL NODES 
+			# UPDATE MESSAGES LEAVING THE MARGINAL NODES
 			for i, state in enumerate( self.states ):
 				# Ignore factor nodes for now
 				if self.marginals[i] == 0 or iteration == 0:
@@ -371,7 +372,58 @@ cdef class FactorGraph( GraphModel ):
 
 			# Increment our iteration calculator
 			iteration += 1
-			
+
 		# We've already computed the current belief about the marginals, so
 		# we can just return that.
 		return current_distributions[ numpy.where( self.marginals == 1 ) ]
+
+	def to_json(self, separators=(',', ' : '), indent=4):
+		"""Serialize the model to JSON
+
+		Parameters
+		----------
+		separators: tuple, optional
+			The two separators to pass to the json.dumps function for formatting.
+
+		indent: int, optional
+			The indentation to use at each level. Passed to json.dumps for
+			formatting.
+		"""
+		model = {
+			"class": "FactorGraph",
+			"name": self.name,
+			"states": [json.loads(state.to_json()) for state in self.states],
+			"edges": self.edges
+		}
+		return json.dumps(model, separators=separators, indent=indent)
+
+	@classmethod
+	def from_json(cls, s):
+		"""Read in a serialized FactorGraph and return the appropriate instance.
+
+		Parameters
+		----------
+		s: str
+			A JSON formatted string containing the file.
+
+		Returns
+		-------
+		model: object
+			A properly instantiated and baked model.
+		"""
+		try:
+			d = json.loads(s)
+		except:
+			try:
+				with open(s, 'r') as infile:
+					d = json.load(infile)
+			except:
+				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
+
+		model = cls(str(d["name"]))
+		states = [State.from_json(json.dumps(j)) for j in d['states']]
+		model.add_states(*states)
+		for node1, node2 in d["edges"]:
+			model.add_edge(states[node1], states[node2])
+		model.bake()
+		return model
