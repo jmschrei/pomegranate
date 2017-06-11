@@ -13,6 +13,7 @@ import math, random, itertools as it, sys, json
 import networkx
 import tempfile
 import warnings
+import time
 
 from .base cimport GraphModel
 from .base cimport Model
@@ -24,7 +25,6 @@ from .kmeans import Kmeans
 
 from .utils cimport _log
 from .utils cimport pair_lse
-from .utils cimport time_in_epoch_sec
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -2460,7 +2460,7 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef bint check_input = alg == 'viterbi'
         cdef list X = []
 
-        training_start_time = time_in_epoch_sec()
+        training_start_time = time.time()
 
         for sequence in sequences:
             sequence_ndarray = _check_input(sequence, self)
@@ -2476,7 +2476,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
-                epoch_start_time = time_in_epoch_sec()
+                epoch_start_time = time.time()
                 self.from_summaries(inertia, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
@@ -2490,7 +2490,7 @@ cdef class HiddenMarkovModel(GraphModel):
                     initial_log_probability_sum = log_probability_sum
                 else:
                     improvement = log_probability_sum - last_log_probability_sum
-                    time_spent = time_in_epoch_sec() - epoch_start_time
+                    time_spent = time.time() - epoch_start_time
                     if verbose:
                         print("Training improvement: {0} in {1:.2f}s".format(improvement,
                                                                              time_spent))
@@ -2509,7 +2509,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         if verbose:
             print("Total Training Improvement: {}".format(improvement))
-            total_training_time = time_in_epoch_sec() - training_start_time
+            total_training_time = time.time() - training_start_time
             print("Total Training Time: {0:.2f}s".format(total_training_time))
         return improvement
 

@@ -9,6 +9,7 @@ from libc.string cimport memset
 from libc.math cimport exp as cexp
 
 import json
+import time
 
 import numpy
 cimport numpy
@@ -20,7 +21,6 @@ from .distributions import DiscreteDistribution, IndependentComponentsDistributi
 from .bayes cimport BayesModel
 from .utils cimport _log
 from .utils cimport pair_lse
-from .utils cimport time_in_epoch_sec
 from .utils import _check_input
 
 DEF NEGINF = float("-inf")
@@ -159,9 +159,9 @@ cdef class GeneralMixtureModel(BayesModel):
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
 
-		training_start_time = time_in_epoch_sec()
+		training_start_time = time.time()
 		while improvement > stop_threshold and iteration < max_iterations + 1:
-			epoch_start_time = time_in_epoch_sec()
+			epoch_start_time = time.time()
 			self.from_summaries(inertia, pseudocount)
 			log_probability_sum = self.summarize(X, weights)
 
@@ -170,8 +170,8 @@ cdef class GeneralMixtureModel(BayesModel):
 			else:
 				improvement = log_probability_sum - last_log_probability_sum
 
-				time_spent = time_in_epoch_sec() - epoch_start_time
-				msg = "Improvement: {} in {:.2f}"
+				time_spent = time.time() - epoch_start_time
+				msg = "Improvement: {} in {:.2f}s"
 				if verbose:
 					print(msg.format(improvement, time_spent))
 
@@ -182,9 +182,9 @@ cdef class GeneralMixtureModel(BayesModel):
 
 		if verbose:
 			total_imp = last_log_probability_sum - initial_log_probability_sum
-			total_time_spent = time_in_epoch_sec() - training_start_time
+			total_time_spent = time.time() - training_start_time
 			print("Total Improvement: {}".format(total_imp))
-			print("Total Time: {}".format(total_time_spent))
+			print("Total Time: {}s".format(total_time_spent))
 
 		return last_log_probability_sum - initial_log_probability_sum
 
