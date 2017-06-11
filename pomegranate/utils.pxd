@@ -6,3 +6,4 @@ cdef double _log (double x) nogil
 cdef double pair_lse(double x, double y) nogil
 cdef double gamma(double x) nogil
 cdef double lgamma(double x) nogil
+cdef double time_in_epoch_sec() nogil

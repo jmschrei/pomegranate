@@ -10,6 +10,8 @@ from libc.math cimport fabs
 from libc.stdlib cimport calloc, free
 from scipy.linalg.cython_blas cimport dgemm
 
+from posix.time cimport clock_gettime, timespec, CLOCK_REALTIME
+
 cimport numpy
 import numpy
 
@@ -294,3 +296,10 @@ def _check_input(X, keymap):
 
 
 	return X_ndarray
+
+
+cdef double time_in_epoch_sec() nogil:
+	cdef timespec ts
+	cdef double current
+	clock_gettime(CLOCK_REALTIME, &ts)
+	return ts.tv_sec + (ts.tv_nsec / 1000000000.)

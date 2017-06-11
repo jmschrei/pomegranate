@@ -24,6 +24,7 @@ from .kmeans import Kmeans
 
 from .utils cimport _log
 from .utils cimport pair_lse
+from .utils cimport time_in_epoch_sec
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -2459,6 +2460,8 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef bint check_input = alg == 'viterbi'
         cdef list X = []
 
+        training_start_time = time_in_epoch_sec()
+
         for sequence in sequences:
             sequence_ndarray = _check_input(sequence, self)
             X.append(sequence_ndarray)
@@ -2473,6 +2476,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
+                start_time = time_in_epoch_sec()
                 self.from_summaries(inertia, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
@@ -2486,8 +2490,10 @@ cdef class HiddenMarkovModel(GraphModel):
                     initial_log_probability_sum = log_probability_sum
                 else:
                     improvement = log_probability_sum - last_log_probability_sum
+                    time_spent = time_in_epoch_sec() - start_time
                     if verbose:
-                        print("Training improvement: {}".format(improvement))
+                        print("Training improvement: {0} in {1:.2f}s".format(improvement,
+                                                                             time_spent))
 
                 iteration +=1
                 last_log_probability_sum = log_probability_sum
@@ -2503,6 +2509,8 @@ cdef class HiddenMarkovModel(GraphModel):
 
         if verbose:
             print("Total Training Improvement: {}".format(improvement))
+            total_training_time = time_in_epoch_sec() - training_start_time
+            print("Total Training Time: {0:.2f}s".format(total_training_time))
         return improvement
 
     def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch', 
