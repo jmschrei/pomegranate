@@ -20,6 +20,7 @@ from .distributions import DiscreteDistribution, IndependentComponentsDistributi
 from .bayes cimport BayesModel
 from .utils cimport _log
 from .utils cimport pair_lse
+from .utils cimport time_in_epoch_sec
 from .utils import _check_input
 
 DEF NEGINF = float("-inf")
@@ -179,7 +180,7 @@ cdef class GeneralMixtureModel(BayesModel):
 
 		self.clear_summaries()
 
-                if verbose:
+		if verbose:
 			total_imp = last_log_probability_sum - initial_log_probability_sum
 			total_time_spent = time_in_epoch_sec() - training_start_time
 			print("Total Improvement: {}".format(total_imp))
