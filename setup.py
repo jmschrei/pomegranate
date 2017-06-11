@@ -29,8 +29,8 @@ if not use_cython:
     ]
 else:
     extensions = [
-            Extension( "pomegranate.*", 
-                       [ "pomegranate/*.pyx" ] )
+            Extension("pomegranate.*", ["pomegranate/*.pyx"],
+                      libraries=["rt"])
     ]
 
     extensions = cythonize( extensions )
