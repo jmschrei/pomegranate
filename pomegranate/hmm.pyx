@@ -2476,7 +2476,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
-                start_time = time_in_epoch_sec()
+                epoch_start_time = time_in_epoch_sec()
                 self.from_summaries(inertia, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
@@ -2490,7 +2490,7 @@ cdef class HiddenMarkovModel(GraphModel):
                     initial_log_probability_sum = log_probability_sum
                 else:
                     improvement = log_probability_sum - last_log_probability_sum
-                    time_spent = time_in_epoch_sec() - start_time
+                    time_spent = time_in_epoch_sec() - epoch_start_time
                     if verbose:
                         print("Training improvement: {0} in {1:.2f}s".format(improvement,
                                                                              time_spent))

@@ -160,7 +160,7 @@ cdef class GeneralMixtureModel(BayesModel):
 
 		training_start_time = time_in_epoch_sec()
 		while improvement > stop_threshold and iteration < max_iterations + 1:
-			start_time = time_in_epoch_sec()
+			epoch_start_time = time_in_epoch_sec()
 			self.from_summaries(inertia, pseudocount)
 			log_probability_sum = self.summarize(X, weights)
 
@@ -169,7 +169,7 @@ cdef class GeneralMixtureModel(BayesModel):
 			else:
 				improvement = log_probability_sum - last_log_probability_sum
 
-				time_spent = time_in_epoch_sec() - start_time
+				time_spent = time_in_epoch_sec() - epoch_start_time
 				msg = "Improvement: {} in {:.2f}"
 				if verbose:
 					print(msg.format(improvement, time_spent))
