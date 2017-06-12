@@ -26,6 +26,7 @@ from .utils cimport pair_lse
 from .utils cimport _log
 from .utils cimport lgamma
 from .utils cimport mdot
+from .utils cimport ndarray_wrap_cpointer
 
 from collections import OrderedDict
 
@@ -35,6 +36,12 @@ if sys.version_info[0] > 2:
 	izip = zip
 else:
 	izip = it.izip
+
+try:
+	import cupy
+	DEF GPU = True
+except:
+	DEF GPU = False
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -2105,8 +2112,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		self._inv_dot_mu = <double*> calloc(d, sizeof(double))
 
 		chol = scipy.linalg.cholesky(self.cov, lower=True)
-		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
-			lower=True).T
+		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), lower=True).T
 		self._inv_cov = <double*> self.inv_cov.data
 		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
 
@@ -2128,9 +2134,16 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 	cdef void _log_probability(self, double* X, double* logp, int n) nogil:
 		cdef int i, j, d = self.d
+		cdef double* dot
 
-		cdef double* dot = <double*> calloc(n*d, sizeof(double))
-		mdot(X, self._inv_cov, dot, n, d, d)
+		if GPU:
+			with gil:
+				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
+				dot_ndarray = cupy.dot(x, self.inv_cov)
+				dot = (<numpy.ndarray> dot_ndarray).data
+		else:
+			dot = <double*> calloc(n*d, sizeof(double))
+			mdot(X, self._inv_cov, dot, n, d, d)
 
 		for i in range(n):
 			logp[i] = 0

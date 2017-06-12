@@ -23,6 +23,12 @@ try:
 except ImportError:
 	pygraphviz = None
 
+numpy.import_array()
+
+cdef extern from "numpy/ndarraytypes.h":
+	void PyArray_ENABLEFLAGS(numpy.ndarray X, int flags)
+
+
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -67,6 +73,9 @@ cdef class PriorityQueue(object):
 		else:
 			raise KeyError("Attempting to pop from an empty priority queue")
 
+cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
+	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)
+	return X
 
 cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil:
 	cdef double alpha = 1
