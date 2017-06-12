@@ -2492,8 +2492,8 @@ cdef class HiddenMarkovModel(GraphModel):
                     improvement = log_probability_sum - last_log_probability_sum
                     time_spent = time.time() - epoch_start_time
                     if verbose:
-                        print("Training improvement: {0} in {1:.2f}s".format(improvement,
-                                                                             time_spent))
+                        print("Training improvement: {} in {:.2f}s".format(improvement,
+                                                                           time_spent))
 
                 iteration +=1
                 last_log_probability_sum = log_probability_sum
