@@ -6,19 +6,19 @@ Hidden Markov Models
 - `IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_3_Hidden_Markov_Models.ipynb>`_
 - `IPython Notebook Sequence Alignment Tutorial <http://nbviewer.ipython.org/github/jmschrei/yahmm/blob/master/examples/Global%20Sequence%20Alignment.ipynb>`_
 
-`Hidden Markov models <http://en.wikipedia.org/wiki/Hidden_Markov_model>`_ (HMMs) are a structured probabilistic model that forms a probability distribution of sequences, as opposed to individual symbols. It is similar to a Bayesian network in that it has a directed graphical structure where nodes represent probability distributions, but unlike Bayesian networks in that the edges represent transitions and encode transition probabilities, whereas in Bayesian networks edges encode dependence statements. A HMM can be thought of as a general mixture model plus a transition matrix, where each component in the general Mixture model corresponds to a node in the hidden Markov model, and the transition matrix informs the probability that adjacent symbols in the sequence transition from being generated from one component to another. A strength of HMMs is that they can model variable length sequences whereas other models typically require a fixed feature set. They are extensively used in the fields of natural language processing to model speech, bioinformatics to model biosequences, and robotics to model movement.  
+`Hidden Markov models <http://en.wikipedia.org/wiki/Hidden_Markov_model>`_ (HMMs) are a structured probabilistic model that forms a probability distribution of sequences, as opposed to individual symbols. It is similar to a Bayesian network in that it has a directed graphical structure where nodes represent probability distributions, but unlike Bayesian networks in that the edges represent transitions and encode transition probabilities, whereas in Bayesian networks edges encode dependence statements. A HMM can be thought of as a general mixture model plus a transition matrix, where each component in the general Mixture model corresponds to a node in the hidden Markov model, and the transition matrix informs the probability that adjacent symbols in the sequence transition from being generated from one component to another. A strength of HMMs is that they can model variable length sequences whereas other models typically require a fixed feature set. They are extensively used in the fields of natural language processing to model speech, bioinformatics to model biosequences, and robotics to model movement.
 
 The HMM implementation in pomegranate is based off of the implementation in its predecessor, Yet Another Hidden Markov Model (YAHMM). To convert a script that used YAHMM to a script using pomegranate, you only need to change calls to the ``Model`` class to call ``HiddenMarkovModel``. For example, a script that previously looked like the following:
 
 .. code-block:: python
-	
+
 	from yahmm import *
 	model = Model()
 
 would now be written as
 
 .. code-block:: python
-	
+
 	from pomegranate import *
 	model = HiddenMarkovModel()
 
@@ -84,16 +84,16 @@ There are two common forms of the log probability which are used. The first is t
 Prediction
 ----------
 
-A common prediction technique is calculating the Viterbi path, which is the most likely sequence of states that generated the sequence given the full model. This is solved using a simple dynamic programming algorithm similar to sequence alignment in bioinformatics. This can be called using ``model.viterbi(sequence)``. A sklearn wrapper can be called using ``model.predict(sequence, algorithm='viterbi')``. 
+A common prediction technique is calculating the Viterbi path, which is the most likely sequence of states that generated the sequence given the full model. This is solved using a simple dynamic programming algorithm similar to sequence alignment in bioinformatics. This can be called using ``model.viterbi(sequence)``. A sklearn wrapper can be called using ``model.predict(sequence, algorithm='viterbi')``.
 
 Another prediction technique is called maximum a posteriori or forward-backward, which uses the forward and backward algorithms to calculate the most likely state per observation in the sequence given the entire remaining alignment. Much like the forward algorithm can calculate the sum-of-all-paths probability instead of the most likely single path, the forward-backward algorithm calculates the best sum-of-all-paths state assignment instead of calculating the single best path. This can be called using ``model.predict(sequence, algorithm='map')`` and the raw normalized probability matrices can be called using ``model.predict_proba(sequence)``.
 
 Fitting
-------- 
+-------
 
-A simple fitting algorithm for hidden Markov models is called Viterbi training. In this method, each observation is tagged with the most likely state to generate it using the Viterbi algorithm. The distributions (emissions) of each states are then updated using MLE estimates on the observations which were generated from them, and the transition matrix is updated by looking at pairs of adjacent state taggings. This can be done using ``model.fit(sequence, algorithm='viterbi')``. 
+A simple fitting algorithm for hidden Markov models is called Viterbi training. In this method, each observation is tagged with the most likely state to generate it using the Viterbi algorithm. The distributions (emissions) of each states are then updated using MLE estimates on the observations which were generated from them, and the transition matrix is updated by looking at pairs of adjacent state taggings. This can be done using ``model.fit(sequence, algorithm='viterbi')``.
 
-However, this is not the best way to do training and much like the other sections there is a way of doing training using sum-of-all-paths probabilities instead of maximally likely path. This is called Baum-Welch or forward-backward training. Instead of using hard assignments based on the Viterbi path, observations are given weights equal to the probability of them having been generated by that state. Weighted MLE can then be done to update the distributions, and the soft transition matrix can give a more precise probability estimate. This is the default training algorithm, and can be called using either ``model.fit(sequences)`` or explicitly using ``model.fit(sequences, algorithm='baum-welch')``. 
+However, this is not the best way to do training and much like the other sections there is a way of doing training using sum-of-all-paths probabilities instead of maximally likely path. This is called Baum-Welch or forward-backward training. Instead of using hard assignments based on the Viterbi path, observations are given weights equal to the probability of them having been generated by that state. Weighted MLE can then be done to update the distributions, and the soft transition matrix can give a more precise probability estimate. This is the default training algorithm, and can be called using either ``model.fit(sequences)`` or explicitly using ``model.fit(sequences, algorithm='baum-welch')``.
 
 Fitting in pomegranate also has a number of options, including the use of distribution or edge inertia, freezing certain states, tying distributions or edges, and using pseudocounts. See the tutorial linked to at the top of this page for full details on each of these options.
 

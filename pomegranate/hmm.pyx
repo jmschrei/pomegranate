@@ -2112,7 +2112,7 @@ cdef class HiddenMarkovModel(GraphModel):
         path[length] = py
 
         for i in range((length + 1) / 2):
-            path[i], path[length-i] = path[length-i], path[i] 
+            path[i], path[length-i] = path[length-i], path[i]
 
         free(tracebackx)
         free(tracebacky)
@@ -2195,7 +2195,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         return r_ndarray
 
-    cdef void _predict_log_proba(self, double* sequence, double* r, int n, 
+    cdef void _predict_log_proba(self, double* sequence, double* r, int n,
         double* emissions) nogil:
         cdef int i, k, l, li
         cdef int m = self.n_states, dim = self.d
@@ -2345,13 +2345,13 @@ cdef class HiddenMarkovModel(GraphModel):
 
     def fit(self, sequences, weights=None, labels=None, stop_threshold=1E-9, min_iterations=0,
         max_iterations=1e8, algorithm='baum-welch', verbose=False, pseudocount=None,
-        transition_pseudocount=0, emission_pseudocount=0.0, use_pseudocount=False, 
+        transition_pseudocount=0, emission_pseudocount=0.0, use_pseudocount=False,
         inertia=None, edge_inertia=0.0, distribution_inertia=0.0, n_jobs=1):
         """Fit the model to data using either Baum-Welch, Viterbi, or supervised training.
 
         Given a list of sequences, performs re-estimation on the model
         parameters. The two supported algorithms are "baum-welch", "viterbi",
-        and "labeled", indicating their respective algorithm. "labeled" 
+        and "labeled", indicating their respective algorithm. "labeled"
         corresponds to supervised learning that requires passing in a matching
         list of labels for each symbol seen in the sequences.
 
@@ -2403,7 +2403,7 @@ cdef class HiddenMarkovModel(GraphModel):
         pseudocount : double, optional
             A pseudocount to add to both transitions and emissions. If supplied,
             it will override both transition_pseudocount and emission_pseudocount
-            in the same way that specifying `inertia` will override both 
+            in the same way that specifying `inertia` will override both
             `edge_inertia` and `distribution_inertia`. Default is None.
 
         transition_pseudocount : double, optional
@@ -2464,7 +2464,7 @@ cdef class HiddenMarkovModel(GraphModel):
             X.append(sequence_ndarray)
 
         if labels:
-            labels = numpy.array(labels) 
+            labels = numpy.array(labels)
 
         if weights is None:
             weights = numpy.ones(len(X), dtype='float64')
@@ -2505,7 +2505,7 @@ cdef class HiddenMarkovModel(GraphModel):
             print("Total Training Improvement: {}".format(improvement))
         return improvement
 
-    def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch', 
+    def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch',
         n_jobs=1, parallel=None, check_input=True):
         """Summarize data into stored sufficient statistics for out-of-core
         training. Only implemented for Baum-Welch training since Viterbi
@@ -2568,7 +2568,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 weights_ndarray = numpy.ones(len(sequences), dtype='float64')
             else:
                 weights_ndarray = numpy.array(weights, dtype='float64')
-        
+
             if labels is not None:
                 labels = numpy.array(labels)
 
@@ -2774,7 +2774,7 @@ cdef class HiddenMarkovModel(GraphModel):
         free(path)
         return log_probability * weight
 
-    cpdef double _labeled_summarize(self, numpy.ndarray sequence_ndarray, 
+    cpdef double _labeled_summarize(self, numpy.ndarray sequence_ndarray,
         numpy.ndarray label_ndarray, double weight):
         """Python wrapper for the summarization step.
 
@@ -2791,16 +2791,16 @@ cdef class HiddenMarkovModel(GraphModel):
 
         for i in range(label_ndarray.shape[0]):
             labels[i] = self.states.index(label_ndarray[i])
-            
+
 
         with nogil:
-            log_sequence_probability = self.__labeled_summarize(sequence, 
+            log_sequence_probability = self.__labeled_summarize(sequence,
                 labels, weight, n, m)
 
         free(labels)
         return self.log_probability(sequence_ndarray, check_input=False)
 
-    cdef double __labeled_summarize(self, double* sequence, int* states, 
+    cdef double __labeled_summarize(self, double* sequence, int* states,
         double weight, int n, int m) nogil:
         """Perform a re-estimation of the model parameters using labeled data.
 
@@ -2830,7 +2830,7 @@ cdef class HiddenMarkovModel(GraphModel):
             if present < self.silent_start:
                 (<Model> distributions[present])._summarize(sequence+j*self.d, &weight, 1)
                 j += 1
-            
+
         with gil:
             for k in range(m):
                 for l in range(out_edges[k], out_edges[k+1]):
@@ -2841,8 +2841,8 @@ cdef class HiddenMarkovModel(GraphModel):
         free(transitions)
         return 0
 
-    def from_summaries(self, inertia=None, pseudocount=None, 
-        transition_pseudocount=0.0, emission_pseudocount=0.0, 
+    def from_summaries(self, inertia=None, pseudocount=None,
+        transition_pseudocount=0.0, emission_pseudocount=0.0,
         use_pseudocount=False, edge_inertia=0.0, distribution_inertia=0.0):
         """Fit the model to the stored summary statistics.
 
@@ -2856,7 +2856,7 @@ cdef class HiddenMarkovModel(GraphModel):
         pseudocount : double, optional
             A pseudocount to add to both transitions and emissions. If supplied,
             it will override both transition_pseudocount and emission_pseudocount
-            in the same way that specifying `inertia` will override both 
+            in the same way that specifying `inertia` will override both
             `edge_inertia` and `distribution_inertia`. Default is None.
 
         transition_pseudocount : double, optional
@@ -2903,14 +2903,14 @@ cdef class HiddenMarkovModel(GraphModel):
             transition_pseudocount = pseudocount
             emission_pseudocount = pseudocount
 
-        self._from_summaries(transition_pseudocount, emission_pseudocount, 
+        self._from_summaries(transition_pseudocount, emission_pseudocount,
             use_pseudocount, edge_inertia, distribution_inertia)
 
         memset(self.expected_transitions, 0, self.n_edges*sizeof(double))
         self.summaries = 0
 
-    cdef void _from_summaries(self, double transition_pseudocount, 
-        double emission_pseudocount, bint use_pseudocount, double edge_inertia, 
+    cdef void _from_summaries(self, double transition_pseudocount,
+        double emission_pseudocount, bint use_pseudocount, double edge_inertia,
         double distribution_inertia):
         """Update the transition matrix and emission distributions."""
 
@@ -3250,12 +3250,12 @@ cdef class HiddenMarkovModel(GraphModel):
         return model
 
     @classmethod
-    def from_samples(cls, distribution, n_components, X, weights=None, 
-        labels=None, stop_threshold=1e-9, min_iterations=0, 
-        max_iterations=1e8, algorithm='baum-welch', verbose=False, n_init=1, 
-        init='kmeans++', max_kmeans_iterations=1, pseudocount=None, 
-        transition_pseudocount=0, emission_pseudocount=0.0, 
-        use_pseudocount=False, inertia=None, edge_inertia=0.0, 
+    def from_samples(cls, distribution, n_components, X, weights=None,
+        labels=None, stop_threshold=1e-9, min_iterations=0,
+        max_iterations=1e8, algorithm='baum-welch', verbose=False, n_init=1,
+        init='kmeans++', max_kmeans_iterations=1, pseudocount=None,
+        transition_pseudocount=0, emission_pseudocount=0.0,
+        use_pseudocount=False, inertia=None, edge_inertia=0.0,
         distribution_inertia=0.0, n_jobs=1):
         """Learn the transitions and emissions of a model directly from data.
 
@@ -3326,7 +3326,7 @@ cdef class HiddenMarkovModel(GraphModel):
         pseudocount : double, optional
             A pseudocount to add to both transitions and emissions. If supplied,
             it will override both transition_pseudocount and emission_pseudocount
-            in the same way that specifying `inertia` will override both 
+            in the same way that specifying `inertia` will override both
             `edge_inertia` and `distribution_inertia`. Default is None.
 
         transition_pseudocount : double, optional
@@ -3390,13 +3390,13 @@ cdef class HiddenMarkovModel(GraphModel):
             y = clf.predict(X_concat)
 
             distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
-        
+
         transition_matrix = numpy.ones((n_components, n_components)) / n_components
         start_probabilities = numpy.ones(n_components) / n_components
         model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities)
 
         model.fit(X, weights, labels, stop_threshold, min_iterations,
-            max_iterations, algorithm, verbose, pseudocount, 
+            max_iterations, algorithm, verbose, pseudocount,
             transition_pseudocount, emission_pseudocount, use_pseudocount,
             inertia, edge_inertia, distribution_inertia, n_jobs)
 

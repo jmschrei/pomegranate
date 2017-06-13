@@ -20,7 +20,7 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 
-def initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k, 
+def initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k,
 	init='first-k', double oversampling_factor=0.95):
 	"""Initialize the centroids for kmeans given a dataset.
 
@@ -96,7 +96,7 @@ def initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k,
 
 				if distance < min_distance_ptr[i]:
 					min_distance_ptr[i] = distance
-					
+
 			idx = numpy.random.choice(n, p=min_distance / min_distance.sum())
 			centroids[m+1] = X[idx]
 
@@ -222,7 +222,7 @@ cdef class Kmeans(Model):
 
 		with nogil:
 			self._predict(X_ptr, y_ptr, n)
-		
+
 		return y
 
 	cdef void _predict(self, double* X, int* y, int n) nogil:

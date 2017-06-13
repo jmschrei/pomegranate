@@ -187,7 +187,7 @@ def test_json():
 def test_from_samples_uni():
 	X = numpy.concatenate([numpy.random.normal(5, 1, (50, 1)), numpy.random.normal(1, 1, (20, 1))])
 	y = numpy.concatenate([numpy.zeros(50), numpy.ones(20)])
-	
+
 	NaiveBayes.from_samples(NormalDistribution, X, y)
 	NaiveBayes.from_samples(UniformDistribution, X, y)
 	model = NaiveBayes.from_samples(ExponentialDistribution, X, y)
@@ -201,7 +201,7 @@ def test_from_samples_uni():
 def test_from_samples_multi():
 	X = numpy.concatenate([numpy.random.normal(5, 1, (50, 3)), numpy.random.normal(1, 1, (20, 3))])
 	y = numpy.concatenate([numpy.zeros(50), numpy.ones(20)])
-	
+
 	NaiveBayes.from_samples(NormalDistribution, X, y)
 	NaiveBayes.from_samples(UniformDistribution, X, y)
 	model = NaiveBayes.from_samples(ExponentialDistribution, X, y)

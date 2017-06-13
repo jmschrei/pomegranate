@@ -15,7 +15,7 @@ General Mixture Models can be initialized in two ways depending on if you know t
 Here is an example of a traditional multivariate Gaussian mixture where we pass in pre-initialized distributions. We can also pass in the weight of each component, which serves as the prior probability of a sample belonging to that component when doing predictions.
 
 .. code-block:: python
-	
+
 	from pomegranate import *
 	d1 = MultivariateGaussianDistribution([1, 6, 3], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 	d2 = MultivariateGaussianDistribution([2, 8, 4], [[1, 0, 0], [0, 1, 0], [0, 0, 2]])
@@ -34,7 +34,7 @@ Alternatively, if we want to model each dimension differently, then we can repla
 If we do not know the parameters of our distributions beforehand and want to learn them entirely from data, then we can use the ``from_samples`` class method. This method will run k-means to initialize the components, using the returned clusters to initialize all parameters of the distributions, i.e. both mean and covariances for multivariate Gaussian distributions. Afterwards, execptation-maximization is used to refine the parameters of the model, iterating until convergence.
 
 .. code-block:: python
-	
+
 	from pomegranate import *
 	model = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=3, X=X)
 
@@ -49,7 +49,7 @@ If we want to model each dimension using a different distribution, then we can p
 Probability
 ---------------
 
-The probability of a point is the sum of its probability under each of the components, multiplied by the weight of each component c, :math:`P = \sum\limits_{i \in M} P(D|M_{i})P(M_{i})`. The ``probability`` method returns the probability of each sample under the entire mixture, and the ``log_probability`` method returns the log of that value.  
+The probability of a point is the sum of its probability under each of the components, multiplied by the weight of each component c, :math:`P = \sum\limits_{i \in M} P(D|M_{i})P(M_{i})`. The ``probability`` method returns the probability of each sample under the entire mixture, and the ``log_probability`` method returns the log of that value.
 
 Prediction
 ----------

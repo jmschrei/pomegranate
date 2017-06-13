@@ -232,7 +232,7 @@ cdef class GeneralMixtureModel(BayesModel):
 		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
-			
+
 			with nogil:
 				log_probability = self._summarize(X_ptr, weights_ptr, n)
 		else:
@@ -271,7 +271,7 @@ cdef class GeneralMixtureModel(BayesModel):
 			for j in range(self.n):
 				r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
 				summaries[j] += r[j*n + i]
-			
+
 			log_probability_sum += total * weights[i]
 
 			if self.is_vl_:
@@ -310,8 +310,8 @@ cdef class GeneralMixtureModel(BayesModel):
 		return model
 
 	@classmethod
-	def from_samples(self, distributions, n_components, X, weights=None, 
-		n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0, 
+	def from_samples(self, distributions, n_components, X, weights=None,
+		n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0,
 		stop_threshold=0.1, max_iterations=1e8, pseudocount=0.0, verbose=False):
 		"""Create a mixture model directly from the given dataset.
 
@@ -398,7 +398,7 @@ cdef class GeneralMixtureModel(BayesModel):
 			if distributions == DiscreteDistribution:
 				raise ValueError("cannot fit a discrete GMM "
 				                 "without pre-initialized distributions")
-			
+
 			distributions = [distributions for i in range(n_components)]
 
 		else:
@@ -422,8 +422,8 @@ cdef class GeneralMixtureModel(BayesModel):
 		class_weights = numpy.array([(y == i).mean() for i in range(n_components)])
 
 		model = GeneralMixtureModel(distributions, class_weights)
-		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold, 
-			max_iterations=max_iterations, pseudocount=pseudocount, 
+		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
+			max_iterations=max_iterations, pseudocount=pseudocount,
 			verbose=verbose)
 
 		return model

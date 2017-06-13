@@ -73,7 +73,7 @@ def sparse_model(d1, d2, d3, i_d):
 	# Create transitions from delete states
 	model.add_transition(d1, d2, 0.15)
 	model.add_transition(d1, i1, 0.15)
-	model.add_transition(d1, m2, 0.70) 
+	model.add_transition(d1, m2, 0.70)
 
 	model.add_transition(d2, d3, 0.15)
 	model.add_transition(d2, i2, 0.15)
@@ -245,10 +245,10 @@ def test_discrete_forward():
 @with_setup(setup_gaussian_dense)
 def test_gaussian_forward():
 	f = model.forward([3, 5, 8, 19, 13])
-	logp = numpy.array([[NEGINF, NEGINF, NEGINF, NEGINF, 0.0, NEGINF], 
-		[-5.221523626198319, -4.122911337530209, -15.72152362619832, -339.14208208451845, NEGINF, -6.137807473983832], 
-		[-6.045149476287824, -15.056746007188107, -14.571238720950003, -247.67044476202696, NEGINF, -8.347414404915495], 
-		[-12.157146753448874, -33.766352938119766, -13.083738234853534, -135.8798604314077, NEGINF, -14.126191869688759], 
+	logp = numpy.array([[NEGINF, NEGINF, NEGINF, NEGINF, 0.0, NEGINF],
+		[-5.221523626198319, -4.122911337530209, -15.72152362619832, -339.14208208451845, NEGINF, -6.137807473983832],
+		[-6.045149476287824, -15.056746007188107, -14.571238720950003, -247.67044476202696, NEGINF, -8.347414404915495],
+		[-12.157146753448874, -33.766352938119766, -13.083738234853534, -135.8798604314077, NEGINF, -14.126191869688759],
 		[-111.69303081629936, -177.04513040289305, -19.78896563212587, -31.409154369913637, NEGINF, -22.091541742268795],
 		[-55.01047129270264, -95.01047129270263, -22.605021155923353, -38.93103873379323, NEGINF, -24.90760616769035]])
 	assert_array_almost_equal(f, logp)
@@ -257,9 +257,9 @@ def test_gaussian_forward():
 @with_setup(setup_multivariate_gaussian_dense)
 def test_multivariate_gaussian_forward():
 	f = model.forward([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
-	logp = numpy.array([[NEGINF, NEGINF, NEGINF, NEGINF, 0.0, NEGINF], 
-		[-17.388625105797296, -25.109952452723487, -20.33305760532214, -28.085443290422877, NEGINF, -19.639474084287432], 
-		[-41.518178585896166, -62.62215498003203, -56.463304390840634, -63.21955480161304, NEGINF, -43.820763354673296], 
+	logp = numpy.array([[NEGINF, NEGINF, NEGINF, NEGINF, 0.0, NEGINF],
+		[-17.388625105797296, -25.109952452723487, -20.33305760532214, -28.085443290422877, NEGINF, -19.639474084287432],
+		[-41.518178585896166, -62.62215498003203, -56.463304390840634, -63.21955480161304, NEGINF, -43.820763354673296],
 		[-86.42085732368164, -67.62244823776697, -71.30752972353059, -70.64290643117542, NEGINF, -69.85376066028503]])
 	assert_array_almost_equal(f, logp)
 
@@ -267,35 +267,35 @@ def test_multivariate_gaussian_forward():
 @with_setup(setup_poisson_dense)
 def test_poisson_forward():
 	f = model.forward([5, 8, 2, 4, 7, 8, 2])
-	logp = numpy.array([[NEGINF, NEGINF, NEGINF, NEGINF, 0.0, NEGINF], 
-		[-6.724049572762615, -3.874849418805291, -7.396929655216146, -2.6565929124856993, NEGINF, -4.680333421931903], 
-		[-6.730147189571273, -6.114939268804046, -15.76343567997591, -6.1491172641470415, NEGINF, -7.498440536740427], 
-		[-14.331825716875938, -12.23889386200279, -8.404629462451046, -8.953498331843619, NEGINF, -10.236032891838605], 
-		[-15.218653579546471, -13.152885951823485, -13.58596603773139, -10.59764914181018, NEGINF, -12.771059542322048], 
-		[-15.25983657200538, -14.222315575321783, -22.039008189195016, -13.683075848076015, NEGINF, -15.403406295745581], 
-		[-17.30957501126636, -16.957613004675117, -26.32610484066788, -16.995462506806398, NEGINF, -18.279525087145316], 
+	logp = numpy.array([[NEGINF, NEGINF, NEGINF, NEGINF, 0.0, NEGINF],
+		[-6.724049572762615, -3.874849418805291, -7.396929655216146, -2.6565929124856993, NEGINF, -4.680333421931903],
+		[-6.730147189571273, -6.114939268804046, -15.76343567997591, -6.1491172641470415, NEGINF, -7.498440536740427],
+		[-14.331825716875938, -12.23889386200279, -8.404629462451046, -8.953498331843619, NEGINF, -10.236032891838605],
+		[-15.218653579546471, -13.152885951823485, -13.58596603773139, -10.59764914181018, NEGINF, -12.771059542322048],
+		[-15.25983657200538, -14.222315575321783, -22.039008189195016, -13.683075848076015, NEGINF, -15.403406295745581],
+		[-17.30957501126636, -16.957613004675117, -26.32610484066788, -16.995462506806398, NEGINF, -18.279525087145316],
 		[-25.05974969431663, -23.03771236899512, -19.218787612604835, -19.75231189091333, NEGINF, -21.044274521213687]])
 	assert_array_almost_equal(f, logp)
 
 @with_setup(setup_discrete_dense)
 def test_discrete_backward():
 	f = model.backward(['A', 'B', 'D', 'D', 'C'])
-	logp = numpy.array([[-9.86805902419294, -10.666561769922483, -11.09973677168472, -10.617074536069564, -11.092510372852566, NEGINF], 
-		[-9.120551817416588, -9.07513780778706, -9.061129343592423, -8.517934491110973, -8.143527673240188, NEGINF], 
-		[-6.950743680969357, -6.918207210615943, -6.3171849919534315, -6.328223424806821, -6.314201940019015, NEGINF], 
-		[-5.926238762190273, -5.832923518979429, -5.343210135438772, -5.352351255040521, -5.296020007499352, NEGINF], 
-		[-4.474141923581687, -3.2834143460057716, -3.547379891840237, -4.474141923581686, -3.8922203781319653, NEGINF], 
+	logp = numpy.array([[-9.86805902419294, -10.666561769922483, -11.09973677168472, -10.617074536069564, -11.092510372852566, NEGINF],
+		[-9.120551817416588, -9.07513780778706, -9.061129343592423, -8.517934491110973, -8.143527673240188, NEGINF],
+		[-6.950743680969357, -6.918207210615943, -6.3171849919534315, -6.328223424806821, -6.314201940019015, NEGINF],
+		[-5.926238762190273, -5.832923518979429, -5.343210135438772, -5.352351255040521, -5.296020007499352, NEGINF],
+		[-4.474141923581687, -3.2834143460057716, -3.547379891840237, -4.474141923581686, -3.8922203781319653, NEGINF],
 		[-2.3025850929940455, -2.3025850929940455, -2.3025850929940455, -2.3025850929940455, NEGINF, 0.0]])
 	assert_array_almost_equal(f, logp)
 
 @with_setup(setup_gaussian_dense)
 def test_gaussian_backward():
 	f = model.backward([3, 5, 8, 19, 13])
-	logp = numpy.array([[-24.010022764471987, -24.820878919065986, -25.359784144328874, -24.666641886986977, -24.907606167690343, NEGINF], 
-		[-20.47495458748052, -21.390489786220005, -22.08295469697486, -21.390527588974052, -22.081667004696868, NEGINF], 
-		[-18.86308443640411, -18.00715991329825, -18.32109321121691, -19.183852463904262, -18.700307092256082, NEGINF], 
-		[-13.533310680731095, -12.147019061523556, -12.434699610689767, -13.533307024859651, -12.840163500171148, NEGINF], 
-		[-6.217255777912353, -4.830961508172448, -5.1186435298576365, -6.217255656072613, -5.524108597352521, NEGINF], 
+	logp = numpy.array([[-24.010022764471987, -24.820878919065986, -25.359784144328874, -24.666641886986977, -24.907606167690343, NEGINF],
+		[-20.47495458748052, -21.390489786220005, -22.08295469697486, -21.390527588974052, -22.081667004696868, NEGINF],
+		[-18.86308443640411, -18.00715991329825, -18.32109321121691, -19.183852463904262, -18.700307092256082, NEGINF],
+		[-13.533310680731095, -12.147019061523556, -12.434699610689767, -13.533307024859651, -12.840163500171148, NEGINF],
+		[-6.217255777912353, -4.830961508172448, -5.1186435298576365, -6.217255656072613, -5.524108597352521, NEGINF],
 		[-2.3025850929940455, -2.3025850929940455, -2.3025850929940455, -2.3025850929940455, NEGINF, 0.0]])
 	assert_array_almost_equal(f, logp)
 
@@ -303,9 +303,9 @@ def test_gaussian_backward():
 @with_setup(setup_multivariate_gaussian_dense)
 def test_multivariate_gaussian_backward():
 	f = model.backward([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
-	logp = numpy.array([[-68.2539137567533, -69.16076639610863, -69.84868309756291, -69.16857768159394, -69.85376066028503, NEGINF], 
-		[-52.47579136451719, -53.392079325925124, -54.08522496164164, -53.392081629466915, -54.08522649261687, NEGINF], 
-		[-28.335582428803374, -28.267824434424867, -28.247424322493245, -27.65418843714621, -27.260167817399534, NEGINF], 
+	logp = numpy.array([[-68.2539137567533, -69.16076639610863, -69.84868309756291, -69.16857768159394, -69.85376066028503, NEGINF],
+		[-52.47579136451719, -53.392079325925124, -54.08522496164164, -53.392081629466915, -54.08522649261687, NEGINF],
+		[-28.335582428803374, -28.267824434424867, -28.247424322493245, -27.65418843714621, -27.260167817399534, NEGINF],
 		[-2.3025850929940455, -2.3025850929940455, -2.3025850929940455, -2.3025850929940455, NEGINF, 0.0]])
 	assert_array_almost_equal(f, logp)
 
@@ -313,25 +313,25 @@ def test_multivariate_gaussian_backward():
 @with_setup(setup_poisson_dense)
 def test_poisson_backward():
 	f = model.backward([5, 8, 2, 4, 7, 8, 2])
-	logp = numpy.array([[-21.691907586187032, -21.73799328948721, -21.138366991878907, -21.083291604178275, -21.044274521213687, NEGINF], 
-		[-18.8959690490499, -19.147279755417475, -18.96895836891973, -18.554384880883024, -18.344028493972242, NEGINF], 
-		[-16.436767297608355, -15.50289984292892, -15.520463678389667, -16.044844087024796, -15.741349651348344, NEGINF], 
-		[-13.746179478239421, -13.67833968609671, -13.103892290217432, -13.104515632505755, -13.064497897488891, NEGINF], 
-		[-10.900016194765097, -11.134592598694933, -10.70914236553333, -10.534402907712945, -10.472655441966987, NEGINF], 
-		[-8.08666946806842, -8.338743855593863, -8.159657556177146, -7.746210358522981, -7.536781914211483, NEGINF], 
-		[-5.624801928499422, -4.698024820874441, -4.71562372030326, -5.232043004902404, -4.927999971986549, NEGINF], 
+	logp = numpy.array([[-21.691907586187032, -21.73799328948721, -21.138366991878907, -21.083291604178275, -21.044274521213687, NEGINF],
+		[-18.8959690490499, -19.147279755417475, -18.96895836891973, -18.554384880883024, -18.344028493972242, NEGINF],
+		[-16.436767297608355, -15.50289984292892, -15.520463678389667, -16.044844087024796, -15.741349651348344, NEGINF],
+		[-13.746179478239421, -13.67833968609671, -13.103892290217432, -13.104515632505755, -13.064497897488891, NEGINF],
+		[-10.900016194765097, -11.134592598694933, -10.70914236553333, -10.534402907712945, -10.472655441966987, NEGINF],
+		[-8.08666946806842, -8.338743855593863, -8.159657556177146, -7.746210358522981, -7.536781914211483, NEGINF],
+		[-5.624801928499422, -4.698024820874441, -4.71562372030326, -5.232043004902404, -4.927999971986549, NEGINF],
 		[-2.3025850929940455, -2.3025850929940455, -2.3025850929940455, -2.3025850929940455, NEGINF, 0.0]])
 	assert_array_almost_equal(f, logp)
 
 @with_setup(setup, teardown)
 def test_viterbi_train():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='viterbi',
+									 verbose=False,
 									 use_pseudocount=True)
 
 	assert_equal(round(total_improvement, 4), 83.2834)
@@ -339,13 +339,13 @@ def test_viterbi_train():
 
 @with_setup(setup, teardown)
 def test_viterbi_train_no_pseudocount():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='viterbi',
+									 verbose=False,
 									 use_pseudocount=False)
 
 	assert_equal(round(total_improvement, 4), 84.9318)
@@ -353,13 +353,13 @@ def test_viterbi_train_no_pseudocount():
 
 @with_setup(setup, teardown)
 def test_viterbi_train_w_pseudocount():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='viterbi',
+									 verbose=False,
 									 transition_pseudocount=1.)
 
 	assert_equal(round(total_improvement, 4), 79.4713)
@@ -367,13 +367,13 @@ def test_viterbi_train_w_pseudocount():
 
 @with_setup(setup, teardown)
 def test_viterbi_train_w_pseudocount_priors():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='viterbi',
+									 verbose=False,
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True)
 
@@ -382,13 +382,13 @@ def test_viterbi_train_w_pseudocount_priors():
 
 @with_setup(setup, teardown)
 def test_viterbi_train_w_inertia():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='viterbi',
+									 verbose=False,
 									 edge_inertia=0.193)
 
 	assert_equal(round(total_improvement, 4), 84.9318)
@@ -396,13 +396,13 @@ def test_viterbi_train_w_inertia():
 
 @with_setup(setup, teardown)
 def test_viterbi_train_w_inertia2():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='viterbi',
+									 verbose=False,
 									 edge_inertia=0.82)
 
 	assert_equal(round(total_improvement, 4), 84.9318)
@@ -410,28 +410,28 @@ def test_viterbi_train_w_inertia2():
 
 @with_setup(setup, teardown)
 def test_viterbi_train_w_pseudocount_inertia():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='viterbi',
+									 verbose=False,
 									 edge_inertia=0.23,
-									 use_pseudocount=True) 
+									 use_pseudocount=True)
 
 	assert_equal(round(total_improvement, 4), 83.2834)
 
 
 @with_setup(setup, teardown)
 def test_bw_train():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 use_pseudocount=True,
 									 max_iterations=5)
 
@@ -443,9 +443,9 @@ def test_bw_multivariate_discrete_train():
 	seqs = [[['A', 'A'], ['A', 'C'], ['C', 'T']], [['A', 'A'], ['C', 'C'], ['T', 'T']],
 			[['A', 'A'], ['A', 'C'], ['C', 'C'], ['T', 'T']], [['A', 'A'], ['C', 'C']]]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 use_pseudocount=True,
 									 max_iterations=5)
 
@@ -454,12 +454,12 @@ def test_bw_multivariate_discrete_train():
 
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_bw_multivariate_gaussian_train():
-	seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]], 
+	seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]],
 			[[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 use_pseudocount=True,
 									 max_iterations=5)
 
@@ -467,13 +467,13 @@ def test_bw_multivariate_gaussian_train():
 
 @with_setup(setup, teardown)
 def test_bw_train_json():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 use_pseudocount=True,
 									 max_iterations=5)
 
@@ -486,120 +486,120 @@ def test_bw_train_json():
 
 @with_setup(setup, teardown)
 def test_bw_train_no_pseudocount():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
-	
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 use_pseudocount=False,
 									 max_iterations=5)
- 
+
 	assert_equal(round(total_improvement, 4), 85.681)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_pseudocount():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 transition_pseudocount=0.123,
 									 max_iterations=5)
-	
+
 	assert_equal(round(total_improvement, 4), 84.9408)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_pseudocount_priors():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True,
 									 max_iterations=5)
-	 
+
 	assert_equal(round(total_improvement, 4), 81.2265)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_inertia():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.193,
 									 max_iterations=5)
-	 
+
 	assert_equal(round(total_improvement, 4), 85.0528)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_inertia2():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.82,
 									 max_iterations=5)
-  
+
 	assert_equal(round(total_improvement, 4), 72.5134)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_pseudocount_inertia():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.02,
 									 use_pseudocount=True,
 									 max_iterations=5)
- 
+
 	assert_equal(round(total_improvement, 4), 83.0764)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_frozen_distributions():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 distribution_inertia=1.00,
 									 max_iterations=5)
-  
+
 	assert_equal(round(total_improvement, 4), 64.474)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_frozen_edges():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=1.00,
 									 max_iterations=5)
 
@@ -608,29 +608,29 @@ def test_bw_train_w_frozen_edges():
 
 @with_setup(setup, teardown)
 def test_bw_train_w_edge_a_distribution_inertia():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.5,
 									 distribution_inertia=0.5,
 									 max_iterations=5)
- 
+
 	assert_equal(round(total_improvement, 4), 81.5447)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 use_pseudocount=True,
 									 max_iterations=5,
 									 n_jobs=2)
@@ -640,127 +640,127 @@ def test_bw_train_parallel():
 
 @with_setup(setup, teardown)
 def test_bw_train_no_pseudocount_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
-	
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 use_pseudocount=False,
 									 max_iterations=5,
 									 n_jobs=2)
- 
+
 	assert_equal(round(total_improvement, 4), 85.681)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_pseudocount_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 transition_pseudocount=0.123,
 									 max_iterations=5,
 									 n_jobs=2)
-	
+
 	assert_equal(round(total_improvement, 4), 84.9408)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_pseudocount_priors_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True,
 									 max_iterations=5,
 									 n_jobs=2)
-	 
+
 	assert_equal(round(total_improvement, 4), 81.2265)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_inertia_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.193,
 									 max_iterations=5,
 									 n_jobs=2)
-	 
+
 	assert_equal(round(total_improvement, 4), 85.0528)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_inertia2_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.82,
 									 max_iterations=5,
 									 n_jobs=2)
-  
+
 	assert_equal(round(total_improvement, 4), 72.5134)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_pseudocount_inertia_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.02,
 									 use_pseudocount=True,
 									 max_iterations=5,
 									 n_jobs=2)
- 
+
 	assert_equal(round(total_improvement, 4), 83.0764)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_frozen_distributions_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 distribution_inertia=1.00,
 									 max_iterations=5,
 									 n_jobs=2)
-  
+
 	assert_equal(round(total_improvement, 4), 64.474)
 
 
 @with_setup(setup, teardown)
 def test_bw_train_w_frozen_edges_parallel():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=1.00,
 									 max_iterations=5,
 									 n_jobs=2)
@@ -770,18 +770,18 @@ def test_bw_train_w_frozen_edges_parallel():
 
 @with_setup(setup, teardown)
 def test_bw_train_w_edge_a_distribution_inertia():
-	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT', 
-		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='baum-welch', 
-									 verbose=False, 
+	total_improvement = model.fit(seqs,
+									 algorithm='baum-welch',
+									 verbose=False,
 									 edge_inertia=0.5,
 									 distribution_inertia=0.5,
 									 max_iterations=5,
 									 n_jobs=2)
- 
+
 	assert_equal(round(total_improvement, 4), 81.5447)
 
 

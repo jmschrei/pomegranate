@@ -261,7 +261,7 @@ cdef class BayesClassifier(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None, 
+	def from_samples(self, distributions, X, y, weights=None,
 		pseudocount=0.0, n_jobs=1):
 		"""Create a mixture model directly from the given dataset.
 
@@ -300,7 +300,7 @@ cdef class BayesClassifier(BayesModel):
             effectively smoothes the states to prevent 0. probability symbols
             if they don't happen to occur in the data. Only effects mixture
             models defined over discrete distributions. Default is 0.
-		
+
 		Returns
 		-------
 		model : NaiveBayes

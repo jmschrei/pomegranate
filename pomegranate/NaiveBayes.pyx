@@ -254,7 +254,7 @@ cdef class NaiveBayes(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None, 
+	def from_samples(self, distributions, X, y, weights=None,
 		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
 		verbose=False, n_jobs=1):
 		"""Create a mixture model directly from the given dataset.
@@ -343,7 +343,7 @@ cdef class NaiveBayes(BayesModel):
 			distributions = [ICD([distribution.blank() for distribution in distributions]) for i in range(n_components)]
 
 		model = NaiveBayes(distributions)
-		model.fit(X, y, weights=weights, pseudocount=pseudocount, 
+		model.fit(X, y, weights=weights, pseudocount=pseudocount,
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
 			verbose=verbose, n_jobs=n_jobs)
 		return model

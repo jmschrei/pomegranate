@@ -187,7 +187,7 @@ cdef class BayesModel(Model):
 		cdef double* logp = <double*> logp_ndarray.data
 
 		cdef numpy.ndarray X_ndarray
-		cdef double* X_ptr 
+		cdef double* X_ptr
 
 		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
@@ -520,10 +520,10 @@ cdef class BayesModel(Model):
 				distribution.from_summaries(inertia, pseudocount)
 			else:
 				distribution.from_summaries(inertia, **kwargs)
-			
+
 			self.weights[i] = _log(summaries[i])
 			self.summaries[i] = 0.
-		
+
 		return self
 
 	def clear_summaries(self):

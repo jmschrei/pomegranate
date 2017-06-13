@@ -20,7 +20,7 @@ Bayes classifiers and naive Bayes can both be initialized in one of two ways dep
 	d3 = IndependentComponentsDistribution([NormalDistribution(3, 1), NormalDistribution(5, 3), NormalDistribution(4, 1)])
 	model = NaiveBayes([d1, d2, d3])
 
-would create a three class naive Bayes classifier that modeled data with three dimensions. Alternatively, we can initialize a Bayes classifier in the following manner 
+would create a three class naive Bayes classifier that modeled data with three dimensions. Alternatively, we can initialize a Bayes classifier in the following manner
 
 .. code-block:: python
 
@@ -35,7 +35,7 @@ The two examples above functionally creatte the same model, as the Bayes classif
 If we instead wish to initialize our model directly onto data, we use the ``from_samples`` class method.
 
 .. code-block:: python
-	
+
 	from pomegranate import *
 	import numpy
 	X = numpy.load('data.npy')
@@ -53,13 +53,13 @@ This assumes that your data is two dimensional and that you want to model the fi
 We can do pretty much the same thing with Bayes classifiers, except passing in a more complex model.
 
 .. code-block:: python
-	
+
 	model = BayesClassifier.from_samples(MultivariateGaussianDistribution, X, y)
 
 One can use much more complex models than just a multivariate Gaussian with a full covariance matrix when using a Bayes classifier. Specifically, you can also have your distributions be general mixture models, hidden Markov models, and Bayesian networks. For example:
 
 .. code-block:: python
-	
+
 	model = BayesClassifier.from_samples(BayesianNetwork, X, y)
 
 That would require that the data is only discrete valued currently, and the structure learning task may be too long if not set appropriately. However, it is possible. Currently, one cannot simply put in GeneralMixtureModel or HiddenMarkovModel despite them having a ``from_samples`` method because there is a great deal of flexibility in terms of the structure or emission distributions. The easiest way to set up one of these more complex models is to build each of the components separately and then feed them into the Bayes classifier method using the first initialization method.
@@ -68,17 +68,17 @@ That would require that the data is only discrete valued currently, and the stru
 
 	d1 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=5, X=X[y==0])
 	d2 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=5, X=X[y==1])
-	model = BayesClassifier([d1, d2]) 
+	model = BayesClassifier([d1, d2])
 
 Prediction
 ----------
 
-Bayes classifiers and naive Bayes supports the same three prediction methods that the other models support, ``predict``, ``predict_proba``, and ``predict_log_proba``. These methods return the most likely class given the data (argmax_m P(M|D)), the probability of each class given the data (P(M|D)), and the log probability of each class given the data (log P(M|D)). It is best to always pass in a 2D matrix even for univariate data, where it would have a shape of (n, 1). 
+Bayes classifiers and naive Bayes supports the same three prediction methods that the other models support, ``predict``, ``predict_proba``, and ``predict_log_proba``. These methods return the most likely class given the data (argmax_m P(M|D)), the probability of each class given the data (P(M|D)), and the log probability of each class given the data (log P(M|D)). It is best to always pass in a 2D matrix even for univariate data, where it would have a shape of (n, 1).
 
 The ``predict`` method takes in samples and returns the most likely class given the data.
 
 .. code-block:: python
-	
+
 	from pomegranate import *
 	model = NaiveBayes([NormalDistribution(5, 2), UniformDistribution(0, 10), ExponentialDistribution(1.0)])
 	model.predict( np.array([[0], [1], [2], [3], [4]]))
@@ -139,14 +139,14 @@ Both naive Bayes and Bayes classifiers also have a ``fit`` method that updates t
 As we can see, there are four samples, with the first two samples labeled as class 0 and the last two samples labeled as class 1. Keep in mind that the training samples must match the input requirements for the models used. So if using a univariate distribution, then each sample must contain one item. A bivariate distribution, two. For hidden markov models, the sample can be a list of observations of any length. An example using hidden markov models would be the following.
 
 .. code-block:: python
-	
+
 	d1 = HiddenMarkovModel...
 	d2 = HiddenMarkovModel...
 	d3 = HiddenMarkovModel...
 	model = BayesClassifier([d1, d2, d3])
 	X = np.array([list('HHHHHTHTHTTTTH'),
 					   	    list('HHTHHTTHHHHHTH'),
-					  	    list('TH'), 
+					  	    list('TH'),
 					  	    list('HHHHT')])
 	y = np.array([2, 2, 1, 0])
 	model.fit(X, y)
