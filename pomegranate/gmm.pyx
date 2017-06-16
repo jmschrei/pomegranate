@@ -11,6 +11,8 @@ from libc.math cimport exp as cexp
 import json
 import time
 
+from .callbacks import CallbackList, ParamsTerminator, History
+
 import numpy
 cimport numpy
 
@@ -91,6 +93,7 @@ cdef class GeneralMixtureModel(BayesModel):
 	    "name" :"NormalDistribution"
 	}], dtype=object)
 	"""
+	cdef public bint stop_training
 
 	def __init__(self, distributions, weights=None):
 		super(GeneralMixtureModel, self).__init__(distributions, weights)
@@ -99,7 +102,8 @@ cdef class GeneralMixtureModel(BayesModel):
 		return self.__class__, (self.distributions.tolist(), numpy.exp(self.weights))
 
 	def fit(self, X, weights=None, inertia=0.0, stop_threshold=0.1,
-		max_iterations=1e8, pseudocount=0.0, verbose=False):
+		max_iterations=1e8, pseudocount=0.0, verbose=False,
+		min_iterations=0, callbacks=None, return_history=False):
 		"""Fit the model to new data using EM.
 
 		This method fits the components of the model to new data using the EM
@@ -139,45 +143,86 @@ cdef class GeneralMixtureModel(BayesModel):
 			model is improving per iteration.
 			Default is 1e8.
 
+		min_iterations : int, optional
+			The minimum number of iterations to run EM for. Default is 0.
+
 		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects mixture
+			models defined over discrete distributions. Default is 0.
 
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations.
 			Default is False.
 
+		callbacks: array-like or None, optional
+			A list of Callback objects that are executed when training is
+			started and finished, as well as on both the start and finish of
+			each iteration. Defaults to None.
+
+		return_history: bool, optional
+			Signifies whether the history object is returned. Defaults to False.
+
 		Returns
 		-------
 		improvement : double
 			The total improvement in log probability P(D|M)
+
+		history : a History object, optional
+			A History object that stores the whole history of
+			training. Does not get returned unless return_history
+			is True.
+
 		"""
+		history = History()
+		callbacks = callbacks or [history]
+		callbacks.append(ParamsTerminator())
+		params = {
+		    'min_iterations': min_iterations,
+		    'max_iterations': max_iterations,
+		    'stop_threshold': stop_threshold
+		}
+		callbacks = CallbackList(callbacks=callbacks, params=params,
+		                         model=self)
+		callbacks.on_train_begin()
+		self.stop_training = False
 
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
 
 		training_start_time = time.time()
-		while improvement > stop_threshold and iteration < max_iterations + 1:
+		while True:
+			callbacks.on_iteration_begin(iteration)
+			if self.stop_training:
+				break
 			epoch_start_time = time.time()
+
 			self.from_summaries(inertia, pseudocount)
 			log_probability_sum = self.summarize(X, weights)
+			time_spent = time.time() - epoch_start_time
 
 			if iteration == 0:
 				initial_log_probability_sum = log_probability_sum
 			else:
 				improvement = log_probability_sum - last_log_probability_sum
 
-				time_spent = time.time() - epoch_start_time
 				if verbose:
 					print("Improvement: {} in {:.2f}s".format(improvement, time_spent))
+
+			logged_vars = {
+			'improvement': improvement,
+			'time_spent': time_spent,
+			'log_probability': log_probability_sum
+			}
+			callbacks.on_iteration_end(iteration, logged_vars=logged_vars)
 
 			iteration += 1
 			last_log_probability_sum = log_probability_sum
 
 		self.clear_summaries()
+		callbacks.on_train_end()
 
 		if verbose:
 			total_imp = last_log_probability_sum - initial_log_probability_sum
@@ -185,7 +230,10 @@ cdef class GeneralMixtureModel(BayesModel):
 			print("Total Improvement: {}".format(total_imp))
 			print("Total Time: {:.2f}s".format(total_time_spent))
 
-		return last_log_probability_sum - initial_log_probability_sum
+		improvement = last_log_probability_sum - initial_log_probability_sum
+		if return_history:
+			return improvement, history
+		return improvement
 
 	def summarize(self, X, weights=None):
 		"""Summarize a batch of data and store sufficient statistics.
