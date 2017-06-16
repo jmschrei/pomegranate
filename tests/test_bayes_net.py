@@ -480,7 +480,7 @@ def test_imputation():
 @with_setup(setup_monty, teardown)
 def test_numpy_imputation():
     obs = numpy.array([['A', None, 'B'],
-                    ['A', nan, 'C'],
+                    ['A', None, 'C'],
                     ['A', 'B', 'C']])
 
     predictions = monty_network.predict(obs)
@@ -495,7 +495,7 @@ def test_numpy_imputation():
     assert_array_equal(obs,
                        [
                          ['A', None, 'B'],
-                         ['A', numpy.nan, 'C'],
+                         ['A', None, 'C'],
                          ['A', 'B', 'C']
                        ])
 
