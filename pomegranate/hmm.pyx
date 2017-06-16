@@ -2491,11 +2491,12 @@ cdef class HiddenMarkovModel(GraphModel):
                 else:
                     improvement = log_probability_sum - last_log_probability_sum
                     time_spent = time.time() - epoch_start_time
+                    vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
+                    fmt = "[{iteration}] Improvement: {improvement} Time (s): {time:.2f}"
                     if verbose:
-                        print("Training improvement: {} in {:.2f}s".format(improvement,
-                                                                           time_spent))
+                        print(fmt.format(**vals))
 
-                iteration +=1
+                iteration += 1
                 last_log_probability_sum = log_probability_sum
 
         self.clear_summaries()
@@ -2510,7 +2511,7 @@ cdef class HiddenMarkovModel(GraphModel):
         if verbose:
             print("Total Training Improvement: {}".format(improvement))
             total_training_time = time.time() - training_start_time
-            print("Total Training Time: {0:.2f}s".format(total_training_time))
+            print("Total Training Time (s): {0:.2f}".format(total_training_time))
         return improvement
 
     def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch', 

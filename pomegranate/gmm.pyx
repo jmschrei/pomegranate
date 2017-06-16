@@ -171,8 +171,10 @@ cdef class GeneralMixtureModel(BayesModel):
 				improvement = log_probability_sum - last_log_probability_sum
 
 				time_spent = time.time() - epoch_start_time
+				vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
+				fmt = "[{iteration}] Improvement: {improvement} Time (s): {time:.2f}"
 				if verbose:
-					print("Improvement: {} in {:.2f}s".format(improvement, time_spent))
+					print(fmt.format(**vals))
 
 			iteration += 1
 			last_log_probability_sum = log_probability_sum
@@ -183,7 +185,7 @@ cdef class GeneralMixtureModel(BayesModel):
 			total_imp = last_log_probability_sum - initial_log_probability_sum
 			total_time_spent = time.time() - training_start_time
 			print("Total Improvement: {}".format(total_imp))
-			print("Total Time: {:.2f}s".format(total_time_spent))
+			print("Total Time (s): {:.2f}".format(total_time_spent))
 
 		return last_log_probability_sum - initial_log_probability_sum
 
