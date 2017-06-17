@@ -395,7 +395,7 @@ cdef class FactorGraph( GraphModel ):
 			"states": [json.loads(state.to_json()) for state in self.states],
 			"edges": self.edges
 		}
-		return json.dumps(model, separators=separators, indent=indent)
+		return json.dumps(model, separators=separators, indent=indent, sort_keys=True)
 
 	@classmethod
 	def from_json(cls, s):
