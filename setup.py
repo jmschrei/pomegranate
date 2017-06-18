@@ -65,5 +65,9 @@ setup(
         "networkx >= 1.8.1",
         "scipy >= 0.17.0"
     ],
-    test_suite = 'nose.collector'
+    test_suite = 'nose.collector',
+    package_data={
+        'pomegranate': ['*.pyd']
+    },
+    include_package_data=True,
 )
