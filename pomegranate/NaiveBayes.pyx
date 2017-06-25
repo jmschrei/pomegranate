@@ -276,10 +276,6 @@ cdef class NaiveBayes(BayesModel):
 			distributions of the components. If callable, must also pass in the
 			number of components and kmeans++ will be used to initialize them.
 
-		n_components : int
-			If a callable is passed into distributions then this is the number
-			of components to initialize using the kmeans++ algorithm.
-
 		X : array-like, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on.
@@ -290,10 +286,10 @@ cdef class NaiveBayes(BayesModel):
 			Default is None.
 
 		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects mixture
+			models defined over discrete distributions. Default is 0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
@@ -311,6 +307,10 @@ cdef class NaiveBayes(BayesModel):
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
+
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. Default is 1.
 
 		Returns
 		-------
