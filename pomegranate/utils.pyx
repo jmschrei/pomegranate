@@ -73,6 +73,15 @@ cdef class PriorityQueue(object):
 		else:
 			raise KeyError("Attempting to pop from an empty priority queue")
 
+def is_gpu_enabled():
+	return GPU
+
+cpdef enable_gpu():
+	DEF GPU = True
+
+cpdef disable_gpu():
+	DEF GPU = False
+
 cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
 	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)
 	return X

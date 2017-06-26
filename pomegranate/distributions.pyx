@@ -27,6 +27,7 @@ from .utils cimport _log
 from .utils cimport lgamma
 from .utils cimport mdot
 from .utils cimport ndarray_wrap_cpointer
+from .utils cimport GPU
 
 from collections import OrderedDict
 
@@ -37,11 +38,10 @@ if sys.version_info[0] > 2:
 else:
 	izip = it.izip
 
-try:
+if GPU:
 	import cupy
-	DEF GPU = True
-except:
-	DEF GPU = False
+else:
+	cupy = object
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -2136,11 +2136,14 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		cdef int i, j, d = self.d
 		cdef double* dot
 
+		with gil:
+			print "dist", GPU
+
 		if GPU:
 			with gil:
 				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
 				dot_ndarray = cupy.dot(x, self.inv_cov)
-				dot = (<numpy.ndarray> dot_ndarray).data
+				dot = <double*> (<numpy.ndarray> dot_ndarray).data
 		else:
 			dot = <double*> calloc(n*d, sizeof(double))
 			mdot(X, self._inv_cov, dot, n, d, d)
