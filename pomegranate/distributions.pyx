@@ -38,9 +38,9 @@ if sys.version_info[0] > 2:
 else:
 	izip = it.izip
 
-if GPU:
+try:
 	import cupy
-else:
+except:
 	cupy = object
 
 # Define some useful constants
@@ -2136,10 +2136,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		cdef int i, j, d = self.d
 		cdef double* dot
 
-		with gil:
-			print "dist", GPU
-
-		if GPU:
+		if GPU[0] == 1:
 			with gil:
 				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
 				dot_ndarray = cupy.dot(x, self.inv_cov)

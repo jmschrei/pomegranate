@@ -23,6 +23,14 @@ try:
 except ImportError:
 	pygraphviz = None
 
+cdef int* GPU = <int*> calloc(1, sizeof(int))
+
+try:
+	import cupy
+	enable_gpu()
+except:
+	pass
+
 numpy.import_array()
 
 cdef extern from "numpy/ndarraytypes.h":
@@ -74,13 +82,16 @@ cdef class PriorityQueue(object):
 			raise KeyError("Attempting to pop from an empty priority queue")
 
 def is_gpu_enabled():
-	return GPU
+	global GPU
+	return bool(GPU[0])
 
 cpdef enable_gpu():
-	DEF GPU = True
+	global GPU
+	GPU[0] = 1
 
 cpdef disable_gpu():
-	DEF GPU = False
+	global GPU
+	GPU[0] = 0
 
 cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
 	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)
