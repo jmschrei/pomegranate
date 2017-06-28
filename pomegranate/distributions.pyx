@@ -2138,6 +2138,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		if GPU[0] == 1:
 			with gil:
+				print "hello there", GPU[0]
 				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
 				dot_ndarray = cupy.dot(x, self.inv_cov)
 				dot = <double*> (<numpy.ndarray> dot_ndarray).data
