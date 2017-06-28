@@ -2152,7 +2152,8 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 			logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
 
-		free(dot)
+		if GPU[0] == 0:
+			free(dot)
 
 	def sample(self, n=None):
 		return numpy.random.multivariate_normal(self.parameters[0],
