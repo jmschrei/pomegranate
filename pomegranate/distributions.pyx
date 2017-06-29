@@ -2147,7 +2147,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				x1 = cupy.array(x)
 				x2 = cupy.array(self.inv_cov)
 				#dot_ndarray = cupy.dot(x, self.inv_cov)
-				dot_ndarray = numpy.array(cupy.dot(x1, x2))
+				dot_ndarray = cupy.asnumpy(cupy.dot(x1, x2))
 				dot = <double*> (<numpy.ndarray> dot_ndarray).data
 		else:
 			dot = <double*> calloc(n*d, sizeof(double))
