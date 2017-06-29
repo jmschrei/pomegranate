@@ -2142,20 +2142,14 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		if GPU[0] == 1:
 			with gil:
-				print "hello there", GPU[0]
 				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
 				x1 = cupy.array(x)
 				x2 = cupy.array(self.inv_cov)
-				#dot_ndarray = cupy.dot(x, self.inv_cov)
-				dot_ndarray = cupy.asnumpy(cupy.dot(x1, x2))
+				dot_ndarray = cupy.dot(x1, x2).get()
 				dot = <double*> (<numpy.ndarray> dot_ndarray).data
 		else:
 			dot = <double*> calloc(n*d, sizeof(double))
 			mdot(X, self._inv_cov, dot, n, d, d)
-
-		with gil:
-			print "first", time.time() - tic
-			tic = time.time()
 
 		for i in range(n):
 			logp[i] = 0
@@ -2163,9 +2157,6 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				logp[i] += (dot[i*d + j] - self._inv_dot_mu[j])**2
 
 			logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
-
-		with gil:
-			print "second", time.time() - tic
 
 		if GPU[0] == 0:
 			free(dot)
