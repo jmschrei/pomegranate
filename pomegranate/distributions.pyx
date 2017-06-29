@@ -2209,10 +2209,8 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		cdef int i, j, k, d = self.d
 		cdef double w_sum = 0.0
 		cdef double* column_sum = <double*> calloc(d, sizeof(double))
-		cdef double* pair_sum = <double*> calloc(d*d, sizeof(double))
+		cdef double* pair_sum
 		memset(column_sum, 0, d*sizeof(double))
-		memset(pair_sum, 0, d*d*sizeof(double))
-
 
 		cdef double* y = <double*> calloc(n*d, sizeof(double))
 
@@ -2226,7 +2224,20 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				y[i*d + j] = X[i*d + j] * weights[i]
 				column_sum[j] += y[i*d + j]
 
-		dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, X, &d, &beta, pair_sum, &d)
+		if GPU[0] == 1:
+			with gil:
+				x1 = ndarray_wrap_cpointer(y, n*d).reshape(n, d)
+				x1 = cupy.array(x1)
+
+				x2 = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
+				x2 = cupy.array(x2)
+
+				dot_ndarray = cupy.dot(x1, x2).get()
+				pair_sum = <double*> (<numpy.ndarray> dot_ndarray).data
+		else:
+			pair_sum = <double*> calloc(d*d, sizeof(double))
+			memset(pair_sum, 0, d*d*sizeof(double))
+			dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, X, &d, &beta, pair_sum, &d)
 
 		with gil:
 			self.w_sum += w_sum
