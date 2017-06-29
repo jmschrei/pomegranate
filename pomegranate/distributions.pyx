@@ -40,7 +40,7 @@ else:
 
 try:
 	import cupy
-	from cupy.cuda.cublas cimport cublasDgemm
+	#from cupy.cuda.cublas cimport cublasDgemm
 except:
 	cupy = object
 
