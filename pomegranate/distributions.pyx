@@ -26,6 +26,8 @@ from .utils cimport pair_lse
 from .utils cimport _log
 from .utils cimport lgamma
 from .utils cimport mdot
+from .utils cimport ndarray_wrap_cpointer
+from .utils cimport GPU
 
 from collections import OrderedDict
 
@@ -35,6 +37,12 @@ if sys.version_info[0] > 2:
 	izip = zip
 else:
 	izip = it.izip
+
+try:
+	import cupy
+	#from cupy.cuda.cublas cimport cublasDgemm
+except:
+	cupy = object
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -2105,8 +2113,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		self._inv_dot_mu = <double*> calloc(d, sizeof(double))
 
 		chol = scipy.linalg.cholesky(self.cov, lower=True)
-		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
-			lower=True).T
+		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), lower=True).T
 		self._inv_cov = <double*> self.inv_cov.data
 		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
 
@@ -2128,9 +2135,21 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 	cdef void _log_probability(self, double* X, double* logp, int n) nogil:
 		cdef int i, j, d = self.d
+		cdef double* dot
 
-		cdef double* dot = <double*> calloc(n*d, sizeof(double))
-		mdot(X, self._inv_cov, dot, n, d, d)
+		with gil:
+			tic = time.time()
+
+		if GPU[0] == 1:
+			with gil:
+				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
+				x1 = cupy.array(x)
+				x2 = cupy.array(self.inv_cov)
+				dot_ndarray = cupy.dot(x1, x2).get()
+				dot = <double*> (<numpy.ndarray> dot_ndarray).data
+		else:
+			dot = <double*> calloc(n*d, sizeof(double))
+			mdot(X, self._inv_cov, dot, n, d, d)
 
 		for i in range(n):
 			logp[i] = 0
@@ -2139,7 +2158,8 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 			logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
 
-		free(dot)
+		if GPU[0] == 0:
+			free(dot)
 
 	def sample(self, n=None):
 		return numpy.random.multivariate_normal(self.parameters[0],
@@ -2189,10 +2209,8 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		cdef int i, j, k, d = self.d
 		cdef double w_sum = 0.0
 		cdef double* column_sum = <double*> calloc(d, sizeof(double))
-		cdef double* pair_sum = <double*> calloc(d*d, sizeof(double))
+		cdef double* pair_sum
 		memset(column_sum, 0, d*sizeof(double))
-		memset(pair_sum, 0, d*d*sizeof(double))
-
 
 		cdef double* y = <double*> calloc(n*d, sizeof(double))
 
@@ -2206,7 +2224,23 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				y[i*d + j] = X[i*d + j] * weights[i]
 				column_sum[j] += y[i*d + j]
 
-		dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, X, &d, &beta, pair_sum, &d)
+		if GPU[0] == 1:
+			with gil:
+				print("a")
+				x1 = ndarray_wrap_cpointer(y, n*d).reshape(n, d)
+				#x1 = cupy.array(x1)
+				print("b")
+
+				x2 = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
+				#x2 = cupy.array(x2)
+				print("c")
+
+				dot_ndarray = cupy.dot(x1, x2).get()
+				pair_sum = <double*> (<numpy.ndarray> dot_ndarray).data
+		else:
+			pair_sum = <double*> calloc(d*d, sizeof(double))
+			memset(pair_sum, 0, d*d*sizeof(double))
+			dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, X, &d, &beta, pair_sum, &d)
 
 		with gil:
 			self.w_sum += w_sum
@@ -2217,9 +2251,10 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				for k in range(d):
 					self.pair_sum[j*d + k] += pair_sum[j*d + k]
 
-		free(column_sum)
-		free(pair_sum)
-		free(y)
+		#free(column_sum)
+		#if GPU[0] == 0:
+		#	free(pair_sum)
+		#	free(y)
 
 	def from_summaries(self, inertia=0.0, min_covar=1e-5):
 		"""
