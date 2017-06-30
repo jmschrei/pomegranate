@@ -2235,8 +2235,8 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				#x2 = cupy.array(x2)
 				print("c")
 
-				#dot_ndarray = cupy.dot(x1, x2).get()
-				#pair_sum = <double*> (<numpy.ndarray> dot_ndarray).data
+				dot_ndarray = cupy.dot(x1, x2).get()
+				pair_sum = <double*> (<numpy.ndarray> dot_ndarray).data
 		else:
 			pair_sum = <double*> calloc(d*d, sizeof(double))
 			memset(pair_sum, 0, d*d*sizeof(double))
