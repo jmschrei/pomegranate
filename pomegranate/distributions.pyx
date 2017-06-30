@@ -2252,8 +2252,10 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 					self.pair_sum[j*d + k] += pair_sum[j*d + k]
 
 		free(column_sum)
-		free(pair_sum)
 		free(y)
+
+		if GPU[0] == 0:
+			free(pair_sum)
 
 	def from_summaries(self, inertia=0.0, min_covar=1e-5):
 		"""
