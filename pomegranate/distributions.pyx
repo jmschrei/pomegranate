@@ -2228,15 +2228,15 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 			with gil:
 				print("a")
 				x1 = ndarray_wrap_cpointer(y, n*d).reshape(n, d)
-				x1 = cupy.array(x1)
+				#x1 = cupy.array(x1)
 				print("b")
 
 				x2 = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
-				x2 = cupy.array(x2)
+				#x2 = cupy.array(x2)
 				print("c")
 
-				dot_ndarray = cupy.dot(x1, x2).get()
-				pair_sum = <double*> (<numpy.ndarray> dot_ndarray).data
+				#dot_ndarray = cupy.dot(x1, x2).get()
+				#pair_sum = <double*> (<numpy.ndarray> dot_ndarray).data
 		else:
 			pair_sum = <double*> calloc(d*d, sizeof(double))
 			memset(pair_sum, 0, d*d*sizeof(double))
