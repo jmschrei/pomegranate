@@ -3,6 +3,7 @@
 # BayesClassifier.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
+import time
 import json
 import numpy
 cimport numpy
@@ -125,6 +126,7 @@ cdef class BayesClassifier(BayesModel):
 			Returns the fitted model
 		"""
 
+		training_start_time = time.time()
 		self.summarize(X, y, weights, n_jobs=n_jobs)
 		self.from_summaries(inertia, pseudocount)
 
@@ -144,6 +146,7 @@ cdef class BayesClassifier(BayesModel):
 			unlabeled_weights = None if weights is None else weights[y == -1]
 
 			while improvement > stop_threshold and iteration < max_iterations + 1:
+				epoch_start_time = time.time()
 				self.from_summaries(inertia, pseudocount)
 				unsupervised.weights[:] = self.weights
 
@@ -158,8 +161,11 @@ cdef class BayesClassifier(BayesModel):
 				else:
 					improvement = log_probability_sum - last_log_probability_sum
 
+					time_spent = time.time() - epoch_start_time
+					vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
+					fmt = "[{iteration}] Improvement: {improvement} Time (s): {time:.2f}"
 					if verbose:
-						print("Improvement: {}".format(improvement))
+						print(fmt.format(**vals))
 
 				iteration += 1
 				last_log_probability_sum = log_probability_sum
@@ -167,8 +173,10 @@ cdef class BayesClassifier(BayesModel):
 			self.clear_summaries()
 
 			if verbose:
-				print("Total Improvement: {}".format(
-					last_log_probability_sum - initial_log_probability_sum))
+				total_imp = last_log_probability_sum - initial_log_probability_sum
+				total_time_spent = time.time() - training_start_time
+				print("Total Improvement: {}".format(total_imp))
+				print("Total Time (s): {:.2f}".format(total_time_spent))
 
 			return last_log_probability_sum - initial_log_probability_sum
 
@@ -261,7 +269,7 @@ cdef class BayesClassifier(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None, 
+	def from_samples(self, distributions, X, y, weights=None,
 		pseudocount=0.0, n_jobs=1):
 		"""Create a mixture model directly from the given dataset.
 
@@ -300,7 +308,7 @@ cdef class BayesClassifier(BayesModel):
             effectively smoothes the states to prevent 0. probability symbols
             if they don't happen to occur in the data. Only effects mixture
             models defined over discrete distributions. Default is 0.
-		
+
 		Returns
 		-------
 		model : NaiveBayes
