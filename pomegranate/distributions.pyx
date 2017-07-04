@@ -41,7 +41,7 @@ else:
 
 try:
 	import cupy
-else:
+except:
 	cupy = object
 
 # Define some useful constants
