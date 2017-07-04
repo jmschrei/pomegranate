@@ -27,6 +27,8 @@ cdef int* GPU = <int*> calloc(1, sizeof(int))
 
 try:
 	import cupy
+	from cupy import cuda
+	cuda.Device().cublas_handle
 	enable_gpu()
 except:
 	pass
