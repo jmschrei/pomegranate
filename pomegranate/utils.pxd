@@ -3,6 +3,8 @@
 
 cimport numpy
 
+cdef int* GPU
+
 cdef ndarray_wrap_cpointer(void* data, int n)
 cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil
 cdef double _log (double x) nogil
