@@ -27,7 +27,7 @@ cdef int* GPU = <int*> calloc(1, sizeof(int))
 
 try:
 	import cupy
-	#enable_gpu()
+	enable_gpu()
 except:
 	pass
 
@@ -81,7 +81,7 @@ cdef class PriorityQueue(object):
 		else:
 			raise KeyError("Attempting to pop from an empty priority queue")
 
-'''
+
 def is_gpu_enabled():
 	global GPU
 	return bool(GPU[0])
@@ -93,7 +93,7 @@ cpdef enable_gpu():
 cpdef disable_gpu():
 	global GPU
 	GPU[0] = 0
-'''
+
 
 cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
 	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)

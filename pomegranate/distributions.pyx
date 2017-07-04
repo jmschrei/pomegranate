@@ -39,16 +39,10 @@ if sys.version_info[0] > 2:
 else:
 	izip = it.izip
 
-#cdef int* GPU = <int*> calloc(1, sizeof(int))
- 
 try:
 	import cupy
-	from cupy import cuda
-	cuda.Device().cublas_handle
-	GPU[0] = 1
-except:
+else:
 	cupy = object
-	GPU[0] = 0
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
