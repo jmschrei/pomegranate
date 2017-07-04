@@ -28,7 +28,7 @@ from .utils cimport _log
 from .utils cimport lgamma
 from .utils cimport mdot
 from .utils cimport ndarray_wrap_cpointer
-#from .utils cimport GPU
+from .utils cimport GPU
 
 from collections import OrderedDict
 
@@ -39,7 +39,7 @@ if sys.version_info[0] > 2:
 else:
 	izip = it.izip
 
-cdef int* GPU = <int*> calloc(1, sizeof(int))
+#cdef int* GPU = <int*> calloc(1, sizeof(int))
  
 try:
 	import cupy

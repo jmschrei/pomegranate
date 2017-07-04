@@ -23,7 +23,7 @@ try:
 except ImportError:
 	pygraphviz = None
 
-#cdef int* GPU = <int*> calloc(1, sizeof(int))
+cdef int* GPU = <int*> calloc(1, sizeof(int))
 
 try:
 	import cupy
