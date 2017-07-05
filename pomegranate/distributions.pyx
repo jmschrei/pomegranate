@@ -28,7 +28,7 @@ from .utils cimport _log
 from .utils cimport lgamma
 from .utils cimport mdot
 from .utils cimport ndarray_wrap_cpointer
-from .utils cimport GPU
+from .utils cimport _is_gpu_enabled
 
 from collections import OrderedDict
 
@@ -2138,7 +2138,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		cdef int i, j, d = self.d
 		cdef double* dot
 
-		if GPU[0] == 1:
+		if _is_gpu_enabled():
 			with gil:
 				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
 				x1 = cupy.array(x)
@@ -2156,7 +2156,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 			logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
 
-		if GPU[0] == 0:
+		if not _is_gpu_enabled():
 			free(dot)
 
 	def sample(self, n=None):
@@ -2222,7 +2222,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				y[i*d + j] = X[i*d + j] * weights[i]
 				column_sum[j] += y[i*d + j]
 
-		if GPU[0] == 1:
+		if _is_gpu_enabled():
 			with gil:
 				x_ndarray = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
 				y_ndarray = ndarray_wrap_cpointer(y, n*d).reshape(n, d)

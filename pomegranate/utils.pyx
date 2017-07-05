@@ -88,6 +88,9 @@ def is_gpu_enabled():
 	global GPU
 	return bool(GPU[0])
 
+cdef int _is_gpu_enabed() nogil:
+	return GPU[0]
+
 cpdef enable_gpu():
 	global GPU
 	GPU[0] = 1
