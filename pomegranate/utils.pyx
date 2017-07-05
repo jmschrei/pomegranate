@@ -23,6 +23,22 @@ try:
 except ImportError:
 	pygraphviz = None
 
+cdef int* GPU = <int*> calloc(1, sizeof(int))
+
+try:
+	import cupy
+	from cupy import cuda
+	cuda.Device().cublas_handle
+	enable_gpu()
+except:
+	pass
+
+numpy.import_array()
+
+cdef extern from "numpy/ndarraytypes.h":
+	void PyArray_ENABLEFLAGS(numpy.ndarray X, int flags)
+
+
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -67,6 +83,26 @@ cdef class PriorityQueue(object):
 		else:
 			raise KeyError("Attempting to pop from an empty priority queue")
 
+
+def is_gpu_enabled():
+	global GPU
+	return bool(GPU[0])
+
+cdef int _is_gpu_enabled() nogil:
+	return GPU[0]
+
+cpdef enable_gpu():
+	global GPU
+	GPU[0] = 1
+
+cpdef disable_gpu():
+	global GPU
+	GPU[0] = 0
+
+
+cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
+	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)
+	return X
 
 cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil:
 	cdef double alpha = 1
