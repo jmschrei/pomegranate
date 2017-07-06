@@ -28,7 +28,7 @@ if not use_cython:
     ]
 else:
     extensions = [
-            Extension( "pomegranate.*", 
+            Extension( "pomegranate.*",
                        [ "pomegranate/*.pyx" ] )
     ]
 

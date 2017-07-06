@@ -34,7 +34,7 @@ While probability distributions are frequently used as components of more comple
 **Multivariate Distributions**
 
 .. autosummary::
-    
+
     IndependentComponentsDistribution
     MultivariateGaussianDistribution
     DirichletDistribution
@@ -91,7 +91,7 @@ Distributions are typically used to calculate the probability of some sample. Th
 These methods work for univariate distributions, kernel densities, and multivariate distributions all the same. For a multivariate distribution you'll have to pass in an array for the full sample.
 
 .. code-block:: python
-    
+
     d1 = NormalDistribution(5, 2)
     d2 = LogNormalDistribution(1, 0.3)
     d3 = ExponentialDistribution(4)
@@ -138,7 +138,7 @@ Training can be done on weighted samples by passing an array of weights in along
         "name" :"NormalDistribution"
     }
 
-Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `d.from_sample([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
+Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `d.from_sample([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values.
 
 API Reference
 -------------

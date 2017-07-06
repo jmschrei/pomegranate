@@ -8,7 +8,7 @@
 	:width: 300px
 
 |
- 
+
 .. image:: https://travis-ci.org/jmschrei/pomegranate.svg?branch=master
 	:target: https://travis-ci.org/jmschrei/pomegranate
 
@@ -23,7 +23,7 @@
 Home
 ====
 
-pomegranate is a python package which implements fast, efficient, and extremely flexible probabilistic models ranging from probability distributions to Bayesian networks to mixtures of hidden Markov models. The most basic level of probabilistic modeling is the a simple probability distribution. If we're modeling language, this may be a simple distribution over the frequency of all possible words a person can say. 
+pomegranate is a python package which implements fast, efficient, and extremely flexible probabilistic models ranging from probability distributions to Bayesian networks to mixtures of hidden Markov models. The most basic level of probabilistic modeling is the a simple probability distribution. If we're modeling language, this may be a simple distribution over the frequency of all possible words a person can say.
 
 (1) :ref:`distributions`
 
@@ -56,7 +56,7 @@ pomegranate is pip installable using ```pip install pomegranate```. You can get 
 
 On Windows machines you may need to download a C++ compiler. For Python 2 this `minimal version of Visual Studio 2008 works well <https://www.microsoft.com/en-us/download/details.aspx?id=44266>`_. For Python 3 `this version of the Visual Studio build tools <http://go.microsoft.com/fwlink/?LinkId=691126>`_ has been reported to work.
 
-No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM and all the current contributors to pomegranate as well as the graduate students whom I have pestered with ideas. Contributions are eagerly accepted! If you would like to contribute a feature then fork the master branch and be sure to run the tests before changing any code. Let us know what you want to do on the issue tracker just in case we're already working on an implementation of something similar. Also, please don't forget to add tests for any new functions. 
+No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM and all the current contributors to pomegranate as well as the graduate students whom I have pestered with ideas. Contributions are eagerly accepted! If you would like to contribute a feature then fork the master branch and be sure to run the tests before changing any code. Let us know what you want to do on the issue tracker just in case we're already working on an implementation of something similar. Also, please don't forget to add tests for any new functions.
 
 .. toctree::
    :maxdepth: 0

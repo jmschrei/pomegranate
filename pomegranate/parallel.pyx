@@ -53,7 +53,7 @@ def parallelize(model, X, func, n_jobs, backend):
 	Returns
 	-------
 	results : object
-		The results of the method concatenated together across processes.   
+		The results of the method concatenated together across processes.
 	"""
 
 	delay = delayed(getattr(model, func), check_pickle=False)
@@ -71,7 +71,7 @@ def parallelize(model, X, func, n_jobs, backend):
 def predict(model, X, n_jobs=1, backend='threading'):
 	"""Provides for a parallelized predict function.
 
-	This function takes in a model, a dataset, the number of jobs to do, 
+	This function takes in a model, a dataset, the number of jobs to do,
 	and the backend, and will chunk up the dataset and parallelize the predict
 	function.
 
@@ -100,7 +100,7 @@ def predict(model, X, n_jobs=1, backend='threading'):
 	Returns
 	-------
 	results : object
-		The predictions concatenated together across processes.   
+		The predictions concatenated together across processes.
 	"""
 
 	return parallelize(model, X, 'predict', n_jobs, backend)
@@ -108,8 +108,8 @@ def predict(model, X, n_jobs=1, backend='threading'):
 def predict_proba(model, X, n_jobs=1, backend='threading'):
 	"""Provides for a parallelized predict_proba function.
 
-	This function takes in a model, a dataset, the number of jobs to do, 
-	and the backend, and will chunk up the dataset and parallelize the 
+	This function takes in a model, a dataset, the number of jobs to do,
+	and the backend, and will chunk up the dataset and parallelize the
 	predict_proba function.
 
 	Parameters
@@ -137,7 +137,7 @@ def predict_proba(model, X, n_jobs=1, backend='threading'):
 	Returns
 	-------
 	results : object
-		The predictions concatenated together across processes.   
+		The predictions concatenated together across processes.
 	"""
 
 	return parallelize(model, X, 'predict_proba', n_jobs, backend)
@@ -145,8 +145,8 @@ def predict_proba(model, X, n_jobs=1, backend='threading'):
 def predict_log_proba(model, X, n_jobs=1, backend='threading'):
 	"""Provides for a parallelized predict_log_proba function.
 
-	This function takes in a model, a dataset, the number of jobs to do, 
-	and the backend, and will chunk up the dataset and parallelize the 
+	This function takes in a model, a dataset, the number of jobs to do,
+	and the backend, and will chunk up the dataset and parallelize the
 	predict_log_proba function.
 
 	Parameters
@@ -174,7 +174,7 @@ def predict_log_proba(model, X, n_jobs=1, backend='threading'):
 	Returns
 	-------
 	results : object
-		The predictions concatenated together across processes.   
+		The predictions concatenated together across processes.
 	"""
 
 	return parallelize(model, X, 'predict_log_proba', n_jobs, backend)
@@ -182,8 +182,8 @@ def predict_log_proba(model, X, n_jobs=1, backend='threading'):
 def log_probability(model, X, n_jobs=1, backend='threading'):
 	"""Provides for a parallelized log_probability function.
 
-	This function takes in a model, a dataset, the number of jobs to do, 
-	and the backend, and will chunk up the dataset and parallelize the 
+	This function takes in a model, a dataset, the number of jobs to do,
+	and the backend, and will chunk up the dataset and parallelize the
 	log_probability function.
 
 	Parameters
@@ -211,7 +211,7 @@ def log_probability(model, X, n_jobs=1, backend='threading'):
 	Returns
 	-------
 	results : object
-		The log probabilities concatenated together across processes.   
+		The log probabilities concatenated together across processes.
 	"""
 
 	return parallelize(model, X, 'log_probability', n_jobs, backend)
@@ -219,8 +219,8 @@ def log_probability(model, X, n_jobs=1, backend='threading'):
 def probability(model, X, n_jobs=1, backend='threading'):
 	"""Provides for a parallelized probability function.
 
-	This function takes in a model, a dataset, the number of jobs to do, 
-	and the backend, and will chunk up the dataset and parallelize the 
+	This function takes in a model, a dataset, the number of jobs to do,
+	and the backend, and will chunk up the dataset and parallelize the
 	log_probability function followed by exponentiation.
 
 	Parameters
@@ -248,7 +248,7 @@ def probability(model, X, n_jobs=1, backend='threading'):
 	Returns
 	-------
 	results : object
-		The probabilities concatenated together across processes.   
+		The probabilities concatenated together across processes.
 	"""
 
 	return numpy.exp(parallelize(model, X, 'log_probability', n_jobs, backend))
@@ -256,8 +256,8 @@ def probability(model, X, n_jobs=1, backend='threading'):
 def summarize(model, X, weights=None, y=None, n_jobs=1, backend='threading', parallel=None):
 	"""Provides for a parallelized summarization function.
 
-	This function takes in a model, a dataset, the number of jobs to do, 
-	and the backend, and will chunk up the dataset and parallelize the 
+	This function takes in a model, a dataset, the number of jobs to do,
+	and the backend, and will chunk up the dataset and parallelize the
 	summarization function.
 
 	Parameters
@@ -293,7 +293,7 @@ def summarize(model, X, weights=None, y=None, n_jobs=1, backend='threading', par
 	Returns
 	-------
 	logp : double
-		The log probability of the dataset being summarized. 
+		The log probability of the dataset being summarized.
 	"""
 
 	if isinstance(X, list) and isinstance(model, HiddenMarkovModel):
@@ -322,15 +322,15 @@ def summarize(model, X, weights=None, y=None, n_jobs=1, backend='threading', par
 		y = parallel(delay(X[start:end], y[start:end], weights[start:end]) for start, end in zip(starts, ends))
 	else:
 		y = parallel(delay(X[start:end], weights[start:end]) for start, end in zip(starts, ends))
-	
+
 	return sum(y)
 
-def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_threshold=1e-3, 
+def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_threshold=1e-3,
 	max_iterations=1e8, inertia=0.0, verbose=False, batch_size=1240, algorithm='exact', **kwargs):
 	"""Provides for a parallelized fit function.
 
-	This function takes in a model, a dataset, the number of jobs to do, 
-	and the backend, and appropriate arguments for fitting, and will chunk 
+	This function takes in a model, a dataset, the number of jobs to do,
+	and the backend, and appropriate arguments for fitting, and will chunk
 	up the dataset and parallelize the fit function.
 
 	Parameters
@@ -407,7 +407,7 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 		weights = numpy.array(weights, dtype='float64')
 
 	if isinstance(model, HiddenMarkovModel):
-		return model.fit(X, weights=weights, n_jobs=n_jobs, stop_threshold=stop_threshold, 
+		return model.fit(X, weights=weights, n_jobs=n_jobs, stop_threshold=stop_threshold,
 			max_iterations=max_iterations, inertia=inertia, verbose=verbose, **kwargs)
 
 	elif isinstance(model, Distribution):
@@ -429,7 +429,7 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 			starts = [n/n_jobs*i for i in range(n_jobs)]
 		elif algorithm == 'batch':
 			starts = [batch_size*i for i in range(n/batch_size+1)]
-		
+
 		ends = starts[1:] + [n]
 		delay = delayed(model.summarize, check_pickle=False)
 

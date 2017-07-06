@@ -13,7 +13,7 @@ Sometimes datasets which we'd like to train on can't fit in memory but we'd stil
 	>>> a = NormalDistribution(1, 1)
 	>>> b = NormalDistribution(1, 1)
 	>>> X = numpy.random.normal(3, 5, size=(5000,))
-	>>> 
+	>>>
 	>>> a.fit(X)
 	>>> a
 	{
@@ -48,7 +48,7 @@ This is a simple example with a simple distribution, but all models and model st
 	>>>
 	>>> d1 = DiscreteDistribution({0: 0.25, 1: 0.75})
 	>>> d2 = DiscreteDistribution({0: 0.45, 1: 0.55})
-	>>> d3 = ConditionalProbabilityTable([[0, 0, 0, 0.02], 
+	>>> d3 = ConditionalProbabilityTable([[0, 0, 0, 0.02],
 								  [0, 0, 1, 0.98],
 								  [0, 1, 0, 0.15],
 								  [0, 1, 1, 0.85],
@@ -57,10 +57,10 @@ This is a simple example with a simple distribution, but all models and model st
 								  [1, 1, 0, 0.89],
 								  [1, 1, 1, 0.11]], [d1, d2])
 	>>>
-	>>> d4 = ConditionalProbabilityTable([[0, 0, 0.4], 
+	>>> d4 = ConditionalProbabilityTable([[0, 0, 0.4],
                                   [0, 1, 0.6],
                                   [1, 0, 0.3],
-                                  [1, 1, 0.7]], [d3]) 
+                                  [1, 1, 0.7]], [d3])
     >>>
 	>>> s1 = State(d1, name="s1")
 	>>> s2 = State(d2, name="s2")
@@ -92,4 +92,4 @@ This is a simple example with a simple distribution, but all models and model st
 
 We can see that before fitting to any data, the distribution in one of the states is equal for both. After fitting the first distribution they become different as would be expected. After fitting the second one through summarize the distributions become equal again, showing that it is recovering an exact update.
 
-It's easy to see how one could use this to update models which don't use Expectation Maximization (EM) to train, since it is an iterative algorithm. For algorithms which use EM to train there is a ```fit``` wrapper which will allow you to load up batches of data from a numpy memory map to train on automatically. 
+It's easy to see how one could use this to update models which don't use Expectation Maximization (EM) to train, since it is an iterative algorithm. For algorithms which use EM to train there is a ```fit``` wrapper which will allow you to load up batches of data from a numpy memory map to train on automatically.

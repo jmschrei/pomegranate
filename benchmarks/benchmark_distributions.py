@@ -6,7 +6,7 @@ Benchmark the distribution module, printing out the time it takes to do
 log probability and training calculations.
 """
 
-from pomegranate import * 
+from pomegranate import *
 import random
 import numpy
 import time
@@ -37,7 +37,7 @@ def bench_from_sample( distribution, sample, n=1000 ):
 
 def benchmark_distribution_log_probabilities():
 	"""Run log probability benchmarks."""
-	
+
 	distributions = [ UniformDistribution( 0, 17 ),
 	                  NormalDistribution( 7, 1 ),
 	                  LogNormalDistribution( 7, 1 ),
@@ -48,7 +48,7 @@ def benchmark_distribution_log_probabilities():
 	                  TriangleKernelDensity([0, 1, 4, 3, 2, 0.5, 2, 1, 2]),
 	                  MixtureDistribution( [UniformDistribution( 5, 2 ),
 	                  	                    NormalDistribution( 7, 1 ),
-	                  	                    NormalDistribution( 3, 0.5 )] ) 
+	                  	                    NormalDistribution( 3, 0.5 )] )
 	                ]
 
 	for distribution in distributions:
@@ -64,12 +64,12 @@ def benchmark_distribution_log_probabilities():
 		                                               NormalDistribution( 0.5, 0.01) ])
 
 	print_benchmark( distribution, bench_log_probability( distribution, symbol=(5,4,3,2,1) ) )
-	
+
 	mu = np.random.randn(4)
 	cov = np.random.randn(4, 4) / 10
 	cov = np.abs( cov.dot( cov.T ) ) + np.eye( 4 )
 	distribution = MultivariateGaussianDistribution( mu, cov )
-	
+
 	print_benchmark( distribution, bench_log_probability( distribution, n=100000, symbol=(1,2,3,4) ) )
 
 def benchmark_distribution_train():
@@ -85,7 +85,7 @@ def benchmark_distribution_train():
 	                  TriangleKernelDensity([0, 1, 4, 3, 2, 0.5, 2, 1, 2]),
 	                  MixtureDistribution( [UniformDistribution( 5, 2 ),
 	                  	                    NormalDistribution( 7, 1 ),
-	                  	                    NormalDistribution( 3, 0.5 )] ) 
+	                  	                    NormalDistribution( 3, 0.5 )] )
 	                ]
 
 	sample = np.random.randn(10000)
