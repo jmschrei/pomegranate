@@ -13,6 +13,7 @@ import math, random, itertools as it, sys, json
 import networkx
 import tempfile
 import warnings
+import time
 
 from .base cimport GraphModel
 from .base cimport Model
@@ -2459,6 +2460,8 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef bint check_input = alg == 'viterbi'
         cdef list X = []
 
+        training_start_time = time.time()
+
         for sequence in sequences:
             sequence_ndarray = _check_input(sequence, self)
             X.append(sequence_ndarray)
@@ -2473,6 +2476,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
+                epoch_start_time = time.time()
                 self.from_summaries(inertia, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
@@ -2486,10 +2490,13 @@ cdef class HiddenMarkovModel(GraphModel):
                     initial_log_probability_sum = log_probability_sum
                 else:
                     improvement = log_probability_sum - last_log_probability_sum
+                    time_spent = time.time() - epoch_start_time
+                    vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
+                    fmt = "[{iteration}] Improvement: {improvement} Time (s): {time:.2f}"
                     if verbose:
-                        print("Training improvement: {}".format(improvement))
+                        print(fmt.format(**vals))
 
-                iteration +=1
+                iteration += 1
                 last_log_probability_sum = log_probability_sum
 
         self.clear_summaries()
@@ -2503,6 +2510,8 @@ cdef class HiddenMarkovModel(GraphModel):
 
         if verbose:
             print("Total Training Improvement: {}".format(improvement))
+            total_training_time = time.time() - training_start_time
+            print("Total Training Time (s): {0:.2f}".format(total_training_time))
         return improvement
 
     def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch', 
