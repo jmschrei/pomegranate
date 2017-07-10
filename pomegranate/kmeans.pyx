@@ -303,7 +303,7 @@ cdef class Kmeans(Model):
 					improvement = distance_sum - last_distance_sum
 					time_spent = time.time() - epoch_start_time
 					vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
-					fmt = "[{iteration}] Improvement: {improvement} Time (s): {time:.2f}"
+					fmt = "[{iteration}] Improvement: {improvement}\tTime (s): {time:.2f}"
 
 					if verbose:
 						print(fmt.format(**vals))
