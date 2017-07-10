@@ -6,7 +6,7 @@ from nose.tools import assert_true
 from nose.tools import assert_equal
 from nose.tools import assert_greater
 from nose.tools import assert_raises
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_array_almost_equal
 import random
 import pickle
 import numpy as np
@@ -129,6 +129,34 @@ def test_multivariate_gmm_train():
 		          [1.0,  1.0]])
 
 	assert_almost_equal(gmm.fit(X, verbose=True), 15.242416, 4)
+
+def test_multivariate_gmm_train_history():
+	d1 = MultivariateGaussianDistribution([0, 0], [[1, 0], [0, 1]])
+	d2 = MultivariateGaussianDistribution([2, 2], [[1, 0], [0, 1]])
+	gmm = GeneralMixtureModel([d1, d2])
+
+	X = np.array([[0.1,  0.7],
+		          [1.8,  2.1],
+		          [-0.9, -1.2],
+		          [-0.0,  0.2],
+		          [1.4,  2.9],
+		          [1.8,  2.5],
+		          [1.4,  3.1],
+		          [1.0,  1.0]])
+
+	improvement, history = gmm.fit(X, verbose=False, return_history=True)
+	assert_almost_equal(improvement, 15.242416, 4)
+
+	improvement_history = [np.inf, 9.618903e+00, 2.882635e-01,
+	                       1.186962e-01, 8.426585e-01, 3.698273e+00,
+	                       6.756166e-01, 6.757759e-06]
+	assert_array_almost_equal(history.history['improvement'],
+	                       improvement_history)
+	log_probability_history = [-23.327136, -13.708233, -13.41997,
+	                    -13.301274, -12.458615, -8.760343,
+	                    -8.084726,  -8.084719]
+	assert_array_almost_equal(history.history['log_probability'],
+	                       log_probability_history)
 
 
 def test_multivariate_gmm_train_iterations():

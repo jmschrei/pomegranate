@@ -924,3 +924,34 @@ def test_multivariate_gaussian_from_samples():
 	logp2 = sum(map(model2.log_probability, X))
 
 	assert_greater(logp2, logp1)
+
+
+@with_setup(setup, teardown)
+def test_train_history():
+	seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
+		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
+
+	total_improvement, history = model.fit(seqs,
+									 verbose=False,
+									 use_pseudocount=True,
+									 max_iterations=5,
+									 return_history=True)
+
+	assert_equal(round(total_improvement, 4), 83.1132)
+
+	# the initial (0th) iteration + 5 others until max_iterations
+	assert_equal(len(history.iterations), 6)
+	# the last iteration was the fifth one
+	assert_equal(history.iterations[-1], 5)
+	log_probability_history = [-125.53860202768972, -49.198465302757434,
+								-46.11270639172069, -44.267969963806365,
+								-43.00941819658349, -42.425389363035436]
+	assert_array_almost_equal(np.array(history.history['log_probability']),
+							np.array(log_probability_history))
+
+	improvement_history = [np.inf, 76.34013672493228, 3.08575891103672,
+						1.8447364279143557, 1.2585517672228619,
+						0.5840288335480608]
+	assert_array_almost_equal(np.array(history.history['improvement']),
+						np.array(improvement_history))
