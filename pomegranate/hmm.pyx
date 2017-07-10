@@ -3244,7 +3244,7 @@ cdef class HiddenMarkovModel(GraphModel):
             # Connect states to the end of the model if a non-zero probability
             for i, prob in enumerate(ends):
                 if prob != 0:
-                    model.add_transition(states[j], model.end, prob)
+                    model.add_transition(states[i], model.end, prob)
 
         model.bake(verbose=verbose, merge=merge)
         return model
@@ -3394,16 +3394,15 @@ cdef class HiddenMarkovModel(GraphModel):
             y = clf.predict(X_concat)
 
             distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
-        
+
         transition_matrix = numpy.ones((n_components, n_components)) / n_components
         start_probabilities = numpy.ones(n_components) / n_components
         end_probabilities = None
         if end_state:
             end_probabilities = numpy.ones(n_components) / n_components
         model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities, ends=end_probabilities)
-
         model.fit(X, weights, labels, stop_threshold, min_iterations,
-            max_iterations, algorithm, verbose, pseudocount, 
+            max_iterations, algorithm, verbose, pseudocount,
             transition_pseudocount, emission_pseudocount, use_pseudocount,
             inertia, edge_inertia, distribution_inertia, n_jobs)
 
