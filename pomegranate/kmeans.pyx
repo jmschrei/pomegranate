@@ -11,6 +11,7 @@ from libc.math cimport log10 as clog10
 
 from .base cimport Model
 
+import time
 import json
 import numpy
 cimport numpy
@@ -20,7 +21,7 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 
-def initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k, 
+def initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k,
 	init='first-k', double oversampling_factor=0.95):
 	"""Initialize the centroids for kmeans given a dataset.
 
@@ -96,7 +97,7 @@ def initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k,
 
 				if distance < min_distance_ptr[i]:
 					min_distance_ptr[i] = distance
-					
+
 			idx = numpy.random.choice(n, p=min_distance / min_distance.sum())
 			centroids[m+1] = X[idx]
 
@@ -222,7 +223,7 @@ cdef class Kmeans(Model):
 
 		with nogil:
 			self._predict(X_ptr, y_ptr, n)
-		
+
 		return y
 
 	cdef void _predict(self, double* X, int* y, int n) nogil:
@@ -243,7 +244,7 @@ cdef class Kmeans(Model):
 					y[i] = j
 
 	def fit(self, X, weights=None, inertia=0.0, stop_threshold=1e-3,
-		    max_iterations=1e3, verbose=False):
+                max_iterations=1e3, verbose=False):
 		"""Fit the model to the data using k centroids.
 
 		Parameters
@@ -284,6 +285,7 @@ cdef class Kmeans(Model):
 		"""
 
 		best_centroids, best_distance = None, INF
+		training_start_time = time.time()
 
 		for i in range(self.n_init):
 			self.d = 0
@@ -291,6 +293,7 @@ cdef class Kmeans(Model):
 			iteration, improvement = 0, INF
 
 			while improvement > stop_threshold and iteration < max_iterations + 1:
+				epoch_start_time = time.time()
 				self.from_summaries(inertia)
 				distance_sum = self.summarize(X, weights)
 
@@ -298,9 +301,12 @@ cdef class Kmeans(Model):
 					initial_distance_sum = distance_sum
 				else:
 					improvement = distance_sum - last_distance_sum
+					time_spent = time.time() - epoch_start_time
+					vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
+					fmt = "[{iteration}] Improvement: {improvement}\tTime (s): {time:.2f}"
 
 					if verbose:
-						print("Improvement: {}".format(improvement))
+						print(fmt.format(**vals))
 
 				iteration += 1
 				last_distance_sum = distance_sum
@@ -309,7 +315,9 @@ cdef class Kmeans(Model):
 			total_improvement = last_distance_sum - initial_distance_sum
 
 			if verbose:
+				total_time_spent = time.time() - training_start_time
 				print("Total Improvement: {}".format(total_improvement))
+				print("Total Time (s): {:.2f}".format(total_time_spent))
 
 			if last_distance_sum < best_distance:
 				best_centroids = self.centroids.copy()

@@ -9,6 +9,7 @@ from libc.string cimport memset
 from libc.math cimport exp as cexp
 
 import json
+import time
 
 import numpy
 cimport numpy
@@ -158,7 +159,9 @@ cdef class GeneralMixtureModel(BayesModel):
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
 
+		training_start_time = time.time()
 		while improvement > stop_threshold and iteration < max_iterations + 1:
+			epoch_start_time = time.time()
 			self.from_summaries(inertia, pseudocount)
 			log_probability_sum = self.summarize(X, weights)
 
@@ -167,8 +170,11 @@ cdef class GeneralMixtureModel(BayesModel):
 			else:
 				improvement = log_probability_sum - last_log_probability_sum
 
+				time_spent = time.time() - epoch_start_time
+				vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
+				fmt = "[{iteration}] Improvement: {improvement}\tTime (s): {time:.2f}"
 				if verbose:
-					print("Improvement: {}".format(improvement))
+					print(fmt.format(**vals))
 
 			iteration += 1
 			last_log_probability_sum = log_probability_sum
@@ -176,8 +182,10 @@ cdef class GeneralMixtureModel(BayesModel):
 		self.clear_summaries()
 
 		if verbose:
-			print("Total Improvement: {}".format(
-				last_log_probability_sum - initial_log_probability_sum))
+			total_imp = last_log_probability_sum - initial_log_probability_sum
+			total_time_spent = time.time() - training_start_time
+			print("Total Improvement: {}".format(total_imp))
+			print("Total Time (s): {:.2f}".format(total_time_spent))
 
 		return last_log_probability_sum - initial_log_probability_sum
 
