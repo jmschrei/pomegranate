@@ -3253,7 +3253,7 @@ cdef class HiddenMarkovModel(GraphModel):
             # Connect states to the end of the model if a non-zero probability
             for i, prob in enumerate(ends):
                 if prob != 0:
-                    model.add_transition(states[j], model.end, prob)
+                    model.add_transition(states[i], model.end, prob)
 
         model.bake(verbose=verbose, merge=merge)
         return model
@@ -3265,7 +3265,7 @@ cdef class HiddenMarkovModel(GraphModel):
         init='kmeans++', max_kmeans_iterations=1, pseudocount=None, 
         transition_pseudocount=0, emission_pseudocount=0.0, 
         use_pseudocount=False, inertia=None, edge_inertia=0.0, 
-        distribution_inertia=0.0, n_jobs=1):
+        distribution_inertia=0.0, n_jobs=1, end_state=False):
         """Learn the transitions and emissions of a model directly from data.
 
         This method will learn both the transition matrix, emission distributions,
@@ -3372,6 +3372,10 @@ cdef class HiddenMarkovModel(GraphModel):
             The number of threads to use when performing training. This
             leads to exact updates. Default is 1.
 
+        end_state : bool, optional
+            Whether to calculate the probability of ending in each state or not.
+            Default is False. 
+
         Returns
         -------
         model : HiddenMarkovModel
@@ -3399,13 +3403,15 @@ cdef class HiddenMarkovModel(GraphModel):
             y = clf.predict(X_concat)
 
             distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
-        
+
         transition_matrix = numpy.ones((n_components, n_components)) / n_components
         start_probabilities = numpy.ones(n_components) / n_components
-        model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities)
-
+        end_probabilities = None
+        if end_state:
+            end_probabilities = numpy.ones(n_components) / n_components
+        model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities, ends=end_probabilities)
         model.fit(X, weights, labels, stop_threshold, min_iterations,
-            max_iterations, algorithm, verbose, pseudocount, 
+            max_iterations, algorithm, verbose, pseudocount,
             transition_pseudocount, emission_pseudocount, use_pseudocount,
             inertia, edge_inertia, distribution_inertia, n_jobs)
 

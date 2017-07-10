@@ -924,3 +924,25 @@ def test_multivariate_gaussian_from_samples():
 	logp2 = sum(map(model2.log_probability, X))
 
 	assert_greater(logp2, logp1)
+
+@with_setup(setup_discrete_dense, teardown)
+def test_discrete_from_samples_end_state():
+    X = [model.sample() for i in range(25)]
+    model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, end_state=True)
+
+    #We get non-zero end probabilities for each state
+    assert_greater(model2.dense_transition_matrix()[0][model2.end_index],0)
+    assert_greater(model2.dense_transition_matrix()[1][model2.end_index],0)
+    assert_greater(model2.dense_transition_matrix()[2][model2.end_index],0)
+    assert_greater(model2.dense_transition_matrix()[3][model2.end_index],0)
+
+@with_setup(setup_discrete_dense, teardown)
+def test_discrete_from_samples_no_end_state():
+    X = [model.sample() for i in range(25)]
+    model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, end_state=False)
+
+    #We don't have end probabilities for each state
+    assert_equal(model2.dense_transition_matrix()[0][model2.end_index],0)
+    assert_equal(model2.dense_transition_matrix()[1][model2.end_index],0)
+    assert_equal(model2.dense_transition_matrix()[2][model2.end_index],0)
+    assert_equal(model2.dense_transition_matrix()[3][model2.end_index],0)
