@@ -19,4 +19,4 @@ from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 from .FactorGraph import FactorGraph
 
-__version__ = '0.7.3'
+__version__ = '0.7.4'

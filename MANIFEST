@@ -23,8 +23,6 @@ pomegranate/bayes.pyx
 pomegranate/distributions.c
 pomegranate/distributions.pxd
 pomegranate/distributions.pyx
-pomegranate/fsm.c
-pomegranate/fsm.pyx
 pomegranate/gmm.c
 pomegranate/gmm.pyx
 pomegranate/hmm.c

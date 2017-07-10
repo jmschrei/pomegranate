@@ -284,7 +284,7 @@ cdef class MarkovChain(object):
 		X : array-like, list or numpy.array
 			The data to fit the structure too as a list of sequences of
 			variable length. Since the data will be of variable length,
-			there is no set form 
+			there is no set form
 
 		weights : array-like, shape (n_nodes), optional
 			The weight of each sample as a positive double. Default is None.

@@ -3,6 +3,7 @@
 # NaiveBayes.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
+import time
 import json
 import numpy
 cimport numpy
@@ -127,6 +128,7 @@ cdef class NaiveBayes(BayesModel):
 			Returns the fitted model
 		"""
 
+		training_start_time = time.time()
 		self.summarize(X, y, weights, n_jobs=n_jobs)
 		self.from_summaries(inertia, pseudocount)
 
@@ -146,6 +148,7 @@ cdef class NaiveBayes(BayesModel):
 			unlabeled_weights = None if weights is None else weights[y == -1]
 
 			while improvement > stop_threshold and iteration < max_iterations + 1:
+				epoch_start_time = time.time()
 				self.from_summaries(inertia, pseudocount)
 				unsupervised.weights[:] = self.weights
 
@@ -159,20 +162,25 @@ cdef class NaiveBayes(BayesModel):
 					initial_log_probability_sum = log_probability_sum
 				else:
 					improvement = log_probability_sum - last_log_probability_sum
+					time_spent = time.time() - epoch_start_time
+					vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
+					fmt = "[{iteration}] Improvement: {improvement}\tTime (s): {time:.2f}"
 
 					if verbose:
-						print("Improvement: {}".format(improvement))
+						print(fmt.format(**vals))
 
 				iteration += 1
 				last_log_probability_sum = log_probability_sum
 
 			self.clear_summaries()
 
+			total_imp = last_log_probability_sum - initial_log_probability_sum
 			if verbose:
-				print("Total Improvement: {}".format(
-					last_log_probability_sum - initial_log_probability_sum))
+				total_time_spent = time.time() - training_start_time
+				print("Total Improvement: {}".format(total_imp))
+				print("Total Time (s): {:.2f}".format(total_time_spent))
 
-			return last_log_probability_sum - initial_log_probability_sum
+			return total_imp
 
 		return self
 
@@ -254,7 +262,7 @@ cdef class NaiveBayes(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None, 
+	def from_samples(self, distributions, X, y, weights=None,
 		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
 		verbose=False, n_jobs=1):
 		"""Create a mixture model directly from the given dataset.
@@ -276,10 +284,6 @@ cdef class NaiveBayes(BayesModel):
 			distributions of the components. If callable, must also pass in the
 			number of components and kmeans++ will be used to initialize them.
 
-		n_components : int
-			If a callable is passed into distributions then this is the number
-			of components to initialize using the kmeans++ algorithm.
-
 		X : array-like, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on.
@@ -290,10 +294,10 @@ cdef class NaiveBayes(BayesModel):
 			Default is None.
 
 		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects mixture
+			models defined over discrete distributions. Default is 0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
@@ -311,6 +315,10 @@ cdef class NaiveBayes(BayesModel):
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
+
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. Default is 1.
 
 		Returns
 		-------
@@ -343,7 +351,7 @@ cdef class NaiveBayes(BayesModel):
 			distributions = [ICD([distribution.blank() for distribution in distributions]) for i in range(n_components)]
 
 		model = NaiveBayes(distributions)
-		model.fit(X, y, weights=weights, pseudocount=pseudocount, 
+		model.fit(X, y, weights=weights, pseudocount=pseudocount,
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
 			verbose=verbose, n_jobs=n_jobs)
 		return model
