@@ -23,11 +23,21 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 cdef class BayesClassifier(BayesModel):
-	"""A Naive Bayes model, a supervised alternative to GMM.
+	"""A Bayes classifier, a more general form of a naive Bayes classifier.
+
+	A Bayes classifier, like a naive Bayes classifier, uses Bayes' rule in
+	order to calculate the posterior probability of the classes, which are
+	used for the predictions. However, a naive Bayes classifier assumes that
+	each of the features are independent of each other and so can be modelled
+	as independent distributions. A generalization of that, the Bayes
+	classifier, allows for an arbitrary covariance between the features. This
+	allows for more complicated components to be used, up to and including
+	even HMMs to form a classifier over sequences, or mixtures to form a
+	classifier with complex emissions.
 
 	Parameters
 	----------
-	models : list or constructor
+	models : list
 		A list of initialized distribution objects to use as the components
 		in the model.
 

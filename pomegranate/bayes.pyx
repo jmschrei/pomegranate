@@ -34,11 +34,8 @@ cdef class BayesModel(Model):
 
 	Parameters
 	----------
-	distributions : array-like, shape (n_components,) or callable
-		The components of the model. If array, corresponds to the initial
-		distributions of the components. If callable, must also pass in the
-		number of components and kmeans++ will be used to initialize them.
-
+	distributions : array-like, shape (n_components,)
+		The initialized components of the model.
 	weights : array-like, optional, shape (n_components,)
 		The prior probabilities corresponding to each component. Does not
 		need to sum to one, but will be normalized to sum to one internally.
