@@ -36,10 +36,8 @@ cdef class GeneralMixtureModel(BayesModel):
 
 	Parameters
 	----------
-	distributions : array-like, shape (n_components,) or callable
-		The components of the model. If array, corresponds to the initial
-		distributions of the components. If callable, must also pass in the
-		number of components and kmeans++ will be used to initialize them.
+	distributions : array-like, shape (n_components,)
+		The components of the model as initialized distributions.
 
 	weights : array-like, optional, shape (n_components,)
 		The prior probabilities corresponding to each component. Does not
@@ -57,9 +55,11 @@ cdef class GeneralMixtureModel(BayesModel):
 	Examples
 	--------
 	>>> from pomegranate import *
-	>>> clf = GeneralMixtureModel([
-	>>>     NormalDistribution(5, 2),
-	>>>     NormalDistribution(1, 1)])
+	>>>
+	>>> d1 = NormalDistribution(5, 2)
+	>>> d2 = NormalDistribution(1, 1)
+	>>>
+	>>> clf = GeneralMixtureModel([d1, d2])
 	>>> clf.log_probability(5)
 	-2.304562194038089
 	>>> clf.predict_proba([[5], [7], [1]])
@@ -98,8 +98,8 @@ cdef class GeneralMixtureModel(BayesModel):
 	def __reduce__(self):
 		return self.__class__, (self.distributions.tolist(), numpy.exp(self.weights))
 
-	def fit(self, X, weights=None, inertia=0.0, stop_threshold=0.1,
-		max_iterations=1e8, pseudocount=0.0, verbose=False):
+	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, stop_threshold=0.1,
+		max_iterations=1e8, verbose=False):
 		"""Fit the model to new data using EM.
 
 		This method fits the components of the model to new data using the EM
@@ -127,6 +127,12 @@ cdef class GeneralMixtureModel(BayesModel):
 			inertia of 1 means ignore the new parameters.
 			Default is 0.0.
 
+		pseudocount : double, optional, positive
+            A pseudocount to add to the emission of each distribution. This
+            effectively smoothes the states to prevent 0. probability symbols
+            if they don't happen to occur in the data. Only effects mixture
+            models defined over discrete distributions. Default is 0.
+
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
 			the model. If the model does not improve its fit of the data by
@@ -138,12 +144,6 @@ cdef class GeneralMixtureModel(BayesModel):
 			hit then it will terminate training, regardless of how well the
 			model is improving per iteration.
 			Default is 1e8.
-
-		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
 
 		verbose : bool, optional
 			Whether or not to print out improvement information over
@@ -320,7 +320,7 @@ cdef class GeneralMixtureModel(BayesModel):
 	@classmethod
 	def from_samples(self, distributions, n_components, X, weights=None, 
 		n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0, 
-		stop_threshold=0.1, max_iterations=1e8, pseudocount=0.0, verbose=False):
+		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, verbose=False):
 		"""Create a mixture model directly from the given dataset.
 
 		First, k-means will be run using the given initializations, in order to
@@ -374,6 +374,12 @@ cdef class GeneralMixtureModel(BayesModel):
 			inertia of 1 means ignore the new parameters.
 			Default is 0.0.
 
+		pseudocount : double, optional, positive
+            A pseudocount to add to the emission of each distribution. This
+            effectively smoothes the states to prevent 0. probability symbols
+            if they don't happen to occur in the data. Only effects mixture
+            models defined over discrete distributions. Default is 0.
+
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
 			the model. If the model does not improve its fit of the data by
@@ -385,12 +391,6 @@ cdef class GeneralMixtureModel(BayesModel):
 			hit then it will terminate training, regardless of how well the
 			model is improving per iteration.
 			Default is 1e8.
-
-		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
 
 		verbose : bool, optional
 			Whether or not to print out improvement information over

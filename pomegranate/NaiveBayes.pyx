@@ -73,8 +73,8 @@ cdef class NaiveBayes(BayesModel):
 	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
 
-	def fit(self, X, y, weights=None, n_jobs=1, inertia=0.0, pseudocount=0.0,
-		stop_threshold=0.1, max_iterations=1e8, verbose=False):
+	def fit(self, X, y, weights=None, inertia=0.0, pseudocount=0.0,
+		stop_threshold=0.1, max_iterations=1e8, verbose=False, n_jobs=1):
 		"""Fit the Naive Bayes model to the data by passing data to their components.
 
 		Parameters
@@ -92,10 +92,6 @@ cdef class NaiveBayes(BayesModel):
 			The initial weights of each sample in the matrix. If nothing is
 			passed in then each sample is assumed to be the same weight.
 			Default is None.
-
-		n_jobs : int
-			The number of jobs to use to parallelize, either the number of threads
-			or the number of processes to use. Default is 1.
 
 		inertia : double, optional
 			Inertia used for the training the distributions.
@@ -121,6 +117,10 @@ cdef class NaiveBayes(BayesModel):
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
+
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. Default is 1.
 
 		Returns
 		-------

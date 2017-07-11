@@ -28,11 +28,8 @@ cdef class BayesClassifier(BayesModel):
 	Parameters
 	----------
 	models : list or constructor
-		Must either be a list of initialized distribution/model objects, or
-		the constructor for a distribution object:
-
-		* Initialized : NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
-		* Constructor : NaiveBayes(NormalDistribution)
+		A list of initialized distribution objects to use as the components
+		in the model.
 
 	weights : list or numpy.ndarray or None, default None
 		The prior probabilities of the components. If None is passed in then
@@ -49,20 +46,18 @@ cdef class BayesClassifier(BayesModel):
 	Examples
 	--------
 	>>> from pomegranate import *
-	>>> clf = NaiveBayes( NormalDistribution )
-	>>> X = [0, 2, 0, 1, 0, 5, 6, 5, 7, 6]
+	>>>
+	>>> d1 = NormalDistribution(3, 2)
+	>>> d2 = NormalDistribution(5, 1.5)
+	>>>
+	>>> clf = BayesClassifier([d1, d2])
+	>>> clf.predict_proba([[6]])
+	array([[ 0.2331767,  0.7668233]])
+	>>> X = [[0], [2], [0], [1], [0], [5], [6], [5], [7], [6]]
 	>>> y = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1]
 	>>> clf.fit(X, y)
-	>>> clf.predict_proba([6])
+	>>> clf.predict_proba([[6]])
 	array([[ 0.01973451,  0.98026549]])
-
-	>>> from pomegranate import *
-	>>> clf = NaiveBayes([NormalDistribution(1, 2), NormalDistribution(0, 1)])
-	>>> clf.predict_log_proba([[0], [1], [2], [-1]])
-	array([[-1.1836569 , -0.36550972],
-		   [-0.79437677, -0.60122959],
-		   [-0.26751248, -1.4493653 ],
-		   [-1.09861229, -0.40546511]])
 	"""
 
 	def __init__(self, distributions, weights=None):
@@ -71,9 +66,17 @@ cdef class BayesClassifier(BayesModel):
 	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
 
-	def fit(self, X, y, weights=None, n_jobs=1, inertia=0.0, pseudocount=0.0,
-		stop_threshold=0.1, max_iterations=1e8, verbose=False):
-		"""Fit the Naive Bayes model to the data by passing data to their components.
+	def fit(self, X, y, weights=None, inertia=0.0, pseudocount=0.0,
+		stop_threshold=0.1, max_iterations=1e8, verbose=False, n_jobs=1):
+		"""Fit the Bayes classifier to the data by passing data to its components.
+
+		The fit step for a Bayes classifier with purely labeled data is a simple
+		MLE update on the underlying distributions, grouped by the labels. However,
+		in the semi-supervised the model is trained on a mixture of both labeled
+		and unlabeled data, where the unlabeled data uses the label -1. In this
+		setting, EM is used to train the model. The model is initialized using the
+		labeled data and then sufficient statistics are gathered for both the
+		labeled and unlabeled data, combined, and used to update the parameters.
 
 		Parameters
 		----------
@@ -90,10 +93,6 @@ cdef class BayesClassifier(BayesModel):
 			The initial weights of each sample in the matrix. If nothing is
 			passed in then each sample is assumed to be the same weight.
 			Default is None.
-
-		n_jobs : int
-			The number of jobs to use to parallelize, either the number of threads
-			or the number of processes to use. Default is 1.
 
 		inertia : double, optional
 			Inertia used for the training the distributions.
@@ -119,6 +118,10 @@ cdef class BayesClassifier(BayesModel):
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
+
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. Default is 1.
 
 		Returns
 		-------
@@ -269,8 +272,9 @@ cdef class BayesClassifier(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None,
-		pseudocount=0.0, n_jobs=1):
+	def from_samples(self, distributions, X, y, weights=None, 
+		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, 
+		verbose=False, n_jobs=1):
 		"""Create a mixture model directly from the given dataset.
 
 		First, k-means will be run using the given initializations, in order to
@@ -303,11 +307,34 @@ cdef class BayesClassifier(BayesModel):
 			passed in then each sample is assumed to be the same weight.
 			Default is None.
 
-		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
+		inertia : double, optional
+			Inertia used for the training the distributions.
+
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Default is 0.
+
+		stop_threshold : double, optional, positive
+			The threshold at which EM will terminate for the improvement of
+			the model. If the model does not improve its fit of the data by
+			a log probability of 0.1 then terminate. Only required if doing
+			semisupervised learning. Default is 0.1.
+
+		max_iterations : int, optional, positive
+			The maximum number of iterations to run EM for. If this limit is
+			hit then it will terminate training, regardless of how well the
+			model is improving per iteration. Only required if doing
+			semisupervised learning. Default is 1e8.
+
+		verbose : bool, optional
+			Whether or not to print out improvement information over
+			iterations. Only required if doing semisupervised learning.
+			Default is False.
+
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. Default is 1.
 
 		Returns
 		-------
@@ -334,5 +361,8 @@ cdef class BayesClassifier(BayesModel):
 			distributions = [distribution.blank() for distribution in distributions]
 
 		model = BayesClassifier(distributions)
-		model.fit(X, y, weights=weights, pseudocount=pseudocount, n_jobs=n_jobs)
+		model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount, 
+			stop_threshold=stop_threshold, max_iterations=max_iterations,
+			verbose=False, n_jobs=n_jobs)
+
 		return model
