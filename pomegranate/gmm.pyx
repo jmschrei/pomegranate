@@ -23,6 +23,9 @@ from .utils cimport _log
 from .utils cimport pair_lse
 from .utils import _check_input
 
+from joblib import Parallel
+from joblib import delayed
+
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
@@ -99,7 +102,7 @@ cdef class GeneralMixtureModel(BayesModel):
 		return self.__class__, (self.distributions.tolist(), numpy.exp(self.weights))
 
 	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, stop_threshold=0.1,
-		max_iterations=1e8, verbose=False):
+		max_iterations=1e8, verbose=False, n_jobs=1):
 		"""Fit the model to new data using EM.
 
 		This method fits the components of the model to new data using the EM
@@ -150,6 +153,11 @@ cdef class GeneralMixtureModel(BayesModel):
 			iterations.
 			Default is False.
 
+		n_jobs : int, optional
+			The number of threads to use when parallelizing the job. This
+			parameter is passed directly into joblib. Default is 1, indicating
+			no parallelism.
+
 		Returns
 		-------
 		improvement : double
@@ -159,25 +167,37 @@ cdef class GeneralMixtureModel(BayesModel):
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF
 
+		if weights is None:
+			weights = numpy.ones(len(X), dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
 		training_start_time = time.time()
-		while improvement > stop_threshold and iteration < max_iterations + 1:
-			epoch_start_time = time.time()
-			self.from_summaries(inertia, pseudocount)
-			log_probability_sum = self.summarize(X, weights)
 
-			if iteration == 0:
-				initial_log_probability_sum = log_probability_sum
-			else:
-				improvement = log_probability_sum - last_log_probability_sum
+		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
-				time_spent = time.time() - epoch_start_time
-				vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
-				fmt = "[{iteration}] Improvement: {improvement}\tTime (s): {time:.2f}"
-				if verbose:
-					print(fmt.format(**vals))
+		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+			while improvement > stop_threshold and iteration < max_iterations + 1:
+				epoch_start_time = time.time()
 
-			iteration += 1
-			last_log_probability_sum = log_probability_sum
+				self.from_summaries(inertia, pseudocount)
+
+				log_probability_sum = sum(parallel(delayed(self.summarize, 
+					check_pickle=False)(X[start:end], weights[start:end]) 
+					for start, end in zip(starts, ends)))
+
+				if iteration == 0:
+					initial_log_probability_sum = log_probability_sum
+				else:
+					improvement = log_probability_sum - last_log_probability_sum
+					time_spent = time.time() - epoch_start_time
+					if verbose:
+						print("[{}] Improvement: {}\tTime (s): {:.4}".format(
+							iteration, improvement, time_spent))
+
+				iteration += 1
+				last_log_probability_sum = log_probability_sum
 
 		self.clear_summaries()
 
@@ -185,7 +205,7 @@ cdef class GeneralMixtureModel(BayesModel):
 			total_imp = last_log_probability_sum - initial_log_probability_sum
 			total_time_spent = time.time() - training_start_time
 			print("Total Improvement: {}".format(total_imp))
-			print("Total Time (s): {:.2f}".format(total_time_spent))
+			print("Total Time (s): {:.4f}".format(total_time_spent))
 
 		return last_log_probability_sum - initial_log_probability_sum
 
@@ -240,9 +260,10 @@ cdef class GeneralMixtureModel(BayesModel):
 		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
 			X_ptr = <double*> X_ndarray.data
-			
+
 			with nogil:
 				log_probability = self._summarize(X_ptr, weights_ptr, n)
+
 		else:
 			log_probability = 0.0
 			for i in range(n):
@@ -261,7 +282,6 @@ cdef class GeneralMixtureModel(BayesModel):
 		cdef double total, logp, log_probability_sum = 0.0
 
 		memset(summaries, 0, self.n*sizeof(double))
-		cdef double tic
 
 		for j in range(self.n):
 			if self.is_vl_:
@@ -320,7 +340,8 @@ cdef class GeneralMixtureModel(BayesModel):
 	@classmethod
 	def from_samples(self, distributions, n_components, X, weights=None, 
 		n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0, 
-		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, verbose=False):
+		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, verbose=False,
+		n_jobs=1):
 		"""Create a mixture model directly from the given dataset.
 
 		First, k-means will be run using the given initializations, in order to
@@ -371,8 +392,7 @@ cdef class GeneralMixtureModel(BayesModel):
 			parameters will roughly be
 			old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters.
-			Default is 0.0.
+			inertia of 1 means ignore the new parameters. Default is 0.0.
 
 		pseudocount : double, optional, positive
             A pseudocount to add to the emission of each distribution. This
@@ -383,19 +403,21 @@ cdef class GeneralMixtureModel(BayesModel):
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
 			the model. If the model does not improve its fit of the data by
-			a log probability of 0.1 then terminate.
-			Default is 0.1.
+			a log probability of 0.1 then terminate. Default is 0.1.
 
 		max_iterations : int, optional, positive
 			The maximum number of iterations to run EM for. If this limit is
 			hit then it will terminate training, regardless of how well the
-			model is improving per iteration.
-			Default is 1e8.
+			model is improving per iteration. Default is 1e8.
 
 		verbose : bool, optional
 			Whether or not to print out improvement information over
-			iterations.
-			Default is False.
+			iterations. Default is False.
+
+		n_jobs : int, optional
+			The number of threads to use when parallelizing the job. This
+			parameter is passed directly into joblib. Default is 1, indicating
+			no parallelism.
 		"""
 
 		if not callable(distributions) and not isinstance(distributions, list):
@@ -423,7 +445,7 @@ cdef class GeneralMixtureModel(BayesModel):
 		n, d = X.shape
 
 		kmeans = Kmeans(n_components, init=init, n_init=n_init)
-		kmeans.fit(X, weights=weights, max_iterations=max_kmeans_iterations)
+		kmeans.fit(X, weights=weights, max_iterations=max_kmeans_iterations, n_jobs=n_jobs)
 		y = kmeans.predict(X)
 
 		distributions = [distribution.from_samples(X[y == i]) for i, distribution in enumerate(distributions)]
@@ -432,6 +454,6 @@ cdef class GeneralMixtureModel(BayesModel):
 		model = GeneralMixtureModel(distributions, class_weights)
 		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold, 
 			max_iterations=max_iterations, pseudocount=pseudocount, 
-			verbose=verbose)
+			verbose=verbose, n_jobs=n_jobs)
 
 		return model

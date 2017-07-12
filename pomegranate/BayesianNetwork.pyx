@@ -112,7 +112,7 @@ cdef class BayesianNetwork( GraphModel ):
 	"""
 
 	cdef list idxs
-	cdef numpy.ndarray keymap
+	cdef public numpy.ndarray keymap
 	cdef int* parent_count
 	cdef int* parent_idxs
 	cdef numpy.ndarray distributions
@@ -266,6 +266,7 @@ cdef class BayesianNetwork( GraphModel ):
 				d.bake(tuple(self.keymap[i]))
 				n += 1
 
+		self.keymap = numpy.array([{key: i for i, key in enumerate(keys)} for keys in self.keymap])
 		self.distributions = numpy.array([state.distribution for state in self.states])
 		self.distributions_ptr = <void**> self.distributions.data
 
@@ -274,9 +275,16 @@ cdef class BayesianNetwork( GraphModel ):
 
 		j = 0
 		for i, state in enumerate(self.states):
-			if isinstance(state.distribution, MultivariateDistribution):
-				self.parent_count[i+1] = len(state.distribution.parents) + 1
-				for parent in state.distribution.parents:
+			distribution = state.distribution
+			if isinstance(distribution, ConditionalProbabilityTable):
+				for k, parent in enumerate(distribution.parents):
+					distribution.column_idxs[k] = indices[parent]
+				distribution.column_idxs[k+1] = i
+				distribution.n_columns = len(self.states)
+
+			if isinstance(distribution, MultivariateDistribution):
+				self.parent_count[i+1] = len(distribution.parents) + 1
+				for parent in distribution.parents:
 					self.parent_idxs[j] = indices[parent]
 					j += 1
 
@@ -414,7 +422,75 @@ cdef class BayesianNetwork( GraphModel ):
 
 		return self.graph.predict_proba( data, max_iterations )
 
-	def summarize(self, items, weights=None):
+	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, verbose=False, 
+		n_jobs=1):
+		"""Fit the model to data using MLE estimates.
+
+		Fit the model to the data by updating each of the components of the model,
+		which are univariate or multivariate distributions. This uses a simple
+		MLE estimate to update the distributions according to their summarize or
+		fit methods.
+
+		This is a wrapper for the summarize and from_summaries methods.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_nodes)
+			The data to train on, where each row is a sample and each column
+			corresponds to the associated variable.
+
+		weights : array-like, shape (n_nodes), optional
+			The weight of each sample as a positive double. Default is None.
+
+		inertia : double, optional
+			The inertia for updating the distributions, passed along to the
+			distribution method. Default is 0.0.
+
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects hidden
+			Markov models defined over discrete distributions. Default is 0.
+
+		verbose : bool, optional
+			Whether or not to print out improvement information over
+			iterations. Only required if doing semisupervised learning.
+			Default is False.
+	
+        n_jobs : int, optional
+            The number of threads to use when performing training. This
+            leads to exact updates. Default is 1.
+
+		Returns
+		-------
+		self : BayesianNetwork
+			The fit Bayesian network object with updated model parameters.
+		"""
+
+		training_start_time = time.time()
+
+		if weights is None:
+			weights = numpy.ones(len(X), dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
+		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+			parallel( delayed(self.summarize, check_pickle=False)(
+				X[start:end], weights[start:end]) for start, end in zip(starts, ends))
+		
+		self.from_summaries(inertia, pseudocount)
+		self.bake()
+
+		if verbose:
+			total_time_spent = time.time() - training_start_time
+			print("Total Time (s): {:.4f}".format(total_time_spent))
+
+		return self
+
+	def summarize(self, X, weights=None):
 		"""Summarize a batch of data and store the sufficient statistics.
 
 		This will partition the dataset into columns which belong to their
@@ -424,7 +500,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 		Parameters
 		----------
-		items : array-like, shape (n_samples, n_nodes)
+		X : array-like, shape (n_samples, n_nodes)
 			The data to train on, where each row is a sample and each column
 			corresponds to the associated variable.
 
@@ -436,20 +512,41 @@ cdef class BayesianNetwork( GraphModel ):
 		None
 		"""
 
+		cdef numpy.ndarray X_subset
+		cdef numpy.ndarray weights_ndarray
+		cdef double* X_subset_ptr
+		cdef double* weights_ptr
+		cdef int i, n, d
+
 		if self.d == 0:
 			raise ValueError("must bake model before summarizing data")
 
-		indices = { state.distribution: i for i, state in enumerate( self.states ) }
+		indices = {state.distribution: i for i, state in enumerate(self.states)}
+
+		n, d = len(X), len(X[0])
+		cdef numpy.ndarray X_int = numpy.zeros((n, d), dtype='float64')
+		cdef double* X_int_ptr = <double*> X_int.data
+
+		for i in range(n):
+			for j in range(d):
+				X_int[i, j] = self.keymap[j][X[i][j]]
+
+		if weights is None:
+			weights_ndarray = numpy.ones(n, dtype='float64')
+		else:
+			weights_ndarray = numpy.array(weights, dtype='float64')
+
+		weights_ptr = <double*> weights_ndarray.data
 
 		# Go through each state and pass in the appropriate data for the
 		# update to the states
-		for i, state in enumerate( self.states ):
-			if isinstance( state.distribution, ConditionalProbabilityTable ):
-				idx = [ indices[ dist ] for dist in state.distribution.parents ] + [i]
-				data = [ [ item[i] for i in idx ] for item in items ]
-				state.distribution.summarize( data, weights )
+		for i, state in enumerate(self.states):
+			if isinstance(state.distribution, ConditionalProbabilityTable):
+				with nogil:
+					(<Model> self.distributions_ptr[i])._summarize(X_int_ptr, weights_ptr, n)
+
 			else:
-				state.distribution.summarize( [ item[i] for item in items ], weights )
+				state.distribution.summarize([x[i] for x in X], weights)
 
 	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""Use MLE on the stored sufficient statistics to train the model.
@@ -476,44 +573,6 @@ cdef class BayesianNetwork( GraphModel ):
 		for state in self.states:
 			state.distribution.from_summaries(inertia, pseudocount)
 
-		self.bake()
-
-	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
-		"""Fit the model to data using MLE estimates.
-
-		Fit the model to the data by updating each of the components of the model,
-		which are univariate or multivariate distributions. This uses a simple
-		MLE estimate to update the distributions according to their summarize or
-		fit methods.
-
-		This is a wrapper for the summarize and from_summaries methods.
-
-		Parameters
-		----------
-		items : array-like, shape (n_samples, n_nodes)
-			The data to train on, where each row is a sample and each column
-			corresponds to the associated variable.
-
-		weights : array-like, shape (n_nodes), optional
-			The weight of each sample as a positive double. Default is None.
-
-		inertia : double, optional
-			The inertia for updating the distributions, passed along to the
-			distribution method. Default is 0.0.
-
-		pseudocount : double, optional
-			A pseudocount to add to the emission of each distribution. This
-			effectively smoothes the states to prevent 0. probability symbols
-			if they don't happen to occur in the data. Only effects hidden
-			Markov models defined over discrete distributions. Default is 0.
-
-		Returns
-		-------
-		None
-		"""
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia, pseudocount)
 		self.bake()
 
 	def predict(self, items, max_iterations=100):
@@ -647,7 +706,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 	@classmethod
 	def from_structure(cls, X, structure, weights=None, pseudocount=0.0, 
-		name=None, state_names=None):
+		name=None, state_names=None, n_jobs=1):
 		"""Return a Bayesian network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -680,6 +739,10 @@ cdef class BayesianNetwork( GraphModel ):
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
 
+        n_jobs : int, optional
+            The number of threads to use when performing training. This
+            leads to exact updates. Default is 1.
+
 		Returns
 		-------
 		model : BayesianNetwoork
@@ -692,13 +755,13 @@ cdef class BayesianNetwork( GraphModel ):
 		nodes = [None for i in range(d)]
 
 		if weights is None:
-			weights_ndarray = numpy.ones(X.shape[0], dtype='float64')
+			weights = numpy.ones(X.shape[0], dtype='float64')
 		else:
-			weights_ndarray = numpy.array(weights, dtype='float64')
+			weights = numpy.array(weights, dtype='float64')
 
 		for i, parents in enumerate(structure):
 			if len(parents) == 0:
-				nodes[i] = DiscreteDistribution.from_samples(X[:,i], weights=weights_ndarray,
+				nodes[i] = DiscreteDistribution.from_samples(X[:,i], weights=weights,
 					pseudocount=pseudocount)
 
 		while True:
@@ -710,7 +773,7 @@ cdef class BayesianNetwork( GraphModel ):
 					else:
 						nodes[i] = ConditionalProbabilityTable.from_samples(X[:,parents+(i,)],
 							parents=[nodes[parent] for parent in parents],
-							weights=weights_ndarray, pseudocount=pseudocount)
+							weights=weights, pseudocount=pseudocount)
 						break
 			else:
 				break

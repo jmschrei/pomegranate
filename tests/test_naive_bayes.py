@@ -107,7 +107,7 @@ def test_multivariate_prediction():
 
 @with_setup(setup_univariate, teardown)
 def test_univariate_fit():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 1, 9, 8, 2, 0, 1, 1, 8, 10, 0])
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
 	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
 	model.fit(X, y)
