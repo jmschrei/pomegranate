@@ -104,8 +104,11 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	cdef double* counts
 	cdef double* marginal_counts
 	cdef int n, k
+	cdef public int n_columns
 	cdef int* idxs
 	cdef int* marginal_idxs
+	cdef public numpy.ndarray column_idxs
+	cdef int* column_idxs_ptr
 	cdef public list parents, parameters
 	cdef public object keymap
 	cdef public object marginal_keymap

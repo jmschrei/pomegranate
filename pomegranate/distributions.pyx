@@ -2451,17 +2451,21 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
 
+		self.column_idxs = numpy.arange(len(parents)+1, dtype='int32')
+		self.column_idxs_ptr = <int*> self.column_idxs.data
+		self.n_columns = len(parents) + 1
+
 		memset(self.counts, 0, self.n*sizeof(double))
 		memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
 
 		self.idxs[0] = 1
 		self.idxs[1] = self.k
 		for i in range(self.m-1):
-			self.idxs[i+2] = len(parents[self.m-i-1])
+			self.idxs[i+2] = self.idxs[i+1] * len(parents[self.m-i-1])
 
 		self.marginal_idxs[0] = 1
 		for i in range(self.m-1):
-			self.marginal_idxs[i+1] = len(parents[self.m-i-1])
+			self.marginal_idxs[i+1] = self.marginal_idxs[i] * len(parents[self.m-i-1])
 
 		keys = []
 		for i, row in enumerate(table):
@@ -2609,6 +2613,12 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		i = -1 if neighbor_values == None else neighbor_values.index(None)
 		return self.joint(neighbor_values).marginal(i)
 
+	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
+		"""Update the parameters of the table based on the data."""
+
+		self.summarize(items, weights)
+		self.from_summaries(inertia, pseudocount)
+
 	def summarize(self, items, weights=None):
 		"""Summarize the data into sufficient statistics to store."""
 
@@ -2643,21 +2653,22 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		for i in range(n):
 			idx = 0
 			for j in range(self.m+1):
-				idx += self.idxs[i] * <int> items[self.m-i]
+				idx += self.idxs[j] * <int> items[i*self.n_columns + self.column_idxs_ptr[self.m-j]]
 
 			counts[idx] += weights[i]
 
 			idx = 0
 			for j in range(self.m):
-				idx += self.marginal_idxs[i] * <int> items[self.m-1-i]
+				idx += self.marginal_idxs[j] * <int> items[i*self.n_columns + self.column_idxs_ptr[self.m-1-j]]
 
 			marginal_counts[idx] += weights[i]
 
 		with gil:
-			for i in range(n):
+			for i in range(self.n / self.k):
+				self.marginal_counts[i] += marginal_counts[i]
+
+			for i in range(self.n):
 				self.counts[i] += counts[i]
-				if i < self.n / self.k:
-					self.marginal_counts[i] += marginal_counts[i]
 
 		free(counts)
 		free(marginal_counts)
@@ -2693,12 +2704,6 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		with nogil:
 			memset(self.counts, 0, self.n*sizeof(double))
 			memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
-
-	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
-		"""Update the parameters of the table based on the data."""
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia, pseudocount)
 
 	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.

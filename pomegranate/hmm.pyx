@@ -2474,6 +2474,9 @@ cdef class HiddenMarkovModel(GraphModel):
         else:
             weights = numpy.array(weights, dtype='float64')
 
+        starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+        ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
                 epoch_start_time = time.time()
@@ -2484,17 +2487,25 @@ cdef class HiddenMarkovModel(GraphModel):
                 if iteration >= max_iterations + 1:
                     break
 
-                log_probability_sum = self.summarize(X, weights, labels, alg, n_jobs, parallel, False)
+                if labels:
+                    log_probability_sum = sum(parallel(delayed(self.summarize, check_pickle=False)(X[start:end], 
+                        weights[start:end], labels[start:end], alg, False) 
+                        for start, end in zip(starts, ends)))
+                else:
+                    log_probability_sum = sum(parallel(delayed(self.summarize, check_pickle=False)(X[start:end], 
+                        weights[start:end], None, alg, False) 
+                        for start, end in zip(starts, ends)))
+                
+                #log_probability_sum = self.summarize(X, weights, labels, alg, n_jobs, parallel, False)
 
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
                 else:
                     improvement = log_probability_sum - last_log_probability_sum
                     time_spent = time.time() - epoch_start_time
-                    vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
-                    fmt = "[{iteration}] Improvement: {improvement}\tTime (s): {time:.2f}"
                     if verbose:
-                        print(fmt.format(**vals))
+                        print("[{}] Improvement: {}\tTime (s): {:4.4}".format(iteration,
+                            improvement, time_spent))
 
                 iteration += 1
                 last_log_probability_sum = log_probability_sum
@@ -2511,11 +2522,11 @@ cdef class HiddenMarkovModel(GraphModel):
         if verbose:
             print("Total Training Improvement: {}".format(improvement))
             total_training_time = time.time() - training_start_time
-            print("Total Training Time (s): {0:.2f}".format(total_training_time))
+            print("Total Training Time (s): {:.4f}".format(total_training_time))
         return improvement
 
     def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch', 
-        n_jobs=1, parallel=None, check_input=True):
+        check_input=True):
         """Summarize data into stored sufficient statistics for out-of-core
         training. Only implemented for Baum-Welch training since Viterbi
         is less memory intensive.
@@ -2545,15 +2556,6 @@ cdef class HiddenMarkovModel(GraphModel):
             then uses hard assignments of observations to states using that.
             Default is 'baum-welch'. Labeled training requires that labels
             are provided for each observation in each sequence.
-
-        n_jobs : int, optional
-            The number of threads to use when performing training. This
-            leads to exact updates. Default is 1.
-
-        parallel : joblib.Parallel or None, optional
-            The joblib threadpool. Passed between iterations of Baum-Welch so
-            that a new threadpool doesn't have to be created each iteration.
-            Default is None.
 
         check_input : bool, optional
             Check the input. This casts the input sequences as numpy arrays,
@@ -2587,18 +2589,15 @@ cdef class HiddenMarkovModel(GraphModel):
         else:
             X = sequences
 
-        if parallel is None:
-            parallel = Parallel(n_jobs=n_jobs, backend='threading')
-
         if algorithm == 'baum-welch':
-            return sum(parallel([delayed(self._baum_welch_summarize, check_pickle=False)(
-                    sequence, weight) for sequence, weight in zip(X, weights)]))
+            return sum([self._baum_welch_summarize(sequence, weight) 
+                for sequence, weight in zip(X, weights)])
         elif algorithm == 'viterbi':
-            return sum(parallel([delayed(self._viterbi_summarize, check_pickle=False)(
-                    sequence, weight) for sequence, weight in zip(X, weights)]))
+            return sum([self._viterbi_summarize(sequence, weight) 
+                for sequence, weight in zip(X, weights)])
         elif algorithm == 'labeled':
-            return sum(parallel([delayed(self._labeled_summarize, check_pickle=False)(
-                    sequence, label, weight) for sequence, label, weight in zip(X, labels, weights)]))
+            return sum([self._labeled_summarize(sequence, label, weight) 
+                for sequence, label, weight in zip(X, labels, weights)])
 
     cpdef double _baum_welch_summarize(self, numpy.ndarray sequence_ndarray, double weight):
         """Python wrapper for the summarization step.

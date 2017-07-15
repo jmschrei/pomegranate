@@ -140,58 +140,85 @@ cdef class BayesClassifier(BayesModel):
 		"""
 
 		training_start_time = time.time()
-		self.summarize(X, y, weights, n_jobs=n_jobs)
-		self.from_summaries(inertia, pseudocount)
 
-		semisupervised = -1 in y
-		if semisupervised:
-			initial_log_probability_sum = NEGINF
-			iteration, improvement = 0, INF
-			n_classes = numpy.unique(y).shape[0]
+		X = numpy.array(X, dtype='float64')
+		n, d = X.shape
 
-			unsupervised = GeneralMixtureModel(self.distributions)
+		if weights is None:
+			weights = numpy.ones(n, dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
 
-			labeled_X = X[y != -1]
-			labeled_y = y[y != -1]
-			labeled_weights = None if weights is None else weights[y != -1]
+		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
-			unlabeled_X = X[y == -1]
-			unlabeled_weights = None if weights is None else weights[y == -1]
+		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+			parallel( delayed(self.summarize, check_pickle=False)(X[start:end], 
+				y[start:end], weights[start:end]) for start, end in zip(starts, ends) )
 
-			while improvement > stop_threshold and iteration < max_iterations + 1:
-				epoch_start_time = time.time()
-				self.from_summaries(inertia, pseudocount)
-				unsupervised.weights[:] = self.weights
+			self.from_summaries(inertia, pseudocount)
 
-				self.summarize(labeled_X, labeled_y, labeled_weights)
-				unsupervised.summaries[:] = self.summaries
+			semisupervised = -1 in y
+			if semisupervised:
+				initial_log_probability_sum = NEGINF
+				iteration, improvement = 0, INF
+				n_classes = numpy.unique(y).shape[0]
 
-				log_probability_sum = unsupervised.summarize(unlabeled_X, unlabeled_weights)
-				self.summaries[:] = unsupervised.summaries
+				unsupervised = GeneralMixtureModel(self.distributions)
 
-				if iteration == 0:
-					initial_log_probability_sum = log_probability_sum
-				else:
-					improvement = log_probability_sum - last_log_probability_sum
+				X_labeled = X[y != -1]
+				y_labeled = y[y != -1]
+				weights_labeled = None if weights is None else weights[y != -1]
 
-					time_spent = time.time() - epoch_start_time
-					vals = dict(iteration=iteration, improvement=improvement, time=time_spent)
-					fmt = "[{iteration}] Improvement: {improvement}\tTime (s): {time:.2f}"
-					if verbose:
-						print(fmt.format(**vals))
+				X_unlabeled = X[y == -1]
+				weights_unlabeled = None if weights is None else weights[y == -1]
 
-				iteration += 1
-				last_log_probability_sum = log_probability_sum
+				labeled_starts = [int(i*len(X_labeled)/n_jobs) for i in range(n_jobs)]
+				labeled_ends = [int(i*len(X_labeled)/n_jobs) for i in range(1, n_jobs+1)]
 
-			self.clear_summaries()
+				unlabeled_starts = [int(i*len(X_unlabeled)/n_jobs) for i in range(n_jobs)]
+				unlabeled_ends = [int(i*len(X_unlabeled)/n_jobs) for i in range(1, n_jobs+1)]
 
-			if verbose:
-				total_imp = last_log_probability_sum - initial_log_probability_sum
-				total_time_spent = time.time() - training_start_time
-				print("Total Improvement: {}".format(total_imp))
-				print("Total Time (s): {:.2f}".format(total_time_spent))
+				while improvement > stop_threshold and iteration < max_iterations + 1:
+					epoch_start_time = time.time()
+					self.from_summaries(inertia, pseudocount)
+					unsupervised.weights[:] = self.weights
 
-			return last_log_probability_sum - initial_log_probability_sum
+					parallel( delayed(self.summarize, 
+						check_pickle=False)(X_labeled[start:end], 
+						y_labeled[start:end], weights_labeled[start:end]) 
+						for start, end in zip(labeled_starts, labeled_ends))
+
+					unsupervised.summaries[:] = self.summaries
+
+					log_probability_sum = sum(parallel( delayed(unsupervised.summarize, 
+						check_pickle=False)(X_unlabeled[start:end], weights_unlabeled[start:end]) 
+						for start, end in zip(unlabeled_starts, unlabeled_ends)))
+
+					self.summaries[:] = unsupervised.summaries
+
+					if iteration == 0:
+						initial_log_probability_sum = log_probability_sum
+					else:
+						improvement = log_probability_sum - last_log_probability_sum
+
+						time_spent = time.time() - epoch_start_time
+						if verbose:
+							print("[{}] Improvement: {}\tTime (s): {:4.4}".format(iteration,
+								improvement, time_spent))
+
+					iteration += 1
+					last_log_probability_sum = log_probability_sum
+
+				self.clear_summaries()
+
+				if verbose:
+					total_imp = last_log_probability_sum - initial_log_probability_sum
+					print("Total Improvement: {}".format(total_imp))
+
+		if verbose:
+			total_time_spent = time.time() - training_start_time
+			print("Total Time (s): {:.4f}".format(total_time_spent))
 
 		return self
 
@@ -373,6 +400,6 @@ cdef class BayesClassifier(BayesModel):
 		model = BayesClassifier(distributions)
 		model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount, 
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
-			verbose=False, n_jobs=n_jobs)
+			verbose=verbose, n_jobs=n_jobs)
 
 		return model
