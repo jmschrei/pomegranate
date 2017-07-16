@@ -8,6 +8,7 @@ import networkx as nx
 import numpy
 cimport numpy
 import sys
+import os
 
 from joblib import Parallel
 from joblib import delayed
@@ -28,6 +29,7 @@ from .utils cimport _log
 from .utils cimport lgamma
 from .utils import PriorityQueue
 from .utils import plot_networkx
+from .utils import parallelize_function
 
 
 try:
@@ -298,7 +300,7 @@ cdef class BayesianNetwork( GraphModel ):
 			if i > 0:
 				self.parent_count[i+1] += self.parent_count[i]
 
-	def log_probability(self, X):
+	def log_probability(self, X, n_jobs=1):
 		"""Return the log probability of samples under the Bayesian network.
 
 		The log probability is just the sum of the log probabilities under each of
@@ -314,10 +316,15 @@ cdef class BayesianNetwork( GraphModel ):
 			the connections between these variables are, just that they are all
 			ordered the same.
 
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
 		Returns
 		-------
-		logp : double
-			The log probability of that sample.
+		logp : numpy.ndarray or double
+			The log probability of the samples if many, or the single log probability.
 		"""
 
 		if self.d == 0:
@@ -326,12 +333,28 @@ cdef class BayesianNetwork( GraphModel ):
 		X = numpy.array(X, ndmin=2)
 		n, d = X.shape
 
+		if n_jobs > 1:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+			fn = '.pomegranate.tmp'
+			with open(fn, 'w') as outfile:
+				outfile.write(self.to_json())
+
+			with Parallel(n_jobs=n_jobs) as parallel:
+				logp_arrays = parallel(delayed(parallelize_function)(
+					X[start:end], BayesianNetwork, 'log_probability', fn) 
+					for start, end in zip(starts, ends))
+
+			os.remove(fn)
+			return numpy.concatenate(logp_arrays)
+
 		logp = numpy.zeros(n, dtype='float64')
 		for i in range(n):
 			for j, state in enumerate(self.states):
 				logp[i] += state.distribution.log_probability(X[i, self.idxs[j]])
 
-		return logp
+		return logp if n > 1 else logp[0]
 
 	cdef void _log_probability( self, double* symbol, double* log_probability, int n ) nogil:
 		cdef int i, j, l, li, k
@@ -375,6 +398,75 @@ cdef class BayesianNetwork( GraphModel ):
 			raise ValueError("must bake model before computing marginal")
 
 		return self.graph.marginal()
+
+	def predict(self, X, max_iterations=100, n_jobs=1):
+		"""Predict missing values of a data matrix using MLE.
+
+		Impute the missing values of a data matrix using the maximally likely
+		predictions according to the forward-backward algorithm. Run each
+		sample through the algorithm (predict_proba) and replace missing values
+		with the maximally likely predicted emission.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_nodes)
+			Data matrix to impute. Missing values must be either None (if lists)
+			or np.nan (if numpy.ndarray). Will fill in these values with the
+			maximally likely ones.
+
+		max_iterations : int, optional
+			Number of iterations to run loopy belief propogation for. Default
+			is 100.
+
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
+		Returns
+		-------
+		X : numpy.ndarray, shape (n_samples, n_nodes)
+			This is the data matrix with the missing values imputed.
+		"""
+
+		if self.d == 0:
+			raise ValueError("must bake model before using impute")
+
+		if n_jobs > 1:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+			fn = '.pomegranate.tmp'
+			with open(fn, 'w') as outfile:
+				outfile.write(self.to_json())
+
+			with Parallel(n_jobs=n_jobs) as parallel:
+				logp_arrays = parallel(delayed(parallelize_function)(
+					X[start:end], BayesianNetwork, 'predict', fn) 
+					for start, end in zip(starts, ends))
+
+			os.remove(fn)
+			return numpy.concatenate(logp_arrays)
+
+		X_imp = numpy.copy(X)
+		for i in range(len(X)):
+			obs = {}
+
+			for j, state in enumerate(self.states):
+				item = X[i][j]
+
+				if item is None:
+					continue
+				if isinstance(item, float) and numpy.isnan(item):
+					continue
+				obs[state.name] = item
+
+			imputation = self.predict_proba(obs, max_iterations)
+
+			for j in range(len(self.states)):
+				X_imp[i][j] = imputation[j].mle()
+
+		return X_imp
 
 	def predict_proba(self, data={}, max_iterations=100, check_input=True):
 		"""Returns the probabilities of each variable in the graph given evidence.
@@ -457,9 +549,10 @@ cdef class BayesianNetwork( GraphModel ):
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
 	
-        n_jobs : int, optional
-            The number of threads to use when performing training. This
-            leads to exact updates. Default is 1.
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
 
 		Returns
 		-------
@@ -574,54 +667,6 @@ cdef class BayesianNetwork( GraphModel ):
 			state.distribution.from_summaries(inertia, pseudocount)
 
 		self.bake()
-
-	def predict(self, items, max_iterations=100):
-		"""Predict missing values of a data matrix using MLE.
-
-		Impute the missing values of a data matrix using the maximally likely
-		predictions according to the forward-backward algorithm. Run each
-		sample through the algorithm (predict_proba) and replace missing values
-		with the maximally likely predicted emission.
-
-		Parameters
-		----------
-		items : array-like, shape (n_samples, n_nodes)
-			Data matrix to impute. Missing values must be either None (if lists)
-			or np.nan (if numpy.ndarray). Will fill in these values with the
-			maximally likely ones.
-
-		max_iterations : int, optional
-			Number of iterations to run loopy belief propogation for. Default
-			is 100.
-
-		Returns
-		-------
-		items : numpy.ndarray, shape (n_samples, n_nodes)
-			This is the data matrix with the missing values imputed.
-		"""
-
-		if self.d == 0:
-			raise ValueError("must bake model before using impute")
-
-		imputations = numpy.copy(items)
-		for i in range(len(items)):
-			obs = {}
-
-			for j, state in enumerate(self.states):
-				item = items[i][j]
-
-				if item is None:
-					continue
-				if isinstance(item, float) and numpy.isnan(item):
-					continue
-				obs[state.name] = item
-
-			imputation = self.predict_proba(obs, max_iterations)
-
-			for j in range(len(self.states)):
-				imputations[i][j] = imputation[j].mle()
-
-		return imputations
 
 	def impute(self, *args, **kwargs):
 		raise Warning("method 'impute' has been depricated, please use 'predict' instead")
@@ -739,9 +784,10 @@ cdef class BayesianNetwork( GraphModel ):
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
 
-        n_jobs : int, optional
-            The number of threads to use when performing training. This
-            leads to exact updates. Default is 1.
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
 
 		Returns
 		-------
@@ -1146,7 +1192,8 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 	n_jobs : int
 		The number of threads to use when learning the structure of the
 		network. This parallelized both the creation of the parent
-		graphs for each variable and the solving of the SCCs.
+		graphs for each variable and the solving of the SCCs. -1 means
+		use all available resources. Default is 1, meaning no parallelism.
 
 	Returns
 	-------

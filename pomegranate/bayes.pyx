@@ -23,6 +23,9 @@ from .utils cimport pair_lse
 from .utils import _check_input
 from .utils import _convert
 
+from joblib import Parallel
+from joblib import delayed
+
 DEF NEGINF = float("-inf")
 
 cdef class BayesModel(Model):
@@ -148,7 +151,7 @@ cdef class BayesModel(Model):
 
 		return samples if n > 1 else samples[0]
 
-	def log_probability(self, X):
+	def log_probability(self, X, n_jobs=1):
 		"""Calculate the log probability of a point under the distribution.
 
 		The probability of a point is the sum of the probabilities of each
@@ -165,6 +168,11 @@ cdef class BayesModel(Model):
 			shape is (n, m, d) where m is variable length for each obervation,
 			and X becomes an array of n (m, d)-shaped arrays.
 
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
 		Returns
 		-------
 		log_probability : double
@@ -172,6 +180,16 @@ cdef class BayesModel(Model):
 		"""
 
 		cdef int i, j, n, d, m
+
+		if n_jobs > 1:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				logp_arrays = parallel(delayed(self.log_probability, check_pickle=False)(
+					X[start:end]) for start, end in zip(starts, ends))
+			
+			return numpy.concatenate(logp_arrays)
 
 		if self.is_vl_ or self.d == 1:
 			n, d = len(X), self.d
@@ -228,7 +246,7 @@ cdef class BayesModel(Model):
 
 		return log_probability_sum
 
-	def predict_proba(self, X):
+	def predict_proba(self, X, n_jobs=1):
 		"""Calculate the posterior P(M|D) for data.
 
 		Calculate the probability of each item having been generated from
@@ -245,6 +263,11 @@ cdef class BayesModel(Model):
 			column corresponds to a dimension in that sample. For univariate
 			distributions, a single array may be passed in.
 
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
 		Returns
 		-------
 		probability : array-like, shape (n_samples, n_components)
@@ -252,9 +275,9 @@ cdef class BayesModel(Model):
 			probability that the sample was generated from each component.
 		"""
 
-		return numpy.exp(self.predict_log_proba(X))
+		return numpy.exp(self.predict_log_proba(X, n_jobs=n_jobs))
 
-	def predict_log_proba(self, X):
+	def predict_log_proba(self, X, n_jobs=1):
 		"""Calculate the posterior log P(M|D) for data.
 
 		Calculate the log probability of each item having been generated from
@@ -270,6 +293,11 @@ cdef class BayesModel(Model):
 			column corresponds to a dimension in that sample. For univariate
 			distributions, a single array may be passed in.
 
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
 		Returns
 		-------
 		y : array-like, shape (n_samples, n_components)
@@ -283,6 +311,16 @@ cdef class BayesModel(Model):
 
 		cdef numpy.ndarray y
 		cdef double* y_ptr
+
+		if n_jobs > 1:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				y_arrays = parallel(delayed(self.predict_log_proba, check_pickle=False)(
+					X[start:end]) for start, end in zip(starts, ends))
+			
+			return numpy.concatenate(y_arrays)
 
 		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
@@ -337,7 +375,7 @@ cdef class BayesModel(Model):
 			for j in range(self.n):
 				y[j*n + i] -= y_sum
 
-	def predict(self, X):
+	def predict(self, X, n_jobs=1):
 		"""Predict the most likely component which generated each sample.
 
 		Calculate the posterior P(M|D) for each sample and return the index
@@ -353,6 +391,11 @@ cdef class BayesModel(Model):
 			column corresponds to a dimension in that sample. For univariate
 			distributions, a single array may be passed in.
 
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
 		Returns
 		-------
 		y : array-like, shape (n_samples,)
@@ -365,6 +408,16 @@ cdef class BayesModel(Model):
 
 		cdef numpy.ndarray y
 		cdef int* y_ptr
+
+		if n_jobs > 1:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				y_arrays = parallel(delayed(self.predict, check_pickle=False)(X[start:end]) 
+					for start, end in zip(starts, ends))
+			
+			return numpy.concatenate(y_arrays)
 
 		if not self.is_vl_:
 			X_ndarray = _check_input(X, self.keymap)
