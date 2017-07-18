@@ -131,7 +131,8 @@ cdef class BayesClassifier(BayesModel):
 
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
-			or the number of processes to use. Default is 1.
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
 
 		Returns
 		-------
@@ -222,7 +223,7 @@ cdef class BayesClassifier(BayesModel):
 
 		return self
 
-	def summarize( self, X, y, weights=None, n_jobs=1 ):
+	def summarize(self, X, y, weights=None, n_jobs=1):
 		"""Summarize data into stored sufficient statistics for out-of-core training.
 
 		Parameters
@@ -239,7 +240,8 @@ cdef class BayesClassifier(BayesModel):
 
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
-			or the number of processes to use. Default is 1.
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
 
 		Returns
 		-------
@@ -371,7 +373,8 @@ cdef class BayesClassifier(BayesModel):
 
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
-			or the number of processes to use. Default is 1.
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
 
 		Returns
 		-------

@@ -330,3 +330,9 @@ def _check_input(X, keymap):
 
 
 	return X_ndarray
+
+def parallelize_function(X, cls, func, filename):
+	"""Parallelize a function using joblib multiprocessing."""
+
+	model = cls.from_json(filename)
+	return getattr(model, func)(X)
