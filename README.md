@@ -38,7 +38,9 @@ To run the tests, you also must have `nose` installed.
 
 ### User Installation
 
-pomegranate is now pip installable! Install using `pip install pomegranate`. Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. You can get the bleeding edge using the following:
+pomegranate is now pip installable! Install using `pip install pomegranate`. pomegranate can also be installed with conda, using `conda install pomegranate`. Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. 
+
+Alternatively, you can get the bleeding edge from GitHub using the following:
 
 ```
 git clone https://github.com/jmschrei/pomegranate.git
@@ -51,6 +53,19 @@ Lastly, you can also download the zip and manually move the files into your site
 To build from source on Windows machines, you may need to download a C++ compiler. For Python 2 this minimal version of Visual Studio 2008 works well: https://www.microsoft.com/en-us/download/details.aspx?id=44266. For Python 3 this version of the Visual Studio Build Tools has been reported to work: http://go.microsoft.com/fwlink/?LinkId=691126. 
 
 If those do no work, it has been suggested that https://wiki.python.org/moin/WindowsCompilers may provide more information. Note that your compiler version must fit your python version. Run python --version to tell which python version you use. Don't forget to select the appropriate Windows version API you'd like to use. If you get an error message "ValueError: Unknown MS Compiler version 1900" remove your Python's Lib/distutils/distutil.cfg and retry. See http://stackoverflow.com/questions/34135280/valueerror-unknown-ms-compiler-version-1900 for details.
+
+Some users with python 3.6 have reported getting the following error after download: `ModuleNotFoundError: No module named 'pomegranate.utils'`. A reported solution is to uninstall and reinstall without cached files using the following:
+
+```
+pip uninstall pomegranate
+pip install pomegranate --no-cache-dir
+```
+
+If that doesn't work for you, you may need to downgrade your version of numpy to 1.11.3 and try the above again. 
+
+Some users on Macs have seen the following error when downloading: `MarkovChain.so: unknown file type, first eight bytes: 0x7F 0x45 0x4C 0x46 0x02 0x01 0x01 0x00`. This can be fixed by removing the `.so` files from the pomegranate installation or by building pomegranate from source.
+
+If you have identified any other issues, please report them on the issue tracker.
 
 ## Contributing
 
