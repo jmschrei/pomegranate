@@ -1,2 +1,3 @@
 include *.txt
-include pomegranate/*
+include pomegranate/*.c
+include pomegranate/*.pxd
