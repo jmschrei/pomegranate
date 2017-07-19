@@ -43,7 +43,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.7.4',
+    version='0.7.5',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=['pomegranate'],
