@@ -210,7 +210,7 @@ cdef class Kmeans(Model):
 		elif isinstance(init, str):
 			self.init = init
 
-	def predict(self, X):
+	def predict(self, X, n_jobs=1):
 		"""Predict nearest centroid for each point.
 
 		Parameters
@@ -218,11 +218,26 @@ cdef class Kmeans(Model):
 		X : array-like, shape (n_samples, n_dim)
 			The data to fit to.
 
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
 		Returns
 		-------
 		y : array-like, shape (n_samples,)
 			The index of the nearest centroid.
 		"""
+
+		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+		if n_jobs > 1:
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				y_pred = parallel(delayed(self.predict, check_pickle=False)(
+					X[start:end]) for start, end in zip(starts, ends))
+
+				return numpy.concatenate(y_pred)
 
 		X = numpy.array(X, dtype='float64')
 		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
