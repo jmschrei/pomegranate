@@ -10,15 +10,13 @@ from libc.string cimport memcpy
 from libc.math cimport log10 as clog10
 from libc.math cimport sqrt as csqrt
 
-from scipy.linalg.cython_blas cimport daxpy
-from scipy.linalg.cython_blas cimport dnrm2
 from scipy.linalg.cython_blas cimport ddot
-from scipy.linalg.cython_blas cimport dgemm
 
 from .base cimport Model
 
 from .utils cimport ndarray_wrap_cpointer
 from .utils cimport mdot
+from .utils cimport _is_gpu_enabled
 
 import time
 import json
@@ -28,6 +26,10 @@ cimport numpy
 from joblib import Parallel
 from joblib import delayed
 
+try:
+	import cupy
+except:
+	cupy = object
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -460,24 +462,9 @@ cdef class Kmeans(Model):
 		memset(summary_sizes, 0, k*sizeof(double))
 		memset(summary_weights, 0, k*d*sizeof(double))
 
-		cdef double alpha = 1.0
-		cdef double beta = 0.0
-
-
 		cdef double* dists = <double*> calloc(n*k, sizeof(double))
 		memset(dists, 0, n*k*sizeof(double))
 		mdot(X, self.centroids_T_ptr, dists, n, k, d)
-
-		#with gil:
-			#dists_ndarray = ndarray_wrap_cpointer(dists, n*k).reshape(n, k)
-			#x_ndarray = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
-
-			#print "[Inside] X_sum =", x_ndarray.sum()
-			#print "[Inside] dist_sum=", dists_ndarray.sum()
-			#print "[Inside] dist_nnz=", dists_ndarray[dists_ndarray == 0].shape
-			#print "[Inside] x * centroids=", x_ndarray.dot(self.centroids.T).sum()
-			#print dists_ndarray
-			#print "[Inside] min dists", dists_ndarray.min(axis=1).sum()
 
 		for i in range(n):
 			min_dist = INF
@@ -485,7 +472,6 @@ cdef class Kmeans(Model):
 
 			for j in range(k):
 				dist = self.centroid_norms[j] + pdist - 2*dists[i*k + j]
-				#dist -= 2*ddot(&d, self.centroids_ptr + j*d, &inc, X + i*d, &inc)
 
 				if dist < min_dist:
 					min_dist = dist
