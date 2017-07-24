@@ -8,11 +8,15 @@ from libc.stdlib cimport free
 from libc.string cimport memset
 from libc.string cimport memcpy
 from libc.math cimport log10 as clog10
+from libc.math cimport sqrt as csqrt
 
-from scipy.linalg.cython_blas cimport daxpy
-from scipy.linalg.cython_blas cimport dnrm2
+from scipy.linalg.cython_blas cimport ddot
 
 from .base cimport Model
+
+from .utils cimport ndarray_wrap_cpointer
+from .utils cimport mdot
+from .utils cimport _is_gpu_enabled
 
 import time
 import json
@@ -22,6 +26,10 @@ cimport numpy
 from joblib import Parallel
 from joblib import delayed
 
+try:
+	import cupy
+except:
+	cupy = object
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -194,21 +202,34 @@ cdef class Kmeans(Model):
 	cdef int n_init
 	cdef str init
 	cdef public numpy.ndarray centroids
+	cdef numpy.ndarray centroids_T
 	cdef double* centroids_ptr
+	cdef double* centroids_T_ptr
 	cdef double* summary_sizes
 	cdef double* summary_weights
+	cdef double* centroid_norms
 
 	def __init__(self, k, init='kmeans++', n_init=10):
 		self.k = k
 		self.d = 0
 		self.n_init = n_init
+		self.centroid_norms = <double*> calloc(self.k, sizeof(double))
 
 		if isinstance(init, (list, numpy.ndarray)):
 			self.centroids = numpy.array(init, dtype='float64', ndmin=2)
 			self.centroids_ptr = <double*> self.centroids.data
+			self.centroids_T = self.centroids.T.copy()
+			self.centroids_T_ptr = <double*> self.centroids_T.data
+
+			for i in range(self.k):
+				self.centroid_norms[i] = self.centroids[i].dot(self.centroids[i])
+
 			self.init = 'fixed'
 		elif isinstance(init, str):
 			self.init = init
+
+	def __dealloc__(self):
+		free(self.centroid_norms)
 
 	def predict(self, X, n_jobs=1):
 		"""Predict nearest centroid for each point.
@@ -339,6 +360,11 @@ cdef class Kmeans(Model):
 
 				self.centroids = initialize_centroids(X, weights, self.k, self.init)
 				self.centroids_ptr = <double*> self.centroids.data
+				self.centroids_T = self.centroids.T.copy()
+				self.centroids_T_ptr = <double*> self.centroids_T.data
+
+				for i in range(self.k):
+					self.centroid_norms[i] = self.centroids[i].dot(self.centroids[i])
 
 				while improvement > stop_threshold and iteration < max_iterations + 1:
 					epoch_start_time = time.time()
@@ -378,6 +404,12 @@ cdef class Kmeans(Model):
 
 		self.centroids = best_centroids
 		self.centroids_ptr = <double*> self.centroids.data
+		self.centroids_T = self.centroids.T.copy()
+		self.centroids_T_ptr = <double*> self.centroids_T.data
+		
+		for i in range(self.k):
+			self.centroid_norms[i] = self.centroids[i].dot(self.centroids[i])
+		
 		return self
 
 	def summarize(self, X, weights=None):
@@ -423,24 +455,23 @@ cdef class Kmeans(Model):
 		return dist
 
 	cdef double _summarize(self, double* X, double* weights, int n) nogil:
-		cdef int i, j, l, y, k = self.k, d = self.d
-		cdef double min_dist, dist, total_dist = 0.0
+		cdef int i, j, l, y, k = self.k, d = self.d, inc = 1
+		cdef double min_dist, dist, total_dist, pdist = 0.0
 		cdef double* summary_sizes = <double*> calloc(k, sizeof(double))
 		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))
 		memset(summary_sizes, 0, k*sizeof(double))
 		memset(summary_weights, 0, k*d*sizeof(double))
 
-		cdef double* xmy = <double*> calloc(d, sizeof(double))
-		cdef double alpha = -1
-		cdef int inc = 1
+		cdef double* dists = <double*> calloc(n*k, sizeof(double))
+		memset(dists, 0, n*k*sizeof(double))
+		mdot(X, self.centroids_T_ptr, dists, n, k, d)
 
 		for i in range(n):
 			min_dist = INF
+			pdist = ddot(&d, X + i*d, &inc, X + i*d, &inc)
 
 			for j in range(k):
-				memcpy(xmy, self.centroids_ptr + j*d, d*sizeof(double))
-				daxpy(&d, &alpha, X + i*d, &inc, xmy, &inc)
-				dist = dnrm2(&d, xmy, &inc)
+				dist = self.centroid_norms[j] + pdist - 2*dists[i*k + j]
 
 				if dist < min_dist:
 					min_dist = dist
@@ -461,6 +492,7 @@ cdef class Kmeans(Model):
 
 		free(summary_sizes)
 		free(summary_weights)
+		free(dists)
 		return total_dist
 
 	def from_summaries(self, double inertia=0.0):
@@ -478,6 +510,12 @@ cdef class Kmeans(Model):
 							inertia * self.centroids_ptr[j*d + l] \
 							+ (1-inertia) * self.summary_weights[j*d + l] \
 							/ self.summary_sizes[j]
+
+		self.centroids_T = self.centroids.T.copy()
+		self.centroids_T_ptr = <double*> self.centroids_T.data
+
+		for i in range(self.k):
+			self.centroid_norms[i] = self.centroids[i].dot(self.centroids[i])
 
 		self.clear_summaries()
 
