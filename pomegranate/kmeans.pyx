@@ -293,7 +293,7 @@ cdef class Kmeans(Model):
 
 	def fit(self, X, weights=None, inertia=0.0, stop_threshold=1e-3,
                 max_iterations=1e3, batch_size=None, batches_per_epoch=None,
-                verbose=False, n_jobs=1):
+                clear_summaries='auto', verbose=False, n_jobs=1):
 		"""Fit the model to the data using k centroids.
 
 		Parameters
@@ -335,6 +335,14 @@ cdef class Kmeans(Model):
 			model parameters before setting the full dataset. If set to None,
 			uses the full dataset. Default is None.
 
+		clear_summaries : bool or 'auto', optional
+			Whether to clear the stored sufficient statistics after an update.
+			Typically this would be set to True as you want to recollect new
+			statistics after each epoch. However, in either the streaming or
+			the minibatching setting one may want to set this to False to
+			collect statistics on the entire dataset. 'auto' means set to True
+			if batches_per_epoch is None, otherwise False.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Default is False.
@@ -373,6 +381,9 @@ cdef class Kmeans(Model):
 				starts = starts[:-1]
 			ends = list(range(batch_size, n, batch_size)) + [n]
 
+		if clear_summaries == 'auto':
+			clear_summaries = True if batches_per_epoch == None else False
+			
 		batches_per_epoch = batches_per_epoch or len(starts)
 		n_seen_batches = 0
 
@@ -399,9 +410,8 @@ cdef class Kmeans(Model):
 					n_seen_batches += batches_per_epoch
 					if n_seen_batches >= len(starts):
 						n_seen_batches = 0
-
-
-					self.from_summaries(inertia)
+						
+					self.from_summaries(inertia, clear_summaries)
 
 					distance_sum = sum( parallel(delayed(self.summarize, 
 						check_pickle=False)(X[start:end], weights[start:end]) 
@@ -527,7 +537,32 @@ cdef class Kmeans(Model):
 		free(dists)
 		return total_dist
 
-	def from_summaries(self, double inertia=0.0):
+	def from_summaries(self, double inertia=0.0, clear_summaries=True):
+		"""Fit the model to the collected sufficient statistics.
+
+		Fit the parameters of the model to the sufficient statistics gathered
+		during the summarize calls. This should return an exact update.
+
+		Parameters
+		----------
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be
+			old_param*inertia + new_param*(1-inertia),
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters. Default is 0.0.
+
+		clear_summaries : boolean, optional
+			Whether to clear the stored summaries after updating the models
+			based on them. If set to False, this can be used for streaming
+			updates where one updates the parameters of the model while seeing
+			more data. Default is True.
+
+		Returns
+		-------
+		None
+		"""
+
 		cdef int l, j, k = self.k, d = self.d
 		cdef double w_sum = 0
 
@@ -549,7 +584,8 @@ cdef class Kmeans(Model):
 		for i in range(self.k):
 			self.centroid_norms[i] = self.centroids[i].dot(self.centroids[i])
 
-		self.clear_summaries()
+		if clear_summaries:
+			self.clear_summaries()
 
 	def clear_summaries(self):
 		memset(self.summary_sizes, 0, self.k*sizeof(double))
@@ -573,7 +609,7 @@ cdef class Kmeans(Model):
 	@classmethod
 	def from_samples(cls, k, X, weights=None, init='kmeans++', n_init=10, 
 		inertia=0.0, stop_threshold=0.1, max_iterations=1e3, batch_size=None, 
-		batches_per_epoch=None, verbose=False, n_jobs=1):
+		batches_per_epoch=None, clear_summaries='auto', verbose=False, n_jobs=1):
 		"""
 		Fit a k-means object to the data directly.
 
@@ -632,6 +668,14 @@ cdef class Kmeans(Model):
 			model parameters before setting the full dataset. If set to None,
 			uses the full dataset. Default is None.
 
+		clear_summaries : bool or 'auto', optional
+			Whether to clear the stored sufficient statistics after an update.
+			Typically this would be set to True as you want to recollect new
+			statistics after each epoch. However, in either the streaming or
+			the minibatching setting one may want to set this to False to
+			collect statistics on the entire dataset. 'auto' means set to True
+			if batches_per_epoch is None, otherwise False.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Default is False.
@@ -652,6 +696,7 @@ cdef class Kmeans(Model):
 		model = Kmeans(k=k, init=init, n_init=n_init)
 		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
 			max_iterations=max_iterations, batch_size=batch_size, 
-			batches_per_epoch=batches_per_epoch, verbose=verbose, n_jobs=n_jobs)
+			batches_per_epoch=batches_per_epoch, clear_summaries=clear_summaries,
+			verbose=verbose, n_jobs=n_jobs)
 
 		return model
