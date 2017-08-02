@@ -45,7 +45,7 @@ The probability of a sequence under the Markov chain is just the probabiliy of t
 Fitting
 -------
 
-Markov chains are not very complicated to chain. For each sequence the appropriate symbols are sent to the appropriate distributions and maximum likelihood estimates are used to update the parameters of the distributions. There are no latent factors to train and so no expectation maximization or iterative algorithms are needed to train anything.
+Markov chains are not very complicated to train. For each sequence the appropriate symbols are sent to the appropriate distributions and maximum likelihood estimates are used to update the parameters of the distributions. There are no latent factors to train and so no expectation maximization or iterative algorithms are needed to train anything.
 
 API Reference
 -------------
