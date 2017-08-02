@@ -64,7 +64,7 @@ However, frequently we don't know the parameters of the distribution beforehand 
 
 .. code-block:: python
 
-    b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
+    b = NormalDistribution.from_samples([3, 4, 5, 6, 7])
 
 If we want to fit the model to weighted samples, we can just pass in an array of the relative weights of each sample as well.
 
