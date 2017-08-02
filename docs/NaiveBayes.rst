@@ -3,7 +3,8 @@
 Bayes Classifiers and Naive Bayes
 =================================
 
-`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_5_Naive_Bayes.ipynb>`_
+`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_5_Bayes_Classifiers.ipynb>`_
+
 
 Bayes classifiers are simple probabilistic classification models based off of Bayes throerom. See the above tutorial for a full primer on how they work, and what the distinction between a naive Bayes classifier and a Bayes classifier is. Essentially, each class is modeled by a probability distribution and classifications are made according to what distribution fits the data the best. They are a supervised version of general mixture models, in that the ``predict``, ``predict_proba``, and ``predict_log_proba`` methods return the same values for the same underlying distributions, but that instead of using expectation-maximization to fit to new data they can use the provided labels directly.
 
