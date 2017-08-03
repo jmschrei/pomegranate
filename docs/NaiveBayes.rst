@@ -3,9 +3,10 @@
 Bayes Classifiers and Naive Bayes
 =================================
 
-`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_5_Naive_Bayes.ipynb>`_
+`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_5_Bayes_Classifiers.ipynb>`_
 
-Bayes classifiers are simple probabilistic classification models based off of Bayes throerom. See the above tutorial for a full primer on how they work, and what the distinction between a naive Bayes classifier and a Bayes classifier is. Essentially, each class is modeled by a probability distribution and classifications are made according to what distribution fits the data the best. They are a supervised version of general mixture models, in that the ``predict``, ``predict_proba``, and ``predict_log_proba`` methods return the same values for the same underlying distributions, but that instead of using expectation-maximization to fit to new data they can use the provided labels directly.
+
+Bayes classifiers are simple probabilistic classification models based off of Bayes theorem. See the above tutorial for a full primer on how they work, and what the distinction between a naive Bayes classifier and a Bayes classifier is. Essentially, each class is modeled by a probability distribution and classifications are made according to what distribution fits the data the best. They are a supervised version of general mixture models, in that the ``predict``, ``predict_proba``, and ``predict_log_proba`` methods return the same values for the same underlying distributions, but that instead of using expectation-maximization to fit to new data they can use the provided labels directly.
 
 Initialization
 --------------
@@ -30,7 +31,7 @@ would create a three class naive Bayes classifier that modeled data with three d
 	d3 = MultivariateGaussianDistribution([3, 5, 4], [[1, 0, 0], [0, 3, 0], [0, 0, 1]])
 	model = BayesClassifier([d1, d2, d3])
 
-The two examples above functionally creatte the same model, as the Bayes classifier uses multivariate Gaussian distributions with the same means and a diagonal covariance matrix containing only the variances. However, if we were to fit these models to data later on, the Bayes classifier would learn a full covariance matrix while the naive Bayes would only learn the diagonal.
+The two examples above functionally create the same model, as the Bayes classifier uses multivariate Gaussian distributions with the same means and a diagonal covariance matrix containing only the variances. However, if we were to fit these models to data later on, the Bayes classifier would learn a full covariance matrix while the naive Bayes would only learn the diagonal.
 
 If we instead wish to initialize our model directly onto data, we use the ``from_samples`` class method.
 
@@ -121,7 +122,7 @@ Multivariate models work the same way.
 Fitting
 -------
 
-Both naive Bayes and Bayes classifiers also have a ``fit`` method that updates the parameters of the model based on new data. The major difference between these methods and the others presented is that these are supervised methods and so need to be passed labels in addition to data. This change propogates also to the ``summarize`` method, where labels are provided as well.
+Both naive Bayes and Bayes classifiers also have a ``fit`` method that updates the parameters of the model based on new data. The major difference between these methods and the others presented is that these are supervised methods and so need to be passed labels in addition to data. This change propagates also to the ``summarize`` method, where labels are provided as well.
 
 .. code-block:: python
 
