@@ -187,6 +187,7 @@ cdef class HiddenMarkovModel(GraphModel):
     cdef int finite, n_tied_edge_groups
     cdef public list keymap
     cdef object state_names
+    cdef dict state_name_mapping
     cdef numpy.ndarray distributions
     cdef void** distributions_ptr
 
@@ -232,6 +233,7 @@ cdef class HiddenMarkovModel(GraphModel):
         self.tied_edges_ends = NULL
 
         self.state_names = set()
+        self.state_name_mapping = {}
 
     def __dealloc__(self):
         self.free_bake_buffers()
@@ -1103,6 +1105,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 if isinstance(d, IndependentComponentsDistribution):
                     d.bake(keys)
 
+        self.state_name_mapping = {state.name: i for i, state in enumerate(self.states)}
         self.distributions = numpy.empty(self.silent_start, dtype='object')
         for i in range(self.silent_start):
             self.distributions[i] = self.states[i].distribution
@@ -2375,7 +2378,11 @@ cdef class HiddenMarkovModel(GraphModel):
             An array of state labels for each sequence. This is only used in
             'labeled' training. If used this must be comprised of n lists where
             n is the number of sequences to train on, and each of those lists
-            must have one label per observation. Default is None.
+            must have one label per observation. A None in this list corresponds
+            to no labels for the entire sequence and triggers semi-supervised
+            learning, where the labeled sequences are summarized using labeled
+            fitting and the unlabeled are summarized using the specified algorithm.
+            Default is None.
 
         stop_threshold : double, optional
             The threshold the improvement ratio of the models log probability
@@ -2466,16 +2473,34 @@ cdef class HiddenMarkovModel(GraphModel):
             sequence_ndarray = _check_input(sequence, self)
             X.append(sequence_ndarray)
 
-        if labels:
-            labels = numpy.array(labels) 
-
         if weights is None:
             weights = numpy.ones(len(X), dtype='float64')
         else:
             weights = numpy.array(weights, dtype='float64')
 
-        starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-        ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+        semisupervised = False
+        if labels is not None:
+            if None in labels:
+                semisupervised = True
+                X_labeled = [x for x, label in zip(X, labels) if label != None]
+                X_unlabeled = [x for x, label in zip(X, labels) if label == None]
+
+                weights_labeled = numpy.array([weight for weight, label in zip(weights, labels) if label != None])
+                weights_unlabeled = numpy.array([weight for weight, label in zip(weights, labels) if label == None])
+
+                labels = [label for label in labels if label != None]
+
+            labels = numpy.array([numpy.array(label) for label in labels])
+
+        if semisupervised:
+            starts_labeled = [int(i*len(X_labeled)/n_jobs) for i in range(n_jobs)]
+            ends_labeled = [int(i*len(X_labeled)/n_jobs) for i in range(1, n_jobs+1)]
+
+            starts_unlabeled = [int(i*len(X_unlabeled)/n_jobs) for i in range(n_jobs)]
+            ends_unlabeled = [int(i*len(X_unlabeled)/n_jobs) for i in range(1, n_jobs+1)]
+        else:
+            starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+            ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
@@ -2487,7 +2512,20 @@ cdef class HiddenMarkovModel(GraphModel):
                 if iteration >= max_iterations + 1:
                     break
 
-                if labels:
+                if semisupervised:
+                    log_probability_sum = sum(parallel(delayed(self.summarize, 
+                        check_pickle=False)(X_labeled[start:end], 
+                        weights_labeled[start:end], labels[start:end], 
+                        algorithm='labeled', check_input=False) 
+                        for start, end in zip(starts_labeled, ends_labeled)))
+
+                    log_probability_sum += sum(parallel(delayed(self.summarize, 
+                        check_pickle=False)(X_unlabeled[start:end], 
+                        weights_unlabeled[start:end], algorithm=algorithm, 
+                        check_input=False) 
+                        for start, end in zip(starts_unlabeled, ends_unlabeled)))
+
+                elif labels is not None:
                     log_probability_sum = sum(parallel(delayed(self.summarize, check_pickle=False)(X[start:end], 
                         weights[start:end], labels[start:end], alg, False) 
                         for start, end in zip(starts, ends)))
@@ -2495,8 +2533,6 @@ cdef class HiddenMarkovModel(GraphModel):
                     log_probability_sum = sum(parallel(delayed(self.summarize, check_pickle=False)(X[start:end], 
                         weights[start:end], None, alg, False) 
                         for start, end in zip(starts, ends)))
-                
-                #log_probability_sum = self.summarize(X, weights, labels, alg, n_jobs, parallel, False)
 
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
@@ -2798,7 +2834,10 @@ cdef class HiddenMarkovModel(GraphModel):
         memset(labels, -1, (n+m+1)*sizeof(int))
 
         for i in range(label_ndarray.shape[0]):
-            labels[i] = self.states.index(label_ndarray[i])
+            if isinstance(label_ndarray[i], State): 
+                labels[i] = self.states.index(label_ndarray[i])
+            else:
+                labels[i] = self.state_name_mapping[label_ndarray[i]]
             
 
         with nogil:
@@ -3264,7 +3303,7 @@ cdef class HiddenMarkovModel(GraphModel):
         transition_pseudocount=0, emission_pseudocount=0.0, 
         use_pseudocount=False, stop_threshold=1e-9, min_iterations=0, 
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1, 
-        end_state=False, verbose=False, n_jobs=1):
+        end_state=False, state_names=None, name=None, verbose=False, n_jobs=1):
         """Learn the transitions and emissions of a model directly from data.
 
         This method will learn both the transition matrix, emission distributions,
@@ -3285,7 +3324,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         Parameters
         ----------
-        distributions : callable
+        distribution : callable
             The emission distribution of the components of the model.
 
         n_components : int
@@ -3305,7 +3344,11 @@ cdef class HiddenMarkovModel(GraphModel):
             An array of state labels for each sequence. This is only used in
             'labeled' training. If used this must be comprised of n lists where
             n is the number of sequences to train on, and each of those lists
-            must have one label per observation. Default is None.
+            must have one label per observation. A None in this list corresponds
+            to no labels for the entire sequence and triggers semi-supervised
+            learning, where the labeled sequences are summarized using labeled
+            fitting and the unlabeled are summarized using the specified algorithm.
+            Default is None.
 
         algorithm : 'baum-welch', 'viterbi', 'labeled'
             The training algorithm to use. Baum-Welch uses the forward-backward
@@ -3378,6 +3421,13 @@ cdef class HiddenMarkovModel(GraphModel):
             Whether to calculate the probability of ending in each state or not.
             Default is False. 
 
+        state_names : array-like, shape (n_states), optional
+            The name of the states. If None is passed in, default names are
+            generated. Default is None
+
+        name : str, optional
+            The name of the model. Default is None
+
         verbose : bool, optional
             Whether to print the improvement in the model fitting at each
             iteration. Default is True.
@@ -3397,7 +3447,32 @@ cdef class HiddenMarkovModel(GraphModel):
         if X_concat.ndim == 1:
             X_concat = X_concat.reshape(X_concat.shape[0], 1)
 
-        if distribution is DiscreteDistribution:
+        if labels is not None and None in labels:
+            X_ = [x for x, label in zip(X, labels) if label != None]
+            X_ = numpy.concatenate(X_)
+
+            labels_ = [[label for label in l] for l in labels if l is not None]
+            labels_ = numpy.concatenate(labels_)
+            labels_ = numpy.array([l for l in labels_ if l != name+"-start" and l != name+"-end"])
+            label_set = numpy.unique(labels_)
+
+            if distribution is DiscreteDistribution:
+                keymap = numpy.unique(X_)
+
+                distributions = []
+                for label in label_set:
+                    d = DiscreteDistribution({key: 1. / len(keymap) for key in keymap})
+                    d.fit(X_[labels_ == label])
+                    distributions.append(d)
+            else:
+                distributions = [distribution.from_samples(
+                    X_[labels_ == label]) for label in label_set]
+
+            if len(label_set) != n_components:
+                raise ValueError("Specified {} components, but only {} different "
+                    "labels observed".format(n_components, len(label_set)))
+
+        elif distribution is DiscreteDistribution:
             keymap = numpy.unique(X_concat)
 
             distributions = []
@@ -3416,10 +3491,14 @@ cdef class HiddenMarkovModel(GraphModel):
 
         transition_matrix = numpy.ones((n_components, n_components)) / n_components
         start_probabilities = numpy.ones(n_components) / n_components
+
         end_probabilities = None
         if end_state:
             end_probabilities = numpy.ones(n_components) / n_components
-        model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities, ends=end_probabilities)
+
+        model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities, 
+            state_names=state_names, name=name, ends=end_probabilities)
+
         model.fit(X, weights, labels, stop_threshold, min_iterations,
             max_iterations, algorithm, verbose, pseudocount,
             transition_pseudocount, emission_pseudocount, use_pseudocount,
