@@ -928,9 +928,6 @@ cdef class BayesianNetwork( GraphModel ):
 		X = numpy.array(X)
 		n, d = X.shape
 
-		if max_parents == -1 or max_parents > _log(2*n / _log(n)):
-			max_parents = int(_log(2*n / _log(n)))
-
 		keys = [numpy.unique(X[:,i]) for i in range(X.shape[1])]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(X.shape[1])])
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
@@ -958,6 +955,11 @@ cdef class BayesianNetwork( GraphModel ):
 		for i in range(n):
 			for j in range(d):
 				X_int[i, j] = keymap[j][X[i, j]]
+
+		w_sum = weights.sum()
+
+		if max_parents == -1 or max_parents > _log(2*w_sum / _log(w_sum)):
+			max_parents = int(_log(2*w_sum / _log(w_sum)))
 
 		if algorithm == 'chow-liu':
 			structure = discrete_chow_liu_tree(X_int, weights, key_count,
@@ -1904,7 +1906,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 cdef double discrete_score_node(int* X, double* weights, int* m, int* parents, 
 	int n, int d, int l, double pseudocount) nogil:
 	cdef int i, j, k, idx
-	cdef double logp = -_log(n) / 2 * m[d+1]
+	cdef double w_sum = 0
+	cdef double logp = 0 #-_log(n) / 2 * m[d+1]
 	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
@@ -1925,11 +1928,14 @@ cdef double discrete_score_node(int* X, double* weights, int* m, int* parents,
 		counts[idx] += weights[i]
 
 	for i in range(m[d]):
+		w_sum += counts[i]
 		count = pseudocount + counts[i]
 		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
 
 		if count > 0:
 			logp += count * _log(count / marginal_count)
+
+	logp -= _log(w_sum) / 2 * m[d+1]
 
 	free(counts)
 	free(marginal_counts)
