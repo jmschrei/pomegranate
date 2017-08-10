@@ -844,7 +844,7 @@ cdef class BayesianNetwork( GraphModel ):
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
 		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None, name=None,
-		 n_jobs=1):
+		 reduce_dataset=True, n_jobs=1):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -902,6 +902,16 @@ cdef class BayesianNetwork( GraphModel ):
 		name : str, optional
 			The name of the model. Default is None.
 
+		reduce_dataset : bool, optional
+			Given the discrete nature of these datasets, frequently a user
+			will pass in a dataset that has many identical samples. It is time
+			consuming to go through these redundant samples and a far more
+			efficient use of time to simply calculate a new dataset comprised
+			of the subset of unique observed samples weighted by the number of 
+			times they occur in the dataset. This typically will speed up all
+			algorithms, including when using a constraint graph. Default is 
+			True.
+
 		n_jobs : int, optional
 			The number of threads to use when learning the structure of the
 			network. If a constraint graph is provided, this will parallelize
@@ -923,18 +933,31 @@ cdef class BayesianNetwork( GraphModel ):
 
 		keys = [numpy.unique(X[:,i]) for i in range(X.shape[1])]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(X.shape[1])])
-
-		X_int = numpy.zeros((n, d), dtype='int32')
-		for i in range(n):
-			for j in range(d):
-				X_int[i, j] = keymap[j][X[i, j]]
-
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
 
 		if weights is None:
 			weights = numpy.ones(X.shape[0], dtype='float64')
 		else:
 			weights = numpy.array(weights, dtype='float64')
+
+		if reduce_dataset:
+			X_count = {}
+
+			for x, weight in izip(X, weights):
+				x = tuple(x)
+				if x in X_count:
+					X_count[x] += weight
+				else:
+					X_count[x] = weight
+
+			weights = numpy.array(X_count.values(), dtype='float64')
+			X = numpy.array(X_count.keys())
+			n, d = X.shape
+
+		X_int = numpy.zeros((n, d), dtype='int32')
+		for i in range(n):
+			for j in range(d):
+				X_int[i, j] = keymap[j][X[i, j]]
 
 		if algorithm == 'chow-liu':
 			structure = discrete_chow_liu_tree(X_int, weights, key_count,
