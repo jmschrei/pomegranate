@@ -947,8 +947,8 @@ cdef class BayesianNetwork( GraphModel ):
 				else:
 					X_count[x] = weight
 
-			weights = numpy.array(X_count.values(), dtype='float64')
-			X = numpy.array(X_count.keys())
+			weights = numpy.array(list(X_count.values()), dtype='float64')
+			X = numpy.array(list(X_count.keys()))
 			n, d = X.shape
 
 		X_int = numpy.zeros((n, d), dtype='int32')
