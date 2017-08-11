@@ -844,7 +844,7 @@ cdef class BayesianNetwork( GraphModel ):
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
 		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None, name=None,
-		 n_jobs=1):
+		 reduce_dataset=True, n_jobs=1):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -902,6 +902,16 @@ cdef class BayesianNetwork( GraphModel ):
 		name : str, optional
 			The name of the model. Default is None.
 
+		reduce_dataset : bool, optional
+			Given the discrete nature of these datasets, frequently a user
+			will pass in a dataset that has many identical samples. It is time
+			consuming to go through these redundant samples and a far more
+			efficient use of time to simply calculate a new dataset comprised
+			of the subset of unique observed samples weighted by the number of 
+			times they occur in the dataset. This typically will speed up all
+			algorithms, including when using a constraint graph. Default is 
+			True.
+
 		n_jobs : int, optional
 			The number of threads to use when learning the structure of the
 			network. If a constraint graph is provided, this will parallelize
@@ -918,23 +928,38 @@ cdef class BayesianNetwork( GraphModel ):
 		X = numpy.array(X)
 		n, d = X.shape
 
-		if max_parents == -1 or max_parents > _log(2*n / _log(n)):
-			max_parents = int(_log(2*n / _log(n)))
-
 		keys = [numpy.unique(X[:,i]) for i in range(X.shape[1])]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(X.shape[1])])
-
-		X_int = numpy.zeros((n, d), dtype='int32')
-		for i in range(n):
-			for j in range(d):
-				X_int[i, j] = keymap[j][X[i, j]]
-
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
 
 		if weights is None:
 			weights = numpy.ones(X.shape[0], dtype='float64')
 		else:
 			weights = numpy.array(weights, dtype='float64')
+
+		if reduce_dataset:
+			X_count = {}
+
+			for x, weight in izip(X, weights):
+				x = tuple(x)
+				if x in X_count:
+					X_count[x] += weight
+				else:
+					X_count[x] = weight
+
+			weights = numpy.array(list(X_count.values()), dtype='float64')
+			X = numpy.array(list(X_count.keys()))
+			n, d = X.shape
+
+		X_int = numpy.zeros((n, d), dtype='int32')
+		for i in range(n):
+			for j in range(d):
+				X_int[i, j] = keymap[j][X[i, j]]
+
+		w_sum = weights.sum()
+
+		if max_parents == -1 or max_parents > _log(2*w_sum / _log(w_sum)):
+			max_parents = int(_log(2*w_sum / _log(w_sum)))
 
 		if algorithm == 'chow-liu':
 			structure = discrete_chow_liu_tree(X_int, weights, key_count,
@@ -1881,7 +1906,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 cdef double discrete_score_node(int* X, double* weights, int* m, int* parents, 
 	int n, int d, int l, double pseudocount) nogil:
 	cdef int i, j, k, idx
-	cdef double logp = -_log(n) / 2 * m[d+1]
+	cdef double w_sum = 0
+	cdef double logp = 0 #-_log(n) / 2 * m[d+1]
 	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
@@ -1902,11 +1928,14 @@ cdef double discrete_score_node(int* X, double* weights, int* m, int* parents,
 		counts[idx] += weights[i]
 
 	for i in range(m[d]):
+		w_sum += counts[i]
 		count = pseudocount + counts[i]
 		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
 
 		if count > 0:
 			logp += count * _log(count / marginal_count)
+
+	logp -= _log(w_sum) / 2 * m[d+1]
 
 	free(counts)
 	free(marginal_counts)
