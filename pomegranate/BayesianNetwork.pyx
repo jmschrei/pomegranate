@@ -690,9 +690,6 @@ cdef class BayesianNetwork( GraphModel ):
 		"""
 
 		states = [ state.copy() for state in self.states ]
-		for state in states:
-			if isinstance(state.distribution, MultivariateDistribution):
-				state.distribution.parents = []
 
 		model = {
 					'class' : 'BayesianNetwork',

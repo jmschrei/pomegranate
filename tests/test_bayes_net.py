@@ -275,6 +275,8 @@ def test_guest_titanic():
     assert_equal(male[2].log_probability("second"), float("-inf"))
     assert_equal(male[2].log_probability("third"), float("-inf"))
 
+    titanic_network2 = BayesianNetwork.from_json(titanic_network.to_json())
+
 
 @with_setup(setup_huge_monty, teardown)
 def test_huge_monty():
@@ -532,6 +534,10 @@ def test_from_structure():
     model = BayesianNetwork.from_structure(X, structure=structure)
 
     assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model2 = BayesianNetwork.from_json(model.to_json())
+    assert_equal(model2.structure, structure)
     assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
 
 

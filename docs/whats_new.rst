@@ -73,6 +73,13 @@ Bayesian Networks
 	with d variables. It can be calculated exactly as n_samples / n_unique_samples,
 	as many datasets are biased towards repeating elements. 
 
+	- Fixed a premature optimization where the parents were stripped from conditional
+	probability tables when saving the Bayesian Network to a json, causing an error
+	in serialization. The premature optimization is that in theory pomegranate is set
+	up to handle cyclic Bayesian networks and serializing that without first stripping
+	parents would cause an infinite file size. However, a future PR that enabled cyclic
+	Bayesian networks will account for this error.
+
 Tutorials
 .........
 
