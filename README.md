@@ -38,6 +38,27 @@ To run the tests, you also must have `nose` installed.
 
 ### User Installation
 
+#### Fedora Release 25 onwards
+
+Install Pomegranate and its dependencies ( for Python3 )
+
+```
+$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
+$ virtualenv env3 --python=python3.5 --system-site-packages
+$ source env3/bin/activate
+(env3) $ pip3 install wheel nose cython numpy scipy networkx
+(env3) $ pip3 install --no-cache-dir pomegranate
+```
+
+Our virtualenv is ready, so now we can check that the installation is ready
+
+```
+(env3) $ python -c 'from pomegranate import *; print("It works")'
+It works
+```
+
+#### Other OSes
+
 pomegranate is now pip installable! Install using `pip install pomegranate`. pomegranate can also be installed with conda, using `conda install pomegranate`. Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. **NOTE: If you are on OSX and python 2.7 you may encounter an error using pip on versions above 0.7.3. Please install those versions from GitHub or use 0.7.3.**
 
 You can get the bleeding edge from GitHub using the following:
