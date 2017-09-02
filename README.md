@@ -67,6 +67,41 @@ Some users on Macs have seen the following error when downloading: `MarkovChain.
 
 If you have identified any other issues, please report them on the issue tracker.
 
+#### Installing on Fedora Release 25 onwards
+
+**Installing on root path for all users**
+
+Install dependencies and pomegranate via pip3:
+
+```
+$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
+$ sudo pip3 install --no-cache-dir pomegranate 
+```
+
+**Installing inside a virtualenv**
+
+Install dependencies, create a virtualenv and install pomegranate via pip3:
+
+```
+$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
+$ virtualenv env3 --python=python3.5 --system-site-packages
+$ source env3/bin/activate
+(env3) $ pip3 install wheel nose cython numpy scipy networkx
+(env3) $ pip3 install --no-cache-dir pomegranate
+```
+
+### Verifying the installation
+
+Our setup is done, so now we can check that pomegranate is ready to use:
+
+```
+$ python -c 'from pomegranate import *; print(NormalDistribution(0, 1).probability(0))'
+0.398942280402
+```
+
+
+If you don't see the output above, or any other error is encountered, please feel free to file an [issue](https://github.com/jmschrei/pomegranate/issues).
+
 ## Contributing
 
 If you would like to contribute a feature then fork the master branch (fork the release if you are fixing a bug). Be sure to run the tests before changing any code. You'll need to have [nosetests](https://github.com/nose-devs/nose) installed. The following command will run all the tests:
