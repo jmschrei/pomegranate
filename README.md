@@ -38,27 +38,6 @@ To run the tests, you also must have `nose` installed.
 
 ### User Installation
 
-#### Fedora Release 25 onwards
-
-Install Pomegranate and its dependencies ( for Python3 )
-
-```
-$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
-$ virtualenv env3 --python=python3.5 --system-site-packages
-$ source env3/bin/activate
-(env3) $ pip3 install wheel nose cython numpy scipy networkx
-(env3) $ pip3 install --no-cache-dir pomegranate
-```
-
-Our virtualenv is ready, so now we can check that the installation is ready
-
-```
-(env3) $ python -c 'from pomegranate import *; print("It works")'
-It works
-```
-
-#### Other OSes
-
 pomegranate is now pip installable! Install using `pip install pomegranate`. pomegranate can also be installed with conda, using `conda install pomegranate`. Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. **NOTE: If you are on OSX and python 2.7 you may encounter an error using pip on versions above 0.7.3. Please install those versions from GitHub or use 0.7.3.**
 
 You can get the bleeding edge from GitHub using the following:
@@ -87,6 +66,41 @@ If that doesn't work for you, you may need to downgrade your version of numpy to
 Some users on Macs have seen the following error when downloading: `MarkovChain.so: unknown file type, first eight bytes: 0x7F 0x45 0x4C 0x46 0x02 0x01 0x01 0x00`. This can be fixed by removing the `.so` files from the pomegranate installation or by building pomegranate from source.
 
 If you have identified any other issues, please report them on the issue tracker.
+
+#### Installing on Fedora Release 25 onwards
+
+**Installing on root path for all users**
+
+Install dependencies and pomegranate via pip3:
+
+```
+$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
+$ sudo pip3 install --no-cache-dir pomegranate 
+```
+
+**Installing inside a virtualenv**
+
+Install dependencies, create a virtualenv and install pomegranate via pip3:
+
+```
+$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
+$ virtualenv env3 --python=python3.5 --system-site-packages
+$ source env3/bin/activate
+(env3) $ pip3 install wheel nose cython numpy scipy networkx
+(env3) $ pip3 install --no-cache-dir pomegranate
+```
+
+### Verifying the installation
+
+Our setup is done, so now we can check that pomegranate is ready to use:
+
+```
+$ python -c 'from pomegranate import *; print(NormalDistribution(0, 1).probability(0))'
+0.398942280402
+```
+
+
+If you don't see the output above, or any other error is encountered, please feel free to file an [issue](https://github.com/jmschrei/pomegranate/issues).
 
 ## Contributing
 
