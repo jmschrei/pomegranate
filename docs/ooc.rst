@@ -1,7 +1,7 @@
 .. _ooc:
 
-Out of Core
-===========
+Out of Core Learning
+====================
 
 Sometimes datasets which we'd like to train on can't fit in memory but we'd still like to get an exact update. pomegranate supports out of core training to allow this, by allowing models to summarize batches of data into sufficient statistics and then later on using these sufficient statistics to get an exact update for model parameters. These are done through the methods ```model.summarize``` and ```model.from_summaries```. Let's see an example of using it to update a normal distribution.
 
@@ -93,3 +93,15 @@ This is a simple example with a simple distribution, but all models and model st
 We can see that before fitting to any data, the distribution in one of the states is equal for both. After fitting the first distribution they become different as would be expected. After fitting the second one through summarize the distributions become equal again, showing that it is recovering an exact update.
 
 It's easy to see how one could use this to update models which don't use Expectation Maximization (EM) to train, since it is an iterative algorithm. For algorithms which use EM to train there is a ```fit``` wrapper which will allow you to load up batches of data from a numpy memory map to train on automatically. 
+
+FAQ
+---
+
+Q. What data storage types are able to be used with out of core training?
+
+A. Currently only stored numpy arrays (.npy files) that can be read as memory maps using `numpy.load('data.npy', mmap_mode='r')` are supported for data that truly can't be loaded into memory.
+
+
+Q. Does out of core learning give exact or approximate updates?
+
+A. It gives exact updates. Sufficient statistics are collected for each of the batches and are equal to the sufficient statistics that one would get from the full dataset. 

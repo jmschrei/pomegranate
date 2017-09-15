@@ -42,29 +42,36 @@ The third level are stacks of probabilistic models which can model even more com
 (9) Mixtures of Models
 (10) Bayesian Classifiers of Models
 
-
-Installation
-============
-
-pomegranate is pip installable using ```pip install pomegranate```. You can get the bleeding edge from github using the following:
-
-.. code-block:: bash
-
-	git clone https://github.com/jmschrei/pomegranate
-	cd pomegranate
-	python setup.py install
-
-On Windows machines you may need to download a C++ compiler. For Python 2 this `minimal version of Visual Studio 2008 works well <https://www.microsoft.com/en-us/download/details.aspx?id=44266>`_. For Python 3 `this version of the Visual Studio build tools <http://go.microsoft.com/fwlink/?LinkId=691126>`_ has been reported to work.
+Thank You
+=========
 
 No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM and all the current contributors to pomegranate as well as the graduate students whom I have pestered with ideas. Contributions are eagerly accepted! If you would like to contribute a feature then fork the master branch and be sure to run the tests before changing any code. Let us know what you want to do on the issue tracker just in case we're already working on an implementation of something similar. Also, please don't forget to add tests for any new functions. 
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
    :hidden:
+   :caption: Getting Started
 
    self
+   install.rst
    faq.rst
+   whats_new.rst
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Features
+
    ooc.rst
+   semisupervised.rst
+   parallelism.rst
+   gpu.rst
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: Models
+
    Distributions.rst
    GeneralMixtureModel.rst
    HiddenMarkovModel.rst
