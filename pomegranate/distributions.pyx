@@ -1816,10 +1816,10 @@ cdef class TriangleKernelDensity(KernelDensity):
 		band = self.parameters[1]
 		if n is None:
 			mu = numpy.random.choice(self.parameters[0], p=self.parameters[2])
-			return numpy.random.triangular(mu-band, mu+band, mu)
+			return numpy.random.triangular(mu-band, mu, mu+band)
 		else:
 			mus = numpy.random.choice(self.parameters[0], n, p=self.parameters[2])
-			samples = [numpy.random.triangular(mu-band, mu+band, mu) for mu in mus]
+			samples = [numpy.random.triangular(mu-band, mu, mu+band) for mu in mus]
 			return numpy.array(samples)
 
 cdef class MultivariateDistribution(Distribution):
