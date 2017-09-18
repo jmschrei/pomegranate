@@ -822,7 +822,7 @@ cdef class BayesianNetwork( GraphModel ):
 				break
 
 		if state_names is not None:
-			states = [State(node, name=name) for node, name in izip(nodes,state_names)]
+			states = [State(node, name=node_name) for node, node_name in izip(nodes,state_names)]
 		else:
 			states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
 
