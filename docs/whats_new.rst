@@ -5,7 +5,7 @@
 Release History
 ===============
 
-Version 0.7.8
+Version 0.8.0
 =============
 
 Highlights
@@ -27,6 +27,10 @@ k-means
 	to solve the matrix matrix multiplication. Initial attempts to add in GPU
 	support appeared unsuccessful, but in theory it should be something that can
 	be added in.
+
+	- k-means has been refactored to more natively support an out-of-core learning
+	goal, by allowing for data to initially be cast as numpy memorymaps and not
+	coercing them to arrays midway through.
 
 
 Hidden Markov Models
@@ -55,6 +59,16 @@ Hidden Markov Models
 	symbol emitting states. If using semi-supervised learning, one must also pass in a
 	list of the state names using the `state_names` parameter that has been added in.
 
+General Mixture Models
+......................
+
+	- Changed the initialization step to be done on the first batch of data instead
+	of the entire dataset. If the entire dataset fits in memory this does not change
+	anything. However, this allows for out-of-core updates to be done automatically
+	instead of immediately trying to load the entire dataset into memory. This does
+	mean that out-of-core updates will have a different initialization now, but then
+	yield exact updates after that.
+
 Bayesian Networks
 .................
 
@@ -79,6 +93,56 @@ Bayesian Networks
 	up to handle cyclic Bayesian networks and serializing that without first stripping
 	parents would cause an infinite file size. However, a future PR that enabled cyclic
 	Bayesian networks will account for this error.
+
+Naive Bayes
+...........
+
+	- Fixed documentation of `from_samples` to actually refer to the naive Bayes model.
+
+	- Added in semi-supervised learning through the EM algorithm for samples that are
+	labeled with -1.
+
+Bayes Classifier
+................
+
+	- Fixed documentation of `from_samples` to actually refer to the Bayes classifier
+	model.
+
+	- Added in semi-supervised learning through the EM algorithm for samples that are
+	labeled with -1.
+
+Distributions
+.............
+
+	- Multivariate Gaussian Distributions can now use GPUs for both log probability
+	and summarization calculations, speeding up both tasks ~4x for any models that
+	use them. This is added in through CuPy.
+
+Out Of Core
+...........
+
+	- The parameter "batch_size" has been added to HMMs, GMMs, and k-means models
+	for built-in out-of-core calculations. Pass in a numpy memory map instead of
+	an array and set the batch size for exact updates (sans initialization).
+
+Minibatching
+............
+
+	- The parameter "batches_per_epoch" has been added to HMMs, GMMs, and k-means
+	models for build-in minibatching support. This specifies the number of batches
+	(as defined by "batch_size") to summarize before calculating new parameter
+	updates.
+
+	- The parameter "lr_decay" has been added to HMMs and GMMs that specifies the
+	decay in the learning rate over time. Models may not converge otherwise when
+	doing minibatching.
+
+Parallelization
+...............
+
+	- `n_jobs` has been added to all models for both fitting and prediction steps.
+	This allows users to make parallelized predictions with their model without
+	having to do anything more complicated than setting a larger number of jobs.
 
 Tutorials
 .........

@@ -35,7 +35,7 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 
-cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k,
+cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 	init='first-k', double oversampling_factor=0.95):
 	"""Initialize the centroids for kmeans given a dataset.
 
@@ -76,13 +76,18 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, numpy.ndarray weights,
 	cdef numpy.ndarray min_idxs
 
 	cdef double* X_ptr = <double*> X.data
-	cdef double* weights_ptr = <double*> weights.data
+	cdef double* weights_ptr
 	cdef double* min_distance_ptr
 	cdef double* centroids_ptr
 	cdef int* min_idxs_ptr
 	cdef double phi
 
-	weights = weights / weights.sum()
+	if weights is None:
+		weights = numpy.ones(len(X), dtype='float64') / len(X)
+	else:
+		weights = weights / weights.sum()
+
+	weights_ptr = <double*> (<numpy.ndarray> weights).data
 
 	if init not in ('first-k', 'random', 'kmeans++', 'kmeans||'):
 		raise ValueError("initialization must be one of 'first-k', 'random', 'kmeans++', or 'kmeans||'")
@@ -293,7 +298,7 @@ cdef class Kmeans(Model):
 
 	def fit(self, X, weights=None, inertia=0.0, stop_threshold=1e-3,
                 max_iterations=1e3, batch_size=None, batches_per_epoch=None,
-                clear_summaries='auto', verbose=False, n_jobs=1):
+                clear_summaries=False, verbose=False, n_jobs=1):
 		"""Fit the model to the data using k centroids.
 
 		Parameters
@@ -357,13 +362,10 @@ cdef class Kmeans(Model):
 			This is the fit kmeans object.
 		"""
 
-		X = numpy.array(X, dtype='float64')
+		if not isinstance(X, numpy.ndarray):
+			X = numpy.array(X, dtype='float64')
+		
 		n, d = X.shape
-
-		if weights is None:
-			weights = numpy.ones(n, dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
 
 		best_centroids, best_distance = None, INF
 		training_start_time = time.time()
@@ -393,7 +395,13 @@ cdef class Kmeans(Model):
 				initial_distance_sum = INF
 				iteration, improvement = 0, INF
 
-				self.centroids = initialize_centroids(X[:ends[0]], weights[:ends[0]], self.k, self.init)
+				if weights is not None:
+					self.centroids = initialize_centroids(X[:ends[0]], 
+						weights[:ends[0]], self.k, self.init)
+				else:
+					self.centroids = initialize_centroids(X[:ends[0]], 
+						None, self.k, self.init)
+
 				self.centroids_ptr = <double*> self.centroids.data
 				self.centroids_T = self.centroids.T.copy()
 				self.centroids_T_ptr = <double*> self.centroids_T.data
@@ -413,9 +421,14 @@ cdef class Kmeans(Model):
 						
 					self.from_summaries(inertia, clear_summaries)
 
-					distance_sum = sum( parallel(delayed(self.summarize, 
-						check_pickle=False)(X[start:end], weights[start:end]) 
-						for start, end in zip(epoch_starts, epoch_ends)))
+					if weights is not None:
+						distance_sum = sum(parallel(delayed(self.summarize, 
+							check_pickle=False)(X[start:end], weights[start:end]) 
+							for start, end in zip(epoch_starts, epoch_ends)))
+					else:
+						distance_sum = sum(parallel(delayed(self.summarize, 
+							check_pickle=False)(X[start:end]) for start, end in zip(
+								epoch_starts, epoch_ends)))
 
 					if iteration == 0:
 						initial_distance_sum = distance_sum
@@ -609,7 +622,7 @@ cdef class Kmeans(Model):
 	@classmethod
 	def from_samples(cls, k, X, weights=None, init='kmeans++', n_init=10, 
 		inertia=0.0, stop_threshold=0.1, max_iterations=1e3, batch_size=None, 
-		batches_per_epoch=None, clear_summaries='auto', verbose=False, n_jobs=1):
+		batches_per_epoch=None, clear_summaries=False, verbose=False, n_jobs=1):
 		"""
 		Fit a k-means object to the data directly.
 
@@ -685,13 +698,10 @@ cdef class Kmeans(Model):
 			parallelism is used.
 		"""
 
-		X = numpy.array(X, dtype='float64')
+		if not isinstance(X, numpy.ndarray):
+			X = numpy.array(X, dtype='float64')
+		
 		n, d = X.shape
-
-		if weights is None:
-			weights = numpy.ones(n, dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
 
 		model = Kmeans(k=k, init=init, n_init=n_init)
 		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,

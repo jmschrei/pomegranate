@@ -2352,7 +2352,7 @@ cdef class HiddenMarkovModel(GraphModel):
         pseudocount=None, transition_pseudocount=0, emission_pseudocount=0.0, 
         use_pseudocount=False, inertia=None, edge_inertia=0.0, 
         distribution_inertia=0.0, batch_size=None, batches_per_epoch=None, 
-        verbose=False, n_jobs=1):
+        lr_decay=0.0, verbose=False, n_jobs=1):
         """Fit the model to data using either Baum-Welch, Viterbi, or supervised training.
 
         Given a list of sequences, performs re-estimation on the model
@@ -2456,6 +2456,15 @@ cdef class HiddenMarkovModel(GraphModel):
             model parameters before setting the full dataset. If set to None,
             uses the full dataset. Default is None.
 
+        lr_decay : double, optional, positive
+            The step size decay as a function of the number of iterations.
+            Functionally, this sets the inertia to be (2+k)^{-lr_decay}
+            where k is the number of iterations. This causes initial 
+            iterations to have more of an impact than later iterations,
+            and is frequently used in minibatch learning. This value is
+            suggested to be between 0.5 and 1. Default is 0, meaning no
+            decay.
+
         verbose : bool, optional
             Whether to print the improvement in the model fitting at each
             iteration. Default is True.
@@ -2535,7 +2544,13 @@ cdef class HiddenMarkovModel(GraphModel):
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
                 epoch_start_time = time.time()
-                self.from_summaries(inertia, pseudocount, transition_pseudocount,
+
+                if inertia is None:
+                    step_size = None
+                else:
+                    step_size = 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay) 
+                
+                self.from_summaries(step_size, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
 
@@ -3349,7 +3364,7 @@ cdef class HiddenMarkovModel(GraphModel):
         transition_pseudocount=0, emission_pseudocount=0.0, 
         use_pseudocount=False, stop_threshold=1e-9, min_iterations=0, 
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1, 
-        batch_size=None, batches_per_epoch=None, end_state=False, 
+        batch_size=None, batches_per_epoch=None, lr_decay=0.0, end_state=False, 
         state_names=None, name=None, verbose=False, n_jobs=1):
         """Learn the transitions and emissions of a model directly from data.
 
@@ -3464,17 +3479,6 @@ cdef class HiddenMarkovModel(GraphModel):
         max_kmeans_iterations : int, optional
             The number of iterations to run k-means for before starting EM.
 
-        end_state : bool, optional
-            Whether to calculate the probability of ending in each state or not.
-            Default is False. 
-
-        state_names : array-like, shape (n_states), optional
-            The name of the states. If None is passed in, default names are
-            generated. Default is None
-
-        name : str, optional
-            The name of the model. Default is None
-
         batch_size : int or None, optional
             The number of samples in a batch to summarize on. This controls
             the size of the set sent to `summarize` and so does not make the
@@ -3488,6 +3492,26 @@ cdef class HiddenMarkovModel(GraphModel):
             parameters. This allows one to do minibatch updates by updating the
             model parameters before setting the full dataset. If set to None,
             uses the full dataset. Default is None.
+
+        lr_decay : double, optional, positive
+            The step size decay as a function of the number of iterations.
+            Functionally, this sets the inertia to be (2+k)^{-lr_decay}
+            where k is the number of iterations. This causes initial 
+            iterations to have more of an impact than later iterations,
+            and is frequently used in minibatch learning. This value is
+            suggested to be between 0.5 and 1. Default is 0, meaning no
+            decay.
+
+        end_state : bool, optional
+            Whether to calculate the probability of ending in each state or not.
+            Default is False. 
+
+        state_names : array-like, shape (n_states), optional
+            The name of the states. If None is passed in, default names are
+            generated. Default is None
+
+        name : str, optional
+            The name of the model. Default is None
 
         verbose : bool, optional
             Whether to print the improvement in the model fitting at each
@@ -3569,6 +3593,6 @@ cdef class HiddenMarkovModel(GraphModel):
             use_pseudocount=use_pseudocount,
             inertia=inertia, edge_inertia=edge_inertia, 
             distribution_inertia=distribution_inertia, batch_size=batch_size,
-            batches_per_epoch=batches_per_epoch, n_jobs=n_jobs)
+            batches_per_epoch=batches_per_epoch, lr_decay=lr_decay, n_jobs=n_jobs)
 
         return model

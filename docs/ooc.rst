@@ -146,6 +146,59 @@ It looks like it takes a similar amount of time while still producing identical 
 
 The only change is to the datatype of `X`, which is now a memory map instead of an array.
 
+We can also use parallelism in conjunction with out-of-core learning. We'll attempt to learn a Gaussian mixture model over ~24G of data using a computer with only ~4G of memory. First without parallelism.
+
+.. code-block:: python
+
+	>>> import numpy
+	>>> from pomegranate import *
+	>>> 
+	>>> X = numpy.load("big_datums.npy", mmap_mode="r")
+	>>> print X.shape
+	(60000000, 50)
+	>>> model = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, 
+			3, X, max_iterations=50, batch_size=100000, batches_per_epoch=50, 
+			n_jobs=1, verbose=True)
+	[1] Improvement: 252989.289729	Time (s): 18.84
+	[2] Improvement: 58446.0881071	Time (s): 18.75
+	[3] Improvement: 26323.5638447	Time (s): 18.76
+	[4] Improvement: 15133.080919	Time (s): 18.8
+	[5] Improvement: 10138.1656616	Time (s): 18.91
+	[6] Improvement: 7458.30408692	Time (s): 18.86
+	[7] Improvement: 5995.06008983	Time (s): 18.89
+	[8] Improvement: 4838.79921204	Time (s): 18.91
+	[9] Improvement: 4188.59295541	Time (s): 18.97
+	[10] Improvement: 3590.57844329	Time (s): 18.93
+	...
+
+And now in parallel:
+
+.. code-block:: python
+
+	>>> import numpy
+	>>> from pomegranate import *
+	>>> 
+	>>> X = numpy.load("big_datums.npy", mmap_mode="r")
+	>>> print X.shape
+	(60000000, 50)
+	>>> model = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, 
+			3, X, max_iterations=50, batch_size=100000, batches_per_epoch=50, 
+			n_jobs=4, verbose=True)
+	[1] Improvement: 252989.289729	Time (s): 9.952
+	[2] Improvement: 58446.0881071	Time (s): 9.952
+	[3] Improvement: 26323.5638446	Time (s): 9.969
+	[4] Improvement: 15133.080919	Time (s): 10.0
+	[5] Improvement: 10138.1656617	Time (s): 9.986
+	[6] Improvement: 7458.30408692	Time (s): 9.949
+	[7] Improvement: 5995.06008989	Time (s): 9.971
+	[8] Improvement: 4838.79921204	Time (s): 10.02
+	[9] Improvement: 4188.59295535	Time (s): 10.02
+	[10] Improvement: 3590.57844335	Time (s): 9.989
+	...
+
+The speed improvement may be sub-linear in cases where data loading takes up a substantial portion of time. A solid state drive will likely improve this performance.
+
+
 FAQ
 ---
 
@@ -171,4 +224,4 @@ A. Absolutely. No change is needed except to specify the batch size. As said abo
 
 Q. Does out of core learning give exact or approximate updates?
 
-A. It gives exact updates. Sufficient statistics are collected for each of the batches and are equal to the sufficient statistics that one would get from the full dataset. 
+A. It gives exact updates. Sufficient statistics are collected for each of the batches and are equal to the sufficient statistics that one would get from the full dataset. However, the initialization step is done on only a single batch. This may cause the final models to differ due simply to the different initializations. If one has pre-defined initializations and simply calls `fit`, then the exact same model will be yielded.
