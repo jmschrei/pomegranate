@@ -19,7 +19,7 @@ from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 from .FactorGraph import FactorGraph
 
-__version__ = '0.7.7'
+__version__ = '0.8.0'
 
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
