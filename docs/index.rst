@@ -64,6 +64,7 @@ No good project is done alone, and so I'd like to thank all the previous contrib
 
    ooc.rst
    semisupervised.rst
+   minibatch.rst
    parallelism.rst
    gpu.rst
 
