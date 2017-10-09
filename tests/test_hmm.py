@@ -946,3 +946,33 @@ def test_discrete_from_samples_no_end_state():
     assert_equal(model2.dense_transition_matrix()[1][model2.end_index],0)
     assert_equal(model2.dense_transition_matrix()[2][model2.end_index],0)
     assert_equal(model2.dense_transition_matrix()[3][model2.end_index],0)
+
+def test_gaussian_ooc():
+	X = numpy.concatenate([numpy.random.randn(100, 15, 3) + i for i in range(3)])
+
+	hmm = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5)
+	hmm2 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution, 
+		3, X, init='first-k', max_iterations=5, batch_size=25)
+	hmm3 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution, 
+		3, X, init='first-k', max_iterations=5, batch_size=25, batches_per_epoch=2)
+
+	assert_almost_equal(hmm.log_probability(X[0]), hmm2.log_probability(X[0]))
+	assert_not_equal(hmm.log_probability(X[0]), hmm3.log_probability(X[0]))
+
+def test_gaussian_minibatch():
+	X = numpy.concatenate([numpy.random.randn(100, 15, 3) + i for i in range(3)])
+
+	hmm = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5)
+	hmm2 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5, batch_size=50, batches_per_epoch=1)
+	hmm3 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution, 
+		3, X, init='first-k', max_iterations=5, batch_size=50, batches_per_epoch=4)
+	hmm4 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5, batch_size=100, batches_per_epoch=2)
+
+	assert_not_equal(hmm.log_probability(X[0]), hmm2.log_probability(X[0]))
+	assert_not_equal(hmm.log_probability(X[0]), hmm4.log_probability(X[0]))
+	assert_not_equal(hmm2.log_probability(X[0]), hmm3.log_probability(X[0]))
+	assert_almost_equal(hmm3.log_probability(X[0]), hmm4.log_probability(X[0]))

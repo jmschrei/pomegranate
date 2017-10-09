@@ -6,6 +6,7 @@ from nose.tools import assert_true
 from nose.tools import assert_equal
 from nose.tools import assert_greater
 from nose.tools import assert_raises
+from nose.tools import assert_not_equal
 from numpy.testing import assert_almost_equal
 import random
 import pickle
@@ -215,3 +216,38 @@ def test_pickling():
 	assert isinstance(new_multi.distributions[4], MultivariateGaussianDistribution)
 	numpy.testing.assert_array_almost_equal(gmm.weights, new_multi.weights)
 	assert isinstance(new_multi, GeneralMixtureModel)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_ooc():
+	X = numpy.concatenate([numpy.random.randn(1000, 3) + i for i in range(3)])
+
+	gmm = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5)
+	gmm2 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, 
+		3, X, init='first-k', max_iterations=5, batch_size=3000)
+	gmm3 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5, batch_size=500, batches_per_epoch=6)
+	gmm4 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, 
+		3, X, init='first-k', max_iterations=5, batch_size=500, batches_per_epoch=2)
+
+	assert_almost_equal(gmm.log_probability(X).sum(), gmm2.log_probability(X).sum())
+	assert_almost_equal(gmm.log_probability(X).sum(), gmm3.log_probability(X).sum(), -2)
+	assert_not_equal(gmm.log_probability(X).sum(), gmm4.log_probability(X).sum())
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_minibatch():
+	X = numpy.concatenate([numpy.random.randn(1000, 3) + i for i in range(3)])
+
+	gmm = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5)
+	gmm2 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5, batch_size=500, batches_per_epoch=1)
+	gmm3 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, 
+		3, X, init='first-k', max_iterations=5, batch_size=500, batches_per_epoch=4)
+	gmm4 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution,
+		3, X, init='first-k', max_iterations=5, batch_size=1000, batches_per_epoch=2)
+
+	assert_not_equal(gmm.log_probability(X).sum(), gmm2.log_probability(X).sum())
+	assert_not_equal(gmm.log_probability(X).sum(), gmm4.log_probability(X).sum())
+	assert_not_equal(gmm2.log_probability(X).sum(), gmm3.log_probability(X).sum())
+	assert_almost_equal(gmm3.log_probability(X).sum(), gmm4.log_probability(X).sum(), -2)

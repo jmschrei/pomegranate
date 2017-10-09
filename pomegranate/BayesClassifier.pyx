@@ -314,32 +314,39 @@ cdef class BayesClassifier(BayesModel):
 	def from_samples(self, distributions, X, y, weights=None, 
 		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, 
 		verbose=False, n_jobs=1):
-		"""Create a mixture model directly from the given dataset.
+		"""Create a Bayes classifier directly from the given dataset.
 
-		First, k-means will be run using the given initializations, in order to
-		define initial clusters for the points. These clusters are used to
-		initialize the distributions used. Then, EM is run to refine the
-		parameters of these distributions.
+		This will initialize the distributions using maximum likelihood estimates
+		derived by partitioning the dataset using the label vector. If any labels
+		are missing, the model will be trained using EM in a semi-supervised
+		setting. 
 
-		A homogenous mixture can be defined by passing in a single distribution
+		A homogenous model can be defined by passing in a single distribution
 		callable as the first parameter and specifying the number of components,
-		while a heterogeneous mixture can be defined by passing in a list of
+		while a heterogeneous model can be defined by passing in a list of
 		callables of the appropriate type.
+
+		A Bayes classifier is a superset of the naive Bayes classifier in that
+		the math is identical, but the distributions used do not have to be
+		independent for each feature. Simply put, one can create a multivariate
+		Gaussian Bayes classifier with a full covariance matrix, but a Gaussian
+		naive Bayes would require a diagonal covariance matrix.
 
 		Parameters
 		----------
 		distributions : array-like, shape (n_components,) or callable
-			The components of the model. If array, corresponds to the initial
-			distributions of the components. If callable, must also pass in the
-			number of components and kmeans++ will be used to initialize them.
-
-		n_components : int
-			If a callable is passed into distributions then this is the number
-			of components to initialize using the kmeans++ algorithm.
+			The components of the model. This should either be a single callable
+			if all components will be the same distribution, or an array of
+			callables, one for each feature.
 
 		X : array-like, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on.
+
+		y : array-like, shape (n_samples,)
+			The labels for each sample. The labels should be integers between
+			0 and k-1 for a problem with k classes, or -1 if the label is not
+			known for that sample.
 
 		weights : array-like, shape (n_samples,), optional
 			The initial weights of each sample in the matrix. If nothing is
@@ -378,8 +385,8 @@ cdef class BayesClassifier(BayesModel):
 
 		Returns
 		-------
-		model : NaiveBayes
-			The fit naive Bayes model.
+		model : BayesClassifier
+			The fit Bayes classifier model.
 		"""
 
 		if isinstance(distributions, (list, numpy.ndarray, tuple)):

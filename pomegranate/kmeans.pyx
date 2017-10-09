@@ -35,7 +35,7 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 
-cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, numpy.ndarray weights, int k,
+cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 	init='first-k', double oversampling_factor=0.95):
 	"""Initialize the centroids for kmeans given a dataset.
 
@@ -76,13 +76,18 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, numpy.ndarray weights,
 	cdef numpy.ndarray min_idxs
 
 	cdef double* X_ptr = <double*> X.data
-	cdef double* weights_ptr = <double*> weights.data
+	cdef double* weights_ptr
 	cdef double* min_distance_ptr
 	cdef double* centroids_ptr
 	cdef int* min_idxs_ptr
 	cdef double phi
 
-	weights = weights / weights.sum()
+	if weights is None:
+		weights = numpy.ones(len(X), dtype='float64') / len(X)
+	else:
+		weights = weights / weights.sum()
+
+	weights_ptr = <double*> (<numpy.ndarray> weights).data
 
 	if init not in ('first-k', 'random', 'kmeans++', 'kmeans||'):
 		raise ValueError("initialization must be one of 'first-k', 'random', 'kmeans++', or 'kmeans||'")
@@ -292,7 +297,8 @@ cdef class Kmeans(Model):
 					y[i] = j
 
 	def fit(self, X, weights=None, inertia=0.0, stop_threshold=1e-3,
-                max_iterations=1e3, verbose=False, n_jobs=1):
+                max_iterations=1e3, batch_size=None, batches_per_epoch=None,
+                clear_summaries=False, verbose=False, n_jobs=1):
 		"""Fit the model to the data using k centroids.
 
 		Parameters
@@ -320,6 +326,28 @@ cdef class Kmeans(Model):
 		max_iterations : int, optional
 			The maximum number of iterations to run for. Default is 1e3.
 
+		batch_size : int or None, optional
+			The number of samples in a batch to summarize on. This controls
+			the size of the set sent to `summarize` and so does not make the
+			update any less exact. This is useful when training on a memory
+			map and cannot load all the data into memory. If set to None,
+			batch_size is 1 / n_jobs. Default is None.
+
+		batches_per_epoch : int or None, optional
+			The number of batches in an epoch. This is the number of batches to
+			summarize before calling `from_summaries` and updating the model
+			parameters. This allows one to do minibatch updates by updating the
+			model parameters before setting the full dataset. If set to None,
+			uses the full dataset. Default is None.
+
+		clear_summaries : bool or 'auto', optional
+			Whether to clear the stored sufficient statistics after an update.
+			Typically this would be set to True as you want to recollect new
+			statistics after each epoch. However, in either the streaming or
+			the minibatching setting one may want to set this to False to
+			collect statistics on the entire dataset. 'auto' means set to True
+			if batches_per_epoch is None, otherwise False.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Default is False.
@@ -334,13 +362,10 @@ cdef class Kmeans(Model):
 			This is the fit kmeans object.
 		"""
 
-		X = numpy.array(X, dtype='float64')
+		if not isinstance(X, numpy.ndarray):
+			X = numpy.array(X, dtype='float64')
+		
 		n, d = X.shape
-
-		if weights is None:
-			weights = numpy.ones(n, dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
 
 		best_centroids, best_distance = None, INF
 		training_start_time = time.time()
@@ -349,8 +374,20 @@ cdef class Kmeans(Model):
 		self.summary_sizes = <double*> calloc(self.k, sizeof(double))
 		self.summary_weights = <double*> calloc(self.k*d, sizeof(double))
 
-		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+		if batch_size is None:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+		else:
+			starts = list(range(0, n, batch_size))
+			if starts[-1] == n:
+				starts = starts[:-1]
+			ends = list(range(batch_size, n, batch_size)) + [n]
+
+		if clear_summaries == 'auto':
+			clear_summaries = True if batches_per_epoch == None else False
+			
+		batches_per_epoch = batches_per_epoch or len(starts)
+		n_seen_batches = 0
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 			for i in range(self.n_init):
@@ -358,7 +395,13 @@ cdef class Kmeans(Model):
 				initial_distance_sum = INF
 				iteration, improvement = 0, INF
 
-				self.centroids = initialize_centroids(X, weights, self.k, self.init)
+				if weights is not None:
+					self.centroids = initialize_centroids(X[:ends[0]], 
+						weights[:ends[0]], self.k, self.init)
+				else:
+					self.centroids = initialize_centroids(X[:ends[0]], 
+						None, self.k, self.init)
+
 				self.centroids_ptr = <double*> self.centroids.data
 				self.centroids_T = self.centroids.T.copy()
 				self.centroids_T_ptr = <double*> self.centroids_T.data
@@ -369,11 +412,23 @@ cdef class Kmeans(Model):
 				while improvement > stop_threshold and iteration < max_iterations + 1:
 					epoch_start_time = time.time()
 
-					self.from_summaries(inertia)
+					epoch_starts = starts[n_seen_batches:n_seen_batches+batches_per_epoch]
+					epoch_ends = ends[n_seen_batches:n_seen_batches+batches_per_epoch]
 
-					distance_sum = sum( parallel(delayed(self.summarize, 
-						check_pickle=False)(X[start:end], weights[start:end]) 
-						for start, end in zip(starts, ends) ))
+					n_seen_batches += batches_per_epoch
+					if n_seen_batches >= len(starts):
+						n_seen_batches = 0
+						
+					self.from_summaries(inertia, clear_summaries)
+
+					if weights is not None:
+						distance_sum = sum(parallel(delayed(self.summarize, 
+							check_pickle=False)(X[start:end], weights[start:end]) 
+							for start, end in zip(epoch_starts, epoch_ends)))
+					else:
+						distance_sum = sum(parallel(delayed(self.summarize, 
+							check_pickle=False)(X[start:end]) for start, end in zip(
+								epoch_starts, epoch_ends)))
 
 					if iteration == 0:
 						initial_distance_sum = distance_sum
@@ -495,7 +550,32 @@ cdef class Kmeans(Model):
 		free(dists)
 		return total_dist
 
-	def from_summaries(self, double inertia=0.0):
+	def from_summaries(self, double inertia=0.0, clear_summaries=True):
+		"""Fit the model to the collected sufficient statistics.
+
+		Fit the parameters of the model to the sufficient statistics gathered
+		during the summarize calls. This should return an exact update.
+
+		Parameters
+		----------
+		inertia : double, optional
+			The weight of the previous parameters of the model. The new
+			parameters will roughly be
+			old_param*inertia + new_param*(1-inertia),
+			so an inertia of 0 means ignore the old parameters, whereas an
+			inertia of 1 means ignore the new parameters. Default is 0.0.
+
+		clear_summaries : boolean, optional
+			Whether to clear the stored summaries after updating the models
+			based on them. If set to False, this can be used for streaming
+			updates where one updates the parameters of the model while seeing
+			more data. Default is True.
+
+		Returns
+		-------
+		None
+		"""
+
 		cdef int l, j, k = self.k, d = self.d
 		cdef double w_sum = 0
 
@@ -517,7 +597,8 @@ cdef class Kmeans(Model):
 		for i in range(self.k):
 			self.centroid_norms[i] = self.centroids[i].dot(self.centroids[i])
 
-		self.clear_summaries()
+		if clear_summaries:
+			self.clear_summaries()
 
 	def clear_summaries(self):
 		memset(self.summary_sizes, 0, self.k*sizeof(double))
@@ -539,8 +620,9 @@ cdef class Kmeans(Model):
 		return model
 
 	@classmethod
-	def from_samples(cls, k, X, weights=None, init='kmeans++', n_init=10, inertia=0.0,
-		stop_threshold=0.1, max_iterations=1e3, verbose=False, n_jobs=1):
+	def from_samples(cls, k, X, weights=None, init='kmeans++', n_init=10, 
+		inertia=0.0, stop_threshold=0.1, max_iterations=1e3, batch_size=None, 
+		batches_per_epoch=None, clear_summaries=False, verbose=False, n_jobs=1):
 		"""
 		Fit a k-means object to the data directly.
 
@@ -585,6 +667,28 @@ cdef class Kmeans(Model):
 		max_iterations : int, optional
 			The maximum number of iterations to run for. Default is 1e3.
 
+		batch_size : int or None, optional
+			The number of samples in a batch to summarize on. This controls
+			the size of the set sent to `summarize` and so does not make the
+			update any less exact. This is useful when training on a memory
+			map and cannot load all the data into memory. If set to None,
+			batch_size is 1 / n_jobs. Default is None.
+
+		batches_per_epoch : int or None, optional
+			The number of batches in an epoch. This is the number of batches to
+			summarize before calling `from_summaries` and updating the model
+			parameters. This allows one to do minibatch updates by updating the
+			model parameters before setting the full dataset. If set to None,
+			uses the full dataset. Default is None.
+
+		clear_summaries : bool or 'auto', optional
+			Whether to clear the stored sufficient statistics after an update.
+			Typically this would be set to True as you want to recollect new
+			statistics after each epoch. However, in either the streaming or
+			the minibatching setting one may want to set this to False to
+			collect statistics on the entire dataset. 'auto' means set to True
+			if batches_per_epoch is None, otherwise False.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Default is False.
@@ -594,16 +698,15 @@ cdef class Kmeans(Model):
 			parallelism is used.
 		"""
 
-		X = numpy.array(X, dtype='float64')
+		if not isinstance(X, numpy.ndarray):
+			X = numpy.array(X, dtype='float64')
+		
 		n, d = X.shape
-
-		if weights is None:
-			weights = numpy.ones(n, dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
 
 		model = Kmeans(k=k, init=init, n_init=n_init)
 		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
-			max_iterations=max_iterations, verbose=verbose, n_jobs=n_jobs)
+			max_iterations=max_iterations, batch_size=batch_size, 
+			batches_per_epoch=batches_per_epoch, clear_summaries=clear_summaries,
+			verbose=verbose, n_jobs=n_jobs)
 
 		return model

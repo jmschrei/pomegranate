@@ -101,15 +101,14 @@ cdef class GeneralMixtureModel(BayesModel):
 	def __reduce__(self):
 		return self.__class__, (self.distributions.tolist(), numpy.exp(self.weights))
 
-	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, stop_threshold=0.1,
-		max_iterations=1e8, verbose=False, n_jobs=1):
+	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, 
+		stop_threshold=0.1, max_iterations=1e8, batch_size=None, 
+		batches_per_epoch=None, lr_decay=0.0, verbose=False, n_jobs=1):
 		"""Fit the model to new data using EM.
 
 		This method fits the components of the model to new data using the EM
 		method. It will iterate until either max iterations has been reached,
 		or the stop threshold has been passed.
-
-		This is a sklearn wrapper for train method.
 
 		Parameters
 		----------
@@ -148,6 +147,29 @@ cdef class GeneralMixtureModel(BayesModel):
 			model is improving per iteration.
 			Default is 1e8.
 
+		batch_size : int or None, optional
+			The number of samples in a batch to summarize on. This controls
+			the size of the set sent to `summarize` and so does not make the
+			update any less exact. This is useful when training on a memory
+			map and cannot load all the data into memory. If set to None,
+			batch_size is 1 / n_jobs. Default is None.
+
+		batches_per_epoch : int or None, optional
+			The number of batches in an epoch. This is the number of batches to
+			summarize before calling `from_summaries` and updating the model
+			parameters. This allows one to do minibatch updates by updating the
+			model parameters before setting the full dataset. If set to None,
+			uses the full dataset. Default is None.
+
+		lr_decay : double, optional, positive
+			The step size decay as a function of the number of iterations.
+			Functionally, this sets the inertia to be (2+k)^{-lr_decay}
+			where k is the number of iterations. This causes initial 
+			iterations to have more of an impact than later iterations,
+			and is frequently used in minibatch learning. This value is
+			suggested to be between 0.5 and 1. Default is 0, meaning no
+			decay.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations.
@@ -160,41 +182,70 @@ cdef class GeneralMixtureModel(BayesModel):
 
 		Returns
 		-------
-		improvement : double
-			The total improvement in log probability P(D|M)
+		self : GeneralMixtureModel
+			The fit mixture model.
 		"""
 
 		initial_log_probability_sum = NEGINF
+		total_improvement = 0
 		iteration, improvement = 0, INF
-
-		if weights is None:
-			weights = numpy.ones(len(X), dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
+		n = len(X)
 
 		training_start_time = time.time()
 
-		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+		if batch_size is None:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+		else:
+			starts = list(range(0, n, batch_size))
+			if starts[-1] == n:
+				starts = starts[:-1]
+			ends = list(range(batch_size, n, batch_size)) + [n]
+
+		minibatching = batches_per_epoch is not None
+		batches_per_epoch = batches_per_epoch or len(starts)
+		n_seen_batches = 0
+		epoch_starts, epoch_ends = None, None
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 			while improvement > stop_threshold and iteration < max_iterations + 1:
 				epoch_start_time = time.time()
+				step_size = 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay) 
+				self.from_summaries(step_size, pseudocount)
 
-				self.from_summaries(inertia, pseudocount)
+				if epoch_starts is not None and minibatching:
+					updated_log_probability_sum = sum(self.log_probability(X[start:end]).sum() 
+						for start, end in zip(epoch_starts, epoch_ends))
+					improvement = updated_log_probability_sum - log_probability_sum
 
-				log_probability_sum = sum(parallel(delayed(self.summarize, 
-					check_pickle=False)(X[start:end], weights[start:end]) 
-					for start, end in zip(starts, ends)))
+				epoch_starts = starts[n_seen_batches:n_seen_batches+batches_per_epoch]
+				epoch_ends = ends[n_seen_batches:n_seen_batches+batches_per_epoch]
+
+				n_seen_batches += batches_per_epoch
+				if n_seen_batches >= len(starts):
+					n_seen_batches = 0
+
+				if weights is not None:
+					log_probability_sum = sum(parallel(delayed(self.summarize, 
+						check_pickle=False)(X[start:end], weights[start:end]) 
+						for start, end in zip(epoch_starts, epoch_ends)))
+				else:
+					log_probability_sum = sum(parallel(delayed(self.summarize, 
+						check_pickle=False)(X[start:end]) for start, end in zip(
+							epoch_starts, epoch_ends)))
 
 				if iteration == 0:
 					initial_log_probability_sum = log_probability_sum
 				else:
-					improvement = log_probability_sum - last_log_probability_sum
 					time_spent = time.time() - epoch_start_time
+					if not minibatching:
+						improvement = log_probability_sum - last_log_probability_sum
+					
 					if verbose:
 						print("[{}] Improvement: {}\tTime (s): {:.4}".format(
 							iteration, improvement, time_spent))
+
+					total_improvement += improvement
 
 				iteration += 1
 				last_log_probability_sum = log_probability_sum
@@ -202,12 +253,11 @@ cdef class GeneralMixtureModel(BayesModel):
 		self.clear_summaries()
 
 		if verbose:
-			total_imp = last_log_probability_sum - initial_log_probability_sum
 			total_time_spent = time.time() - training_start_time
-			print("Total Improvement: {}".format(total_imp))
+			print("Total Improvement: {}".format(total_improvement))
 			print("Total Time (s): {:.4f}".format(total_time_spent))
 
-		return last_log_probability_sum - initial_log_probability_sum
+		return log_probability_sum - initial_log_probability_sum
 
 	def summarize(self, X, weights=None):
 		"""Summarize a batch of data and store sufficient statistics.
@@ -340,7 +390,8 @@ cdef class GeneralMixtureModel(BayesModel):
 	@classmethod
 	def from_samples(self, distributions, n_components, X, weights=None, 
 		n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0, 
-		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, verbose=False,
+		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, batch_size=None,
+		batches_per_epoch=None, lr_decay=0.0, verbose=False,
 		n_jobs=1):
 		"""Create a mixture model directly from the given dataset.
 
@@ -410,6 +461,29 @@ cdef class GeneralMixtureModel(BayesModel):
 			hit then it will terminate training, regardless of how well the
 			model is improving per iteration. Default is 1e8.
 
+		batch_size : int or None, optional
+			The number of samples in a batch to summarize on. This controls
+			the size of the set sent to `summarize` and so does not make the
+			update any less exact. This is useful when training on a memory
+			map and cannot load all the data into memory. If set to None,
+			batch_size is 1 / n_jobs. Default is None.
+
+		batches_per_epoch : int or None, optional
+			The number of batches in an epoch. This is the number of batches to
+			summarize before calling `from_summaries` and updating the model
+			parameters. This allows one to do minibatch updates by updating the
+			model parameters before setting the full dataset. If set to None,
+			uses the full dataset. Default is None.
+
+		lr_decay : double, optional, positive
+			The step size decay as a function of the number of iterations.
+			Functionally, this sets the inertia to be (2+k)^{-lr_decay}
+			where k is the number of iterations. This causes initial 
+			iterations to have more of an impact than later iterations,
+			and is frequently used in minibatch learning. This value is
+			suggested to be between 0.5 and 1. Default is 0, meaning no
+			decay.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Default is False.
@@ -441,19 +515,28 @@ cdef class GeneralMixtureModel(BayesModel):
 				if not callable(dist):
 					raise ValueError("must pass in uninitialized distributions")
 
-		X = numpy.array(X)
+		if not isinstance(X, numpy.ndarray):
+			X = numpy.array(X)
+
 		n, d = X.shape
 
-		kmeans = Kmeans(n_components, init=init, n_init=n_init)
-		kmeans.fit(X, weights=weights, max_iterations=max_kmeans_iterations, n_jobs=n_jobs)
-		y = kmeans.predict(X)
+		batch_size = batch_size or len(X)
+		X_init = X[:batch_size]
 
-		distributions = [distribution.from_samples(X[y == i]) for i, distribution in enumerate(distributions)]
+		kmeans = Kmeans(n_components, init=init, n_init=n_init)
+		kmeans.fit(X_init, weights=weights, max_iterations=max_kmeans_iterations,
+			batch_size=batch_size, batches_per_epoch=batches_per_epoch,
+			n_jobs=n_jobs)
+
+		y = kmeans.predict(X_init)
+
+		distributions = [distribution.from_samples(X_init[y == i]) for i, distribution in enumerate(distributions)]
 		class_weights = numpy.array([(y == i).mean() for i in range(n_components)])
 
 		model = GeneralMixtureModel(distributions, class_weights)
-		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold, 
-			max_iterations=max_iterations, pseudocount=pseudocount, 
-			verbose=verbose, n_jobs=n_jobs)
+		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
+			max_iterations=max_iterations, pseudocount=pseudocount,
+			batch_size=batch_size, batches_per_epoch=batches_per_epoch,
+			lr_decay=lr_decay, verbose=verbose, n_jobs=n_jobs)
 
 		return model
