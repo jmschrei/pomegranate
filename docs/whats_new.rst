@@ -75,6 +75,9 @@ General Mixture Models
 	mean that out-of-core updates will have a different initialization now, but then
 	yield exact updates after that.
 
+	- Fixed bug where passing in a 1D array would cause an error by recasting all 1D
+	arrays as 2D arrays.
+
 Bayesian Networks
 .................
 

@@ -323,6 +323,7 @@ def _check_input(X, keymap):
 			if X.ndim == 1:
 				for i in range(X.shape[0]):
 					X_ndarray[i] = keymap[0][X[i]]
+				X_ndarray = X_ndarray.reshape(-1, 1)
 			else:
 				for i in range(X.shape[0]):
 					for j in range(X.shape[1]):
