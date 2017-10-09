@@ -3532,7 +3532,7 @@ cdef class HiddenMarkovModel(GraphModel):
         if X_concat.ndim == 1:
             X_concat = X_concat.reshape(X_concat.shape[0], 1)
 
-        if labels is not None and None in labels:
+        if labels is not None:
             X_ = [x for x, label in zip(X, labels) if label != None]
             X_ = numpy.concatenate(X_)
 

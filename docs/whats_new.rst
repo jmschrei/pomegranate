@@ -59,6 +59,9 @@ Hidden Markov Models
 	symbol emitting states. If using semi-supervised learning, one must also pass in a
 	list of the state names using the `state_names` parameter that has been added in.
 
+	- Fixed bug in supervised learning where it would not initialize correctly due to
+	an error in the semi-supervised learning implementation.
+
 General Mixture Models
 ......................
 
