@@ -62,6 +62,9 @@ Hidden Markov Models
 	- Fixed bug in supervised learning where it would not initialize correctly due to
 	an error in the semi-supervised learning implementation.
 
+	- Fixed bug where model could not be plotted without pygraphviz due to an incorrect
+	call to networkx.draw.
+
 General Mixture Models
 ......................
 

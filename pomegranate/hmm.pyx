@@ -672,7 +672,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 plt.axis('off')
         else:
             warnings.warn("Install pygraphviz for nicer visualizations")
-            networkx.draw()
+            networkx.draw(self.graph, **kwargs)
 
     def bake(self, verbose=False, merge="All"):
         """Finalize the topology of the model.
