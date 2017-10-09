@@ -116,4 +116,4 @@ artifacts:
   - path: dist\*
 
 deploy_script:
-  - if "%APPVEYOR_REPO_TAG%"=="true" ( twine upload -u jmschreiber -p %password% --repository-url https://pypi.python.org/pypi/ --skip-existing dist/* ) else ( echo "Not deplaying because not a tagged commit.")
+  - if "%APPVEYOR_REPO_TAG%"=="true" ( twine upload -u jmschreiber -p %password% --skip-existing dist/* ) else ( echo "Not deplaying because not a tagged commit.")
