@@ -40,9 +40,29 @@ To run the tests, you also must have `nose` installed.
 
 ### User Installation
 
-pomegranate is now pip installable! Install using `pip install pomegranate`. pomegranate can also be installed with conda, using `conda install pomegranate`. Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. **NOTE: If you are on OSX and python 2.7 you may encounter an error using pip on versions above 0.7.3. Please install those versions from GitHub or use 0.7.3.**
+pomegranate is now pip installable! Install using 
+
+```
+pip install pomegranate
+```
+
+Pomegranate can also be installed with conda, using 
+
+```
+conda install pomegranate
+``` 
+
+Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. 
+
+**NOTE: If you are on OSX and python 2.7 you may encounter an error using pip on versions above 0.7.3. Please install those versions from GitHub or use 0.7.3.**
 
 You can get the bleeding edge from GitHub using the following:
+
+```
+pip install git+https://github.com/jmschrei/pomegranate.git
+```
+
+Or:
 
 ```
 git clone https://github.com/jmschrei/pomegranate.git
