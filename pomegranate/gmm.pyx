@@ -520,17 +520,17 @@ cdef class GeneralMixtureModel(BayesModel):
 
 		n, d = X.shape
 
-		batch_size = batch_size or len(X)
-		X_init = X[:batch_size]
+		kmeans_batch_size = batch_size or len(X)
+		X_kmeans = X[:batch_size]
 
 		kmeans = Kmeans(n_components, init=init, n_init=n_init)
-		kmeans.fit(X_init, weights=weights, max_iterations=max_kmeans_iterations,
-			batch_size=batch_size, batches_per_epoch=batches_per_epoch,
+		kmeans.fit(X_kmeans, weights=weights, max_iterations=max_kmeans_iterations,
+			batch_size=kmeans_batch_size, batches_per_epoch=batches_per_epoch,
 			n_jobs=n_jobs)
 
-		y = kmeans.predict(X_init)
+		y = kmeans.predict(X_kmeans)
 
-		distributions = [distribution.from_samples(X_init[y == i]) for i, distribution in enumerate(distributions)]
+		distributions = [distribution.from_samples(X_kmeans[y == i]) for i, distribution in enumerate(distributions)]
 		class_weights = numpy.array([(y == i).mean() for i in range(n_components)])
 
 		model = GeneralMixtureModel(distributions, class_weights)
