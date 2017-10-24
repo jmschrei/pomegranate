@@ -86,7 +86,7 @@ cdef class Model(object):
 		"""Thaw the distribution, re-allowing updates to occur."""
 		self.frozen = False
 
-	def log_probability( self, double symbol ):
+	def log_probability(self, double symbol):
 		"""Return the log probability of the given symbol under this
 		distribution.
 
@@ -120,7 +120,7 @@ cdef class Model(object):
 		"""
 		return self.__class__(*self.parameters)
 
-	def sample( self, n=None ):
+	def sample(self, n=None):
 		"""Return a random item sampled from this distribution.
 
 		Parameters
@@ -137,7 +137,7 @@ cdef class Model(object):
 		"""
 		raise NotImplementedError
 
-	def probability( self, symbol ):
+	def probability(self, symbol):
 		"""Return the probability of the given symbol under this distribution.
 
 		Parameters
@@ -152,7 +152,7 @@ cdef class Model(object):
 		"""
 		return numpy.exp(self.log_probability(symbol))
 
-	def log_probability( self, symbol ):
+	def log_probability(self, symbol):
 		"""Return the log probability of the given symbol under this
 		distribution.
 
@@ -169,7 +169,7 @@ cdef class Model(object):
 		"""
 		raise NotImplementedError
 
-	def sample( self, n=None ):
+	def sample(self, n=None):
 		"""Return a random item sampled from this distribution.
 
 		Parameters
@@ -186,7 +186,7 @@ cdef class Model(object):
 		"""
 		raise NotImplementedError
 
-	def fit( self, items, weights=None, inertia=0.0 ):
+	def fit(self, items, weights=None, inertia=0.0):
 		"""Fit the distribution to new data using MLE estimates.
 
 		Parameters
@@ -214,7 +214,7 @@ cdef class Model(object):
 		"""
 		raise NotImplementedError
 
-	def summarize( self, items, weights=None ):
+	def summarize(self, items, weights=None):
 		"""Summarize a batch of data into sufficient statistics for a later
 		update.
 
@@ -236,7 +236,7 @@ cdef class Model(object):
 		"""
 		return NotImplementedError
 
-	def from_summaries( self, inertia=0.0 ):
+	def from_summaries(self, inertia=0.0):
 		"""Fit the distribution to the stored sufficient statistics.
 
 		Parameters
@@ -258,29 +258,29 @@ cdef class Model(object):
 		"""Clear the summary statistics stored in the object."""
 		return NotImplementedError
 
-	cdef void _log_probability( self, double* symbol,
-								  double* log_probability, int n ) nogil:
+	cdef void _log_probability(self, double* symbol, double* log_probability,
+		int n) nogil:
 		pass
 
-	cdef double _vl_log_probability( self, double* symbol, int n ) nogil:
+	cdef double _vl_log_probability(self, double* symbol, int n) nogil:
 		return NEGINF
 
-	cdef double _summarize( self, double* items,
-		                    double* weights, int n ) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		pass
 
 
 cdef class GraphModel(Model):
 	"""Represents an generic graphical model."""
 
-	def __init__( self, name=None ):
+	def __init__(self, name=None):
 		"""
 		Make a new graphical model. Name is an optional string used to name
 		the model when output. Name may not contain spaces or newlines.
 		"""
 
 		# Save the name or make up a name.
-		self.name = name or str( id(self) )
+		self.name = name or str(id(self))
 		self.states = []
 		self.edges = []
 		self.n_edges = 0
@@ -291,40 +291,40 @@ cdef class GraphModel(Model):
 		"""Represent this model with it's name and states."""
 		return "{}:{}".format(self.name, "".join(map(str, self.states)))
 
-	def add_node( self, node ):
+	def add_node(self, node):
 		"""Add a node to the graph."""
 		self.states.append(node)
 		self.n_states += 1
 
-	def add_nodes( self, *nodes ):
+	def add_nodes(self, *nodes):
 		"""Add multiple states to the graph."""
 		for node in nodes:
 			self.add_node(node)
 
-	def add_state( self, state ):
+	def add_state(self, state):
 		"""Another name for a node."""
 		self.add_node(state)
 
-	def add_states( self, *states ):
+	def add_states(self, *states):
 		"""Another name for a node."""
 		for state in states:
 			self.add_state(state)
 
-	def add_edge( self, a, b ):
+	def add_edge(self, a, b):
 		"""
 		Add a transition from state a to state b which indicates that B is
 		dependent on A in ways specified by the distribution.
 		"""
 
 		# Add the transition
-		self.edges.append( ( a, b ) )
+		self.edges.append((a, b))
 		self.n_edges += 1
 
-	def add_transition( self, a, b ):
+	def add_transition(self, a, b):
 		"""Transitions and edges are the same."""
-		self.add_edge( a, b )
+		self.add_edge(a, b)
 
-	def node_count( self):
+	def node_count(self):
 		"""Returns the number of nodes/states in the model"""
 		return self.n_states
 
@@ -343,7 +343,7 @@ cdef class GraphModel(Model):
 		"""
 
 		m = len(self.states)
-		transition_log_probabilities = numpy.zeros( (m, m) ) + NEGINF
+		transition_log_probabilities = numpy.zeros((m, m)) + NEGINF
 
 		for i in range(m):
 			for n in range( self.out_edge_count[i], self.out_edge_count[i+1] ):

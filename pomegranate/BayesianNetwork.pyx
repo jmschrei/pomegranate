@@ -636,7 +636,8 @@ cdef class BayesianNetwork( GraphModel ):
 		for i, state in enumerate(self.states):
 			if isinstance(state.distribution, ConditionalProbabilityTable):
 				with nogil:
-					(<Model> self.distributions_ptr[i])._summarize(X_int_ptr, weights_ptr, n)
+					(<Model> self.distributions_ptr[i])._summarize(X_int_ptr, weights_ptr, n,
+						0, 1)
 
 			else:
 				state.distribution.summarize([x[i] for x in X], weights)

@@ -9,6 +9,7 @@ from libc.string cimport memset
 from libc.math cimport exp as cexp
 
 import json
+import time
 
 import numpy
 cimport numpy
@@ -17,6 +18,8 @@ from .base cimport Model
 from .distributions cimport Distribution
 from .distributions import DiscreteDistribution
 from .distributions import IndependentComponentsDistribution
+from .hmm import HiddenMarkovModel
+from .gmm import GeneralMixtureModel
 
 from .utils cimport _log
 from .utils cimport pair_lse
@@ -26,6 +29,7 @@ from .utils import _convert
 from joblib import Parallel
 from joblib import delayed
 
+DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
 cdef class BayesModel(Model):
@@ -469,66 +473,199 @@ cdef class BayesModel(Model):
 
 		free(r)
 
-	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0):
-		"""Fit the model to some data. Implemented in subclasses.
+	def fit(self, X, y, weights=None, inertia=0.0, pseudocount=0.0,
+		stop_threshold=0.1, max_iterations=1e8, verbose=False, n_jobs=1):
+		"""Fit the Bayes classifier to the data by passing data to its components.
+
+		The fit step for a Bayes classifier with purely labeled data is a simple
+		MLE update on the underlying distributions, grouped by the labels. However,
+		in the semi-supervised the model is trained on a mixture of both labeled
+		and unlabeled data, where the unlabeled data uses the label -1. In this
+		setting, EM is used to train the model. The model is initialized using the
+		labeled data and then sufficient statistics are gathered for both the
+		labeled and unlabeled data, combined, and used to update the parameters.
 
 		Parameters
 		----------
-		X : array-like, shape (n_samples, n_dimensions)
-			This is the data to train on. Each row is a sample, and each column
-			is a dimension to train on.
+		X : numpy.ndarray or list
+			The dataset to operate on. For most models this is a numpy array with
+			columns corresponding to features and rows corresponding to samples.
+			For markov chains and HMMs this will be a list of variable length
+			sequences.
 
-		weights : array-like, shape (n_samples,), optional
+		y : numpy.ndarray or list or None, optional
+			Data labels for supervised training algorithms. Default is None
+
+		weights : array-like or None, shape (n_samples,), optional
 			The initial weights of each sample in the matrix. If nothing is
 			passed in then each sample is assumed to be the same weight.
 			Default is None.
 
 		inertia : double, optional
-			The weight of the previous parameters of the model. The new
-			parameters will roughly be
-			old_param*inertia + new_param*(1-inertia),
-			so an inertia of 0 means ignore the old parameters, whereas an
-			inertia of 1 means ignore the new parameters.
-			Default is 0.0.
+			Inertia used for the training the distributions.
 
-		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Default is 0.
+
+		stop_threshold : double, optional, positive
+			The threshold at which EM will terminate for the improvement of
+			the model. If the model does not improve its fit of the data by
+			a log probability of 0.1 then terminate. Only required if doing
+			semisupervised learning. Default is 0.1.
+
+		max_iterations : int, optional, positive
+			The maximum number of iterations to run EM for. If this limit is
+			hit then it will terminate training, regardless of how well the
+			model is improving per iteration. Only required if doing
+			semisupervised learning. Default is 1e8.
+
+		verbose : bool, optional
+			Whether or not to print out improvement information over
+			iterations. Only required if doing semisupervised learning.
+			Default is False.
+
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
 
 		Returns
 		-------
-		improvement : double
-			The total improvement in log probability P(D|M)
+		self : object
+			Returns the fitted model
 		"""
 
-		raise NotImplementedError
+		training_start_time = time.time()
 
-	def summarize(self, X, weights=None):
-		"""Summarize a batch of data and store sufficient statistics.
+		X = numpy.array(X, dtype='float64')
+		n, d = X.shape
+
+		if weights is None:
+			weights = numpy.ones(n, dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
+		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+			parallel( delayed(self.summarize, check_pickle=False)(X[start:end], 
+				y[start:end], weights[start:end]) for start, end in zip(starts, ends) )
+
+			self.from_summaries(inertia, pseudocount)
+
+			semisupervised = -1 in y
+			if semisupervised:
+				initial_log_probability_sum = NEGINF
+				iteration, improvement = 0, INF
+				n_classes = numpy.unique(y).shape[0]
+
+				unsupervised = GeneralMixtureModel(self.distributions)
+
+				X_labeled = X[y != -1]
+				y_labeled = y[y != -1]
+				weights_labeled = None if weights is None else weights[y != -1]
+
+				X_unlabeled = X[y == -1]
+				weights_unlabeled = None if weights is None else weights[y == -1]
+
+				labeled_starts = [int(i*len(X_labeled)/n_jobs) for i in range(n_jobs)]
+				labeled_ends = [int(i*len(X_labeled)/n_jobs) for i in range(1, n_jobs+1)]
+
+				unlabeled_starts = [int(i*len(X_unlabeled)/n_jobs) for i in range(n_jobs)]
+				unlabeled_ends = [int(i*len(X_unlabeled)/n_jobs) for i in range(1, n_jobs+1)]
+
+				while improvement > stop_threshold and iteration < max_iterations + 1:
+					epoch_start_time = time.time()
+					self.from_summaries(inertia, pseudocount)
+					unsupervised.weights[:] = self.weights
+
+					parallel( delayed(self.summarize, 
+						check_pickle=False)(X_labeled[start:end], 
+						y_labeled[start:end], weights_labeled[start:end]) 
+						for start, end in zip(labeled_starts, labeled_ends))
+
+					unsupervised.summaries[:] = self.summaries
+
+					log_probability_sum = sum(parallel( delayed(unsupervised.summarize, 
+						check_pickle=False)(X_unlabeled[start:end], weights_unlabeled[start:end]) 
+						for start, end in zip(unlabeled_starts, unlabeled_ends)))
+
+					self.summaries[:] = unsupervised.summaries
+
+					if iteration == 0:
+						initial_log_probability_sum = log_probability_sum
+					else:
+						improvement = log_probability_sum - last_log_probability_sum
+
+						time_spent = time.time() - epoch_start_time
+						if verbose:
+							print("[{}] Improvement: {}\tTime (s): {:4.4}".format(iteration,
+								improvement, time_spent))
+
+					iteration += 1
+					last_log_probability_sum = log_probability_sum
+
+				self.clear_summaries()
+
+				if verbose:
+					total_imp = last_log_probability_sum - initial_log_probability_sum
+					print("Total Improvement: {}".format(total_imp))
+
+		if verbose:
+			total_time_spent = time.time() - training_start_time
+			print("Total Time (s): {:.4f}".format(total_time_spent))
+
+		return self
+
+	def summarize(self, X, y, weights=None):
+		"""Summarize data into stored sufficient statistics for out-of-core training.
 
 		Parameters
 		----------
-		X : array-like, shape (n_samples, n_dimensions)
-			This is the data to train on. Each row is a sample, and each column
-			is a dimension to train on.
+		X : array-like, shape (n_samples, variable)
+			Array of the samples, which can be either fixed size or variable depending
+			on the underlying components.
 
-		weights : array-like, shape (n_samples,), optional
-			The initial weights of each sample in the matrix. If nothing is
-			passed in then each sample is assumed to be the same weight.
-			Default is None.
+		y : array-like, shape (n_samples,)
+			Array of the known labels as integers
+
+		weights : array-like, shape (n_samples,) optional
+			Array of the weight of each sample, a positive float
 
 		Returns
 		-------
-		logp : double
-			The log probability of the data given the current model. This is
-			used to speed up EM.
+		None
 		"""
 
-		raise NotImplementedError
+		X = _convert(X)
+		y = _convert(y)
 
-	cdef double _summarize(self, double* X, double* weights, int n) nogil:
+		if self.d > 0 and not isinstance( self.distributions[0], HiddenMarkovModel ):
+			if X.ndim > 2:
+				raise ValueError("input data has too many dimensions")
+			elif X.ndim == 2 and self.d != X.shape[1]:
+				raise ValueError("input data rows do not match model dimension")
+
+		if weights is None:
+			weights = numpy.ones(X.shape[0], dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
+		if self.is_vl_:
+			for i, distribution in enumerate(self.distributions):
+				distribution.summarize(list(X[y==i]), weights[y==i])
+		else:
+			for i, distribution in enumerate(self.distributions):
+				distribution.summarize(X[y==i], weights[y==i])
+
+		for i in range(self.n):
+			weight = weights[y==i].sum()
+			self.summaries[i] += weight
+	cdef double _summarize(self, double* X, double* weights, int n,
+		int column_idx, int d) nogil:
 		return -1
 
 	def from_summaries(self, inertia=0.0, pseudocount=0.0, **kwargs):

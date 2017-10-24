@@ -2709,16 +2709,17 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef double log_sequence_probability
 
         with nogil:
-            log_sequence_probability = self._summarize(sequence, &weight, n)
+            log_sequence_probability = self._summarize(sequence, &weight, n, 
+                0, self.d)
 
         return log_sequence_probability
 
-    cdef double _summarize(self, double* sequence, double* weight, int n) nogil:
+    cdef double _summarize(self, double* sequence, double* weight, int n,
+        int column_idx, int d) nogil:
         """Collect sufficient statistics on a single sequence."""
 
         cdef int i, k, l, li
         cdef int m = self.n_states
-        cdef int dim = self.d
 
         cdef void** distributions = self.distributions_ptr
 
@@ -2739,7 +2740,7 @@ cdef class HiddenMarkovModel(GraphModel):
         e = <double*> calloc(n*self.silent_start, sizeof(double))
         for l in range(self.silent_start):
             for i in range(n):
-                (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                (<Model> distributions[l])._log_probability(sequence+i*d, e+l*n+i, 1)
                 e[l*n + i] += self.state_weights[l]
 
         f = self._forward(sequence, n, e)
@@ -2829,7 +2830,7 @@ cdef class HiddenMarkovModel(GraphModel):
                         weights[i] = cexp(f[(i+1)*m + k] + b[(i+1)*m + k] -
                             log_sequence_probability) * weight[0]
 
-                    (<Model>distributions[k])._summarize(sequence, weights, n)
+                    (<Model>distributions[k])._summarize(sequence, weights, n, 0, self.d)
 
             # Update the master expected transitions vector representing the sparse matrix.
             with gil:
@@ -2936,7 +2937,8 @@ cdef class HiddenMarkovModel(GraphModel):
                 transitions[past*m + present] += weight
 
             if present < self.silent_start:
-                (<Model> distributions[present])._summarize(sequence+j*self.d, &weight, 1)
+                (<Model> distributions[present])._summarize(sequence+j*self.d,
+                    &weight, 1, 0, self.d)
                 j += 1
             
         with gil:

@@ -5,13 +5,43 @@
 Release History
 ===============
 
+Version 0.8.1
+=============
+
+Highlights
+----------
+
+This will serve as a log for the changes added for the release of version 0.8.1.
+
+
+Changelog
+---------
+
+NaiveBayes
+----------
+
+	- Moved the `fit` and `summarize` methods to `BayesModel` due to their similarity with BayesClassifier
+
+BayesClassifier
+---------------
+
+	- Moved the `fit` and `summarize` methods to `BayesModel` due to their similarity to NaiveBayes
+
+
+GeneralMixtureModel
+-------------------
+
+	- Fixed a bug where `n_jobs` was ignored in the `from_samples` method because `batch_size` was reset for the k-means initialization
+
+
+
 Version 0.8.0
 =============
 
 Highlights
 ----------
 
-This will serve as a log for the changes added for the release of version 0.7.8.
+This will serve as a log for the changes added for the release of version 0.8.0.
 
 
 Changelog
