@@ -530,7 +530,7 @@ cdef class NormalDistribution(Distribution):
 		def __set__(self, parameters):
 			self.mu, self.sigma = parameters
 
-	def __cinit__(self, mean, std, frozen=False, min_std=None):
+	def __cinit__(self, mean, std, frozen=False, min_std=0.0):
 		"""
 		Make a new Normal distribution with the given mean mean and standard
 		deviation std.
