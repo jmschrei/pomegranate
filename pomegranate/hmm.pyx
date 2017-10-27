@@ -191,9 +191,9 @@ cdef class HiddenMarkovModel(GraphModel):
     cdef numpy.ndarray distributions
     cdef void** distributions_ptr
 
-    def __init__(self, name=None, start=None, end=None):
+    def __init__(self, name='HiddenMarkovModel', start=None, end=None):
         # Save the name or make up a name.
-        self.name = str(name) or str(id(self))
+        self.name = name
         self.model = "HiddenMarkovModel"
 
         # This holds a directed graph between states. Nodes in that graph are
