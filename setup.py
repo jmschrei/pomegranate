@@ -43,7 +43,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.8.dev1',
+    version='0.8.1',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=['pomegranate'],
@@ -60,7 +60,7 @@ setup(
     install_requires=[
         "numpy >= 1.8.0",
         "joblib >= 0.9.0b4",
-        "networkx >= 1.8.1",
+        "networkx >= 1.8.1, < 2.0",
         "scipy >= 0.17.0"
     ],
     test_suite = 'nose.collector',
