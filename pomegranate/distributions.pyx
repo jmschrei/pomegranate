@@ -186,40 +186,43 @@ cdef class Distribution(Model):
 		else:
 			return logp_array
 
-	def summarize(self, items, weights=None):
-		"""Summarize a batch of data into sufficient statistics for a later update.
-		Parameters
-		----------
-		items : array-like, shape (n_samples, n_dimensions)
-			This is the data to train on. Each row is a sample, and each column
-			is a dimension to train on. For univariate distributions an array
-			is used, while for multivariate distributions a 2d matrix is used.
-		weights : array-like, shape (n_samples,), optional
-			The initial weights of each sample in the matrix. If nothing is
-			passed in then each sample is assumed to be the same weight.
-			Default is None.
-		Returns
-		-------
-		None
+	def fit(self, items, weights=None, inertia=0.0, column_idx=0):
+		"""
+		Set the parameters of this Distribution to maximize the likelihood of
+		the given sample. Items holds some sort of sequence. If weights is
+		specified, it holds a sequence of value to weight each item by.
 		"""
 
-		# If no previously stored summaries, just store the incoming data
-		if len(self.summaries) == 0:
-			self.summaries = [items, weights]
+		if self.frozen:
+			return
 
-		# Otherwise, append the items and weights
-		else:
-			prior_items, prior_weights = self.summaries
-			items = numpy.concatenate([prior_items, items])
+		self.summarize(items, weights, column_idx)
+		self.from_summaries(inertia)
 
-			# If even one summary lacks weights, then weights can't be assigned
-			# to any of the points.
-			if weights is not None:
-				weights = numpy.concatenate([prior_weights, weights])
+	def summarize(self, items, weights=None, column_idx=0):
+		"""
+		Take in a series of items and their weights and reduce it down to a
+		summary statistic to be used in training later.
+		"""
 
-			self.summaries = [items, weights]
+		items, weights = weight_set(items, weights)
+		if weights.sum() <= 0:
+			return
 
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+		cdef double* items_p = <double*> (<numpy.ndarray> items).data
+		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
+		cdef int n = items.shape[0]
+		cdef int d = 1
+		cdef int column_id = <int> column_idx
+
+		if items.ndim == 2:
+			d = items.shape[1]
+
+		with nogil:
+			self._summarize(items_p, weights_p, n, column_id, d)
+
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		pass
 
 	def from_summaries(self, inertia=0.0):
@@ -231,6 +234,7 @@ cdef class Distribution(Model):
 			parameters will roughly be old_param*inertia + new_param*(1-inertia),
 			so an inertia of 0 means ignore the old parameters, whereas an
 			inertia of 1 means ignore the new parameters. Default is 0.0.
+
 		Returns
 		-------
 		None
@@ -406,37 +410,8 @@ cdef class UniformDistribution(Distribution):
 		"""Sample from this uniform distribution and return the value sampled."""
 		return numpy.random.uniform(self.start, self.end, n)
 
-	def fit(self, items, weights=None, inertia=0.0):
-		"""
-		Set the parameters of this Distribution to maximize the likelihood of
-		the given sample. Items holds some sort of sequence. If weights is
-		specified, it holds a sequence of value to weight each item by.
-		"""
-
-		if self.frozen:
-			return
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia)
-
-	def summarize(self, items, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		items, weights = weight_set(items, weights)
-		if weights.sum() <= 0:
-			return
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
-
-		with nogil:
-			self._summarize(items_p, weights_p, n)
-
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n, 
+		int column_idx, int d) nogil:
 		cdef double minimum = INF, maximum = NEGINF
 		cdef double weight = 0.0
 		cdef int i
@@ -444,10 +419,10 @@ cdef class UniformDistribution(Distribution):
 		for i in range(n):
 			weight += weights[i]
 			if weights[i] > 0:
-				if items[i] < minimum:
-					minimum = items[i]
-				if items[i] > maximum:
-					maximum = items[i]
+				if items[i*d + column_idx] < minimum:
+					minimum = items[i*d + column_idx]
+				if items[i*d + column_idx] > maximum:
+					maximum = items[i*d + column_idx]
 
 		with gil:
 			self.summaries[2] += weight
@@ -517,25 +492,14 @@ cdef class BernoulliDistribution(Distribution):
 	def sample(self, n=None):
 		return numpy.random.choice(2, p=[1-self.p, self.p], size=n)
 
-	def summarize(self, items, weights=None):
-		items, weights = weight_set(items, weights)
-		if weights.sum() <= 0:
-			return
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
-
-		with nogil:
-			self._summarize(items_p, weights_p, n)
-
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		cdef int i
 		cdef double w_sum = 0, x_sum = 0
 
 		for i in range(n):
 			w_sum += weights[i]
-			if items[i] == 1:
+			if items[i*d + column_idx] == 1:
 				x_sum += weights[i]
 
 		with gil:
@@ -550,12 +514,6 @@ cdef class BernoulliDistribution(Distribution):
 		self.logp[0] = _log(1-p)
 		self.logp[1] = _log(p)
 		self.summaries = [0.0, 0.0]
-
-	def fit(self, items, weights=None, inertia=0.0):
-		"""Fit the parameter to maximize the likelihood of the samples."""
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia)
 
 	@classmethod
 	def blank(cls):
@@ -572,7 +530,7 @@ cdef class NormalDistribution(Distribution):
 		def __set__(self, parameters):
 			self.mu, self.sigma = parameters
 
-	def __cinit__(self, mean, std, frozen=False, min_std=None):
+	def __cinit__(self, mean, std, frozen=False, min_std=0.0):
 		"""
 		Make a new Normal distribution with the given mean mean and standard
 		deviation std.
@@ -600,59 +558,29 @@ cdef class NormalDistribution(Distribution):
 	def sample(self, n=None):
 		return numpy.random.normal(self.mu, self.sigma, n)
 
-	def fit(self, items, weights=None, inertia=0.0, min_std=1e-5):
-		"""
-		Set the parameters of this Distribution to maximize the likelihood of
-		the given sample. Items holds some sort of sequence. If weights is
-		specified, it holds a sequence of value to weight each item by.
-		"""
-
-		if self.frozen:
-			return
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia, min_std)
-
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
-		cdef int i
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
+		cdef int i, j
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
 
 		for i in range(n):
+			j = i*d + column_idx
 			w_sum += weights[i]
-			x_sum += weights[i] * items[i]
-			x2_sum += weights[i] * items[i] * items[i]
+			x_sum += weights[i] * items[j]
+			x2_sum += weights[i] * items[j] * items[j]
 
 		with gil:
 			self.summaries[0] += w_sum
 			self.summaries[1] += x_sum
 			self.summaries[2] += x2_sum
 
-	def summarize(self, items, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		items, weights = weight_set(items, weights)
-		if weights.sum() <= 0:
-			return
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
-
-		with nogil:
-			self._summarize(items_p, weights_p, n)
-
-	def from_summaries(self, inertia=0.0, min_std=0.01):
+	def from_summaries(self, inertia=0.0):
 		"""
 		Takes in a series of summaries, represented as a mean, a variance, and
 		a weight, and updates the underlying distribution. Notes on how to do
 		this for a Gaussian distribution were taken from here:
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
-
-		min_std = self.min_std if self.min_std is not None else min_std
 
 		# If no summaries stored or the summary is frozen, don't do anything.
 		if self.summaries[0] == 0 or self.frozen == True:
@@ -662,8 +590,8 @@ cdef class NormalDistribution(Distribution):
 		var = self.summaries[2] / self.summaries[0] - self.summaries[1] ** 2.0 / self.summaries[0] ** 2.0
 
 		sigma = csqrt(var)
-		if sigma < min_std:
-			sigma = min_std
+		if sigma < self.min_std:
+			sigma = self.min_std
 
 		self.mu = self.mu*inertia + mu*(1-inertia)
 		self.sigma = self.sigma*inertia + sigma*(1-inertia)
@@ -691,7 +619,7 @@ cdef class LogNormalDistribution(Distribution):
 		def __set__(self, parameters):
 			self.mu, self.sigma = parameters
 
-	def __cinit__(self, double mu, double sigma, frozen=False):
+	def __init__(self, double mu, double sigma, double min_std=0.0, frozen=False):
 		"""
 		Make a new lognormal distribution. The parameters are the mu and sigma
 		of the normal distribution, which is the the exponential of the log
@@ -703,6 +631,7 @@ cdef class LogNormalDistribution(Distribution):
 		self.summaries = [0, 0, 0]
 		self.name = "LogNormalDistribution"
 		self.frozen = frozen
+		self.min_std = min_std
 
 	def __reduce__(self):
 		"""Serialize distribution for pickling."""
@@ -718,20 +647,8 @@ cdef class LogNormalDistribution(Distribution):
 		"""Return a sample from this distribution."""
 		return numpy.random.lognormal(self.mu, self.sigma, n)
 
-	def fit(self, items, weights=None, inertia=0.0, min_std=0.01):
-		"""
-		Set the parameters of this Distribution to maximize the likelihood of
-		the given sample. Items holds some sort of sequence. If weights is
-		specified, it holds a sequence of value to weight each item by.
-		"""
-
-		if self.frozen:
-			return
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia, min_std)
-
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		"""Cython function to get the MLE estimate for a Gaussian."""
 
 		cdef int i
@@ -739,7 +656,7 @@ cdef class LogNormalDistribution(Distribution):
 		cdef double log_item
 
 		for i in range(n):
-			log_item = _log(items[i])
+			log_item = _log(items[i*d + column_idx])
 			w_sum += weights[i]
 			x_sum += weights[i] * log_item
 			x2_sum += weights[i] * log_item * log_item
@@ -749,24 +666,7 @@ cdef class LogNormalDistribution(Distribution):
 			self.summaries[1] += x_sum
 			self.summaries[2] += x2_sum
 
-	def summarize(self, items, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		items, weights = weight_set(items, weights)
-		if weights.sum() <= 0:
-			return
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
-
-		with nogil:
-			self._summarize(items_p, weights_p, n)
-
-	def from_summaries(self, inertia=0.0, min_std=0.01):
+	def from_summaries(self, inertia=0.0):
 		"""
 		Takes in a series of summaries, represented as a mean, a variance, and
 		a weight, and updates the underlying distribution. Notes on how to do
@@ -782,8 +682,8 @@ cdef class LogNormalDistribution(Distribution):
 		var = self.summaries[2] / self.summaries[0] - self.summaries[1] ** 2.0 / self.summaries[0] ** 2.0
 
 		sigma = csqrt(var)
-		if sigma < min_std:
-			sigma = min_std
+		if sigma < self.min_std:
+			sigma = self.min_std
 
 		self.mu = self.mu*inertia + mu*(1-inertia)
 		self.sigma = self.sigma*inertia + sigma*(1-inertia)
@@ -833,35 +733,8 @@ cdef class ExponentialDistribution(Distribution):
 	def sample(self, n=None):
 		return numpy.random.exponential(1. / self.parameters[0], n)
 
-	def fit(self, items, weights=None, inertia=0.0):
-		"""
-		Set the parameters of this Distribution to maximize the likelihood of
-		the given sample. Items holds some sort of sequence. If weights is
-		specified, it holds a sequence of value to weight each item by.
-		"""
-
-		if self.frozen:
-			return
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia)
-
-	def summarize(self, items, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		items, weights = weight_set(items, weights)
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
-
-		with nogil:
-			self._summarize(items_p, weights_p, n)
-
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		"""Cython function to get the MLE estimate for an exponential."""
 
 		cdef double xw_sum = 0, w = 0
@@ -869,7 +742,7 @@ cdef class ExponentialDistribution(Distribution):
 
 		# Calculate the average, which is the MLE mu estimate
 		for i in range(n):
-			xw_sum += items[i] * weights[i]
+			xw_sum += items[i*d + column_idx] * weights[i]
 			w += weights[i]
 
 		with gil:
@@ -946,42 +819,15 @@ cdef class BetaDistribution(Distribution):
 		"""Return a random sample from the beta distribution."""
 		return numpy.random.beta(self.alpha, self.beta, n)
 
-	def fit(self, items, weights=None, inertia=0.0):
-		"""
-		Set the parameters of this Distribution to maximize the likelihood of
-		the given sample. Items holds some sort of sequence. If weights is
-		specified, it holds a sequence of value to weight each item by.
-		"""
-
-		if self.frozen:
-			return
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia)
-
-	def summarize(self, items, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		items, weights = weight_set(items, weights)
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
-
-		with nogil:
-			self._summarize(items_p, weights_p, n)
-
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		"""Cython optimized function for summarizing some data."""
 
 		cdef double alpha = 0, beta = 0
 		cdef int i
 
 		for i in range(n):
-			if items[i] == 1:
+			if items[i*d + column_idx] == 1:
 				alpha += weights[i]
 			else:
 				beta += weights[i]
@@ -1058,7 +904,7 @@ cdef class GammaDistribution(Distribution):
 		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1])
 
 	def fit(self, items, weights=None, inertia=0.0, epsilon=1E-9,
-		iteration_limit=1000):
+		iteration_limit=1000, column_idx=0):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -1076,10 +922,10 @@ cdef class GammaDistribution(Distribution):
 		http://www.experts-exchange.com/Other/Math_Science/Q_23943764.html
 		"""
 
-		self.summarize(items, weights)
+		self.summarize(items, weights, column_idx)
 		self.from_summaries(inertia, epsilon, iteration_limit)
 
-	def summarize(self, items, weights=None):
+	def summarize(self, items, weights=None, column_idx=0):
 		"""
 		Take in a series of items and their weights and reduce it down to a
 		summary statistic to be used in training later.
@@ -1110,14 +956,15 @@ cdef class GammaDistribution(Distribution):
 		self.summaries[1] += numpy.log(items).dot(weights)
 		self.summaries[2] += weights.sum()
 
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		cdef int i
 		cdef double xw = 0, logxw = 0, w = 0
 
 		for i in range(n):
 			w += weights[i]
-			xw = items[i] * weights[i]
-			logxw = _log(items[i]) * weights[i]
+			xw = items[i*d + column_idx] * weights[i]
+			logxw = _log(items[i*d + column_idx]) * weights[i]
 
 		with gil:
 			self.summaries[0] += xw
@@ -1381,7 +1228,8 @@ cdef class DiscreteDistribution(Distribution):
 			return numpy.array(samples)
 
 
-	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
+	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0,
+		column_idx=0):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -1391,10 +1239,10 @@ cdef class DiscreteDistribution(Distribution):
 		if self.frozen:
 			return
 
-		self.summarize(items, weights)
+		self.summarize(items, weights, column_idx)
 		self.from_summaries(inertia, pseudocount)
 
-	def summarize(self, items, weights=None):
+	def summarize(self, items, weights=None, column_idx=0):
 		"""Reduce a set of obervations to sufficient statistics."""
 
 		if weights is None:
@@ -1407,7 +1255,8 @@ cdef class DiscreteDistribution(Distribution):
 		for i in xrange(len(items)):
 			characters[items[i]] += weights[i]
 
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		cdef int i
 		self.encoded_summary = 1
 
@@ -1415,7 +1264,7 @@ cdef class DiscreteDistribution(Distribution):
 		memset(encoded_counts, 0, self.n*sizeof(double))
 
 		for i in range(n):
-			encoded_counts[<int> items[i]] += weights[i]
+			encoded_counts[<int> items[i*d + column_idx]] += weights[i]
 
 		with gil:
 			for i in range(self.n):
@@ -1560,44 +1409,15 @@ cdef class PoissonDistribution(Distribution):
 	def sample(self, n=None):
 		return numpy.random.poisson(self.l, n)
 
-	def fit(self, items, weights=None, inertia=0.0):
-		"""
-		Update the parameters of this distribution to maximize the likelihood
-		of the current samples. If weights are passed in, perform weighted
-		MLE, otherwise unweighted.
-		"""
-
-		if self.frozen:
-			return
-
-		self.summarize(items, weights)
-		self.from_summaries(inertia)
-
-	def summarize(self, items, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		items, weights = weight_set(items, weights)
-		if weights.sum() <= 0:
-			return
-
-		cdef double* items_p = <double*> (<numpy.ndarray> items).data
-		cdef double* weights_p = <double*> (<numpy.ndarray> weights).data
-		cdef int n = items.shape[0]
-
-		with nogil:
-			self._summarize(items_p, weights_p, n)
-
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		"""Cython optimized function to calculate the summary statistics."""
 
 		cdef double x_sum = 0.0, w_sum = 0.0
 		cdef int i
 
 		for i in range(n):
-			x_sum += items[i] * weights[i]
+			x_sum += items[i*d + column_idx] * weights[i]
 			w_sum += weights[i]
 
 		with gil:
@@ -1677,7 +1497,7 @@ cdef class KernelDensity(Distribution):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.points_ndarray, self.bandwidth, self.weights_ndarray, self.frozen)
 
-	def fit(self, points, weights=None, inertia=0.0):
+	def fit(self, points, weights=None, inertia=0.0, column_idx=0):
 		"""Replace the points, allowing for inertia if specified."""
 
 		# If the distribution is frozen, don't bother with any calculation
@@ -1707,6 +1527,42 @@ cdef class KernelDensity(Distribution):
 
 		self.points = <double*> self.points_ndarray.data
 		self.weights = <double*> self.weights_ndarray.data
+
+	def summarize(self, items, weights=None, column_idx=0):
+		"""Summarize a batch of data into sufficient statistics for a later update.
+
+		Parameters
+		----------
+		items : array-like, shape (n_samples, n_dimensions)
+			This is the data to train on. Each row is a sample, and each column
+			is a dimension to train on. For univariate distributions an array
+			is used, while for multivariate distributions a 2d matrix is used.
+
+		weights : array-like, shape (n_samples,), optional
+			The initial weights of each sample in the matrix. If nothing is
+			passed in then each sample is assumed to be the same weight.
+			Default is None.
+
+		Returns
+		-------
+		None
+		"""
+
+		# If no previously stored summaries, just store the incoming data
+		if len(self.summaries) == 0:
+			self.summaries = [items, weights]
+
+		# Otherwise, append the items and weights
+		else:
+			prior_items, prior_weights = self.summaries
+			items = numpy.concatenate([prior_items, items])
+
+			# If even one summary lacks weights, then weights can't be assigned
+			# to any of the points.
+			if weights is not None:
+				weights = numpy.concatenate([prior_weights, weights])
+
+			self.summaries = [items, weights]
 
 	@classmethod
 	def blank(cls):
@@ -2017,17 +1873,18 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		X, weights = weight_set(X, weights)
 		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
+		cdef int n = X.shape[0]
+		cdef int d = X.shape[1]
 
-		for j, distribution in enumerate(self.distributions):
-			distribution.summarize(X[:,j], weights)
+		with nogil:
+			self._summarize(X_ptr, weights_ptr, n, 0, d)
 
-	cdef double _summarize(self, double* X, double* weights, int n) nogil:
-		cdef int i, j, d = self.d
-		cdef double logp = 0.0
+	cdef double _summarize(self, double* X, double* weights, int n,
+		int column_idx, int d) nogil:
+		cdef int i, j
 
-		for i in range(n):
-			for j in range(d):
-				(<Model> self.distributions_ptr[j])._summarize(X+i*d+j, weights+i, 1)
+		for i in range(d):
+			(<Model> self.distributions_ptr[i])._summarize(X, weights, n, i, d)
 
 	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""
@@ -2163,48 +2020,15 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		return numpy.random.multivariate_normal(self.parameters[0],
 			self.parameters[1], n)
 
-	def fit(self, X, weights=None, inertia=0):
-		"""
-		Set the parameters of this Distribution to maximize the likelihood of
-		the given sample. Items holds some sort of sequence. If weights is
-		specified, it holds a sequence of value to weight each item by.
-		"""
-
-		if self.frozen:
-			return
-
-		self.summarize(X, weights)
-		self.from_summaries(inertia)
-
-	def summarize(self, X, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		X, weights = weight_set(X, weights)
-
-		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
-		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
-
-		cdef int n = X.shape[0], d = X.shape[1]
-
-		if self.d != d:
-			raise ValueError("trying to fit data with {} dimensions to distribution \
-				with {} distributions".format(d, self.d))
-
-		with nogil:
-			self._summarize(X_ptr, weights_ptr, n)
-
-
-	cdef double _summarize(self, double* X, double* weights, int n) nogil:
+	cdef double _summarize(self, double* X, double* weights, int n,
+		int column_idx, int d) nogil:
 		"""Calculate sufficient statistics for a minibatch.
 
 		The sufficient statistics for a multivariate gaussian update is the sum of
 		each column, and the sum of the outer products of the vectors.
 		"""
 
-		cdef int i, j, k, d = self.d
+		cdef int i, j, k
 		cdef double w_sum = 0.0
 		cdef double* column_sum = <double*> calloc(d, sizeof(double))
 		cdef double* pair_sum
@@ -2363,30 +2187,15 @@ cdef class DirichletDistribution(MultivariateDistribution):
 	def sample(self, n=None):
 		return numpy.random.dirichlet(self.alphas, n)
 
-	def summarize(self, X, weights=None):
-		"""
-		Take in a series of items and their weights and reduce it down to a
-		summary statistic to be used in training later.
-		"""
-
-		X, weights = weight_set(X, weights)
-
-		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
-		cdef double* weights_ptr = <double*> (<numpy.ndarray> weights).data
-
-		cdef int n = X.shape[0]
-
-		with nogil:
-			self._summarize(X_ptr, weights_ptr, n)
-
-	cdef double _summarize(self, double* X, double* weights, int n) nogil:
+	cdef double _summarize(self, double* X, double* weights, int n,
+		int column_idx, int d) nogil:
 		"""Calculate sufficient statistics for a minibatch.
 
 		The sufficient statistics for a dirichlet distribution is just the
 		weighted count of the times each thing appears.
 		"""
 
-		cdef int i, j, d = self.d
+		cdef int i, j
 
 		for i in range(n):
 			for j in range(d):
@@ -2645,7 +2454,8 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			key = self.marginal_keymap[tuple(items[i][:-1])]
 			self.marginal_counts[key] += weights[i]
 
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		cdef int i, j, idx
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))
 		cdef double* marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
@@ -2918,7 +2728,8 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			key = self.keymap[tuple(items[i])]
 			self.counts[key] += weights[i]
 
-	cdef double _summarize(self, double* items, double* weights, int n) nogil:
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil:
 		cdef int i, j, idx
 		cdef double count = 0
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))

@@ -5,13 +5,62 @@
 Release History
 ===============
 
+Version 0.8.1
+=============
+
+Highlights
+----------
+
+This will serve as a log for the changes added for the release of version 0.8.1.
+	
+	- Univariate offsets have been added to allow for distributions to be fit to a column of data rather than a vector of numbers. This stops the copying of data that had to be done previously.
+
+
+Changelog
+---------
+
+Base
+----
+	
+	- Parameters `column_idx` and `d` have been added to the `_summarize` method that all models expose. This is only useful for univariate distributions and models that fit univariate distributions and can be ignored by other models. The `column_idx` parameter specifies which column in a data matrix the distribution should be fit to, essentially serving as an offset. `d` refers to the number of dimensions that the data matrix has. This means that a univariate distribution will fit to all samples `i` such that `i*d + column_idx` in a pointer array. Multivariate distributions and models using those can ignore this.
+
+
+Distributions
+-------------
+
+	- The `summarize` method has been moved from most individual distributions to the `Distribution` base object, as has the `fit` method. 
+
+	- `min_std` has been moved from the `from_summaries` method and the `fit` method to the `__init__` method for the `NormalDistribution` and `LogNormalDistribution` objects.
+
+NaiveBayes
+----------
+
+	- Moved the `fit` and `summarize` methods to `BayesModel` due to their similarity with BayesClassifier
+
+BayesClassifier
+---------------
+
+	- Moved the `fit` and `summarize` methods to `BayesModel` due to their similarity to NaiveBayes
+
+
+GeneralMixtureModel
+-------------------
+
+	- Fixed a bug where `n_jobs` was ignored in the `from_samples` method because `batch_size` was reset for the k-means initialization
+
+HiddenMarkovModel
+-----------------
+
+	- The default name of a HiddenMarkovModel has been changed from "None" to "HiddenMarkovModel"
+
+
 Version 0.8.0
 =============
 
 Highlights
 ----------
 
-This will serve as a log for the changes added for the release of version 0.7.8.
+This will serve as a log for the changes added for the release of version 0.8.0.
 
 
 Changelog

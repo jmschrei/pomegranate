@@ -23,7 +23,7 @@ cdef class NormalDistribution(Distribution):
 	cdef object min_std
 
 cdef class LogNormalDistribution(Distribution):
-	cdef double mu, sigma
+	cdef double mu, sigma, min_std
 
 cdef class ExponentialDistribution(Distribution):
 	cdef double rate, log_rate

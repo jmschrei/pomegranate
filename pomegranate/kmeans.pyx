@@ -505,12 +505,13 @@ cdef class Kmeans(Model):
 		cdef double* weights_ptr = <double*> weights_ndarray.data
 
 		with nogil:
-			dist = self._summarize(X_ptr, weights_ptr, n)
+			dist = self._summarize(X_ptr, weights_ptr, n, 0, self.d)
 
 		return dist
 
-	cdef double _summarize(self, double* X, double* weights, int n) nogil:
-		cdef int i, j, l, y, k = self.k, d = self.d, inc = 1
+	cdef double _summarize(self, double* X, double* weights, int n,
+		int column_idx, int d) nogil:
+		cdef int i, j, l, y, k = self.k, inc = 1
 		cdef double min_dist, dist, total_dist, pdist = 0.0
 		cdef double* summary_sizes = <double*> calloc(k, sizeof(double))
 		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))

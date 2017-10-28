@@ -1,5 +1,5 @@
 # base.pxd
-# Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
+# Contact: Jacob Schreiber (jmschreiber91@gmail.com)
 
 cimport numpy
 
@@ -11,7 +11,8 @@ cdef class Model(object):
 
 	cdef void _log_probability(self, double* symbol, double* log_probability, int n) nogil
 	cdef double _vl_log_probability(self, double* symbol, int n) nogil
-	cdef double _summarize(self, double* items, double* weights, int n) nogil
+	cdef double _summarize(self, double* items, double* weights, int n,
+		int column_idx, int d) nogil
 
 
 cdef class GraphModel(Model):

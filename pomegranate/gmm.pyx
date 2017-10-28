@@ -312,7 +312,8 @@ cdef class GeneralMixtureModel(BayesModel):
 			X_ptr = <double*> X_ndarray.data
 
 			with nogil:
-				log_probability = self._summarize(X_ptr, weights_ptr, n)
+				log_probability = self._summarize(X_ptr, weights_ptr, n,
+					0, self.d)
 
 		else:
 			log_probability = 0.0
@@ -321,11 +322,13 @@ cdef class GeneralMixtureModel(BayesModel):
 				X_ptr = <double*> X_ndarray.data
 				d = len(X_ndarray)
 				with nogil:
-					log_probability += self._summarize(X_ptr, weights_ptr+i, d)
+					log_probability += self._summarize(X_ptr, weights_ptr+i, 
+						d, 0, self.d)
 
 		return log_probability
 
-	cdef double _summarize(self, double* X, double* weights, int n) nogil:
+	cdef double _summarize(self, double* X, double* weights, int n,
+		int column_idx, int d) nogil:
 		cdef double* r = <double*> calloc(self.n*n, sizeof(double))
 		cdef double* summaries = <double*> calloc(self.n, sizeof(double))
 		cdef int i, j
@@ -356,7 +359,8 @@ cdef class GeneralMixtureModel(BayesModel):
 				break
 
 		for j in range(self.n):
-			(<Model> self.distributions_ptr[j])._summarize(X, r+j*n, n)
+			(<Model> self.distributions_ptr[j])._summarize(X, r+j*n, n,
+				0, d)
 
 		with gil:
 			for j in range(self.n):
