@@ -130,10 +130,10 @@ cdef class GeneralMixtureModel(BayesModel):
 			Default is 0.0.
 
 		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects mixture
+			models defined over discrete distributions. Default is 0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
@@ -450,10 +450,10 @@ cdef class GeneralMixtureModel(BayesModel):
 			inertia of 1 means ignore the new parameters. Default is 0.0.
 
 		pseudocount : double, optional, positive
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Only effects mixture
-            models defined over discrete distributions. Default is 0.
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects mixture
+			models defined over discrete distributions. Default is 0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
