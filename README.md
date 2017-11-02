@@ -4,6 +4,8 @@
 
 *NOTE: pomegranate does not yet work with networkx 2.0. If you have problems, please downgrade networkx and try again.*
 
+A preprint of the pomegranate paper can be [found here](https://arxiv.org/pdf/1711.00137.pdf). Please consider citing it if you used it in your academic work.
+
 pomegranate is a package for probabilistic and graphical models for Python, implemented in cython for speed. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components used could be rearranged to do other cool things. It currently supports:
 
 * Probability Distributions
