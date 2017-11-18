@@ -26,7 +26,7 @@ if sys.version_info[0] > 2:
 cdef class FactorGraph( GraphModel ):
 	"""A Factor Graph model.
 
-	A biparte graph where conditional probability tables are on one side,
+	A bipartite graph where conditional probability tables are on one side,
 	and marginals for each of the variables involved are on the other
 	side.
 
