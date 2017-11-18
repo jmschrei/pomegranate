@@ -11,6 +11,20 @@ Version 0.8.1
 Highlights
 ----------
 
+Changelog
+---------
+
+HiddenMarkovModel
+-----------------
+
+	- The documentation has been fixed so that states are defined as `State(NormalDistribution(0, 1))` instead of incorrectly as `State(Distribution(NormalDistribution(0, 1)))
+
+Version 0.8.1
+=============
+
+Highlights
+----------
+
 This will serve as a log for the changes added for the release of version 0.8.1.
 	
 	- Univariate offsets have been added to allow for distributions to be fit to a column of data rather than a vector of numbers. This stops the copying of data that had to be done previously.

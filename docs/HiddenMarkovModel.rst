@@ -48,9 +48,9 @@ Next, let's take a look at building the same model line by line.
 .. code-block:: python
 
 	from pomegranate import *
-	s1 = State(Distribution(NormalDistribution(5, 1)))
-	s2 = State(Distribution(NormalDistribution(1, 7)))
-	s3 = State(Distribution(NormalDistribution(8, 2)))
+	s1 = State(NormalDistribution(5, 1))
+	s2 = State(NormalDistribution(1, 7))
+	s3 = State(NormalDistribution(8, 2))
 	model = HiddenMarkovModel()
 	model.add_states(s1, s2, s3)
 	model.add_transition(model.start, s1, 1.0)
