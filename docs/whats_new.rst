@@ -5,7 +5,7 @@
 Release History
 ===============
 
-Version 0.8.1
+Version 0.8.2
 =============
 
 Highlights
@@ -18,6 +18,13 @@ HiddenMarkovModel
 -----------------
 
 	- The documentation has been fixed so that states are defined as `State(NormalDistribution(0, 1))` instead of incorrectly as `State(Distribution(NormalDistribution(0, 1)))
+
+
+Distributions
+-------------
+	
+	- Multivariate Gaussian Distributions have had their parameter updates simplifies. This doesn't lead to a significant change in speed, just less code.
+
 
 Version 0.8.1
 =============

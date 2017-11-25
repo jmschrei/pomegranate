@@ -2107,8 +2107,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		for j in range(d):
 			for k in range(d):
-				cov = (pair_sum[j*d + k] - column_sum[j]*u[k]- column_sum[k]*u[j] +
-					self.w_sum*u[j]*u[k]) / self.w_sum
+				cov = (pair_sum[j*d + k] - column_sum[j]*u[k]) / self.w_sum
 				self._cov[j*d + k] = self._cov[j*d + k] * inertia + cov * (1-inertia)
 
 		memset(column_sum, 0, d*sizeof(double))
