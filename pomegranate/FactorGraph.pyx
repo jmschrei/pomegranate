@@ -178,7 +178,7 @@ cdef class FactorGraph( GraphModel ):
 	def marginal( self ):
 		"""Return the marginal probabilities of each variable in the graph.
 
-		This is equivalent to a pass of belief propogation on a graph where
+		This is equivalent to a pass of belief propagation on a graph where
 		no data has been given. This will calculate the probability of each
 		variable being in each possible emission when nothing is known.
 
@@ -199,8 +199,8 @@ cdef class FactorGraph( GraphModel ):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
 		This calculates the marginal probability distributions for each state given
-		the evidence provided through loopy belief propogation. Loopy belief
-		propogation is an approximate algorithm which is exact for certain graph
+		the evidence provided through loopy belief propagation. Loopy belief
+		propagation is an approximate algorithm which is exact for certain graph
 		structures.
 
 		Parameters
@@ -214,7 +214,7 @@ cdef class FactorGraph( GraphModel ):
 			variables which are unknown. If nothing is fed in then calculate the
 			marginal of the graph.
 		max_iterations : int, optional
-			The number of iterations with which to do loopy belief propogation.
+			The number of iterations with which to do loopy belief propagation.
 			Usually requires only 1.
 		check_input : bool, optional
 			Check to make sure that the observed symbol is a valid symbol for that
@@ -230,7 +230,7 @@ cdef class FactorGraph( GraphModel ):
 		n, m = len( self.states ), len( self.transitions )
 
 		# Save our original distributions so that we don't permanently overwrite
-		# them as we do belief propogation.
+		# them as we do belief propagation.
 		distributions = numpy.empty( n, dtype=Distribution )
 
 		# Clamp values down to evidence if we have observed them
@@ -278,7 +278,7 @@ cdef class FactorGraph( GraphModel ):
 		#   evidence and beliefs about the marginals
 		#   (2) send messages from the factors to the variables, containing
 		#   the factors belief about each marginal.
-		# This is the flooding message schedule for loopy belief propogation.
+		# This is the flooding message schedule for loopy belief propagation.
 		iteration = 0
 		while iteration < max_iterations:
 			# UPDATE MESSAGES LEAVING THE MARGINAL NODES

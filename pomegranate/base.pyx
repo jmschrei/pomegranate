@@ -41,7 +41,7 @@ cdef class Model(object):
 		Parameters
 		----------
 		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for
+			The two separators to pass to the json.dumps function for
 			formatting.
 			Default is (',', ' : ').
 
@@ -79,7 +79,7 @@ cdef class Model(object):
 		return self.__class__.from_json( self.to_json() )
 
 	def freeze(self):
-		"""Freeze the distribution, preventing updates from occuring."""
+		"""Freeze the distribution, preventing updates from occurring."""
 		self.frozen = True
 
 	def thaw(self):
@@ -93,7 +93,7 @@ cdef class Model(object):
 		Parameters
 		----------
 		symbol : double
-			The symbol to calculate the log probability of (overriden for
+			The symbol to calculate the log probability of (overridden for
 			DiscreteDistributions)
 
 		Returns
@@ -159,7 +159,7 @@ cdef class Model(object):
 		Parameters
 		----------
 		symbol : double
-			The symbol to calculate the log probability of (overriden for
+			The symbol to calculate the log probability of (overridden for
 			DiscreteDistributions)
 
 		Returns

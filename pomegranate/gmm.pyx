@@ -404,7 +404,7 @@ cdef class GeneralMixtureModel(BayesModel):
 		initialize the distributions used. Then, EM is run to refine the
 		parameters of these distributions.
 
-		A homogenous mixture can be defined by passing in a single distribution
+		A homogeneous mixture can be defined by passing in a single distribution
 		callable as the first parameter and specifying the number of components,
 		while a heterogeneous mixture can be defined by passing in a list of
 		callables of the appropriate type.

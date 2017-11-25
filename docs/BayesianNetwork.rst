@@ -66,11 +66,11 @@ Our network will have three nodes, one for the guest, one for the prize, and one
 	model.bake()
 
 .. NOTE::
-	The objects 'state' and 'node' are really the same thing and can be used interchangable. The only difference is the name, as hidden Markov models use 'state' in the literature frequently whereas Bayesian networks use 'node' frequently. 
+	The objects 'state' and 'node' are really the same thing and can be used interchangeable. The only difference is the name, as hidden Markov models use 'state' in the literature frequently whereas Bayesian networks use 'node' frequently. 
 
-The conditional distribution must be explicitly spelled out in this example, followed by a list of the parents in the same order as the columns take in the tabble that is provided (e.g. the columns in the table correspond to guest, prize, monty, probability.)
+The conditional distribution must be explicitly spelled out in this example, followed by a list of the parents in the same order as the columns take in the table that is provided (e.g. the columns in the table correspond to guest, prize, monty, probability.)
 
-However, one can also initialize a Bayesian network based completely on data. As mentioned before, the exact version of this algorithm takes exponential time with the number of variables and typically can't be done on more than ~25 variables. This is because there are a super-exponential number of directed acyclic graphs that one could define over a set of variables, but fortunately one can use dynamic programming in order to reduce this complexity down to "simply exponential." The implementation of the exact algorithm actually goes further than the original dynamic programing algorithm by implementing an A* search to somewhat reduce computational time but drastically reduce required memory, sometimes by an order of magnitude.
+However, one can also initialize a Bayesian network based completely on data. As mentioned before, the exact version of this algorithm takes exponential time with the number of variables and typically can't be done on more than ~25 variables. This is because there are a super-exponential number of directed acyclic graphs that one could define over a set of variables, but fortunately one can use dynamic programming in order to reduce this complexity down to "simply exponential." The implementation of the exact algorithm actually goes further than the original dynamic programming algorithm by implementing an A* search to somewhat reduce computational time but drastically reduce required memory, sometimes by an order of magnitude.
 
 .. code-block:: python
 	
@@ -85,7 +85,7 @@ The exact algorithm is not the default, though. The default is a novel greedy al
 Probability
 -----------
 
-You can calculate the probabiity of a sample under a Bayesian network as the product of the probability of each variable given its parents, if it has any. This can be expressed as :math:`P = \prod\limits_{i=1}^{d} P(D_{i}|Pa_{i})` for a sample with $d$ dimensions. For example, in the Monty Hal problem, the probability of a show is the probability of the guest choosing the respective door, times the probability of the prize being behind a given door, times the probability of Monty opening a given door given the previous two values. For example, using the manually initialized network above:
+You can calculate the probability of a sample under a Bayesian network as the product of the probability of each variable given its parents, if it has any. This can be expressed as :math:`P = \prod\limits_{i=1}^{d} P(D_{i}|Pa_{i})` for a sample with $d$ dimensions. For example, in the Monty Hal problem, the probability of a show is the probability of the guest choosing the respective door, times the probability of the prize being behind a given door, times the probability of Monty opening a given door given the previous two values. For example, using the manually initialized network above:
 
 .. code-block:: python
 	

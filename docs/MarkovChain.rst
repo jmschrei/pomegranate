@@ -33,7 +33,7 @@ Markov chains can almost be represented by a single conditional probability tabl
 Probability
 -----------
 
-The probability of a sequence under the Markov chain is just the probabiliy of the first character under the first distribution times the probability of the second character under the second distribution and so forth until you go past the (k+1)th character, which remains evaluated under the (k+1)th distribution. We can calculate the probability or log probability in the same manner as any of the other models. Given the model shown before:
+The probability of a sequence under the Markov chain is just the probability of the first character under the first distribution times the probability of the second character under the second distribution and so forth until you go past the (k+1)th character, which remains evaluated under the (k+1)th distribution. We can calculate the probability or log probability in the same manner as any of the other models. Given the model shown before:
 
 .. code-block:: python
 
