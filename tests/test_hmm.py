@@ -904,6 +904,18 @@ def test_discrete_from_samples():
 	assert_greater(logp2, logp1)
 
 
+@with_setup(setup_discrete_dense, teardown)
+def test_discrete_from_samples_with_labels():
+	X = [model.sample() for i in range(25)]
+	Y = X.copy()
+	model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, labels=Y)
+
+	logp1 = sum(map(model.log_probability, X))
+	logp2 = sum(map(model2.log_probability, X))
+
+	assert_greater(logp2, logp1)
+
+
 @with_setup(setup_gaussian_dense, teardown)
 def test_gaussian_from_samples():
 	X = [model.sample() for i in range(25)]
