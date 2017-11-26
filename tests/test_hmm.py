@@ -907,7 +907,7 @@ def test_discrete_from_samples():
 @with_setup(setup_discrete_dense, teardown)
 def test_discrete_from_samples_with_labels():
 	X = [model.sample() for i in range(25)]
-	Y = X.copy()
+	Y = X[:]
 	model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, labels=Y)
 
 	logp1 = sum(map(model.log_probability, X))
