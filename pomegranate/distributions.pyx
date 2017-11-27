@@ -1405,6 +1405,8 @@ cdef class PoissonDistribution(Distribution):
 				for j in range(2, <int>X[i] + 1):
 					f *= j
 				log_probability[i] = X[i] * self.logl - self.l - _log(f)
+			else:
+				log_probability[i] = -self.l
 
 	def sample(self, n=None):
 		return numpy.random.poisson(self.l, n)
