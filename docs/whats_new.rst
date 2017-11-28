@@ -25,6 +25,10 @@ Distributions
 	
 	- Multivariate Gaussian Distributions have had their parameter updates simplifies. This doesn't lead to a significant change in speed, just less code.
 
+	- Fixed an issue where Poisson Distributions had an overflow issue caused when calculating large factorials by moving the log inside the product.
+
+	- Fixed an issue where Poisson Distributions were not correctly calculating the probability of 0 counts.
+
 
 Version 0.8.1
 =============

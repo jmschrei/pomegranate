@@ -1397,14 +1397,17 @@ cdef class PoissonDistribution(Distribution):
 		cdef int i, j
 
 		for i in range(n):
-			f = 1.0
+			f = 0.0
 
 			if X[i] < 0 or self.l == 0:
 				log_probability[i] = NEGINF
+
 			elif X[i] > 0:
 				for j in range(2, <int>X[i] + 1):
-					f *= j
-				log_probability[i] = X[i] * self.logl - self.l - _log(f)
+					f += _log(j)
+
+				log_probability[i] = X[i] * self.logl - self.l - f
+
 			else:
 				log_probability[i] = -self.l
 
