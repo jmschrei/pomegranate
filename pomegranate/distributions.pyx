@@ -1393,23 +1393,13 @@ cdef class PoissonDistribution(Distribution):
 		return self.__class__, (self.l, self.frozen)
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
-		cdef double f
-		cdef int i, j
+		cdef int i
 
 		for i in range(n):
-			f = 0.0
-
 			if X[i] < 0 or self.l == 0:
 				log_probability[i] = NEGINF
-
-			elif X[i] > 0:
-				for j in range(2, <int>X[i] + 1):
-					f += _log(j)
-
-				log_probability[i] = X[i] * self.logl - self.l - f
-
 			else:
-				log_probability[i] = -self.l
+				log_probability[i] = X[i] * self.logl - self.l - lgamma(X[i]+1)
 
 	def sample(self, n=None):
 		return numpy.random.poisson(self.l, n)
