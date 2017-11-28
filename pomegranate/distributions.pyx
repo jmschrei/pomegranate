@@ -757,10 +757,10 @@ cdef class ExponentialDistribution(Distribution):
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
 
-		if self.frozen == True or self.summaries[0] == 0.0:
+		if self.frozen == True or self.summaries[0] < 1e-7:
 			return
 
-		self.rate = self.summaries[0] / self.summaries[1]
+		self.rate = (self.summaries[0] + 1e-7) / (self.summaries[1] + 1e-7)
 		self.log_rate = _log(self.rate)
 		self.summaries = [0, 0]
 
@@ -771,7 +771,7 @@ cdef class ExponentialDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return ExponentialDistribution(0)
+		return ExponentialDistribution(1)
 
 
 cdef class BetaDistribution(Distribution):

@@ -29,6 +29,8 @@ Distributions
 
 	- Fixed an issue where Poisson Distributions were not correctly calculating the probability of 0 counts.
 
+	- Fixed an issue where Exponential Distribution would fail when fed integer 0-mode data.
+
 
 Version 0.8.1
 =============
