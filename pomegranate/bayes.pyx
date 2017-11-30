@@ -664,6 +664,7 @@ cdef class BayesModel(Model):
 		for i in range(self.n):
 			weight = weights[y==i].sum()
 			self.summaries[i] += weight
+			
 	cdef double _summarize(self, double* X, double* weights, int n,
 		int column_idx, int d) nogil:
 		return -1
