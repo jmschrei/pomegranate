@@ -97,7 +97,7 @@ def test_univariate_prediction():
 	assert_equal(predicts[3], 0)
 
 def test_multivariate_prediction():
-	X = numpy.concatenate([numpy.random.normal(2, 1, (10, 3)), numpy.random.normal(7, 2, (20, 3))])
+	X = numpy.concatenate([numpy.random.normal(2, 1, (10, 3)), numpy.random.normal(7, 1, (20, 3))])
 	y = numpy.concatenate([numpy.zeros(10), numpy.ones(20)])
 
 	model = NaiveBayes.from_samples(NormalDistribution, X, y)

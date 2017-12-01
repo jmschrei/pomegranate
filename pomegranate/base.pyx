@@ -54,6 +54,7 @@ cdef class Model(object):
 		json : str
 			A properly formatted JSON object.
 		"""
+
 		raise NotImplementedError
 
 	@classmethod
@@ -76,6 +77,7 @@ cdef class Model(object):
 		distribution : Distribution
 			A copy of the distribution with the same parameters.
 		"""
+
 		return self.__class__.from_json( self.to_json() )
 
 	def freeze(self):
@@ -85,23 +87,6 @@ cdef class Model(object):
 	def thaw(self):
 		"""Thaw the distribution, re-allowing updates to occur."""
 		self.frozen = False
-
-	def log_probability(self, double symbol):
-		"""Return the log probability of the given symbol under this
-		distribution.
-
-		Parameters
-		----------
-		symbol : double
-			The symbol to calculate the log probability of (overridden for
-			DiscreteDistributions)
-
-		Returns
-		-------
-		logp : double
-			The log probability of that point under the distribution.
-		"""
-		return NotImplementedError
 
 	def copy(self):
 		"""Return a deep copy of this distribution object.
@@ -118,6 +103,7 @@ cdef class Model(object):
 		distribution : Distribution
 			A copy of the distribution with the same parameters.
 		"""
+
 		return self.__class__(*self.parameters)
 
 	def sample(self, n=None):
@@ -135,6 +121,7 @@ cdef class Model(object):
 			Returns a sample from the distribution of a type in the support
 			of the distribution.
 		"""
+
 		raise NotImplementedError
 
 	def probability(self, symbol):
@@ -150,6 +137,7 @@ cdef class Model(object):
 		probability : double
 			The probability of that point under the distribution.
 		"""
+
 		return numpy.exp(self.log_probability(symbol))
 
 	def log_probability(self, symbol):
@@ -167,7 +155,23 @@ cdef class Model(object):
 		logp : double
 			The log probability of that point under the distribution.
 		"""
+
 		raise NotImplementedError
+
+	def score(self, X, y):
+		"""Return the accuracy of the model on a data set.
+
+		Parameters
+		----------
+		X : numpy.ndarray, shape=(n, d)
+			The values of the data set
+
+		y : numpy.ndarray, shape=(n,)
+			The labels of each value
+		"""
+
+		return (self.predict(X) == y).mean() 
+
 
 	def sample(self, n=None):
 		"""Return a random item sampled from this distribution.
@@ -184,6 +188,7 @@ cdef class Model(object):
 			Returns a sample from the distribution of a type in the support
 			of the distribution.
 		"""
+
 		raise NotImplementedError
 
 	def fit(self, items, weights=None, inertia=0.0):
@@ -212,6 +217,7 @@ cdef class Model(object):
 		-------
 		None
 		"""
+
 		raise NotImplementedError
 
 	def summarize(self, items, weights=None):
@@ -234,6 +240,7 @@ cdef class Model(object):
 		-------
 		None
 		"""
+
 		return NotImplementedError
 
 	def from_summaries(self, inertia=0.0):
@@ -252,6 +259,7 @@ cdef class Model(object):
 		-------
 		None
 		"""
+		
 		return NotImplementedError
 
 	def clear_summaries(self):
