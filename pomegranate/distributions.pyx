@@ -155,7 +155,7 @@ cdef class Distribution(Model):
 		Parameters
 		----------
 		X : double
-			The X to calculate the log probability of (overriden for
+			The X to calculate the log probability of (overridden for
 			DiscreteDistributions)
 
 		Returns
@@ -288,7 +288,7 @@ cdef class Distribution(Model):
 		Parameters
 		----------
 		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
+			The two separators to pass to the json.dumps function for formatting.
 			Default is (',', ' : ').
 
 		indent : int, optional
@@ -1243,7 +1243,7 @@ cdef class DiscreteDistribution(Distribution):
 		self.from_summaries(inertia, pseudocount)
 
 	def summarize(self, items, weights=None, column_idx=0):
-		"""Reduce a set of obervations to sufficient statistics."""
+		"""Reduce a set of observations to sufficient statistics."""
 
 		if weights is None:
 			weights = numpy.ones(len(items))
@@ -1318,7 +1318,7 @@ cdef class DiscreteDistribution(Distribution):
 		Parameters
 		----------
 		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
+			The two separators to pass to the json.dumps function for formatting.
 			Default is (',', ' : ').
 
 		indent : int, optional
@@ -1371,7 +1371,7 @@ cdef class DiscreteDistribution(Distribution):
 cdef class PoissonDistribution(Distribution):
 	"""
 	A discrete probability distribution which expresses the probability of a
-	number of events occuring in a fixed time window. It assumes these events
+	number of events occurring in a fixed time window. It assumes these events
 	occur with at a known rate, and independently of each other.
 	"""
 
@@ -2515,7 +2515,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		Parameters
 		----------
 		separators : tuple, optional
-		    The two separaters to pass to the json.dumps function for formatting.
+		    The two separators to pass to the json.dumps function for formatting.
 		    Default is (',', ' : ').
 
 		indent : int, optional
@@ -2779,7 +2779,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		Parameters
 		----------
 		separators : tuple, optional
-		    The two separaters to pass to the json.dumps function for formatting.
+		    The two separators to pass to the json.dumps function for formatting.
 		    Default is (',', ' : ').
 
 		indent : int, optional
