@@ -17,7 +17,8 @@ Changelog
 HiddenMarkovModel
 -----------------
 
-	- The documentation has been fixed so that states are defined as `State(NormalDistribution(0, 1))` instead of incorrectly as `State(Distribution(NormalDistribution(0, 1)))
+	- The documentation has been fixed so that states are defined as `State(NormalDistribution(0, 1))` instead of incorrectly as `State(Distribution(NormalDistribution(0, 1)))`
+	- Fixed a bug in `from_samples` that was causing a TypeError if `name` was not specified when using `DiscreteDistribution` with custom labels.
 
 
 Distributions
