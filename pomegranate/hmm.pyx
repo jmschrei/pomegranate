@@ -3540,7 +3540,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
             labels_ = [[label for label in l] for l in labels if l is not None]
             labels_ = numpy.concatenate(labels_)
-            labels_ = numpy.array([l for l in labels_ if l != name+"-start" and l != name+"-end"])
+            labels_ = numpy.array([l for l in labels_ if l != str(name)+"-start" and l != str(name)+"-end"])
             label_set = numpy.unique(labels_)
 
             if distribution is DiscreteDistribution:
