@@ -484,7 +484,7 @@ cdef class Kmeans(Model):
 		-------
 		dist : double
 			The negative total euclidean distance between each point and its
-			nearest centroid. This is not a probabilitity, and the negative is
+			nearest centroid. This is not a probability, and the negative is
 			returned to fit in with the idea of large negative numbers being
 			worse than smaller negative numbers, such as with log
 			probabilities.

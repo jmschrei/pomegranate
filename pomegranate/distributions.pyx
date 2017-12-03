@@ -155,7 +155,7 @@ cdef class Distribution(Model):
 		Parameters
 		----------
 		X : double
-			The X to calculate the log probability of (overriden for
+			The X to calculate the log probability of (overridden for
 			DiscreteDistributions)
 
 		Returns
@@ -288,7 +288,7 @@ cdef class Distribution(Model):
 		Parameters
 		----------
 		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
+			The two separators to pass to the json.dumps function for formatting.
 			Default is (',', ' : ').
 
 		indent : int, optional
@@ -757,10 +757,10 @@ cdef class ExponentialDistribution(Distribution):
 		http://math.stackexchange.com/questions/453113/how-to-merge-two-gaussians
 		"""
 
-		if self.frozen == True or self.summaries[0] == 0.0:
+		if self.frozen == True or self.summaries[0] < 1e-7:
 			return
 
-		self.rate = self.summaries[0] / self.summaries[1]
+		self.rate = (self.summaries[0] + 1e-7) / (self.summaries[1] + 1e-7)
 		self.log_rate = _log(self.rate)
 		self.summaries = [0, 0]
 
@@ -771,7 +771,7 @@ cdef class ExponentialDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return ExponentialDistribution(0)
+		return ExponentialDistribution(1)
 
 
 cdef class BetaDistribution(Distribution):
@@ -1243,7 +1243,7 @@ cdef class DiscreteDistribution(Distribution):
 		self.from_summaries(inertia, pseudocount)
 
 	def summarize(self, items, weights=None, column_idx=0):
-		"""Reduce a set of obervations to sufficient statistics."""
+		"""Reduce a set of observations to sufficient statistics."""
 
 		if weights is None:
 			weights = numpy.ones(len(items))
@@ -1318,7 +1318,7 @@ cdef class DiscreteDistribution(Distribution):
 		Parameters
 		----------
 		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
+			The two separators to pass to the json.dumps function for formatting.
 			Default is (',', ' : ').
 
 		indent : int, optional
@@ -1371,7 +1371,7 @@ cdef class DiscreteDistribution(Distribution):
 cdef class PoissonDistribution(Distribution):
 	"""
 	A discrete probability distribution which expresses the probability of a
-	number of events occuring in a fixed time window. It assumes these events
+	number of events occurring in a fixed time window. It assumes these events
 	occur with at a known rate, and independently of each other.
 	"""
 
@@ -1393,18 +1393,13 @@ cdef class PoissonDistribution(Distribution):
 		return self.__class__, (self.l, self.frozen)
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
-		cdef double f
-		cdef int i, j
+		cdef int i
 
 		for i in range(n):
-			f = 1.0
-
 			if X[i] < 0 or self.l == 0:
 				log_probability[i] = NEGINF
-			elif X[i] > 0:
-				for j in range(2, <int>X[i] + 1):
-					f *= j
-				log_probability[i] = X[i] * self.logl - self.l - _log(f)
+			else:
+				log_probability[i] = X[i] * self.logl - self.l - lgamma(X[i]+1)
 
 	def sample(self, n=None):
 		return numpy.random.poisson(self.l, n)
@@ -2520,7 +2515,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		Parameters
 		----------
 		separators : tuple, optional
-		    The two separaters to pass to the json.dumps function for formatting.
+		    The two separators to pass to the json.dumps function for formatting.
 		    Default is (',', ' : ').
 
 		indent : int, optional
@@ -2784,7 +2779,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		Parameters
 		----------
 		separators : tuple, optional
-		    The two separaters to pass to the json.dumps function for formatting.
+		    The two separators to pass to the json.dumps function for formatting.
 		    Default is (',', ' : ').
 
 		indent : int, optional

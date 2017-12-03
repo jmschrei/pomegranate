@@ -1419,7 +1419,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 if ki < self.silent_start or ki >= l:
                     continue
 
-                # For each current-step preceeding silent state k
+                # For each current-step preceding silent state k
                 log_probability = pair_lse(log_probability,
                     f[ki] + self.in_transition_log_probabilities[k])
 
@@ -1473,7 +1473,7 @@ cdef class HiddenMarkovModel(GraphModel):
                     ki = self.in_transitions[k]
                     if ki < self.silent_start or ki >= l:
                         continue
-                    # For each current-step preceeding silent state k
+                    # For each current-step preceding silent state k
                     log_probability = pair_lse(log_probability,
                         f[(i+1)*m + ki] + self.in_transition_log_probabilities[k])
 
@@ -2002,7 +2002,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 if ki < self.silent_start or ki >= l:
                     continue
 
-                # For each current-step preceeding silent state k
+                # For each current-step preceding silent state k
                 # This holds the log-probability coming that way
                 state_log_probability = v[ki] + self.in_transition_log_probabilities[k]
 
@@ -2061,7 +2061,7 @@ cdef class HiddenMarkovModel(GraphModel):
                     if ki < self.silent_start or ki >= l:
                         continue
 
-                    # For each current-step preceeding silent state k
+                    # For each current-step preceding silent state k
                     # This holds the log-probability coming that way
                     state_log_probability = v[(i+1)*m + ki] + \
                         self.in_transition_log_probabilities[k]
@@ -2374,7 +2374,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         weights : array-like or None, optional
             An array of weights, one for each sequence to train on. If None,
-            all sequences are equaly weighted. Default is None.
+            all sequences are equally weighted. Default is None.
 
         labels : array-like or None, optional
             An array of state labels for each sequence. This is only used in
@@ -2638,7 +2638,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         weights : array-like or None, optional
             An array of weights, one for each sequence to train on. If None,
-            all sequences are equaly weighted. Default is None.
+            all sequences are equally weighted. Default is None.
 
         labels : array-like or None, optional
             An array of state labels for each sequence. This is only used in
@@ -3148,7 +3148,7 @@ cdef class HiddenMarkovModel(GraphModel):
         Parameters
         ----------
         separators : tuple, optional
-            The two separaters to pass to the json.dumps function for formatting.
+            The two separators to pass to the json.dumps function for formatting.
 
         indent : int, optional
             The indentation to use at each level. Passed to json.dumps for
@@ -3402,7 +3402,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         weights : array-like or None, optional
             An array of weights, one for each sequence to train on. If None,
-            all sequences are equaly weighted. Default is None.
+            all sequences are equally weighted. Default is None.
 
         labels : array-like or None, optional
             An array of state labels for each sequence. This is only used in

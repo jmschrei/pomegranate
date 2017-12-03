@@ -379,7 +379,7 @@ cdef class BayesianNetwork( GraphModel ):
 	def marginal(self):
 		"""Return the marginal probabilities of each variable in the graph.
 
-		This is equivalent to a pass of belief propogation on a graph where
+		This is equivalent to a pass of belief propagation on a graph where
 		no data has been given. This will calculate the probability of each
 		variable being in each possible emission when nothing is known.
 
@@ -415,7 +415,7 @@ cdef class BayesianNetwork( GraphModel ):
 			maximally likely ones.
 
 		max_iterations : int, optional
-			Number of iterations to run loopy belief propogation for. Default
+			Number of iterations to run loopy belief propagation for. Default
 			is 100.
 
 		n_jobs : int
@@ -472,8 +472,8 @@ cdef class BayesianNetwork( GraphModel ):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
 		This calculates the marginal probability distributions for each state given
-		the evidence provided through loopy belief propogation. Loopy belief
-		propogation is an approximate algorithm which is exact for certain graph
+		the evidence provided through loopy belief propagation. Loopy belief
+		propagation is an approximate algorithm which is exact for certain graph
 		structures.
 
 		Parameters
@@ -488,7 +488,7 @@ cdef class BayesianNetwork( GraphModel ):
 			marginal of the graph. Default is {}.
 
 		max_iterations : int, optional
-			The number of iterations with which to do loopy belief propogation.
+			The number of iterations with which to do loopy belief propagation.
 			Usually requires only 1. Default is 100.
 
 		check_input : bool, optional
@@ -678,7 +678,7 @@ cdef class BayesianNetwork( GraphModel ):
 		Parameters
 		----------
 		separators : tuple, optional
-			The two separaters to pass to the json.dumps function for formatting.
+			The two separators to pass to the json.dumps function for formatting.
 
 		indent : int, optional
 			The indentation to use at each level. Passed to json.dumps for
@@ -789,7 +789,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 		Returns
 		-------
-		model : BayesianNetwoork
+		model : BayesianNetwork
 			A Bayesian network with the specified structure.
 		"""
 
@@ -1270,7 +1270,7 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 	numpy.ndarray key_count, double pseudocount, int max_parents, tuple task,
 	int n_jobs):
 	"""
-	This is a wrapper for the function to be parallelzied by joblib.
+	This is a wrapper for the function to be parallelized by joblib.
 
 	This function takes in a single task as an id and a set of parents and
 	children and calls the appropriate function. This is mostly a wrapper for

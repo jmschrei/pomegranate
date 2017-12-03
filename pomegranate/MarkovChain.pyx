@@ -229,7 +229,7 @@ cdef class MarkovChain(object):
 		Parameters
 		----------
 		separators : tuple, optional
-		    The two separaters to pass to the json.dumps function for
+		    The two separators to pass to the json.dumps function for
 		    formatting. Default is (',', ' : ').
 
 		indent : int, optional

@@ -64,7 +64,7 @@ Next, let's take a look at building the same model line by line.
 
 Initially it may seem that the first method is far easier due to it being fewer lines of code. However, when building large sparse models defining a full transition matrix can be cumbersome, especially when it is mostly 0s.
 
-Models built in this manner must be explicitly "baked" at the end. This finalizes the model topology and creates the internal sparse matrix which makes up the model. This step also automatically normalizes all transitions to make sure they sum to 1.0, stores information about tied distributions, edges, pseudocounts, and merges unneccesary silent states in the model for computational efficiency. This can cause the `bake` step to take a little bit of time. If you want to reduce this overhead and are sure you specified the model correctly you can pass in `merge="None"` to the bake step to avoid model checking.
+Models built in this manner must be explicitly "baked" at the end. This finalizes the model topology and creates the internal sparse matrix which makes up the model. This step also automatically normalizes all transitions to make sure they sum to 1.0, stores information about tied distributions, edges, pseudocounts, and merges unnecessary silent states in the model for computational efficiency. This can cause the `bake` step to take a little bit of time. If you want to reduce this overhead and are sure you specified the model correctly you can pass in `merge="None"` to the bake step to avoid model checking.
 
 The second way to initialize models is to use the ``from_samples`` class method. The call is identical to initializing a mixture model.
 

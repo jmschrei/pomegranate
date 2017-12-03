@@ -57,6 +57,6 @@ Q. I'm encountering some other error when I try to install pomegranate.
 
 A. pomegranate has had some weird linker issues, particularly when users try to upgrade from an older version. In the following order, try:
 
-1. Uninstalling pomegranate using pip and reiinstalling it with the option --no-cache-dir, like in the above question.
+1. Uninstalling pomegranate using pip and reinstalling it with the option --no-cache-dir, like in the above question.
 2. Removing all pomegranate files on your computer manually, including egg and cache files that cython may have left in your site-packages folder
 3. Reinstalling the Anaconda distribution (usually only necessary in issues where libgfortran is not linking properly)

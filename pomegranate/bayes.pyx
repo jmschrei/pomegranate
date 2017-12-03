@@ -169,7 +169,7 @@ cdef class BayesModel(Model):
 		X : numpy.ndarray, shape=(n, d) or (n, m, d)
 			The samples to calculate the log probability of. Each row is a
 			sample and each column is a dimension. If emissions are HMMs then
-			shape is (n, m, d) where m is variable length for each obervation,
+			shape is (n, m, d) where m is variable length for each observation,
 			and X becomes an array of n (m, d)-shaped arrays.
 
 		n_jobs : int
@@ -180,7 +180,7 @@ cdef class BayesModel(Model):
 		Returns
 		-------
 		log_probability : double
-			The log probabiltiy of the point under the distribution.
+			The log probability of the point under the distribution.
 		"""
 
 		cdef int i, j, n, d, m
@@ -664,6 +664,7 @@ cdef class BayesModel(Model):
 		for i in range(self.n):
 			weight = weights[y==i].sum()
 			self.summaries[i] += weight
+			
 	cdef double _summarize(self, double* X, double* weights, int n,
 		int column_idx, int d) nogil:
 		return -1

@@ -31,7 +31,7 @@ Alternatively, if we want to model each dimension differently, then we can repla
 	d2 = IndependentComponentsDistributions([NormalDistribution(3, 1), ExponentialDistribution(2), LogNormalDistribution(0.8, 0.2)])
 	model = GeneralMixtureModel([d1, d2], weights=[0.66, 0.34])
 
-If we do not know the parameters of our distributions beforehand and want to learn them entirely from data, then we can use the ``from_samples`` class method. This method will run k-means to initialize the components, using the returned clusters to initialize all parameters of the distributions, i.e. both mean and covariances for multivariate Gaussian distributions. Afterwards, execptation-maximization is used to refine the parameters of the model, iterating until convergence.
+If we do not know the parameters of our distributions beforehand and want to learn them entirely from data, then we can use the ``from_samples`` class method. This method will run k-means to initialize the components, using the returned clusters to initialize all parameters of the distributions, i.e. both mean and covariances for multivariate Gaussian distributions. Afterwards, expectation-maximization is used to refine the parameters of the model, iterating until convergence.
 
 .. code-block:: python
 	
@@ -63,7 +63,7 @@ Fitting
 
 Training GMMs faces the classic chicken-and-egg problem that most unsupervised learning algorithms face. If we knew which component a sample belonged to, we could use MLE estimates to update the component. And if we knew the parameters of the components we could predict which sample belonged to which component. This problem is solved using expectation-maximization, which iterates between the two until convergence. In essence, an initialization point is chosen which usually is not a very good start, but through successive iteration steps, the parameters converge to a good ending.
 
-These models are fit using ``model.fit(data)``. A maximimum number of iterations can be specified as well as a stopping threshold for the improvement ratio. See the API reference for full documentation.
+These models are fit using ``model.fit(data)``. A maximum number of iterations can be specified as well as a stopping threshold for the improvement ratio. See the API reference for full documentation.
 
 
 API Reference

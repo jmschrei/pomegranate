@@ -3,7 +3,7 @@
 GPU Usage
 =========
 
-pomegranate has GPU accelerated matrix multiplications to speed up all operations involving multivariate Gaussian distriutions and all models that use them. This has led to an approximately 4x speedup for multivariate Gaussian mixture models and HMMs compared to using BLAS only. This speedup seems to scale better with dimensionality, with higher dimensional models seeing a larger speedup than smaller dimensional ones.
+pomegranate has GPU accelerated matrix multiplications to speed up all operations involving multivariate Gaussian distributions and all models that use them. This has led to an approximately 4x speedup for multivariate Gaussian mixture models and HMMs compared to using BLAS only. This speedup seems to scale better with dimensionality, with higher dimensional models seeing a larger speedup than smaller dimensional ones.
 
 By default, pomegranate will activate GPU acceleration if it can import cupy, otherwise it will default to BLAS. You can check whether pomegranate is using GPU acceleration with this built-in function:
 
