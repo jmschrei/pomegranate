@@ -15,8 +15,8 @@
 import sys
 import os
 import subprocess
-import mock
 
+#import mock
 #MOCK_MODULES = ['numpy', 'scipy', 'joblib', 'networkx', 'cython']
 #for mod_name in MOCK_MODULES:
 #   sys.modules[mod_name] = mock.Mock() 
