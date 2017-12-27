@@ -78,7 +78,7 @@ def test_normal():
 	assert_almost_equal(d.log_probability(1e8), -8674697942168743.0, -4)
 
 	d = NormalDistribution(5, 1e-10)
-	assert_almost_equal(d.log_probability(1e100), -4.9999999999999994e+219)
+	assert_almost_equal(d.log_probability(1e100), -4.9999999999999987e+219)
 
 
 	d.fit([0, 2, 3, 2, 100], weights=[0, 5, 2, 3, 200])

@@ -29,6 +29,7 @@ from .utils cimport lgamma
 from .utils cimport mdot
 from .utils cimport ndarray_wrap_cpointer
 from .utils cimport _is_gpu_enabled
+from .utils cimport isnan
 
 from collections import OrderedDict
 
@@ -43,6 +44,10 @@ try:
 	import cupy
 except:
 	cupy = object
+
+#cdef extern from "numpy/npy_math.h":
+#	bint npy_isnan(double x)
+
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -400,7 +405,9 @@ cdef class UniformDistribution(Distribution):
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			if X[i] >= self.start and X[i] <= self.end:
+			if isnan(X[i]):
+				log_probability[i] = 1.
+			elif X[i] >= self.start and X[i] <= self.end:
 				log_probability[i] = self.logp
 			else:
 				log_probability[i] = NEGINF
@@ -412,17 +419,21 @@ cdef class UniformDistribution(Distribution):
 
 	cdef double _summarize(self, double* items, double* weights, int n, 
 		int column_idx, int d) nogil:
-		cdef double minimum = INF, maximum = NEGINF
-		cdef double weight = 0.0
 		cdef int i
+		cdef double minimum = INF, maximum = NEGINF
+		cdef double item, weight = 0.0
 
 		for i in range(n):
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
 			weight += weights[i]
 			if weights[i] > 0:
-				if items[i*d + column_idx] < minimum:
-					minimum = items[i*d + column_idx]
-				if items[i*d + column_idx] > maximum:
-					maximum = items[i*d + column_idx]
+				if item < minimum:
+					minimum = item
+				if item > maximum:
+					maximum = item
 
 		with gil:
 			self.summaries[2] += weight
@@ -487,7 +498,10 @@ cdef class BernoulliDistribution(Distribution):
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = self.logp[<int> X[i]]
+			if isnan(X[i]):
+				log_probability[i] = 1
+			else:
+				log_probability[i] = self.logp[<int> X[i]]
 
 	def sample(self, n=None):
 		return numpy.random.choice(2, p=[1-self.p, self.p], size=n)
@@ -496,10 +510,15 @@ cdef class BernoulliDistribution(Distribution):
 		int column_idx, int d) nogil:
 		cdef int i
 		cdef double w_sum = 0, x_sum = 0
+		cdef double item
 
 		for i in range(n):
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
 			w_sum += weights[i]
-			if items[i*d + column_idx] == 1:
+			if item == 1:
 				x_sum += weights[i]
 
 		with gil:
@@ -542,7 +561,7 @@ cdef class NormalDistribution(Distribution):
 		self.frozen = frozen
 		self.summaries = [0, 0, 0]
 		self.log_sigma_sqrt_2_pi = -_log(std * SQRT_2_PI)
-		self.two_sigma_squared = 2 * std ** 2
+		self.two_sigma_squared = 1. / (2 * std ** 2)
 		self.min_std = min_std
 
 	def __reduce__(self):
@@ -552,8 +571,11 @@ cdef class NormalDistribution(Distribution):
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = self.log_sigma_sqrt_2_pi - ((X[i] - self.mu) ** 2) /\
-				self.two_sigma_squared
+			if isnan(X[i]):
+				log_probability[i] = 1.
+			else:
+				log_probability[i] = self.log_sigma_sqrt_2_pi - ((X[i] - self.mu) ** 2) *\
+					self.two_sigma_squared
 
 	def sample(self, n=None):
 		return numpy.random.normal(self.mu, self.sigma, n)
@@ -562,12 +584,16 @@ cdef class NormalDistribution(Distribution):
 		int column_idx, int d) nogil:
 		cdef int i, j
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
+		cdef double item
 
 		for i in range(n):
-			j = i*d + column_idx
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
 			w_sum += weights[i]
-			x_sum += weights[i] * items[j]
-			x2_sum += weights[i] * items[j] * items[j]
+			x_sum += weights[i] * item
+			x2_sum += weights[i] * item * item
 
 		with gil:
 			self.summaries[0] += w_sum
@@ -597,7 +623,7 @@ cdef class NormalDistribution(Distribution):
 		self.sigma = self.sigma*inertia + sigma*(1-inertia)
 		self.summaries = [0, 0, 0]
 		self.log_sigma_sqrt_2_pi = -_log(sigma * SQRT_2_PI)
-		self.two_sigma_squared = 2 * sigma ** 2
+		self.two_sigma_squared = 1. / (2 * sigma ** 2)
 
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
@@ -640,8 +666,11 @@ cdef class LogNormalDistribution(Distribution):
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) \
-				- 0.5 * ((_log(X[i]) - self.mu) / self.sigma) ** 2
+			if isnan(X[i]):
+				log_probability[i] = 1.
+			else:
+				log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) - 0.5\
+					* ((_log(X[i]) - self.mu) / self.sigma) ** 2
 
 	def sample(self, n=None):
 		"""Return a sample from this distribution."""
@@ -653,10 +682,14 @@ cdef class LogNormalDistribution(Distribution):
 
 		cdef int i
 		cdef double x_sum = 0.0, x2_sum = 0.0, w_sum = 0.0
-		cdef double log_item
+		cdef double item, log_item
 
 		for i in range(n):
-			log_item = _log(items[i*d + column_idx])
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
+			log_item = _log(item)
 			w_sum += weights[i]
 			x_sum += weights[i] * log_item
 			x2_sum += weights[i] * log_item * log_item
@@ -728,7 +761,10 @@ cdef class ExponentialDistribution(Distribution):
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			log_probability[i] = self.log_rate - self.rate * X[i]
+			if isnan(X[i]):
+				log_probability[i] = 1
+			else:
+				log_probability[i] = self.log_rate - self.rate * X[i]
 
 	def sample(self, n=None):
 		return numpy.random.exponential(1. / self.parameters[0], n)
@@ -737,12 +773,17 @@ cdef class ExponentialDistribution(Distribution):
 		int column_idx, int d) nogil:
 		"""Cython function to get the MLE estimate for an exponential."""
 
-		cdef double xw_sum = 0, w = 0
 		cdef int i
+		cdef double xw_sum = 0, w = 0
+		cdef double item
 
 		# Calculate the average, which is the MLE mu estimate
 		for i in range(n):
-			xw_sum += items[i*d + column_idx] * weights[i]
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
+			xw_sum += item * weights[i]
 			w += weights[i]
 
 		with gil:
@@ -806,14 +847,17 @@ cdef class BetaDistribution(Distribution):
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
+		cdef int i
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
 		cdef double beta_norm = self.beta_norm
-		cdef int i
 
 		for i in range(n):
-			log_probability[i] = beta_norm + (alpha-1)*_log(X[i]) + \
-				(beta-1)*_log(1-X[i])
+			if isnan(X[i]):
+				log_probability[i] = 1
+			else:
+				log_probability[i] = beta_norm + (alpha-1)*_log(X[i]) + \
+					(beta-1)*_log(1-X[i])
 
 	def sample(self, n=None):
 		"""Return a random sample from the beta distribution."""
@@ -823,11 +867,16 @@ cdef class BetaDistribution(Distribution):
 		int column_idx, int d) nogil:
 		"""Cython optimized function for summarizing some data."""
 
-		cdef double alpha = 0, beta = 0
 		cdef int i
+		cdef double alpha = 0, beta = 0
+		cdef double item
 
 		for i in range(n):
-			if items[i*d + column_idx] == 1:
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
+			if item == 1:
 				alpha += weights[i]
 			else:
 				beta += weights[i]
@@ -892,13 +941,16 @@ cdef class GammaDistribution(Distribution):
 		return self.__class__, (self.alpha, self.beta, self.frozen)
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
+		cdef int i
 		cdef double alpha = self.alpha
 		cdef double beta = self.beta
-		cdef int i
 
 		for i in range(n):
-			log_probability[i] = (_log(beta) * alpha - lgamma(alpha) +
-				_log(X[i]) * (alpha - 1) - beta * X[i])
+			if isnan(X[i]):
+				log_probability[i] = 1.
+			else:
+				log_probability[i] = (_log(beta) * alpha - lgamma(alpha) +
+					_log(X[i]) * (alpha - 1) - beta * X[i])
 
 	def sample(self, n=None):
 		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1])
@@ -960,11 +1012,16 @@ cdef class GammaDistribution(Distribution):
 		int column_idx, int d) nogil:
 		cdef int i
 		cdef double xw = 0, logxw = 0, w = 0
+		cdef double item
 
 		for i in range(n):
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
 			w += weights[i]
-			xw = items[i*d + column_idx] * weights[i]
-			logxw = _log(items[i*d + column_idx]) * weights[i]
+			xw = item * weights[i]
+			logxw = _log(item) * weights[i]
 
 		with gil:
 			self.summaries[0] += xw
@@ -1211,7 +1268,9 @@ cdef class DiscreteDistribution(Distribution):
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		for i in range(n):
-			if X[i] < 0 or X[i] > self.n:
+			if isnan(X[i]):
+				log_probability[i] = 1
+			elif X[i] < 0 or X[i] > self.n:
 				log_probability[i] = NEGINF
 			else:
 				log_probability[i] = self.encoded_log_probability[<int> X[i]]
@@ -1258,13 +1317,18 @@ cdef class DiscreteDistribution(Distribution):
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
 		cdef int i
+		cdef double item
 		self.encoded_summary = 1
 
 		encoded_counts = <double*> calloc(self.n, sizeof(double))
 		memset(encoded_counts, 0, self.n*sizeof(double))
 
 		for i in range(n):
-			encoded_counts[<int> items[i*d + column_idx]] += weights[i]
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
+			encoded_counts[<int> item] += weights[i]
 
 		with gil:
 			for i in range(self.n):
@@ -1396,7 +1460,9 @@ cdef class PoissonDistribution(Distribution):
 		cdef int i
 
 		for i in range(n):
-			if X[i] < 0 or self.l == 0:
+			if isnan(X[i]):
+				continue
+			elif X[i] < 0 or self.l == 0:
 				log_probability[i] = NEGINF
 			else:
 				log_probability[i] = X[i] * self.logl - self.l - lgamma(X[i]+1)
@@ -1408,11 +1474,16 @@ cdef class PoissonDistribution(Distribution):
 		int column_idx, int d) nogil:
 		"""Cython optimized function to calculate the summary statistics."""
 
-		cdef double x_sum = 0.0, w_sum = 0.0
 		cdef int i
+		cdef double x_sum = 0.0, w_sum = 0.0
+		cdef double item
 
 		for i in range(n):
-			x_sum += items[i*d + column_idx] * weights[i]
+			item = items[i*d + column_idx]
+			if isnan(item):
+				continue
+
+			x_sum += item * weights[i]
 			w_sum += weights[i]
 
 		with gil:
@@ -1742,10 +1813,10 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 
 	property parameters:
 		def __get__(self):
-			return [self.distributions.tolist(), numpy.exp(self.weights).tolist()]
+			return [self.distributions.tolist(), list(self.weights)]
 		def __set__(self, parameters):
 			self.distributions = numpy.asarray(parameters[0], dtype=numpy.object_)
-			self.weights = numpy.log(parameters[1])
+			self.weights = parameters[1]
 
 	def __cinit__(self, distributions=[], weights=None, frozen=False):
 		"""
@@ -1771,7 +1842,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 
 	def __reduce__(self):
 		"""Serialize the distribution for pickle."""
-		return self.__class__, (self.distributions, numpy.exp(self.weights), self.frozen)
+		return self.__class__, (self.distributions, self.weights, self.frozen)
 
 	def bake(self, keys):
 		for i, distribution in enumerate(self.distributions):
@@ -1964,18 +2035,18 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		d = self.mu.shape[0]
 		self.d = d
 		self._inv_dot_mu = <double*> calloc(d, sizeof(double))
+		self._mu_new = <double*> calloc(d, sizeof(double))
 
 		chol = scipy.linalg.cholesky(self.cov, lower=True)
 		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d), lower=True).T
 		self._inv_cov = <double*> self.inv_cov.data
 		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
 
-		self.w_sum = 0.0
-		self.column_sum = <double*> calloc(d, sizeof(double))
+		self.column_sum = <double*> calloc(d*d, sizeof(double))
+		self.column_w_sum = <double*> calloc(d, sizeof(double))
 		self.pair_sum = <double*> calloc(d*d, sizeof(double))
-		memset(self.column_sum, 0, d*sizeof(double))
-		memset(self.pair_sum, 0, d*d*sizeof(double))
-		self._mu_new = <double*> calloc(d, sizeof(double))
+		self.pair_w_sum = <double*> calloc(d*d, sizeof(double))
+		self.clear_summaries()
 
 	def __reduce__(self):
 		"""Serialize the distribution for pickle."""
@@ -1984,7 +2055,9 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 	def __dealloc__(self):
 		free(self._mu_new)
 		free(self.column_sum)
+		free(self.column_w_sum)
 		free(self.pair_sum)
+		free(self.pair_w_sum)
 
 	cdef void _log_probability(self, double* X, double* logp, int n) nogil:
 		cdef int i, j, d = self.d
@@ -2004,12 +2077,33 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		for i in range(n):
 			logp[i] = 0
 			for j in range(d):
-				logp[i] += (dot[i*d + j] - self._inv_dot_mu[j])**2
-
-			logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
+				if isnan(X[i*d + j]):
+					logp[i] = self._log_probability_missing(X+i*d)
+					break
+				else:
+					logp[i] += (dot[i*d + j] - self._inv_dot_mu[j])**2
+			else:
+				logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
 
 		if not _is_gpu_enabled():
 			free(dot)
+
+	cdef double _log_probability_missing(self, double* X) nogil:
+		cdef double logp
+
+		with gil:
+			X_ndarray = ndarray_wrap_cpointer(X, self.d)
+			avail = ~numpy.isnan(X_ndarray)
+			if avail.sum() == 0:
+				return 0
+
+			a = numpy.ix_(avail, avail)
+
+
+			d1 = MultivariateGaussianDistribution(self.mu[avail], self.cov[a])
+			logp = d1.log_probability(X_ndarray[avail])
+
+		return logp
 
 	def sample(self, n=None):
 		return numpy.random.multivariate_normal(self.parameters[0],
@@ -2024,58 +2118,75 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		"""
 
 		cdef int i, j, k
-		cdef double w_sum = 0.0
-		cdef double* column_sum = <double*> calloc(d, sizeof(double))
+		cdef double x, w, sqrt_weight, w_sum = 0.0
+		cdef double* column_sum = <double*> calloc(d*d, sizeof(double))
+		cdef double* column_w_sum = <double*> calloc(d, sizeof(double))
 		cdef double* pair_sum
-		memset(column_sum, 0, d*sizeof(double))
+		cdef double* pair_w_sum = <double*> calloc(d*d, sizeof(double))
+
+		memset(column_sum, 0, d*d*sizeof(double))
+		memset(column_w_sum, 0, d*sizeof(double))
+		memset(pair_w_sum, 0, d*d*sizeof(double))
 
 		cdef double* y = <double*> calloc(n*d, sizeof(double))
-
 		cdef double alpha = 1
 		cdef double beta = 0
 
 		for i in range(n):
-			w_sum += weights[i]
+			w = weights[i]
+			w_sum += w
+			sqrt_weight = csqrt(w)
 
 			for j in range(d):
-				y[i*d + j] = X[i*d + j] * weights[i]
-				column_sum[j] += y[i*d + j]
+				x = X[i*d + j]
+				if isnan(x):
+					y[i*d + j] = 0.
+
+					for k in range(d):
+						pair_w_sum[j*d + k] -= w
+						if not isnan(X[i*d + k]):
+							pair_w_sum[k*d + j] -= w
+							column_sum[k*d + j] -= X[i*d + k] * w
+
+				else:
+					y[i*d + j] = x * sqrt_weight
+					column_sum[j*d + j] += x * w
+					column_w_sum[j] += w
 
 		if _is_gpu_enabled():
 			with gil:
-				x_ndarray = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
-				y_ndarray = ndarray_wrap_cpointer(y, n*d).reshape(n, d)
-
+				x_ndarray = ndarray_wrap_cpointer(y, n*d).reshape(n, d)
 				x_gpu = cupy.array(x_ndarray, copy=False)
-				y_gpu = cupy.array(y_ndarray, copy=False)
+				pair_sum_ndarray = cupy.dot(x_gpu.T, x_gpu).get()
 
-				pair_sum_ndarray = cupy.dot(x_gpu.T, y_gpu).get()
-
-				self.w_sum += w_sum
 				for j in range(d):
-					self.column_sum[j] += column_sum[j]
+					self.column_w_sum[j] += column_w_sum[j]
 
 					for k in range(d):
 						self.pair_sum[j*d + k] += pair_sum_ndarray[j, k]
+						self.pair_w_sum[j*d + k] += pair_w_sum[j*d + k] + w_sum
+						self.column_sum[j*d + k] += column_sum[j*d + k]
 
 		else:
 			pair_sum = <double*> calloc(d*d, sizeof(double))
 			memset(pair_sum, 0, d*d*sizeof(double))
 
-			dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, X, &d, &beta, pair_sum, &d)
+			dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, y, &d, &beta, pair_sum, &d)
 
 			with gil:
-				self.w_sum += w_sum
-
 				for j in range(d):
-					self.column_sum[j] += column_sum[j]
+					self.column_w_sum[j] += column_w_sum[j]
 
 					for k in range(d):
 						self.pair_sum[j*d + k] += pair_sum[j*d + k]
+						self.pair_w_sum[j*d + k] += pair_w_sum[j*d + k] + w_sum
+						self.column_sum[j*d + k] += column_sum[j*d + k]
 
 			free(pair_sum)
 
 		free(column_sum)
+		free(column_w_sum)
+		free(pair_w_sum)
 		free(y)
 
 	def from_summaries(self, inertia=0.0, min_covar=1e-5):
@@ -2085,51 +2196,66 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		specified, it holds a sequence of value to weight each item by.
 		"""
 
-		# If no summaries stored or the summary is frozen, don't do anything.
-		if self.frozen == True or self.w_sum < 1e-7:
-			return
-
 		cdef int d = self.d, i, j, k
 		cdef double* column_sum = self.column_sum
-		cdef double* pair_sum = self.pair_sum
-		cdef double* u = self._mu_new
+		cdef double pair_sum
+		cdef double* mu = self._mu_new
 		cdef double cov
 		cdef numpy.ndarray chol
+		cdef double w_sum = 0.0
+
+		for i in range(self.d):
+			w_sum += self.column_w_sum[i]
+
+		# If no summaries stored or the summary is frozen, don't do anything.
+		if self.frozen == True or w_sum < 1e-7:
+			return
+
 
 		for i in range(d):
-			u[i] = self.column_sum[i] / self.w_sum
-			self._mu[i] = self._mu[i] * inertia + u[i] * (1-inertia)
+			mu[i] = self.column_sum[i*d + i] / self.column_w_sum[i]
+			self._mu[i] = self._mu[i] * inertia + mu[i] * (1-inertia)
 
 		for j in range(d):
 			for k in range(d):
-				cov = (pair_sum[j*d + k] - column_sum[j]*u[k]) / self.w_sum
-				self._cov[j*d + k] = self._cov[j*d + k] * inertia + cov * (1-inertia)
+				x_jk = self.pair_sum[j*d + k]
+				w_jk = self.pair_w_sum[j*d + k]
+	            
+				if j == k:
+					x_j = self.column_sum[j*d + j]
+					x_k = self.column_sum[k*d + k]
+				else:
+					x_j = self.column_sum[j*d + j] + self.column_sum[j*d + k]
+					x_k = self.column_sum[k*d + k] + self.column_sum[k*d + j]
 
-		memset(column_sum, 0, d*sizeof(double))
-		memset(pair_sum, 0, d*d*sizeof(double))
-		self.w_sum = 0.0
+				cov = (x_jk - x_j*x_k/w_jk) / w_jk if w_jk > 0.0 else 0
+				self._cov[j*d + k] = self._cov[j*d + k] * inertia + cov * (1-inertia)
 
 		try:
 			chol = scipy.linalg.cholesky(self.cov, lower=True)
+			self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
+				lower=True).T
 		except:
-			# Taken from sklearn.gmm, it's possible there are not enough observations
-			# to get a good measurement, so reinitialize this component.
-			self.cov += min_covar * numpy.eye(d)
+			min_eig = numpy.linalg.eig(self.cov)[0].min()
+			self.cov -= numpy.eye(d) * min_eig
+			
 			chol = scipy.linalg.cholesky(self.cov, lower=True)
+			self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
+				lower=True).T
 
 		_, self._log_det = numpy.linalg.slogdet(self.cov)
-		self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
-			lower=True).T
-
 		self._inv_cov = <double*> self.inv_cov.data
+
 		mdot(self._mu, self._inv_cov, self._inv_dot_mu, 1, d, d)
+		self.clear_summaries()
 
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
 
-		memset(self.column_sum, 0, self.d*sizeof(double))
+		memset(self.column_sum, 0, self.d*self.d*sizeof(double))
+		memset(self.column_w_sum, 0, self.d*sizeof(double))
 		memset(self.pair_sum, 0, self.d*self.d*sizeof(double))
-		self.w_sum = 0.0
+		memset(self.pair_w_sum, 0, self.d*self.d*sizeof(double))
 
 	@classmethod
 	def from_samples(cls, X, weights=None, **kwargs):

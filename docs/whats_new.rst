@@ -24,13 +24,37 @@ HiddenMarkovModel
 Distributions
 -------------
 	
-	- Multivariate Gaussian Distributions have had their parameter updates simplifies. This doesn't lead to a significant change in speed, just less code.
+	- Multivariate Gaussian distributions have had their parameter updates simplified. This doesn't lead to a significant change in speed, just less code.
 
 	- Fixed an issue where Poisson Distributions had an overflow issue caused when calculating large factorials by moving the log inside the product.
 
 	- Fixed an issue where Poisson Distributions were not correctly calculating the probability of 0 counts.
 
 	- Fixed an issue where Exponential Distribution would fail when fed integer 0-mode data.
+
+	- Fixed an issue where IndependentComponentDistribution would have incorrect per-dimension weights after serialization.
+
+	- Added in missing value support for fitting and log probability calculations for all univariate distributions, ICD, and MGD through calculating sufficient statistics only on data that exists
+
+	- Fixed an issue with multivariate Gaussian distributions where the covariance matrix is no longer invertible with enough missing data by subtracting the smallest eigenvalue from the diagonal
+
+K-Means
+-------
+
+	- Added in missing value support for k-means clustering by ignoring dimensions that are missing in the data. Can now fit and predict on missing data.
+
+	- Added in missing value support for all initialization strategies
+
+	- Added in a suite of unit tests
+
+	- Added in the `distance` method that returns the distance between each point and each centroid
+
+GeneralMixtureModel
+-------------------
+
+	- Added in missing value support for mixture models through updates to the distributions
+
+	- Expanded the unit test suite and added tests for missing value support
 
 
 Version 0.8.1
