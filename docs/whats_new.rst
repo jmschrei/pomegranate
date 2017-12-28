@@ -56,6 +56,19 @@ GeneralMixtureModel
 
 	- Expanded the unit test suite and added tests for missing value support
 
+BayesianNetwork
+---------------
+
+	- Vectorized the `predict_proba` method to take either a single sample or a list of samples
+
+	- Changed the output of `predict_proba` to be individual symbols instead of a distribution where one symbol has a probability of 1 when fed in as known prior knowledge.
+
+	- Added in an n_jobs parameter to parallelize the prediction of samples. This does not speed up a single sample, only a batch of samples.
+
+	- Factored out `_check_input` into a function that be used independently
+
+	- Added unit tests to check each of the above functions extensively
+
 
 Version 0.8.1
 =============
