@@ -12,6 +12,7 @@ from pomegranate import DiscreteDistribution
 from pomegranate import ConditionalProbabilityTable
 from pomegranate import State
 from pomegranate import BayesianNetwork
+from pomegranate.BayesianNetwork import _check_input
 
 from nose.tools import with_setup
 from nose.tools import assert_equal
@@ -130,41 +131,41 @@ def setup_titanic():
     titanic_network.bake()
 
 
-def setup_huge_monty():
-    # Build the huge monty hall huge_monty_network. This is an example I made
+def setup_large_monty():
+    # Build the huge monty hall large_monty_network. This is an example I made
     # up with which may not exactly flow logically, but tests a varied type of
     # tables ensures heterogeneous types of data work together.
-    global huge_monty_network, huge_monty_friend, huge_monty_guest, huge_monty
-    global huge_monty_remaining, huge_monty_randomize, huge_monty_prize
+    global large_monty_network, large_monty_friend, large_monty_guest, large_monty
+    global large_monty_remaining, large_monty_randomize, large_monty_prize
 
-    # Huge_Monty_Friend
-    huge_monty_friend = DiscreteDistribution({True: 0.5, False: 0.5})
+    # large_monty_Friend
+    large_monty_friend = DiscreteDistribution({True: 0.5, False: 0.5})
 
-    # Huge_Monty_Guest emisisons are completely random
-    huge_monty_guest = ConditionalProbabilityTable(
+    # large_monty_Guest emisisons are completely random
+    large_monty_guest = ConditionalProbabilityTable(
         [[True, 'A', 0.50],
          [True, 'B', 0.25],
          [True, 'C', 0.25],
          [False, 'A', 0.0],
          [False, 'B', 0.7],
-         [False, 'C', 0.3]], [huge_monty_friend])
+         [False, 'C', 0.3]], [large_monty_friend])
 
-    # Number of huge_monty_remaining cars
-    huge_monty_remaining = DiscreteDistribution({0: 0.1, 1: 0.7, 2: 0.2, })
+    # Number of large_monty_remaining cars
+    large_monty_remaining = DiscreteDistribution({0: 0.1, 1: 0.7, 2: 0.2, })
 
-    # Whether they huge_monty_randomize is dependent on the numnber of
-    # huge_monty_remaining cars
-    huge_monty_randomize = ConditionalProbabilityTable(
+    # Whether they large_monty_randomize is dependent on the numnber of
+    # large_monty_remaining cars
+    large_monty_randomize = ConditionalProbabilityTable(
         [[0, True, 0.05],
          [0, False, 0.95],
          [1, True, 0.8],
          [1, False, 0.2],
          [2, True, 0.5],
-         [2, False, 0.5]], [huge_monty_remaining])
+         [2, False, 0.5]], [large_monty_remaining])
 
-    # Where the huge_monty_prize is depends on if they huge_monty_randomize or
-    # not and also the huge_monty_guests huge_monty_friend
-    huge_monty_prize = ConditionalProbabilityTable(
+    # Where the large_monty_prize is depends on if they large_monty_randomize or
+    # not and also the large_monty_guests large_monty_friend
+    large_monty_prize = ConditionalProbabilityTable(
         [[True, True, 'A', 0.3],
          [True, True, 'B', 0.4],
          [True, True, 'C', 0.3],
@@ -176,10 +177,10 @@ def setup_huge_monty():
          [False, True, 'C', 0.0],
          [False, False, 'A', 0.0],
          [False, False, 'B', 0.4],
-         [False, False, 'C', 0.6]], [huge_monty_randomize, huge_monty_friend])
+         [False, False, 'C', 0.6]], [large_monty_randomize, large_monty_friend])
 
-    # Monty is dependent on both the huge_monty_guest and the huge_monty_prize.
-    huge_monty = ConditionalProbabilityTable(
+    # Monty is dependent on both the large_monty_guest and the large_monty_prize.
+    large_monty = ConditionalProbabilityTable(
         [['A', 'A', 'A', 0.0],
          ['A', 'A', 'B', 0.5],
          ['A', 'A', 'C', 0.5],
@@ -206,30 +207,184 @@ def setup_huge_monty():
          ['C', 'B', 'C', 0.0],
          ['C', 'C', 'A', 0.5],
          ['C', 'C', 'B', 0.5],
-         ['C', 'C', 'C', 0.0]], [huge_monty_guest, huge_monty_prize])
+         ['C', 'C', 'C', 0.0]], [large_monty_guest, large_monty_prize])
 
     # Make the states
-    s0 = State(huge_monty_friend, name="huge_monty_friend")
-    s1 = State(huge_monty_guest, name="huge_monty_guest")
-    s2 = State(huge_monty_prize, name="huge_monty_prize")
-    s3 = State(huge_monty, name="huge_monty")
-    s4 = State(huge_monty_remaining, name="huge_monty_remaining")
-    s5 = State(huge_monty_randomize, name="huge_monty_randomize")
+    s0 = State(large_monty_friend, name="large_monty_friend")
+    s1 = State(large_monty_guest, name="large_monty_guest")
+    s2 = State(large_monty_prize, name="large_monty_prize")
+    s3 = State(large_monty, name="large_monty")
+    s4 = State(large_monty_remaining, name="large_monty_remaining")
+    s5 = State(large_monty_randomize, name="large_monty_randomize")
 
     # Make the bayes net, add the states, and the conditional dependencies.
-    huge_monty_network = BayesianNetwork("test")
-    huge_monty_network.add_nodes(s0, s1, s2, s3, s4, s5)
-    huge_monty_network.add_transition(s0, s1)
-    huge_monty_network.add_transition(s1, s3)
-    huge_monty_network.add_transition(s2, s3)
-    huge_monty_network.add_transition(s4, s5)
-    huge_monty_network.add_transition(s5, s2)
-    huge_monty_network.add_transition(s0, s2)
-    huge_monty_network.bake()
+    large_monty_network = BayesianNetwork("test")
+    large_monty_network.add_nodes(s0, s1, s2, s3, s4, s5)
+    large_monty_network.add_transition(s0, s1)
+    large_monty_network.add_transition(s1, s3)
+    large_monty_network.add_transition(s2, s3)
+    large_monty_network.add_transition(s4, s5)
+    large_monty_network.add_transition(s5, s2)
+    large_monty_network.add_transition(s0, s2)
+    large_monty_network.bake()
 
 
 def teardown():
     pass
+
+
+@with_setup(setup_monty, teardown)
+def test_check_input_dict():
+    obs = {'guest' : 'A'}
+    _check_input(obs, monty_network)
+
+    obs = {'guest' : 'NaN'}
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    obs = {'guest' : None}
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    obs = {'guest' : numpy.nan}
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    obs = {'guest' : 'NaN', 'prize' : 'B'}
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    obs = {'guest' : 'A', 'prize' : 'C'}
+    _check_input(obs, monty_network)
+
+    obs = {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'}
+    _check_input(obs, monty_network)
+
+    obs = {'guest' : DiscreteDistribution({'A' : 0.25, 
+        'B' : 0.25, 'C' : 0.50})}
+    _check_input(obs, monty_network)
+
+    obs = {'hello' : 'A', 'prize' : 'B'}
+    assert_raises(ValueError, _check_input, obs, monty_network) 
+
+
+@with_setup(setup_monty, teardown)
+def test_check_input_list():
+    obs = ['A', None, None]
+    _check_input(obs, monty_network)
+
+    obs = ['A', numpy.nan, numpy.nan]
+    _check_input(obs, monty_network)
+
+    obs = numpy.array(['A', None, None])
+    _check_input(obs, monty_network)
+
+    obs = numpy.array(['A', numpy.nan, numpy.nan])
+    _check_input(obs, monty_network)
+
+    obs = numpy.array(['A', 'B', 'C'])
+    _check_input(obs, monty_network)
+
+    obs = numpy.array(['NaN', numpy.nan, numpy.nan])
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    obs = numpy.array(['A', 'B', 'D'])
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    obs = ['A']
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    obs = ['A', 'C', 'E', 'F']
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+    d = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'C': 0.25})
+    obs = [d, None, None]
+    _check_input(obs, monty_network)
+
+    d = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'D': 0.25})
+    obs = [d, None, None]
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+
+@with_setup(setup_monty, teardown)
+def test_check_input_list_of_dicts():
+    obs = {'guest' : 'A'}
+    _check_input([obs], monty_network)
+
+    obs = {'guest' : 'NaN'}
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = {'guest' : None}
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = {'guest' : numpy.nan}
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = {'guest' : 'NaN', 'prize' : 'B'}
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = {'guest' : 'A', 'prize' : 'C'}
+    _check_input([obs], monty_network)
+
+    obs = {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'}
+    _check_input([obs], monty_network)
+
+    obs = {'guest' : DiscreteDistribution({'A' : 0.25, 
+        'B' : 0.25, 'C' : 0.50})}
+    _check_input([obs], monty_network)
+
+    obs = {'hello' : 'A', 'prize' : 'B'}
+    assert_raises(ValueError, _check_input, [obs], monty_network) 
+
+    obs = [{'guest' : 'A'}, {'guest' : 'A', 'prize' : 'C'}, 
+        {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'},
+        {'guest' : DiscreteDistribution({'A' : 0.25, 
+            'B' : 0.25, 'C' : 0.50})}]
+    _check_input(obs, monty_network)
+
+    obs.append({'guest' : 'NaN', 'prize' : 'B'})
+    assert_raises(ValueError, _check_input, obs, monty_network)
+
+
+@with_setup(setup_monty, teardown)
+def test_check_input_list_of_lists():
+    obs = ['A', None, None]
+    _check_input([obs], monty_network)
+
+    obs = ['A', numpy.nan, numpy.nan]
+    _check_input([obs], monty_network)
+
+    obs = numpy.array(['A', None, None])
+    _check_input([obs], monty_network)
+
+    obs = numpy.array(['A', numpy.nan, numpy.nan])
+    _check_input([obs], monty_network)
+
+    obs = numpy.array(['A', 'B', 'C'])
+    _check_input([obs], monty_network)
+
+    obs = numpy.array(['NaN', numpy.nan, numpy.nan])
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = numpy.array(['A', 'B', 'D'])
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = ['A']
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = ['A', 'C', 'E', 'F']
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    d = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'C': 0.25})
+    obs = [d, None, None]
+    _check_input([obs], monty_network)
+
+    e = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'D': 0.25})
+    obs = [e, None, None]
+    assert_raises(ValueError, _check_input, [obs], monty_network)
+
+    obs = [['A', None, None], ['A', numpy.nan, numpy.nan], ['A', 'B', 'C'],
+        ['A', None, 'C'], [None, 'B', 'C'], [d, None, None]]
+    _check_input(obs, monty_network)
+
+    obs.append([e, None, None])
+    assert_raises(ValueError, _check_input, obs, monty_network)
 
 
 @with_setup(setup_titanic, teardown)
@@ -258,9 +413,7 @@ def test_guest_titanic():
     assert_equal(female[0].log_probability("survive"), 0.0)
     assert_equal(female[0].log_probability("perish"), float("-inf"))
 
-    assert_equal(female[1].log_probability("male"), float("-inf"))
-    assert_equal(female[1].log_probability("female"), 0.0)
-
+    assert_equal(female[1], 'female')
     assert_equal(female[2].log_probability("first"), float("-inf"))
     assert_equal(female[2].log_probability("second"), 0.0)
     assert_equal(female[2].log_probability("third"), float("-inf"))
@@ -268,8 +421,7 @@ def test_guest_titanic():
     assert_equal(male[0].log_probability("survive"), float("-inf"))
     assert_equal(male[0].log_probability("perish"), 0.0)
 
-    assert_equal(male[1].log_probability("male"), 0.0)
-    assert_equal(male[1].log_probability("female"), float("-inf"))
+    assert_equal(male[1], 'male')
 
     assert_equal(male[2].log_probability("first"), 0.0)
     assert_equal(male[2].log_probability("second"), float("-inf"))
@@ -278,11 +430,11 @@ def test_guest_titanic():
     titanic_network2 = BayesianNetwork.from_json(titanic_network.to_json())
 
 
-@with_setup(setup_huge_monty, teardown)
-def test_huge_monty():
-    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), numpy.log(0.5))
-    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), numpy.log(0.5))
-    assert_equal(huge_monty.log_probability(('C', 'C', 'C')), float("-inf"))
+@with_setup(setup_large_monty, teardown)
+def test_large_monty():
+    assert_almost_equal(large_monty.log_probability(('A', 'A', 'C')), numpy.log(0.5))
+    assert_almost_equal(large_monty.log_probability(('B', 'B', 'C')), numpy.log(0.5))
+    assert_equal(large_monty.log_probability(('C', 'C', 'C')), float("-inf"))
 
     data = [[True,  'A', 'A', 'C', 1, True],
             [True,  'A', 'A', 'C', 0, True],
@@ -297,42 +449,17 @@ def test_huge_monty():
             [True,  'C', 'C', 'C', 2, True],
             [True,  'C', 'B', 'A', 1, False]]
 
-    huge_monty_network.fit(data)
+    large_monty_network.fit(data)
 
-    assert_almost_equal(huge_monty.log_probability(('A', 'A', 'C')), numpy.log(0.6))
-    assert_almost_equal(huge_monty.log_probability(('B', 'B', 'C')), numpy.log(0.5))
-    assert_almost_equal(huge_monty.log_probability(('C', 'C', 'C')), numpy.log(0.75))
-
-
-@with_setup(setup_huge_monty, teardown)
-def test_huge_monty_friend():
-    assert_almost_equal(huge_monty_friend.log_probability(True), numpy.log(0.5))
-    assert_almost_equal(huge_monty_friend.log_probability(False), numpy.log(0.5))
-
-    data = [[True,  'A', 'A', 'C', 1, True],
-            [True,  'A', 'A', 'C', 0, True],
-            [False, 'A', 'A', 'B', 1, False],
-            [False, 'A', 'A', 'A', 2, False],
-            [False, 'A', 'A', 'C', 1, False],
-            [False, 'B', 'B', 'B', 2, False],
-            [False, 'B', 'B', 'C', 0, False],
-            [True,  'C', 'C', 'A', 2, True],
-            [True,  'C', 'C', 'C', 1, False],
-            [True,  'C', 'C', 'C', 0, False],
-            [True,  'C', 'C', 'C', 2, True],
-            [True,  'C', 'B', 'A', 1, False]]
-
-    huge_monty_network.fit(data)
-
-    assert_almost_equal(huge_monty_friend.log_probability(True), numpy.log(7. / 12))
-    assert_almost_equal(huge_monty_friend.log_probability(False), numpy.log(5. / 12))
+    assert_almost_equal(large_monty.log_probability(('A', 'A', 'C')), numpy.log(0.6))
+    assert_almost_equal(large_monty.log_probability(('B', 'B', 'C')), numpy.log(0.5))
+    assert_almost_equal(large_monty.log_probability(('C', 'C', 'C')), numpy.log(0.75))
 
 
-@with_setup(setup_huge_monty, teardown)
-def test_huge_monty_remaining():
-    assert_almost_equal(huge_monty_remaining.log_probability(0), numpy.log(0.1))
-    assert_almost_equal(huge_monty_remaining.log_probability(1), numpy.log(0.7))
-    assert_almost_equal(huge_monty_remaining.log_probability(2), numpy.log(0.2))
+@with_setup(setup_large_monty, teardown)
+def test_large_monty_friend():
+    assert_almost_equal(large_monty_friend.log_probability(True), numpy.log(0.5))
+    assert_almost_equal(large_monty_friend.log_probability(False), numpy.log(0.5))
 
     data = [[True,  'A', 'A', 'C', 1, True],
             [True,  'A', 'A', 'C', 0, True],
@@ -347,22 +474,47 @@ def test_huge_monty_remaining():
             [True,  'C', 'C', 'C', 2, True],
             [True,  'C', 'B', 'A', 1, False]]
 
-    huge_monty_network.fit(data)
+    large_monty_network.fit(data)
 
-    assert_almost_equal(huge_monty_remaining.log_probability(0), numpy.log(3. / 12))
-    assert_almost_equal(huge_monty_remaining.log_probability(1), numpy.log(5. / 12))
-    assert_almost_equal(huge_monty_remaining.log_probability(2), numpy.log(4. / 12))
+    assert_almost_equal(large_monty_friend.log_probability(True), numpy.log(7. / 12))
+    assert_almost_equal(large_monty_friend.log_probability(False), numpy.log(5. / 12))
 
 
-@with_setup(setup_huge_monty, teardown)
-def test_huge_monty_prize():
-    assert_almost_equal(huge_monty_prize.log_probability(
+@with_setup(setup_large_monty, teardown)
+def test_large_monty_remaining():
+    assert_almost_equal(large_monty_remaining.log_probability(0), numpy.log(0.1))
+    assert_almost_equal(large_monty_remaining.log_probability(1), numpy.log(0.7))
+    assert_almost_equal(large_monty_remaining.log_probability(2), numpy.log(0.2))
+
+    data = [[True,  'A', 'A', 'C', 1, True],
+            [True,  'A', 'A', 'C', 0, True],
+            [False, 'A', 'A', 'B', 1, False],
+            [False, 'A', 'A', 'A', 2, False],
+            [False, 'A', 'A', 'C', 1, False],
+            [False, 'B', 'B', 'B', 2, False],
+            [False, 'B', 'B', 'C', 0, False],
+            [True,  'C', 'C', 'A', 2, True],
+            [True,  'C', 'C', 'C', 1, False],
+            [True,  'C', 'C', 'C', 0, False],
+            [True,  'C', 'C', 'C', 2, True],
+            [True,  'C', 'B', 'A', 1, False]]
+
+    large_monty_network.fit(data)
+
+    assert_almost_equal(large_monty_remaining.log_probability(0), numpy.log(3. / 12))
+    assert_almost_equal(large_monty_remaining.log_probability(1), numpy.log(5. / 12))
+    assert_almost_equal(large_monty_remaining.log_probability(2), numpy.log(4. / 12))
+
+
+@with_setup(setup_large_monty, teardown)
+def test_large_monty_prize():
+    assert_almost_equal(large_monty_prize.log_probability(
         (True,  True,  'A')), numpy.log(0.3))
-    assert_almost_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(large_monty_prize.log_probability(
         (True,  False, 'C')), numpy.log(0.4))
-    assert_almost_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(large_monty_prize.log_probability(
         (False, True,  'B')), numpy.log(0.9))
-    assert_almost_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(large_monty_prize.log_probability(
         (False, False, 'A')), float("-inf"))
 
     data = [[True,  'A', 'A', 'C', 1, True],
@@ -378,27 +530,27 @@ def test_huge_monty_prize():
             [True,  'C', 'C', 'C', 2, True],
             [True,  'C', 'B', 'A', 1, False]]
 
-    huge_monty_network.fit(data)
+    large_monty_network.fit(data)
 
-    assert_almost_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(large_monty_prize.log_probability(
         (True, True, 'C')), numpy.log(0.5))
-    assert_equal(huge_monty_prize.log_probability(
+    assert_equal(large_monty_prize.log_probability(
         (True, True, 'B')), float("-inf"))
 
-    a = huge_monty_prize.log_probability((True, False, 'A'))
-    b = huge_monty_prize.log_probability((True, False, 'B'))
-    c = huge_monty_prize.log_probability((True, False, 'C'))
+    a = large_monty_prize.log_probability((True, False, 'A'))
+    b = large_monty_prize.log_probability((True, False, 'B'))
+    c = large_monty_prize.log_probability((True, False, 'C'))
 
     assert_almost_equal(a, b)
     assert_almost_equal(b, c)
 
-    assert_equal(huge_monty_prize.log_probability(
+    assert_equal(large_monty_prize.log_probability(
         (False, False, 'C')), float("-inf"))
-    assert_almost_equal(huge_monty_prize.log_probability(
+    assert_almost_equal(large_monty_prize.log_probability(
         (False, True, 'C')), numpy.log(2. / 3))
 
 
-def discrete_equality(x, y, z=8):
+def assert_discrete_equal(x, y, z=8):
     xd, yd = x.parameters[0], y.parameters[0]
     for key, value in xd.items():
         if round(yd[key], z) != round(value, z):
@@ -414,15 +566,15 @@ def test_guest_monty():
     prize_correct = DiscreteDistribution(
         {'A': 1. / 3, 'B': 1. / 3, 'C': 1. / 3})
 
-    discrete_equality(a[prize_index], b[prize_index])
-    discrete_equality(a[prize_index], c[prize_index])
-    discrete_equality(a[prize_index], prize_correct)
+    assert_discrete_equal(a[prize_index], b[prize_index])
+    assert_discrete_equal(a[prize_index], c[prize_index])
+    assert_discrete_equal(a[prize_index], prize_correct)
 
-    discrete_equality(a[monty_index], DiscreteDistribution(
+    assert_discrete_equal(a[monty_index], DiscreteDistribution(
         {'A': 0.0, 'B': 1. / 2, 'C': 1. / 2}))
-    discrete_equality(b[monty_index], DiscreteDistribution(
+    assert_discrete_equal(b[monty_index], DiscreteDistribution(
         {'A': 1. / 2, 'B': 0.0, 'C': 1. / 2}))
-    discrete_equality(c[monty_index], DiscreteDistribution(
+    assert_discrete_equal(c[monty_index], DiscreteDistribution(
         {'A': 1. / 2, 'B': 1. / 2, 'C': 0.0}))
 
 
@@ -431,17 +583,14 @@ def test_guest_with_monty():
     b = monty_network.predict_proba({'guest': 'A', 'monty': 'B'})
     c = monty_network.predict_proba({'guest': 'A', 'monty': 'C'})
 
-    discrete_equality(b[guest_index], DiscreteDistribution(
-        {'A': 1., 'B': 0., 'C': 0.}))
-    discrete_equality(b[monty_index], DiscreteDistribution(
-        {'A': 0., 'B': 1., 'C': 0.}))
-    discrete_equality(b[prize_index], DiscreteDistribution(
+    assert_equal(b[guest_index], 'A')
+    assert_equal(b[monty_index], 'B')
+    assert_discrete_equal(b[prize_index], DiscreteDistribution(
         {'A': 1. / 3, 'B': 0.0, 'C': 2. / 3}))
-    discrete_equality(c[guest_index], DiscreteDistribution(
-        {'A': 1., 'B': 0., 'C': 0.}))
-    discrete_equality(c[monty_index], DiscreteDistribution(
-        {'A': 0., 'B': 0., 'C': 1.}))
-    discrete_equality(c[prize_index], DiscreteDistribution(
+    
+    assert_equal(c[guest_index], 'A')
+    assert_equal(c[monty_index], 'C')
+    assert_discrete_equal(c[prize_index], DiscreteDistribution(
         {'A': 1. / 3, 'B': 2. / 3, 'C': 0.0}))
 
 
@@ -449,15 +598,14 @@ def test_guest_with_monty():
 def test_monty():
     a = monty_network.predict_proba({'monty': 'A'})
 
-    discrete_equality(a[monty_index], DiscreteDistribution(
-        {'A': 1.0, 'B': 0.0, 'C': 0.0}))
-    discrete_equality(a[guest_index], a[prize_index])
-    discrete_equality(a[guest_index], DiscreteDistribution(
+    assert_equal(a[monty_index], 'A')
+    assert_discrete_equal(a[guest_index], a[prize_index])
+    assert_discrete_equal(a[guest_index], DiscreteDistribution(
         {'A': 0.0, 'B': 1. / 2, 'C': 1. / 2}))
 
 
 @with_setup(setup_monty, teardown)
-def test_imputation():
+def test_predict():
     obs = [['A', None, 'B'],
            ['A', None, 'C'],
            ['A', 'B', 'C']]
@@ -480,7 +628,7 @@ def test_imputation():
 
 
 @with_setup(setup_monty, teardown)
-def test_numpy_imputation():
+def test_numpy_predict():
     obs = numpy.array([['A', None, 'B'],
                     ['A', None, 'C'],
                     ['A', 'B', 'C']])
@@ -500,6 +648,182 @@ def test_numpy_imputation():
                          ['A', None, 'C'],
                          ['A', 'B', 'C']
                        ])
+
+
+@with_setup(setup_monty, teardown)
+def test_single_list_predict_proba():
+    obs = ['A', None, 'B']
+    y = DiscreteDistribution({'A': 1./3, 'B': 0., 'C': 2./3})
+    y_hat = monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0], 'A')
+    assert_equal(y_hat[2], 'B')
+    assert_discrete_equal(y_hat[1], y)
+
+
+@with_setup(setup_large_monty, teardown)
+def test_single_list_large_predict_proba():
+    obs = [True,  'A', 'A', 'C', None, None]
+    y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
+    y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0], True)
+    assert_equal(y_hat[1], 'A')
+    assert_equal(y_hat[2], 'A')
+    assert_equal(y_hat[3], 'C')
+    assert_discrete_equal(y_hat[4], y1, 3)
+    assert_discrete_equal(y_hat[5], y2, 3)
+
+    obs = [True, None, 'A', 'C', 2, None]
+    y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
+    y2 = DiscreteDistribution({True: 0.75, False: 0.25})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0], True)
+    assert_equal(y_hat[2], 'A')
+    assert_equal(y_hat[3], 'C')
+    assert_equal(y_hat[4], 2)
+    assert_discrete_equal(y_hat[1], y1)
+    assert_discrete_equal(y_hat[5], y2)
+
+
+@with_setup(setup_monty, teardown)
+def test_single_dict_predict_proba():
+    obs = {'guest': 'A',  'monty': 'B'}
+    y = DiscreteDistribution({'A': 1./3, 'B': 0., 'C': 2./3})
+    y_hat = monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0], 'A')
+    assert_equal(y_hat[2], 'B')
+    assert_discrete_equal(y_hat[1], y)
+
+
+@with_setup(setup_large_monty, teardown)
+def test_single_dict_large_predict_proba():
+    obs = {'large_monty_friend' : True,  'large_monty_guest': 'A', 
+        'large_monty_prize': 'A', 'large_monty': 'C'}
+    y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
+    y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0], True)
+    assert_equal(y_hat[1], 'A')
+    assert_equal(y_hat[2], 'A')
+    assert_equal(y_hat[3], 'C')
+    assert_discrete_equal(y_hat[4], y1, 3)
+    assert_discrete_equal(y_hat[5], y2, 3)
+
+    obs = {'large_monty_friend' : True, 'large_monty_prize': 'A', 
+        'large_monty': 'C', 'large_monty_remaining' : 2}
+    y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
+    y2 = DiscreteDistribution({True: 0.75, False: 0.25})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0], True)
+    assert_equal(y_hat[2], 'A')
+    assert_equal(y_hat[3], 'C')
+    assert_equal(y_hat[4], 2)
+    assert_discrete_equal(y_hat[1], y1)
+    assert_discrete_equal(y_hat[5], y2)
+
+
+@with_setup(setup_monty, teardown)
+def test_list_of_lists_predict_proba():
+    obs = [['A', None, 'B']]
+    y = DiscreteDistribution({'A': 1./3, 'B': 0., 'C': 2./3})
+    y_hat = monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0][0], 'A')
+    assert_equal(y_hat[0][2], 'B')
+    assert_discrete_equal(y_hat[0][1], y)
+
+
+@with_setup(setup_large_monty, teardown)
+def test_list_of_lists_large_predict_proba():
+    obs = [[True,  'A', 'A', 'C', None, None]]
+    y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
+    y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0][0], True)
+    assert_equal(y_hat[0][1], 'A')
+    assert_equal(y_hat[0][2], 'A')
+    assert_equal(y_hat[0][3], 'C')
+    assert_discrete_equal(y_hat[0][4], y1, 3)
+    assert_discrete_equal(y_hat[0][5], y2, 3)
+
+    obs = [[True, None, 'A', 'C', 2, None]]
+    y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
+    y2 = DiscreteDistribution({True: 0.75, False: 0.25})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0][0], True)
+    assert_equal(y_hat[0][2], 'A')
+    assert_equal(y_hat[0][3], 'C')
+    assert_equal(y_hat[0][4], 2)
+    assert_discrete_equal(y_hat[0][1], y1)
+    assert_discrete_equal(y_hat[0][5], y2)
+
+
+@with_setup(setup_monty, teardown)
+def test_list_of_dicts_predict_proba():
+    obs = [{'guest': 'A',  'monty': 'B'}]
+    y = DiscreteDistribution({'A': 1./3, 'B': 0., 'C': 2./3})
+    y_hat = monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0][0], 'A')
+    assert_equal(y_hat[0][2], 'B')
+    assert_discrete_equal(y_hat[0][1], y)
+
+
+@with_setup(setup_large_monty, teardown)
+def test_list_of_dicts_large_predict_proba():
+    obs = [{'large_monty_friend' : True,  'large_monty_guest': 'A', 
+        'large_monty_prize': 'A', 'large_monty': 'C'}]
+    y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
+    y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0][0], True)
+    assert_equal(y_hat[0][1], 'A')
+    assert_equal(y_hat[0][2], 'A')
+    assert_equal(y_hat[0][3], 'C')
+    assert_discrete_equal(y_hat[0][4], y1, 3)
+    assert_discrete_equal(y_hat[0][5], y2, 3)
+
+    obs = [{'large_monty_friend' : True, 'large_monty_prize': 'A', 
+        'large_monty': 'C', 'large_monty_remaining' : 2}]
+    y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
+    y2 = DiscreteDistribution({True: 0.75, False: 0.25})
+    y_hat = large_monty_network.predict_proba(obs)
+
+    assert_equal(y_hat[0][0], True)
+    assert_equal(y_hat[0][2], 'A')
+    assert_equal(y_hat[0][3], 'C')
+    assert_equal(y_hat[0][4], 2)
+    assert_discrete_equal(y_hat[0][1], y1)
+    assert_discrete_equal(y_hat[0][5], y2)
+
+
+@with_setup(setup_monty, teardown)
+def test_list_of_dicts_predict_proba_parallel():
+    obs = [{'guest': 'A',  'monty': 'B'},
+           {'guest': 'B', 'prize': 'A'},
+           {'monty': 'C', 'prize': 'B'},
+           {'monty': 'B'}, {'prize': 'A'}]
+    y = DiscreteDistribution({'A': 1./3, 'B': 0., 'C': 2./3})
+    y_hat = monty_network.predict_proba(obs, n_jobs=2)
+
+    assert_equal(y_hat[0][0], 'A')
+    assert_equal(y_hat[0][2], 'B')
+    assert_discrete_equal(y_hat[0][1], y)
+
+    assert_equal(y_hat[1][0], 'B')
+    assert_equal(y_hat[1][1], 'A')
+
+    assert_equal(y_hat[3][2], 'B')
+    assert_equal(y_hat[4][1], 'A')
 
 
 @with_setup(setup_monty, teardown)

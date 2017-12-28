@@ -373,9 +373,19 @@ cdef class FactorGraph( GraphModel ):
 			# Increment our iteration calculator
 			iteration += 1
 
+
+		marginals = numpy.where(self.marginals == 1)
+
 		# We've already computed the current belief about the marginals, so
 		# we can just return that.
-		return current_distributions[ numpy.where( self.marginals == 1 ) ]
+		y_hat = current_distributions[marginals]
+		
+		for i, state in enumerate(numpy.array(self.states)[marginals]):
+			if state.name in data:
+				y_hat[i] = data[state.name]
+
+		return y_hat
+
 
 	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to JSON

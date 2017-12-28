@@ -178,8 +178,6 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 		centroids = clf.centroids
 
 	centroids[numpy.isnan(centroids)] = 0.0
-	print "INITIAL CENTROIDS"
-	print centroids
 	return numpy.array(centroids)
 
 cdef class Kmeans(Model):

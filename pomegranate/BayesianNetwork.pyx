@@ -20,6 +20,7 @@ from libc.string cimport memset
 from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
+from .distributions import Distribution
 from .distributions cimport MultivariateDistribution
 from .distributions cimport DiscreteDistribution
 from .distributions cimport ConditionalProbabilityTable
@@ -50,7 +51,105 @@ else:
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
-cdef class BayesianNetwork( GraphModel ):
+def _check_input(X, model):
+	"""Ensure that the keys in the sample are valid keys.
+
+	Go through each variable in the sample and make sure that the observed
+	symbol is a valid key according to the model. Raise an error if the
+	symbol is not a key valid key according to the model.
+
+	Parameters
+	----------
+	X : dict or array-like 
+		The observed sample.
+
+	states : list
+		A list of states ordered by the columns in the sample.
+
+	Returns
+	-------
+	None
+	"""
+
+	indices = {state.name: state.distribution for state in model.states}
+
+	if isinstance(X, dict):
+		for name, value in X.items():
+			if isinstance(value, Distribution):
+				if set(value.keys()) != set(indices[name].keys()):
+					raise ValueError("State '{}' does not match with keys provided."
+						.format(name))
+				continue
+			
+			if name not in indices:
+				raise ValueError("Model does not contain a state named '{}'"
+					.format(name))
+
+			if value not in indices[name].keys():
+				raise ValueError("State '{}' does not have key '{}'"
+					.format(name, value))
+
+	elif isinstance(X, (numpy.ndarray, list)) and isinstance(X[0], dict):
+		for x in X:
+			for name, value in x.items():
+				if isinstance(value, Distribution):
+					if set(value.keys()) != set(indices[name].keys()):
+						raise ValueError("State '{}' does not match with keys provided."
+							.format(name))
+					continue
+				
+				if name not in indices:
+					raise ValueError("Model does not contain a state named '{}'"
+						.format(name))
+
+				if value not in indices[name].keys():
+					raise ValueError("State '{}' does not have key '{}'"
+						.format(name, value))
+
+	elif isinstance(X, (numpy.ndarray, list)) and isinstance(X[0], (numpy.ndarray, list)):
+		for x in X:
+			if len(x) != len(indices):
+				raise ValueError("Sample does not have the same number of dimensions" +
+					" as the model {} {}".format(x, len(indices)))
+
+			for i in range(len(x)):
+				if isinstance(x[i], Distribution):
+					if set(x[i].keys()) != set(model.states[i].distribution.keys()):
+						raise ValueError("State '{}' does not match with keys provided."
+							.format(model.states[i].name))
+					continue
+
+				if x[i] is None or x[i] is numpy.nan or x[i] == 'nan':
+					continue
+
+				if x[i] not in model.states[i].distribution.keys():
+					raise ValueError("State '{}' does not have key '{}'"
+						.format(model.states[i].name, x[i]))
+
+	else:
+		if len(X) != len(indices):
+			raise ValueError("Sample does not have the same number of dimensions" +
+				" as the model")
+
+		for i in range(len(X)):
+			if isinstance(X[i], Distribution):
+				if set(X[i].keys()) != set(model.states[i].distribution.keys()):
+					raise ValueError("State '{}' does not match with keys provided."
+						.format(model.states[i].name))
+				continue
+
+
+			if X[i] is None or X[i] is numpy.nan or X[i] == 'nan':
+				continue
+
+			if X[i] not in model.states[i].distribution.keys():
+				raise ValueError("State '{}' does not have key '{}' {} {}"
+					.format(model.states[i].name, X[i], X[i] in (None, numpy.nan), X[i] is numpy.nan))
+
+	return True
+
+
+cdef class BayesianNetwork(GraphModel):
 	"""A Bayesian Network Model.
 
 	A Bayesian network is a directed graph where nodes represent variables, edges
@@ -399,7 +498,7 @@ cdef class BayesianNetwork( GraphModel ):
 
 		return self.graph.marginal()
 
-	def predict(self, X, max_iterations=100, n_jobs=1):
+	def predict(self, X, max_iterations=100, check_input=True, n_jobs=1):
 		"""Predict missing values of a data matrix using MLE.
 
 		Impute the missing values of a data matrix using the maximally likely
@@ -418,6 +517,11 @@ cdef class BayesianNetwork( GraphModel ):
 			Number of iterations to run loopy belief propagation for. Default
 			is 100.
 
+		check_input : bool, optional
+			Check to make sure that the observed symbol is a valid symbol for that
+			distribution to produce. Default is True.
+
+
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
 			or the number of processes to use. -1 means use all available resources.
@@ -425,50 +529,24 @@ cdef class BayesianNetwork( GraphModel ):
 
 		Returns
 		-------
-		X : numpy.ndarray, shape (n_samples, n_nodes)
+		y_hat : numpy.ndarray, shape (n_samples, n_nodes)
 			This is the data matrix with the missing values imputed.
 		"""
 
 		if self.d == 0:
 			raise ValueError("must bake model before using impute")
 
-		if n_jobs > 1:
-			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+		y_hat = self.predict_proba(X, max_iterations=max_iterations,
+			check_input=check_input, n_jobs=n_jobs)
 
-			fn = '.pomegranate.tmp'
-			with open(fn, 'w') as outfile:
-				outfile.write(self.to_json())
+		for i in range(len(y_hat)):
+			for j in range(len(y_hat[i])):
+				if isinstance(y_hat[i][j], Distribution):
+					y_hat[i][j] = y_hat[i][j].mle()
 
-			with Parallel(n_jobs=n_jobs) as parallel:
-				logp_arrays = parallel(delayed(parallelize_function)(
-					X[start:end], BayesianNetwork, 'predict', fn) 
-					for start, end in zip(starts, ends))
+		return y_hat
 
-			os.remove(fn)
-			return numpy.concatenate(logp_arrays)
-
-		X_imp = numpy.copy(X)
-		for i in range(len(X)):
-			obs = {}
-
-			for j, state in enumerate(self.states):
-				item = X[i][j]
-
-				if item is None:
-					continue
-				if isinstance(item, float) and numpy.isnan(item):
-					continue
-				obs[state.name] = item
-
-			imputation = self.predict_proba(obs, max_iterations)
-
-			for j in range(len(self.states)):
-				X_imp[i][j] = imputation[j].mle()
-
-		return X_imp
-
-	def predict_proba(self, data={}, max_iterations=100, check_input=True):
+	def predict_proba(self, X, max_iterations=100, check_input=True, n_jobs=1):
 		"""Returns the probabilities of each variable in the graph given evidence.
 
 		This calculates the marginal probability distributions for each state given
@@ -478,14 +556,16 @@ cdef class BayesianNetwork( GraphModel ):
 
 		Parameters
 		----------
-		data : dict or array-like, shape <= n_nodes, optional
+		X : dict or array-like, shape <= n_nodes
 			The evidence supplied to the graph. This can either be a dictionary
 			with keys being state names and values being the observed values
 			(either the emissions or a distribution over the emissions) or an
 			array with the values being ordered according to the nodes incorporation
 			in the graph (the order fed into .add_states/add_nodes) and None for
-			variables which are unknown. If nothing is fed in then calculate the
-			marginal of the graph. Default is {}.
+			variables which are unknown. It can also be vectorized, so a list of
+			dictionaries can be passed in where each dictionary is a single sample,
+			or a list of lists where each list is a single sample, both formatted
+			as mentioned before.
 
 		max_iterations : int, optional
 			The number of iterations with which to do loopy belief propagation.
@@ -495,9 +575,14 @@ cdef class BayesianNetwork( GraphModel ):
 			Check to make sure that the observed symbol is a valid symbol for that
 			distribution to produce. Default is True.
 
+		n_jobs : int, optional
+			The number of threads to use when parallelizing the job. This
+			parameter is passed directly into joblib. Default is 1, indicating
+			no parallelism.
+
 		Returns
 		-------
-		probabilities : array-like, shape (n_nodes)
+		y_hat : array-like, shape (n_samples, n_nodes)
 			An array of univariate distribution objects showing the probabilities
 			of each variable.
 		"""
@@ -506,13 +591,45 @@ cdef class BayesianNetwork( GraphModel ):
 			raise ValueError("must bake model before using forward-backward algorithm")
 
 		if check_input:
-			indices = { state.name: state.distribution for state in self.states }
+			_check_input(X, self)
 
-			for key, value in data.items():
-				if value not in indices[key].keys() and not isinstance( value, DiscreteDistribution ):
-					raise ValueError( "State '{}' does not have key '{}'".format( key, value ) )
+		if isinstance(X, dict):
+			return self.graph.predict_proba(X, max_iterations)
 
-		return self.graph.predict_proba( data, max_iterations )
+		elif isinstance(X, (list, numpy.ndarray)) and not isinstance(X[0], 
+			(list, numpy.ndarray, dict)):
+			
+			data = {state.name: val for state, val in zip(self.states, X) 
+				if val is not None and val is not numpy.nan and val != 'nan'}
+			return self.graph.predict_proba(data, max_iterations)
+
+		else:
+			if n_jobs > 1:
+				starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+				ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+
+				fn = '.pomegranate.tmp'
+				with open(fn, 'w') as outfile:
+					outfile.write(self.to_json())
+
+				with Parallel(n_jobs=n_jobs) as parallel:
+					y_hat = parallel(delayed(parallelize_function)(
+						X[start:end], BayesianNetwork, 'predict_proba', fn,
+						check_input=False) 
+						for start, end in zip(starts, ends))
+
+				os.remove(fn)
+				return numpy.concatenate(y_hat)
+
+			else:
+				y_hat = []
+				for x in X:
+					y_ = self.predict_proba(x, max_iterations=max_iterations, 
+						check_input=False, n_jobs=1)
+					y_hat.append(y_)
+
+				return y_hat
+
 
 	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, verbose=False, 
 		n_jobs=1):
@@ -668,9 +785,6 @@ cdef class BayesianNetwork( GraphModel ):
 			state.distribution.from_summaries(inertia, pseudocount)
 
 		self.bake()
-
-	def impute(self, *args, **kwargs):
-		raise Warning("method 'impute' has been depricated, please use 'predict' instead")
 
 	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
