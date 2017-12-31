@@ -1084,3 +1084,4 @@ def test_gmm_multivariate_mixed_minibatch_nan_fit():
 
 	assert_almost_equal(p1, p2)
 	assert_raises(AssertionError, assert_almost_equal, p1, p3)
+	
