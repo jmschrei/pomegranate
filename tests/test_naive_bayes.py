@@ -399,7 +399,7 @@ def test_nb_univariate_mixed_fit():
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
 @with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gausian_fit():
+def test_nb_multivariate_gaussian_fit():
 	model.fit(X, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -437,7 +437,7 @@ def test_nb_multivariate_mixed_fit():
 
 
 @with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gausian_nan_fit():
+def test_nb_multivariate_gaussian_nan_fit():
 	model.fit(X_nan, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -490,7 +490,7 @@ def test_nb_univariate_mixed_fit_parallel():
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
 @with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gausian_fit_parallel():
+def test_nb_multivariate_gaussian_fit_parallel():
 	model.fit(X, y, n_jobs=2)
 
 	d11 = model.distributions[0].distributions[0]
@@ -544,7 +544,7 @@ def test_nb_univariate_mixed_from_samples():
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
 @with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gausian_from_samples():
+def test_nb_multivariate_gaussian_from_samples():
 	model = NaiveBayes.from_samples(NormalDistribution, X, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -583,7 +583,7 @@ def test_nb_multivariate_mixed_from_samples():
 
 
 @with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gausian_nan_from_samples():
+def test_nb_multivariate_gaussian_nan_from_samples():
 	model = NaiveBayes.from_samples(NormalDistribution, X_nan, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -638,7 +638,7 @@ def test_nb_univariate_mixed_from_samples_parallel():
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
 @with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gausian_from_samples_parallel():
+def test_nb_multivariate_gaussian_from_samples_parallel():
 	model = NaiveBayes.from_samples(NormalDistribution, X, y, n_jobs=2)
 
 	d11 = model.distributions[0].distributions[0]
