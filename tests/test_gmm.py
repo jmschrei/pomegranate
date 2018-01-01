@@ -562,10 +562,10 @@ def test_gmm_multivariate_mixed_nan_from_samples():
 
 	for i in range(5):
 		d1 = model.distributions[0].distributions[i]
-		assert_almost_equal(d1.parameters[0], p1[i], 4)
+		assert_almost_equal(d1.parameters[0], p1[i], 3)
 
 		d2 = model.distributions[1].distributions[i]
-		assert_almost_equal(d2.parameters[0], p2[i], 4)
+		assert_almost_equal(d2.parameters[0], p2[i], 3)
 
 
 def test_gmm_multivariate_gaussian_nan_fit():

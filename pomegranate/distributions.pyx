@@ -462,7 +462,7 @@ cdef class UniformDistribution(Distribution):
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
 
-		self.summaries = [INF, NEGINF]
+		self.summaries = [INF, NEGINF, 0]
 
 	@classmethod
 	def blank(cls):
@@ -1730,7 +1730,7 @@ cdef class TriangleKernelDensity(KernelDensity):
 			if isnan(X[i]):
 				log_probability[i] = 0.0
 				continue
-				
+
 			prob = 0.0
 
 			for j in range(self.n):
