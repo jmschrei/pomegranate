@@ -61,24 +61,40 @@ def _check_input(sequence, model):
 
     if not model.discrete:
         sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
+
     elif model.multivariate and model.discrete:
         sequence_ndarray = numpy.empty((n, model.d), dtype=numpy.float64)
+
         for i in range(n):
             for j in range(model.d):
-                if model.keymap[j] is {}:
-                    sequence_ndarray[i, j] = sequence[i][j]
+                symbol = sequence[i][j]
+                keymap = model.keymap[j]
+
+                if isinstance(symbol, str) and symbol == 'nan':
+                    sequence_ndarray[i, j] = numpy.nan
+                elif isinstance(symbol, (int, float)) and numpy.isnan(symbol):
+                    sequence_ndarray[i, j] = numpy.nan
+                elif symbol in keymap:
+                    sequence_ndarray[i, j] = keymap[symbol]
                 else:
-                    try:
-                        sequence_ndarray[i, j] = model.keymap[j][sequence[i][j]]
-                    except:
-                        raise ValueError("Symbol '{}' is not defined in a distribution".format(sequence[i][j]))
+                    raise ValueError("Symbol '{}' is not defined in a distribution"
+                        .format(symbol))
     else:
         sequence_ndarray = numpy.empty(n, dtype=numpy.float64)
+        keymap = model.keymap[0]
+
         for i in range(n):
-            try:
-                sequence_ndarray[i] = model.keymap[0][sequence[i]]
-            except KeyError:
-                raise ValueError("Symbol '{}' is not defined in a distribution".format(sequence[i]))
+            symbol = sequence[i]
+
+            if isinstance(symbol, str) and symbol == 'nan':
+                sequence_ndarray[i] = numpy.nan
+            elif isinstance(symbol, (int, float)) and numpy.isnan(symbol):
+                sequence_ndarray[i] = numpy.nan
+            elif sequence[i] in keymap:
+                sequence_ndarray[i] = keymap[symbol]
+            else:
+                raise ValueError("Symbol '{}' is not defined in a distribution"
+                    .format(symbol))
 
     return sequence_ndarray
 

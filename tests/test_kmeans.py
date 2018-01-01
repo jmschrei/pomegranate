@@ -2,6 +2,7 @@ from pomegranate import *
 from nose.tools import with_setup
 from nose.tools import assert_true
 from nose.tools import assert_equal
+from nose.tools import assert_greater_equal
 from nose.tools import assert_greater
 from nose.tools import assert_raises
 from nose.tools import assert_not_equal
@@ -179,7 +180,7 @@ def test_kmeans_multiple_init():
 	dist1 = model1.distance(X).min(axis=1).sum()
 	dist2 = model2.distance(X).min(axis=1).sum()
 
-	assert_greater(dist1, dist2)
+	assert_greater_equal(dist1, dist2)
 
 	model1 = Kmeans.from_samples(4, X, init='first-k', n_init=1)
 	model2 = Kmeans.from_samples(4, X, init='first-k', n_init=5)

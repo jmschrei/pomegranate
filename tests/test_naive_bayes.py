@@ -182,8 +182,8 @@ def test_nb_multivariate_gaussian_nan_predict_log_proba():
 def test_nb_multivariate_mixed_nan_predict_log_proba():
 	y_hat = model.predict_log_proba(X_nan)
 	y = [[ -1.21742279e-04,  -9.01366508e+00],
-		 [ -1.01723872e-01,  -2.33592409e+00],
-		 [  0.00000000e+00,  -4.11834936e+01],
+		 [ -2.83092062e-01,  -1.40019217e+00],
+		 [  0.00000000e+00,  -4.06187917e+01],
 		 [ -6.93147181e-01,  -6.93147181e-01],
 		 [ -3.80319311e-01,  -1.15088421e+00]]
 
@@ -276,8 +276,8 @@ def test_nb_multivariate_gaussian_nan_predict_proba():
 def test_nb_multivariate_mixed_nan_predict_proba():
 	y_hat = model.predict_proba(X_nan)
 	y = [[  9.99878265e-01,   1.21734869e-04],
-		 [  9.03278938e-01,   9.67210621e-02],
-		 [  1.00000000e+00,   1.30087626e-18],
+		 [  7.53450421e-01,   2.46549579e-01],
+		 [  1.00000000e+00,   2.28814158e-18],
 		 [  5.00000000e-01,   5.00000000e-01],
 		 [  6.83643080e-01,   3.16356920e-01]]
 
