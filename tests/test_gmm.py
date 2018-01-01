@@ -288,6 +288,7 @@ def test_gmm_multivariate_gaussian_fit():
 
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_gmm_multivariate_gaussian_fit_iterations():
+	numpy.random.seed(0)
 	X = numpy.concatenate([numpy.random.normal(i, 1, size=(100, 5)) for i in range(2)])
 
 	mu, cov = numpy.ones(5), numpy.eye(5)
@@ -310,6 +311,7 @@ def test_gmm_multivariate_gaussian_fit_iterations():
 
 @with_setup(setup_multivariate_mixed, teardown)
 def test_gmm_multivariate_mixed_fit_iterations():
+	numpy.random.seed(0)
 	X = numpy.concatenate([numpy.random.normal(i, 1, size=(100, 5)) for i in range(2)])
 	X = numpy.abs(X)
 

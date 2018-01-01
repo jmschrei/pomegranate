@@ -999,7 +999,7 @@ def test_cpd_sampling():
 	# P(A) = 0.1*0.1 + 0.9*0.7 = 0.64
 	# P(B) = 0.1*0.9 + 0.9*0.3 = 0.36
 	true = [0.64, 0.36]
-	est = numpy.bincount([0 if d2.sample() == "A" else 1 for i in range(1000)]) / 1000.0
+	est = numpy.bincount([0 if d2.sample() == "A" else 1 for i in range(2000)]) / 2000.0
 	assert_almost_equal(est[0], true[0], 1)
 	assert_almost_equal(est[1], true[1], 1)
 
