@@ -406,7 +406,7 @@ cdef class UniformDistribution(Distribution):
 		cdef int i
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1.
+				log_probability[i] = 0.
 			elif X[i] >= self.start and X[i] <= self.end:
 				log_probability[i] = self.logp
 			else:
@@ -462,7 +462,7 @@ cdef class UniformDistribution(Distribution):
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
 
-		self.summaries = [INF, NEGINF]
+		self.summaries = [INF, NEGINF, 0]
 
 	@classmethod
 	def blank(cls):
@@ -499,7 +499,7 @@ cdef class BernoulliDistribution(Distribution):
 		cdef int i
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1
+				log_probability[i] = 0.
 			else:
 				log_probability[i] = self.logp[<int> X[i]]
 
@@ -572,7 +572,7 @@ cdef class NormalDistribution(Distribution):
 		cdef int i
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1.
+				log_probability[i] = 0.
 			else:
 				log_probability[i] = self.log_sigma_sqrt_2_pi - ((X[i] - self.mu) ** 2) *\
 					self.two_sigma_squared
@@ -667,7 +667,7 @@ cdef class LogNormalDistribution(Distribution):
 		cdef int i
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1.
+				log_probability[i] = 0.
 			else:
 				log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) - 0.5\
 					* ((_log(X[i]) - self.mu) / self.sigma) ** 2
@@ -762,7 +762,7 @@ cdef class ExponentialDistribution(Distribution):
 		cdef int i
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1
+				log_probability[i] = 0.
 			else:
 				log_probability[i] = self.log_rate - self.rate * X[i]
 
@@ -854,7 +854,7 @@ cdef class BetaDistribution(Distribution):
 
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1
+				log_probability[i] = 0.
 			else:
 				log_probability[i] = beta_norm + (alpha-1)*_log(X[i]) + \
 					(beta-1)*_log(1-X[i])
@@ -947,7 +947,7 @@ cdef class GammaDistribution(Distribution):
 
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1.
+				log_probability[i] = 0.
 			else:
 				log_probability[i] = (_log(beta) * alpha - lgamma(alpha) +
 					_log(X[i]) * (alpha - 1) - beta * X[i])
@@ -1269,7 +1269,7 @@ cdef class DiscreteDistribution(Distribution):
 		cdef int i
 		for i in range(n):
 			if isnan(X[i]):
-				log_probability[i] = 1
+				log_probability[i] = 0.
 			elif X[i] < 0 or X[i] > self.n:
 				log_probability[i] = NEGINF
 			else:
@@ -1461,7 +1461,7 @@ cdef class PoissonDistribution(Distribution):
 
 		for i in range(n):
 			if isnan(X[i]):
-				continue
+				log_probability[i] = 0.
 			elif X[i] < 0 or self.l == 0:
 				log_probability[i] = NEGINF
 			else:
@@ -1685,6 +1685,10 @@ cdef class UniformKernelDensity(KernelDensity):
 		cdef int i, j
 
 		for i in range(n):
+			if isnan(X[i]):
+				log_probability[i] = 0.0
+				continue
+
 			prob = 0.0
 
 			for j in range(self.n):
@@ -1723,6 +1727,10 @@ cdef class TriangleKernelDensity(KernelDensity):
 		cdef int i, j
 
 		for i in range(n):
+			if isnan(X[i]):
+				log_probability[i] = 0.0
+				continue
+
 			prob = 0.0
 
 			for j in range(self.n):

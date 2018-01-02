@@ -8,18 +8,90 @@ from nose.tools import assert_not_equal
 from nose.tools import assert_less_equal
 from nose.tools import assert_raises
 from nose.tools import assert_true
+from numpy.testing import assert_array_almost_equal
 import random
 import pickle
 import numpy as np
 
-def setup_multivariate():
-	global model
-	global multi
-	global indie
+nan = numpy.nan
 
-	multi = MultivariateGaussianDistribution([5, 5], [[2, 0], [0, 2]])
-	indie = IndependentComponentsDistribution([UniformDistribution(0, 10), UniformDistribution(0, 10)])
-	model = NaiveBayes([multi, indie])
+def setup_multivariate_gaussian():
+	mu, cov = [0, 0, 0], numpy.eye(3)
+	d1 = MultivariateGaussianDistribution(mu, cov)
+
+	mu, cov = [2, 2, 2], numpy.eye(3)
+	d2 = MultivariateGaussianDistribution(mu, cov)
+
+	global model
+	model = BayesClassifier([d1, d2])
+
+	global X
+	X = numpy.array([[ 0.3,  0.5,  0.1],
+					 [ 0.8,  1.4,  0.5],
+					 [ 1.4,  2.6,  1.8],
+					 [ 4.2,  3.3,  3.7],
+					 [ 2.6,  3.6,  3.3],
+					 [ 3.1,  2.2,  1.7],
+					 [ 1.8,  2.2,  1.8],
+					 [-1.2, -1.8, -1.5],
+					 [-1.8,  0.3,  0.5],
+					 [ 0.7, -1.3, -0.1]])
+
+	global y
+	y = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0]
+
+	global X_nan
+	X_nan = numpy.array([[ 0.3,  nan,  0.1],
+		     			 [ nan,  1.4,  nan],
+			     		 [ 1.4,  2.6,  nan],
+				    	 [ nan,  nan,  nan],
+					     [ nan,  3.6,  3.3],
+					     [ 3.1,  nan,  1.7],
+						 [ nan,  nan,  1.8],
+						 [-1.2, -1.8, -1.5],
+						 [ nan,  0.3,  0.5],
+						 [ nan, -1.3,  nan]])
+
+
+def setup_multivariate_mixed():
+	mu, cov = [0, 0, 0], numpy.eye(3)
+	d1 = MultivariateGaussianDistribution(mu, cov)
+
+	d21 = ExponentialDistribution(5)
+	d22 = LogNormalDistribution(0.2, 0.8)
+	d23 = PoissonDistribution(3)
+	d2 = IndependentComponentsDistribution([d21, d22, d23])
+
+	global model
+	model = BayesClassifier([d1, d2])
+
+	global X
+	X = numpy.array([[ 0.3,  0.5,  0.1],
+					 [ 0.8,  1.4,  0.5],
+					 [ 1.4,  2.6,  1.8],
+					 [ 4.2,  3.3,  3.7],
+					 [ 2.6,  3.6,  3.3],
+					 [ 3.1,  2.2,  1.7],
+					 [ 1.8,  2.2,  1.8],
+					 [ 1.2,  1.8,  1.5],
+					 [ 1.8,  0.3,  0.5],
+					 [ 0.7,  1.3,  0.1]])
+
+	global y
+	y = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0]
+
+	global X_nan
+	X_nan = numpy.array([[ 0.3,  nan,  0.1],
+		     			 [ nan,  1.4,  nan],
+			     		 [ 1.4,  2.6,  nan],
+				    	 [ nan,  nan,  nan],
+					     [ nan,  3.6,  3.3],
+					     [ 3.1,  nan,  1.7],
+						 [ nan,  nan,  1.8],
+						 [ 1.2,  1.8,  1.5],
+						 [ nan,  0.3,  0.5],
+						 [ nan,  1.3,  nan]])
+
 
 def setup_hmm():
 	global model
@@ -51,144 +123,390 @@ def setup_hmm():
 
 	model = BayesClassifier([hmm1, hmm2, hmm3])
 
+
+def setup_multivariate():
+	pass
+
+
 def teardown():
 	pass
 
-@with_setup(setup_multivariate, teardown)
-def test_multivariate_distributions():
-	assert_almost_equal(multi.log_probability([11, 11]), -20.531024246969945)
-	assert_almost_equal(multi.log_probability([9, 9]), -10.531024246969945)
-	assert_almost_equal(multi.log_probability([7, 7]), -4.531024246969945)
-	assert_almost_equal(multi.log_probability([5, 5]), -2.5310242469699453)
-	assert_almost_equal(multi.log_probability([3, 3]), -4.531024246969945)
-	assert_almost_equal(multi.log_probability([1, 1]), -10.531024246969945)
-	assert_almost_equal(multi.log_probability([-1, -1]), -20.531024246969945)
 
-	assert_almost_equal(indie.log_probability([11, 11]), -float('inf'))
-	assert_almost_equal(indie.log_probability([10, 10]), -4.605170185988091)
-	assert_almost_equal(indie.log_probability([5, 5]), -4.605170185988091)
-	assert_almost_equal(indie.log_probability([0, 0]), -4.605170185988091)
-	assert_almost_equal(indie.log_probability([-1, -1]), -float('inf'))
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_initialization():
+	assert_equal(model.d, 3)
+	assert_equal(model.n, 2)
+	assert_equal(model.is_vl_, False)
 
-	assert_equal(model.d, 2)
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_initialization():
+	assert_equal(model.d, 3)
+	assert_equal(model.n, 2)
+	assert_equal(model.is_vl_, False)
 
-@with_setup(setup_multivariate, teardown)
-def test_multivariate_log_proba():
-	logs = model.predict_log_proba(np.array([[5, 5], [2, 9], [10, 7], [-1 ,7]]))
 
-	assert_almost_equal(logs[0][0], -0.11837282271439786)
-	assert_almost_equal(logs[0][1], -2.1925187617325435)
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_predict_log_proba():
+	y_hat = model.predict_log_proba(X)
+	y = [[ -1.48842547e-02,  -4.21488425e+00],
+		 [ -4.37487950e-01,  -1.03748795e+00],
+		 [ -5.60369104e+00,  -3.69104343e-03],
+		 [ -1.64000001e+01,  -7.54345812e-08],
+		 [ -1.30000023e+01,  -2.26032685e-06],
+		 [ -8.00033541e+00,  -3.35406373e-04],
+		 [ -5.60369104e+00,  -3.69104343e-03],
+		 [ -3.05902274e-07,  -1.50000003e+01],
+		 [ -3.35406373e-04,  -8.00033541e+00],
+		 [ -6.11066022e-04,  -7.40061107e+00]]
 
-	assert_almost_equal(logs[1][0], -4.1910993250497741)
-	assert_almost_equal(logs[1][1], -0.015245264067919706)
+	assert_array_almost_equal(y, y_hat)
 
-	assert_almost_equal(logs[2][0], -5.1814895400206806)
-	assert_almost_equal(logs[2][1], -0.0056354790388262188)
 
-	assert_almost_equal(logs[3][0], 0.0)
-	assert_almost_equal(logs[3][1], -float('inf'))
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_predict_log_proba():
+	y_hat = model.predict_log_proba(X)
+	y = [[ -5.03107596e-01,  -9.27980626e-01],
+		 [ -1.86355320e-01,  -1.77183117e+00],
+		 [ -5.58542088e-01,  -8.48731256e-01],
+		 [ -7.67315597e-01,  -6.24101927e-01],
+		 [ -2.32860808e+00,  -1.02510436e-01],
+		 [ -3.06641866e-03,  -5.78877778e+00],
+		 [ -9.85292840e-02,  -2.36626165e+00],
+		 [ -2.61764180e-01,  -1.46833995e+00],
+		 [ -2.01640009e-03,  -6.20744952e+00],
+		 [ -1.47371167e-01,  -1.98758175e+00]]
 
-@with_setup(setup_multivariate, teardown)
-def test_multivariate_proba():
-	probs = model.predict_proba(np.array([[5, 5], [2, 9], [10, 7], [-1, 7]]))
+	assert_array_almost_equal(y, y_hat)
 
-	assert_almost_equal(probs[0][0], 0.88836478829527532)
-	assert_almost_equal(probs[0][1], 0.11163521170472469)
 
-	assert_almost_equal(probs[1][0], 0.015129643331582699)
-	assert_almost_equal(probs[1][1], 0.98487035666841727)
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_nan_predict_log_proba():
+	y_hat = model.predict_log_proba(X_nan)
+	y = [[ -3.99533332e-02,  -3.23995333e+00],
+		 [ -1.17110067e+00,  -3.71100666e-01],
+		 [ -4.01814993e+00,  -1.81499279e-02],
+		 [ -6.93147181e-01,  -6.93147181e-01],
+		 [ -9.80005545e+00,  -5.54500620e-05],
+		 [ -5.60369104e+00,  -3.69104343e-03],
+		 [ -1.78390074e+00,  -1.83900741e-01],
+		 [ -3.05902274e-07,  -1.50000003e+01],
+		 [ -8.68361522e-02,  -2.48683615e+00],
+		 [ -1.00016521e-02,  -4.61000165e+00]]
 
-	assert_almost_equal(probs[2][0], 0.0056196295140261846)
-	assert_almost_equal(probs[2][1], 0.99438037048597383)
+	assert_array_almost_equal(y, y_hat)
 
-	assert_almost_equal(probs[3][0], 1.0)
-	assert_almost_equal(probs[3][1], 0.0)
 
-@with_setup(setup_multivariate, teardown)
-def test_multivariate_prediction():
-	predicts = model.predict(np.array([[5, 5], [2, 9], [10, 7], [-1, 7]]))
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_nan_predict_log_proba():
+	y_hat = model.predict_log_proba(X_nan)
+	y = [[ -3.57980882e-01,  -1.20093223e+00],
+		 [ -1.20735130e+00,  -3.55230506e-01],
+		 [ -2.43174286e-01,  -1.53310132e+00],
+		 [ -6.93147181e-01,  -6.93147181e-01],
+		 [ -9.31781101e+00,  -8.98143220e-05],
+		 [ -6.29755079e-04,  -7.37049444e+00],
+		 [ -1.31307006e+00,  -3.13332194e-01],
+		 [ -2.61764180e-01,  -1.46833995e+00],
+		 [ -2.29725479e-01,  -1.58353505e+00],
+		 [ -1.17299253e+00,  -3.70251760e-01]]
 
-	assert_equal(predicts[0], 0)
-	assert_equal(predicts[1], 1)
-	assert_equal(predicts[2], 1)
-	assert_equal(predicts[3], 0)
+	assert_array_almost_equal(y, y_hat)
 
-@with_setup(setup_multivariate, teardown)
-def test_multivariate_fit():
-	X = np.array([[6, 5], [3.5, 4], [4, 6], [8, 6.5], [3.5, 4], [4.5, 5.5],
-				  [0, 7], [0.5, 7.5], [9.5, 8], [5, 0.5], [7.5, 1.5], [7, 7]])
-	y = np.array([0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1])
 
-	model.fit( X, y )
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_predict_log_proba_parallel():
+	y_hat = model.predict_log_proba(X, n_jobs=2)
+	y = [[ -1.48842547e-02,  -4.21488425e+00],
+		 [ -4.37487950e-01,  -1.03748795e+00],
+		 [ -5.60369104e+00,  -3.69104343e-03],
+		 [ -1.64000001e+01,  -7.54345812e-08],
+		 [ -1.30000023e+01,  -2.26032685e-06],
+		 [ -8.00033541e+00,  -3.35406373e-04],
+		 [ -5.60369104e+00,  -3.69104343e-03],
+		 [ -3.05902274e-07,  -1.50000003e+01],
+		 [ -3.35406373e-04,  -8.00033541e+00],
+		 [ -6.11066022e-04,  -7.40061107e+00]]
 
-	data = np.array([[5, 5], [2, 3], [10, 7], [-1, 7]])
+	assert_array_almost_equal(y, y_hat)
 
-	# test multivariate log probabilities
-	logs = model.predict_log_proba(data)
 
-	assert_almost_equal(logs[0][0], -0.09672086616254516)
-	assert_almost_equal(logs[0][1], -2.3838967922368868)
-	assert_almost_equal(logs[1][0], -0.884636340789835)
-	assert_almost_equal(logs[1][1], -0.53249928976493077)
-	assert_almost_equal(logs[2][0], 0.0 )
-	assert_almost_equal(logs[2][1], -float('inf'))
-	assert_almost_equal(logs[3][0], 0.0 )
-	assert_almost_equal(logs[3][1], -float('inf'))
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_predict_log_proba_parallel():
+	y_hat = model.predict_log_proba(X, n_jobs=2)
+	y = [[ -5.03107596e-01,  -9.27980626e-01],
+		 [ -1.86355320e-01,  -1.77183117e+00],
+		 [ -5.58542088e-01,  -8.48731256e-01],
+		 [ -7.67315597e-01,  -6.24101927e-01],
+		 [ -2.32860808e+00,  -1.02510436e-01],
+		 [ -3.06641866e-03,  -5.78877778e+00],
+		 [ -9.85292840e-02,  -2.36626165e+00],
+		 [ -2.61764180e-01,  -1.46833995e+00],
+		 [ -2.01640009e-03,  -6.20744952e+00],
+		 [ -1.47371167e-01,  -1.98758175e+00]]
 
-	# test multivariate probabilities
-	probs = model.predict_proba( data )
+	assert_array_almost_equal(y, y_hat)
 
-	assert_almost_equal(probs[0][0], 0.90780937108369053)
-	assert_almost_equal(probs[0][1], 0.092190628916309608)
-	assert_almost_equal(probs[1][0], 0.41286428788295315)
-	assert_almost_equal(probs[1][1], 0.58713571211704685)
-	assert_almost_equal(probs[2][0], 1.0)
-	assert_almost_equal(probs[2][1], 0.0)
-	assert_almost_equal(probs[3][0], 1.0)
-	assert_almost_equal(probs[3][1], 0.0)
 
-	# test multivariate classifications
-	predicts = model.predict(data)
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_predict_proba():
+	y_hat = model.predict_proba(X)
+	y =	[[  9.85225968e-01,   1.47740317e-02],
+		 [  6.45656306e-01,   3.54343694e-01],
+		 [  3.68423990e-03,   9.96315760e-01],
+		 [  7.54345778e-08,   9.99999925e-01],
+		 [  2.26032430e-06,   9.99997740e-01],
+		 [  3.35350130e-04,   9.99664650e-01],
+		 [  3.68423990e-03,   9.96315760e-01],
+		 [  9.99999694e-01,   3.05902227e-07],
+		 [  9.99664650e-01,   3.35350130e-04],
+		 [  9.99389121e-01,   6.10879359e-04]]
 
-	assert_equal(predicts[0], 0)
-	assert_equal(predicts[1], 1)
-	assert_equal(predicts[2], 0)
-	assert_equal(predicts[3], 0)
+	assert_array_almost_equal(y, y_hat)
 
-@with_setup(setup_multivariate, teardown)
-def test_raise_errors():
-	assert_raises(ValueError, model.predict_log_proba, 5)
-	assert_raises(ValueError, model.predict_log_proba, [5] )
-	assert_raises(ValueError, model.predict_log_proba, [[1], [2], [3], [4]] )
-	assert_raises(ValueError, model.predict_log_proba, [[1, 2, 3], [4, 5, 6]] )
 
-	assert_raises(ValueError, model.predict_proba, 5 )
-	assert_raises(ValueError, model.predict_proba, [5] )
-	assert_raises(ValueError, model.predict_proba, [[1], [2], [3], [4]] )
-	assert_raises(ValueError, model.predict_proba, [[1, 2, 3],[4, 5, 6]] )
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_predict_proba():
+	y_hat = model.predict_proba(X)
+	y = [[ 0.60464873,  0.39535127],
+		 [ 0.82997863,  0.17002137],
+		 [ 0.57204244,  0.42795756],
+		 [ 0.46425765,  0.53574235],
+		 [ 0.09743127,  0.90256873],
+		 [ 0.99693828,  0.00306172],
+		 [ 0.90616916,  0.09383084],
+		 [ 0.76969251,  0.23030749],
+		 [ 0.99798563,  0.00201437],
+		 [ 0.86297361,  0.13702639]]
 
-	assert_raises( ValueError, model.predict, 5 )
-	assert_raises( ValueError, model.predict, [5] )
-	assert_raises( ValueError, model.predict, [[1], [2], [3], [4]] )
-	assert_raises( ValueError, model.predict, [[1, 2, 3], [4, 5, 6]] )
+	assert_array_almost_equal(y, y_hat)
 
-@with_setup(setup_multivariate, teardown)
-def test_pickling():
-	j_multi = pickle.dumps(model)
-	new_multi = pickle.loads(j_multi)
-	assert_true(isinstance(new_multi.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(new_multi.distributions[1], IndependentComponentsDistribution))
-	assert_true(isinstance(new_multi, NaiveBayes))
-	numpy.testing.assert_array_equal(model.weights, new_multi.weights)
 
-@with_setup(setup_multivariate, teardown)
-def test_json():
-	j_multi = model.to_json()
-	new_multi = model.from_json(j_multi)
-	assert_true(isinstance(new_multi.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(new_multi.distributions[1], IndependentComponentsDistribution))
-	assert_true(isinstance(new_multi, NaiveBayes))
-	numpy.testing.assert_array_equal(model.weights, new_multi.weights)
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_nan_predict_proba():
+	y_hat = model.predict_proba(X_nan)
+	y = [[  9.60834277e-01,   3.91657228e-02],
+		 [  3.10025519e-01,   6.89974481e-01],
+		 [  1.79862100e-02,   9.82013790e-01],
+		 [  5.00000000e-01,   5.00000000e-01],
+		 [  5.54485247e-05,   9.99944551e-01],
+		 [  3.68423990e-03,   9.96315760e-01],
+		 [  1.67981615e-01,   8.32018385e-01],
+		 [  9.99999694e-01,   3.05902227e-07],
+		 [  9.16827304e-01,   8.31726965e-02],
+		 [  9.90048198e-01,   9.95180187e-03]]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_nan_predict_proba():
+	y_hat = model.predict_proba(X_nan)
+	y = [[  6.99086440e-01,   3.00913560e-01],
+		 [  2.98988163e-01,   7.01011837e-01],
+		 [  7.84134838e-01,   2.15865162e-01],
+		 [  5.00000000e-01,   5.00000000e-01],
+		 [  8.98102888e-05,   9.99910190e-01],
+		 [  9.99370443e-01,   6.29556825e-04],
+		 [  2.68992964e-01,   7.31007036e-01],
+		 [  7.69692511e-01,   2.30307489e-01],
+		 [  7.94751748e-01,   2.05248252e-01],
+		 [  3.09439547e-01,   6.90560453e-01]]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_predict_proba_parallel():
+	y_hat = model.predict_proba(X, n_jobs=2)
+	y = [[  9.85225968e-01,   1.47740317e-02],
+		 [  6.45656306e-01,   3.54343694e-01],
+		 [  3.68423990e-03,   9.96315760e-01],
+		 [  7.54345778e-08,   9.99999925e-01],
+		 [  2.26032430e-06,   9.99997740e-01],
+		 [  3.35350130e-04,   9.99664650e-01],
+		 [  3.68423990e-03,   9.96315760e-01],
+		 [  9.99999694e-01,   3.05902227e-07],
+		 [  9.99664650e-01,   3.35350130e-04],
+		 [  9.99389121e-01,   6.10879359e-04]]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_predict_proba_parallel():
+	y_hat = model.predict_proba(X, n_jobs=2)
+	y = [[ 0.60464873,  0.39535127],
+		 [ 0.82997863,  0.17002137],
+		 [ 0.57204244,  0.42795756],
+		 [ 0.46425765,  0.53574235],
+		 [ 0.09743127,  0.90256873],
+		 [ 0.99693828,  0.00306172],
+		 [ 0.90616916,  0.09383084],
+		 [ 0.76969251,  0.23030749],
+		 [ 0.99798563,  0.00201437],
+		 [ 0.86297361,  0.13702639]]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_predict():
+	y_hat = model.predict(X)
+	y = [0, 0, 1, 1, 1, 1, 1, 0, 0, 0]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_predict():
+	y_hat = model.predict(X)
+	y = [0, 0, 0, 1, 1, 0, 0, 0, 0, 0]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_nan_predict():
+	y_hat = model.predict(X_nan)
+	y = [0, 1, 1, 0, 1, 1, 1, 0, 0, 0]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_nan_predict():
+	y_hat = model.predict(X_nan)
+	y = [0, 1, 0, 0, 1, 0, 1, 0, 0, 1]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_predict_parallel():
+	y_hat = model.predict(X, n_jobs=2)
+	y = [0, 0, 1, 1, 1, 1, 1, 0, 0, 0]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_predict_parallel():
+	y_hat = model.predict(X, n_jobs=2)
+	y = [0, 0, 0, 1, 1, 0, 0, 0, 0, 0]
+
+	assert_array_almost_equal(y, y_hat)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_fit_parallel():
+	model.fit(X, y, n_jobs=2)
+
+	mu1 = model.distributions[0].parameters[0]
+	cov1 = model.distributions[0].parameters[1]
+	mu1_t = [0.03333333, 0.28333333, 0.21666666]
+	cov1_t = [[1.3088888, 0.9272222, 0.6227777], 
+			  [0.9272222, 2.2513888, 1.3402777], 
+			  [0.6227777, 1.3402777, 0.9547222]]
+
+	mu2 = model.distributions[1].parameters[0]
+	cov2 = model.distributions[1].parameters[1]
+	mu2_t = [2.925, 2.825, 2.625]
+	cov2_t = [[0.75687499, 0.23687499, 0.4793750], 
+			  [0.23687499, 0.40187499, 0.5318749], 
+			  [0.47937500, 0.53187499, 0.7868750]]
+
+
+	assert_array_almost_equal(mu1, mu1_t)
+	assert_array_almost_equal(cov1, cov1_t)
+	assert_array_almost_equal(mu2, mu2_t)
+	assert_array_almost_equal(cov2, cov2_t)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_fit_parallel():
+	model.fit(X, y, n_jobs=2)
+
+	mu1 = model.distributions[0].parameters[0]
+	cov1 = model.distributions[0].parameters[1]
+	mu1_t = [1.033333, 1.3166667, 0.75]
+	cov1_t = [[0.242222, 0.0594444, 0.178333], 
+			  [0.059444, 0.5980555, 0.414166], 
+			  [0.178333, 0.4141666, 0.439166]]
+
+	d21 = model.distributions[1].distributions[0]
+	d22 = model.distributions[1].distributions[1]
+	d23 = model.distributions[1].distributions[2]
+
+	assert_array_almost_equal(mu1, mu1_t)
+	assert_array_almost_equal(cov1, cov1_t)
+	assert_array_almost_equal(d21.parameters, [0.34188034])
+	assert_array_almost_equal(d22.parameters, [1.01294275, 0.22658346])
+	assert_array_almost_equal(d23.parameters, [2.625])
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_from_samples():
+	model = BayesClassifier.from_samples(MultivariateGaussianDistribution, X, y)
+
+	mu1 = model.distributions[0].parameters[0]
+	cov1 = model.distributions[0].parameters[1]
+	mu1_t = [0.03333333, 0.2833333, 0.21666666]
+	cov1_t = [[1.308888888, 0.9272222222, 0.6227777777], 
+			  [0.927222222, 2.251388888, 1.340277777], 
+			  [0.622777777, 1.340277777, 0.9547222222]]
+
+	mu2 = model.distributions[1].parameters[0]
+	cov2 = model.distributions[1].parameters[1]
+	mu2_t = [2.925, 2.825, 2.625]
+	cov2_t = [[0.75687500, 0.23687499, 0.47937500], 
+			  [0.23687499, 0.40187499, 0.53187499], 
+			  [0.47937500, 0.53187499, 0.78687500]]
+
+	assert_array_almost_equal(mu1, mu1_t)
+	assert_array_almost_equal(cov1, cov1_t)
+	assert_array_almost_equal(mu2, mu2_t)
+	assert_array_almost_equal(cov2, cov2_t)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_pickle():
+	model2 = pickle.loads(pickle.dumps(model))
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], MultivariateGaussianDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_pickle():
+	model2 = pickle.loads(pickle.dumps(model))
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], IndependentComponentsDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_to_json():
+	model2 = BayesClassifier.from_json(model.to_json())
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], MultivariateGaussianDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_to_json():
+	model2 = BayesClassifier.from_json(model.to_json())
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], IndependentComponentsDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
 
 @with_setup(setup_hmm, teardown)
 def test_model():
@@ -214,6 +532,7 @@ def test_model():
 
 	assert_equal(model.d, 1)
 
+
 @with_setup(setup_hmm, teardown)
 def test_hmm_log_proba():
 	logs = model.predict_log_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
@@ -238,6 +557,7 @@ def test_hmm_log_proba():
 	assert_almost_equal(logs[4][1], -1.4007102236822906)
 	assert_almost_equal(logs[4][2], -0.7284958836972919)
 
+
 @with_setup(setup_hmm, teardown)
 def test_hmm_proba():
 	probs = model.predict_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
@@ -261,6 +581,7 @@ def test_hmm_proba():
 	assert_almost_equal(probs[4][0], 0.27094373022369794)
 	assert_almost_equal(probs[4][1], 0.24642188711704707)
 	assert_almost_equal(probs[4][2], 0.48263438265925512)
+
 
 @with_setup(setup_hmm, teardown)
 def test_hmm_prediction():

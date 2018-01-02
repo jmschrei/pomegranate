@@ -11,6 +11,10 @@ Version 0.8.2
 Highlights
 ----------
 
+	- Missing value support has been added in for all models except Bayesian networks and factor graphs. This is done by included the string `nan` in string datasets, or `numpy.nan` in numeric datasets. Model fitting and inference is supported for all models except Bayesian networks for this. The technique is to not collect sufficient statistics from missing data, not to impute the missing values.
+
+	- The unit testing suite has been greatly expanded, from around 140 tests to around 360 tests.
+
 Changelog
 ---------
 
@@ -18,7 +22,10 @@ HiddenMarkovModel
 -----------------
 
 	- The documentation has been fixed so that states are defined as `State(NormalDistribution(0, 1))` instead of incorrectly as `State(Distribution(NormalDistribution(0, 1)))`
+	
 	- Fixed a bug in `from_samples` that was causing a TypeError if `name` was not specified when using `DiscreteDistribution` with custom labels.
+
+	- Expanded the number of unit tests to include missing value support and be more comprehensive
 
 
 Distributions
@@ -53,6 +60,8 @@ GeneralMixtureModel
 -------------------
 
 	- Added in missing value support for mixture models through updates to the distributions
+
+	- Fixed an issue where passing in a list of distributions to `from_samples` along with a number of components did not produce a mixture of IndependentComponentsDistribution objects
 
 	- Expanded the unit test suite and added tests for missing value support
 

@@ -498,6 +498,8 @@ cdef class GeneralMixtureModel(BayesModel):
 			no parallelism.
 		"""
 
+		icd = False
+
 		if not callable(distributions) and not isinstance(distributions, list):
 			raise ValueError("must either give initial distributions "
 			                 "or constructor")
@@ -510,7 +512,11 @@ cdef class GeneralMixtureModel(BayesModel):
 			distributions = [distributions for i in range(n_components)]
 
 		else:
-			n_components = len(distributions)
+			if X.shape[1] == len(distributions):
+				icd = True
+			else:
+				n_components = len(distributions)
+			
 			if n_components < 2:
 				raise ValueError("must have at least two distributions "
 				                 "for general mixture models")
@@ -534,7 +540,13 @@ cdef class GeneralMixtureModel(BayesModel):
 
 		y = kmeans.predict(X_kmeans)
 
-		distributions = [distribution.from_samples(X_kmeans[y == i]) for i, distribution in enumerate(distributions)]
+		if icd:
+			distributions = [IndependentComponentsDistribution.from_samples(X_kmeans[y == i], 
+				distributions=distributions) for i in range(n_components)]
+		else:
+			distributions = [distribution.from_samples(X_kmeans[y == i]) 
+				for i, distribution in enumerate(distributions)]
+
 		class_weights = numpy.array([(y == i).mean() for i in range(n_components)])
 
 		model = GeneralMixtureModel(distributions, class_weights)
