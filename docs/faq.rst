@@ -11,6 +11,10 @@ Yes! pomegranate has two ways of initializing models, either by starting off wit
 
 pomegranate attempts to closely follow the scikit-learn API. However, a major area in which it diverges is in the initialization of models directly from data. Typically in scikit-learn one would create an estimator and then call the ``fit`` function on the training data. In pomegranate one would use the ``Model.from_samples`` class method, such as ``BayesianNetwork.from_samples(X)``, to learn a model directly from data.
 
+**My data set has missing values. Can I use pomegranate?**
+
+Yes! pomegranate v0.9.0 merged missing value support. This means that you can learn models and run inference on data sets that have missing values just as easily as if they were fully observed. Indicate that a value is missing using either `numpy.nan` for numeric data sets or `'nan'` in string data sets.
+
 **What is the difference between ``fit`` and ``from_samples``?**
 
 The ``fit`` method trains an initialized model, whereas the ``from_samples`` class method will first initialize the model and then train it. These are separated out because frequently a person already knows a good initialization, such as the structure of the Bayesian network but maybe not the parameters, and wants to fine-tune that initialization instead of learning everything directly from data. This also simplifies the backend by allowing the ``fit`` function to assume that the model is initialized instead of having to check to see if it is initialized, and if not then initialize it. This is particularly useful in structured models such as Bayesian networks or hidden Markov models where the ``Model.from_samples`` task is really structure learning + parameter learning, because it allows the ``fit`` function to be solely parameter learning.
