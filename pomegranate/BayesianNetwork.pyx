@@ -28,6 +28,7 @@ from .distributions cimport JointProbabilityTable
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 from .utils cimport lgamma
+from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import plot_networkx
 from .utils import parallelize_function
@@ -50,6 +51,18 @@ else:
 
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
+
+nan = numpy.nan
+
+def _check_nan(X):
+	if isinstance(X, str):
+		if X == 'nan':
+			return True
+		return False
+
+	if X is None or numpy.isnan(X):
+		return True
+	return False
 
 def _check_input(X, model):
 	"""Ensure that the keys in the sample are valid keys.
@@ -119,7 +132,7 @@ def _check_input(X, model):
 							.format(model.states[i].name))
 					continue
 
-				if x[i] is None or x[i] is numpy.nan or x[i] == 'nan':
+				if _check_nan(x[i]):
 					continue
 
 				if x[i] not in model.states[i].distribution.keys():
@@ -138,13 +151,12 @@ def _check_input(X, model):
 						.format(model.states[i].name))
 				continue
 
-
-			if X[i] is None or X[i] is numpy.nan or X[i] == 'nan':
+			if _check_nan(X[i]):
 				continue
 
 			if X[i] not in model.states[i].distribution.keys():
-				raise ValueError("State '{}' does not have key '{}' {} {}"
-					.format(model.states[i].name, X[i], X[i] in (None, numpy.nan), X[i] is numpy.nan))
+				raise ValueError("State '{}' does not have key '{}'"
+					.format(model.states[i].name, X[i]))
 
 	return True
 
@@ -599,8 +611,11 @@ cdef class BayesianNetwork(GraphModel):
 		elif isinstance(X, (list, numpy.ndarray)) and not isinstance(X[0], 
 			(list, numpy.ndarray, dict)):
 			
-			data = {state.name: val for state, val in zip(self.states, X) 
-				if val is not None and val is not numpy.nan and val != 'nan'}
+			data = {}
+			for state, val in zip(self.states, X):
+				if not _check_nan(val):
+					data[state.name] = val
+
 			return self.graph.predict_proba(data, max_iterations)
 
 		else:
@@ -739,7 +754,10 @@ cdef class BayesianNetwork(GraphModel):
 
 		for i in range(n):
 			for j in range(d):
-				X_int[i, j] = self.keymap[j][X[i][j]]
+				if X[i][j] == 'nan' or X[i][j] == None or X[i][j] == nan:
+					X_int[i, j] = nan
+				else:
+					X_int[i, j] = self.keymap[j][X[i][j]]
 
 		if weights is None:
 			weights_ndarray = numpy.ones(n, dtype='float64')
@@ -1040,8 +1058,21 @@ cdef class BayesianNetwork(GraphModel):
 		X = numpy.array(X)
 		n, d = X.shape
 
-		keys = [numpy.unique(X[:,i]) for i in range(X.shape[1])]
-		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(X.shape[1])])
+		keys = [numpy.unique(X[:,i]) for i in range(d)]
+
+		for i in range(d):
+			keys_ = []
+			for key in keys[i]:
+				if isinstance(key, str) and key == 'nan':
+					continue
+				elif numpy.isnan(key):
+					continue
+				
+				keys_.append(key)
+
+			keys[i] = keys_
+
+		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(d)])
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
 
 		if weights is None:
@@ -1063,10 +1094,13 @@ cdef class BayesianNetwork(GraphModel):
 			X = numpy.array(list(X_count.keys()))
 			n, d = X.shape
 
-		X_int = numpy.zeros((n, d), dtype='int32')
+		X_int = numpy.zeros((n, d), dtype='float64')
 		for i in range(n):
 			for j in range(d):
-				X_int[i, j] = keymap[j][X[i, j]]
+				if X[i, j] == 'nan' or isnan(X[i, j]):
+					X_int[i, j] = nan
+				else:
+					X_int[i, j] = keymap[j][X[i, j]]
 
 		w_sum = weights.sum()
 
@@ -1074,6 +1108,9 @@ cdef class BayesianNetwork(GraphModel):
 			max_parents = int(_log(2*w_sum / _log(w_sum)))
 
 		if algorithm == 'chow-liu':
+			if numpy.any(numpy.isnan(X_int)):
+				raise ValueError("Chow-Liu tree learning does not current support missing values")
+
 			structure = discrete_chow_liu_tree(X_int, weights, key_count,
 				pseudocount, root)
 		elif algorithm == 'exact' and constraint_graph is not None:
@@ -1172,7 +1209,7 @@ cdef class ParentGraph(object):
 	def calculate_value(self, value):
 		cdef int k, parent, l = len(value)
 
-		cdef int* X = <int*> self.X.data
+		cdef double* X = <double*> self.X.data
 		cdef int* key_count = <int*> self.key_count.data
 		cdef int* m = self.m
 		cdef int* parents = self.parents
@@ -1222,7 +1259,7 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 	cdef int max_keys = key_count_ndarray.max()
 
-	cdef int* X = <int*> X_ndarray.data
+	cdef double* X = <double*> X_ndarray.data
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 
@@ -1249,8 +1286,8 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 					joint_count[i*max_keys + l] = pseudocount
 
 			for i in range(n):
-				Xj = X[i*d + j]
-				Xk = X[i*d + k]
+				Xj = <int> X[i*d + j]
+				Xk = <int> X[i*d + k]
 
 				joint_count[Xj * lk + Xk] += weights[i]
 				marg_j[Xj] += weights[i]
@@ -1962,11 +1999,10 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 		The parents for each variable in this SCC
 	"""
 
-
 	cdef int j, k, variable, l
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 
-	cdef int* X = <int*> X_ndarray.data
+	cdef double* X = <double*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 	cdef int* m = <int*> calloc(d+2, sizeof(int))
 	cdef int* parents = <int*> calloc(d, sizeof(int))
@@ -2015,52 +2051,13 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 	free(parents)
 	return parent_graph
 
-cdef double discrete_score_node(int* X, double* weights, int* m, int* parents, 
-	int n, int d, int l, double pseudocount) nogil:
-	cdef int i, j, k, idx
-	cdef double w_sum = 0
-	cdef double logp = 0 #-_log(n) / 2 * m[d+1]
-	cdef double count, marginal_count
-	cdef double* counts = <double*> calloc(m[d], sizeof(double))
-	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
-
-	memset(counts, 0, m[d]*sizeof(double))
-	memset(marginal_counts, 0, m[d-1]*sizeof(double))
-
-	for i in range(n):
-		idx = 0
-		for j in range(d-1):
-			k = parents[j]
-			idx += X[i*l+k] * m[j]
-
-		marginal_counts[idx] += weights[i]
-		k = parents[d-1]
-		idx += X[i*l+k] * m[d-1]
-
-		counts[idx] += weights[i]
-
-	for i in range(m[d]):
-		w_sum += counts[i]
-		count = pseudocount + counts[i]
-		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
-
-		if count > 0:
-			logp += count * _log(count / marginal_count)
-
-	logp -= _log(w_sum) / 2 * m[d+1]
-
-	free(counts)
-	free(marginal_counts)
-	return logp
-
-
 cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
 	double pseudocount, int max_parents, tuple parent_set, int i):
 	cdef int j, k
 	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
 
-	cdef int* X = <int*> X_ndarray.data
+	cdef double* X = <double*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 	cdef int* m = <int*> calloc(l+2, sizeof(int))
 	cdef int* combs = <int*> calloc(l, sizeof(int))
@@ -2092,3 +2089,48 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	free(m)
 	free(combs)
 	return best_score, best_parents
+
+cdef double discrete_score_node(double* X, double* weights, int* m, int* parents, 
+	int n, int d, int l, double pseudocount) nogil:
+	cdef int i, j, k, idx, is_na
+	cdef double w_sum = 0
+	cdef double logp = 0
+	cdef double count, marginal_count
+	cdef double* counts = <double*> calloc(m[d], sizeof(double))
+	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
+
+	memset(counts, 0, m[d]*sizeof(double))
+	memset(marginal_counts, 0, m[d-1]*sizeof(double))
+
+	for i in range(n):
+		idx, is_na = 0, 0
+		for j in range(d-1):
+			k = parents[j]
+			if isnan(X[i*l + k]):
+				is_na = 1
+			else:
+				idx += <int> X[i*l+k] * m[j]
+
+		k = parents[d-1]
+		
+		if is_na == 1 or isnan(X[i*l+k]):
+			continue
+
+
+		marginal_counts[idx] += weights[i]
+		idx += <int> X[i*l+k] * m[d-1]
+		counts[idx] += weights[i]
+
+	for i in range(m[d]):
+		w_sum += counts[i]
+		count = pseudocount + counts[i]
+		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
+
+		if count > 0:
+			logp += count * _log(count / marginal_count)
+
+	logp -= _log(w_sum) / 2 * m[d+1]
+
+	free(counts)
+	free(marginal_counts)
+	return logp

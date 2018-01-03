@@ -898,13 +898,11 @@ def test_conditional():
 							 DiscreteDistribution({False: 0.941, True: 0.059}))
 
 
-def test_monty():
+def setup_cpt():
 	guest = DiscreteDistribution({'A': 1. / 3, 'B': 1. / 3, 'C': 1. / 3})
-
-	# The actual prize is independent of the other distributions
 	prize = DiscreteDistribution({'A': 1. / 3, 'B': 1. / 3, 'C': 1. / 3})
 
-	# Monty is dependent on both the guest and the prize.
+	global monty
 	monty = ConditionalProbabilityTable(
 		[['A', 'A', 'A', 0.0],
 		 ['A', 'A', 'B', 0.5],
@@ -934,36 +932,293 @@ def test_monty():
 		 ['C', 'C', 'B', 0.5],
 		 ['C', 'C', 'C', 0.0]], [guest, prize])
 
+	global X
+	X = [['A', 'A', 'C'],
+	 	['A', 'A', 'B'],
+		['A', 'A', 'C'],
+		['A', 'A', 'B'],
+		['A', 'A', 'A'],
+		['A', 'B', 'A'],
+		['A', 'B', 'A'],
+		['A', 'B', 'B'],
+		['A', 'B', 'C'],
+		['A', 'C', 'A'],
+		['A', 'C', 'C'],
+		['A', 'C', 'C'],
+		['A', 'C', 'C'],
+		['A', 'C', 'B'],
+		['B', 'A', 'A'],
+		['B', 'A', 'B'],
+		['B', 'A', 'B'],
+		['B', 'A', 'B'],
+		['B', 'B', 'B'],
+		['B', 'B', 'C'],
+		['B', 'C', 'A'],
+		['B', 'C', 'B'],
+		['B', 'C', 'A'],
+		['B', 'C', 'B'],
+		['C', 'A', 'B'],
+		['C', 'B', 'B'],
+		['C', 'B', 'C'],
+		['C', 'C', 'A'],
+		['C', 'C', 'C'],
+		['C', 'C', 'C'],
+		['C', 'C', 'C']]
+
+
+	global X_nan
+	X_nan = [['nan', 'A', 'C'],
+	 	['A', 'A', 'nan'],
+		['A', 'nan', 'C'],
+		['A', 'A', 'B'],
+		['A', 'A', 'A'],
+		['A', 'B', 'nan'],
+		['A', 'B', 'A'],
+		['A', 'B', 'nan'],
+		['A', 'B', 'C'],
+		['A', 'C', 'A'],
+		['A', 'nan', 'C'],
+		['A', 'C', 'C'],
+		['A', 'C', 'C'],
+		['A', 'C', 'B'],
+		['B', 'nan', 'A'],
+		['B', 'A', 'B'],
+		['nan', 'A', 'B'],
+		['B', 'A', 'B'],
+		['B', 'B', 'B'],
+		['B', 'B', 'C'],
+		['B', 'C', 'A'],
+		['nan', 'C', 'B'],
+		['B', 'C', 'A'],
+		['nan', 'C', 'B'],
+		['C', 'A', 'B'],
+		['C', 'B', 'B'],
+		['C', 'nan', 'C'],
+		['C', 'nan', 'A'],
+		['C', 'nan', 'C'],
+		['C', 'C', 'C'],
+		['C', 'C', 'C']]
+
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_initialization():
+	assert_equal(monty.name, "ConditionalProbabilityTable")
+	assert_array_equal(monty.parameters[0], [['A', 'A', 'A', 0.0],
+		 ['A', 'A', 'B', 0.5],
+		 ['A', 'A', 'C', 0.5],
+		 ['A', 'B', 'A', 0.0],
+		 ['A', 'B', 'B', 0.0],
+		 ['A', 'B', 'C', 1.0],
+		 ['A', 'C', 'A', 0.0],
+		 ['A', 'C', 'B', 1.0],
+		 ['A', 'C', 'C', 0.0],
+		 ['B', 'A', 'A', 0.0],
+		 ['B', 'A', 'B', 0.0],
+		 ['B', 'A', 'C', 1.0],
+		 ['B', 'B', 'A', 0.5],
+		 ['B', 'B', 'B', 0.0],
+		 ['B', 'B', 'C', 0.5],
+		 ['B', 'C', 'A', 1.0],
+		 ['B', 'C', 'B', 0.0],
+		 ['B', 'C', 'C', 0.0],
+		 ['C', 'A', 'A', 0.0],
+		 ['C', 'A', 'B', 1.0],
+		 ['C', 'A', 'C', 0.0],
+		 ['C', 'B', 'A', 1.0],
+		 ['C', 'B', 'B', 0.0],
+		 ['C', 'B', 'C', 0.0],
+		 ['C', 'C', 'A', 0.5],
+		 ['C', 'C', 'B', 0.5],
+		 ['C', 'C', 'C', 0.0]])
+
+	assert_equal(monty.n_columns, 3)
+	assert_equal(monty.m, 2)
+
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_log_probability():
 	assert_equal(monty.log_probability(('A', 'B', 'C')), 0.)
 	assert_equal(monty.log_probability(('C', 'B', 'A')), 0.)
-	assert_equal(monty.log_probability(('C', 'C', 'C')), float("-inf"))
-	assert_equal(monty.log_probability(('A', 'A', 'A')), float("-inf"))
+	assert_equal(monty.log_probability(('C', 'C', 'C')), -inf)
+	assert_equal(monty.log_probability(('A', 'A', 'A')), -inf)
 	assert_equal(monty.log_probability(('B', 'A', 'C')), 0.)
 	assert_equal(monty.log_probability(('C', 'A', 'B')), 0.)
 
-	data = [['A', 'A', 'C'],
-			['A', 'A', 'C'],
-			['A', 'A', 'B'],
-			['A', 'A', 'A'],
-			['A', 'A', 'C'],
-			['B', 'B', 'B'],
-			['B', 'B', 'C'],
-			['C', 'C', 'A'],
-			['C', 'C', 'C'],
-			['C', 'C', 'C'],
-			['C', 'C', 'C'],
-			['C', 'B', 'A']]
 
-	monty.fit(data, weights=[1, 1, 3, 3, 1, 1, 3, 7, 1, 1, 1, 1])
+@with_setup(setup_cpt)
+def test_distributions_cpt_nan_log_probability():
+	assert_equal(monty.log_probability(('A', 'nan', 'C')), 0.)
+	assert_equal(monty.log_probability(('nan', 'nan', 'C')), 0.)
+	assert_equal(monty.log_probability(('A', 'nan', 'nan')), 0.)
+	assert_equal(monty.log_probability(('nan', 'nan', 'nan')), 0.)
+	assert_equal(monty.log_probability(('nan', 'B', 'C')), 0.)
+	assert_equal(monty.log_probability(('A', 'B', 'nan')), 0.)
 
-	assert_equal(monty.log_probability(('A', 'A', 'A')),
-				 monty.log_probability(('A', 'A', 'C')))
-	assert_equal(monty.log_probability(('A', 'A', 'A')),
-				 monty.log_probability(('A', 'A', 'B')))
-	assert_equal(monty.log_probability(('B', 'A', 'A')),
-				 monty.log_probability(('B', 'A', 'C')))
-	assert_equal(monty.log_probability(('B', 'B', 'A')), float("-inf"))
-	assert_equal(monty.log_probability(('C', 'C', 'B')), float("-inf"))
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_probability():
+	assert_equal(monty.probability(('A', 'B', 'C')), 1.)
+	assert_equal(monty.probability(('C', 'B', 'A')), 1.)
+	assert_equal(monty.probability(('C', 'C', 'C')), 0.)
+	assert_equal(monty.probability(('A', 'A', 'A')), 0.)
+	assert_equal(monty.probability(('B', 'A', 'C')), 1.)
+	assert_equal(monty.probability(('C', 'A', 'B')), 1.)
+
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_nan_probability():
+	assert_equal(monty.probability(('A', 'nan', 'C')), 1.)
+	assert_equal(monty.probability(('nan', 'nan', 'C')), 1.)
+	assert_equal(monty.probability(('A', 'nan', 'nan')), 1.)
+	assert_equal(monty.probability(('nan', 'nan', 'nan')), 1.)
+	assert_equal(monty.probability(('nan', 'B', 'C')), 1.)
+	assert_equal(monty.probability(('A', 'B', 'nan')), 1.)
+
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_fit():
+	monty.fit(X)
+
+	assert_array_equal(monty.parameters[0],
+		[['A', 'A', 'A', 0.2], 
+		['A', 'A', 'B', 0.4], 
+		['A', 'A', 'C', 0.4], 
+		['A', 'B', 'A', 0.5], 
+		['A', 'B', 'B', 0.25], 
+		['A', 'B', 'C', 0.25], 
+		['A', 'C', 'A', 0.2], 
+		['A', 'C', 'B', 0.2], 
+		['A', 'C', 'C', 0.6], 
+		['B', 'A', 'A', 0.25], 
+		['B', 'A', 'B', 0.75], 
+		['B', 'A', 'C', 0.0], 
+		['B', 'B', 'A', 0.0], 
+		['B', 'B', 'B', 0.5], 
+		['B', 'B', 'C', 0.5], 
+		['B', 'C', 'A', 0.5], 
+		['B', 'C', 'B', 0.5], 
+		['B', 'C', 'C', 0.0], 
+		['C', 'A', 'A', 0.0], 
+		['C', 'A', 'B', 1.0], 
+		['C', 'A', 'C', 0.0], 
+		['C', 'B', 'A', 0.0], 
+		['C', 'B', 'B', 0.5], 
+		['C', 'B', 'C', 0.5], 
+		['C', 'C', 'A', 0.25], 
+		['C', 'C', 'B', 0.0], 
+		['C', 'C', 'C', 0.75]])
+
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_nan_fit():
+	monty.fit(X_nan)
+
+	assert_array_equal(monty.parameters[0],
+		[['A', 'A', 'A', 0.5], 
+		['A', 'A', 'B', 0.5], 
+		['A', 'A', 'C', 0.0], 
+		['A', 'B', 'A', 0.5], 
+		['A', 'B', 'B', 0.0], 
+		['A', 'B', 'C', 0.5], 
+		['A', 'C', 'A', 0.25], 
+		['A', 'C', 'B', 0.25], 
+		['A', 'C', 'C', 0.5], 
+		['B', 'A', 'A', 0.0], 
+		['B', 'A', 'B', 1.0], 
+		['B', 'A', 'C', 0.0], 
+		['B', 'B', 'A', 0.0], 
+		['B', 'B', 'B', 0.5], 
+		['B', 'B', 'C', 0.5], 
+		['B', 'C', 'A', 1.0], 
+		['B', 'C', 'B', 0.0], 
+		['B', 'C', 'C', 0.0], 
+		['C', 'A', 'A', 0.0], 
+		['C', 'A', 'B', 1.0], 
+		['C', 'A', 'C', 0.0], 
+		['C', 'B', 'A', 0.0], 
+		['C', 'B', 'B', 1.0], 
+		['C', 'B', 'C', 0.0], 
+		['C', 'C', 'A', 0.0], 
+		['C', 'C', 'B', 0.0], 
+		['C', 'C', 'C', 1.0]])
+
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_exclusive_nan_fit():
+	X = [['nan', 'nan', 'nan'],
+		 ['nan', 'nan', 'nan'],
+		 ['nan', 'nan', 'nan'],
+		 ['nan', 'nan', 'nan'],
+		 ['nan', 'nan', 'nan']]
+
+	monty.fit(X)
+
+	assert_array_equal(monty.parameters[0],
+		[['A', 'A', 'A', 0.0],
+		 ['A', 'A', 'B', 0.5],
+		 ['A', 'A', 'C', 0.5],
+		 ['A', 'B', 'A', 0.0],
+		 ['A', 'B', 'B', 0.0],
+		 ['A', 'B', 'C', 1.0],
+		 ['A', 'C', 'A', 0.0],
+		 ['A', 'C', 'B', 1.0],
+		 ['A', 'C', 'C', 0.0],
+		 ['B', 'A', 'A', 0.0],
+		 ['B', 'A', 'B', 0.0],
+		 ['B', 'A', 'C', 1.0],
+		 ['B', 'B', 'A', 0.5],
+		 ['B', 'B', 'B', 0.0],
+		 ['B', 'B', 'C', 0.5],
+		 ['B', 'C', 'A', 1.0],
+		 ['B', 'C', 'B', 0.0],
+		 ['B', 'C', 'C', 0.0],
+		 ['C', 'A', 'A', 0.0],
+		 ['C', 'A', 'B', 1.0],
+		 ['C', 'A', 'C', 0.0],
+		 ['C', 'B', 'A', 1.0],
+		 ['C', 'B', 'B', 0.0],
+		 ['C', 'B', 'C', 0.0],
+		 ['C', 'C', 'A', 0.5],
+		 ['C', 'C', 'B', 0.5],
+		 ['C', 'C', 'C', 0.0]])
+
+
+@with_setup(setup_cpt)
+def test_distributions_cpt_weighted_fit():
+	weights = [1, 3, 2, 3, 7, 4, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0, 1, 2, 1, 3, 1, 
+		1, 1, 2, 1, 1, 1, 3, 1, 1, 1]
+
+	monty.fit(X, weights=weights)
+
+	assert_array_equal(monty.parameters[0],
+		[['A', 'A', 'A', 0.4375], 
+		['A', 'A', 'B', 0.375], 
+		['A', 'A', 'C', 0.1875], 
+		['A', 'B', 'A', 0.6], 
+		['A', 'B', 'B', 0.2], 
+		['A', 'B', 'C', 0.2], 
+		['A', 'C', 'A', 0.25], 
+		['A', 'C', 'B', 0.0], 
+		['A', 'C', 'C', 0.75], 
+		['B', 'A', 'A', 0.0], 
+		['B', 'A', 'B', 1.0], 
+		['B', 'A', 'C', 0.0], 
+		['B', 'B', 'A', 0.0], 
+		['B', 'B', 'B', 0.25], 
+		['B', 'B', 'C', 0.75], 
+		['B', 'C', 'A', 0.4], 
+		['B', 'C', 'B', 0.6], 
+		['B', 'C', 'C', 0.0], 
+		['C', 'A', 'A', 0.0], 
+		['C', 'A', 'B', 1.0], 
+		['C', 'A', 'C', 0.0], 
+		['C', 'B', 'A', 0.0], 
+		['C', 'B', 'B', 0.5], 
+		['C', 'B', 'C', 0.5], 
+		['C', 'C', 'A', 0.5], 
+		['C', 'C', 'B', 0.0], 
+		['C', 'C', 'C', 0.5]])
+
 
 def test_univariate_log_probability():
 	distributions = [UniformDistribution, NormalDistribution, ExponentialDistribution,
