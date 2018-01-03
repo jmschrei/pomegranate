@@ -1263,6 +1263,12 @@ cdef class DiscreteDistribution(Distribution):
 		return self.__log_probability(X)
 
 	cdef double __log_probability(self, X):
+		if isinstance(X, (str, unicode)):
+			if X == 'nan':
+				return 0.
+		elif X is None or numpy.isnan(X):
+			return 0.
+
 		return self.log_dist.get(X, NEGINF)
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
@@ -1413,6 +1419,11 @@ cdef class DiscreteDistribution(Distribution):
 		total = 0
 
 		for X, weight in izip(items, weights):
+			if isinstance(X, str) and X == 'nan':
+				continue
+			elif isinstance(X, (int, float)) and numpy.isnan(X):
+				continue
+
 			total += weight
 			if X in Xs:
 				Xs[X] += weight
@@ -2495,18 +2506,33 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		ordering, like the training data.
 		"""
 
-		idx = self.keymap[tuple(X)]
+		X = tuple(X)
+
+		for x in X:
+			if isinstance(x, str):
+				if x == 'nan':
+					return 0.0
+			elif x is None or numpy.isnan(x):
+				return 0.0
+
+		idx = self.keymap[X]
 		return self.values[idx]
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
-		cdef int i, j, idx
+		cdef int i, j, idx, is_na = 0
 
 		for i in range(n):
-			idx = 0
+			idx, is_na = 0, 0
 			for j in range(self.m+1):
+				if isnan(X[self.m-j]):
+					is_na = 1 
+
 				idx += self.idxs[j] * <int> X[self.m-j]
 
-			log_probability[i] = self.values[idx]
+			if is_na == 1:
+				log_probability[i] = 0.
+			else:
+				log_probability[i] = self.values[idx]
 
 	def joint(self, neighbor_values=None):
 		"""
@@ -2572,32 +2598,56 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.__summarize(items, weights)
 
 	cdef void __summarize(self, items, double [:] weights):
-		cdef int i, n = len(items)
+		cdef int i, n = len(items), is_na
 		cdef tuple item
 
 		for i in range(n):
-			key = self.keymap[tuple(items[i])]
+			is_na = 0
+			item = tuple(items[i])
+
+			for symbol in item:
+				if isinstance(symbol, str) and symbol == 'nan':
+					is_na = 1
+				elif isinstance(symbol, (int, float)) and numpy.isnan(symbol):
+					is_na = 1 
+
+			if is_na:
+				continue
+
+			key = self.keymap[item]
 			self.counts[key] += weights[i]
 
-			key = self.marginal_keymap[tuple(items[i][:-1])]
+			key = self.marginal_keymap[item[:-1]]
 			self.marginal_counts[key] += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
-		cdef int i, j, idx
+		cdef int i, j, idx, k, is_na
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))
 		cdef double* marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
 
+		memset(counts, 0, self.n*sizeof(double))
+		memset(marginal_counts, 0, self.n / self.k * sizeof(double))
+
 		for i in range(n):
-			idx = 0
+			idx, is_na = 0, 0
 			for j in range(self.m+1):
-				idx += self.idxs[j] * <int> items[i*self.n_columns + self.column_idxs_ptr[self.m-j]]
+				k = i*self.n_columns + self.column_idxs_ptr[self.m-j]
+				if isnan(items[k]):
+					is_na = 1
+					continue
+
+				idx += self.idxs[j] * <int> items[k]
+
+			if is_na:
+				continue
 
 			counts[idx] += weights[i]
 
 			idx = 0
 			for j in range(self.m):
-				idx += self.marginal_idxs[j] * <int> items[i*self.n_columns + self.column_idxs_ptr[self.m-1-j]]
+				k = i*self.n_columns + self.column_idxs_ptr[self.m-1-j]
+				idx += self.marginal_idxs[j] * <int> items[k]
 
 			marginal_counts[idx] += weights[i]
 
@@ -2615,6 +2665,10 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		"""Update the parameters of the distribution using sufficient statistics."""
 
 		cdef int i, k, idx
+
+		w_sum = sum(self.counts[i] for i in range(self.n))
+		if w_sum < 1e-7:
+			return
 
 		with nogil:
 			for i in range(self.n):
@@ -2682,6 +2736,18 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		n, d = X.shape
 
 		keys = [numpy.unique(X[:,i]) for i in range(d)]
+
+		for i in range(d):
+			keys_ = []
+			for key in keys[i]:
+				if isinstance(key, str) and key == 'nan':
+					continue
+				elif numpy.isnan(key):
+					continue
+
+				keys_.append(key)
+
+			keys[i] = keys_
 
 		table = []
 		for key in it.product(*keys):
@@ -2776,18 +2842,29 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		ordering, like the training data.
 		"""
 
-		key = self.keymap[tuple(X)]
+		X = tuple(X)
+
+		if 'nan' in X or numpy.nan in X or None in X:
+			return 0.
+
+		key = self.keymap[X]
 		return self.values[key]
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
-		cdef int i, j, idx
+		cdef int i, j, idx, is_na
 
 		for i in range(n):
-			idx = 0
+			idx, is_na = 0, 0
 			for j in range(self.m+1):
+				if isnan(X[self.m-j]):
+					is_na = 1
+
 				idx += self.idxs[j] * <int> X[self.m-j]
 
-			log_probability[i] = self.values[idx]
+			if is_na == 1:
+				log_probability[i] = 0
+			else:
+				log_probability[i] = self.values[idx]
 
 	def marginal(self, wrt=-1, neighbor_values=None):
 		"""
@@ -2853,26 +2930,39 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		cdef tuple item
 
 		for i in range(n):
-			key = self.keymap[tuple(items[i])]
+			item = tuple(items[i])
+
+			if 'nan' in item or numpy.nan in item or None in item:
+				continue
+
+			key = self.keymap[item]
 			self.counts[key] += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
-		cdef int i, j, idx
+		cdef int i, j, idx, is_na
 		cdef double count = 0
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))
 
+		memset(counts, 0, self.n*sizeof(double))
+
 		for i in range(n):
-			idx = 0
+			idx, is_na = 0, 0
 			for j in range(self.m+1):
+				if isnan(items[self.m-i]):
+					is_na = 1
+
 				idx += self.idxs[i] * <int> items[self.m-i]
+
+			if is_na == 1:
+				continue
 
 			counts[idx] += weights[i]
 			count += weights[i]
 
 		with gil:
 			self.count += count
-			for i in range(n):
+			for i in range(self.n):
 				self.counts[i] += counts[i]
 
 		free(counts)
@@ -2882,6 +2972,10 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		cdef int i, k
 		cdef double p = pseudocount
+
+		w_sum = sum(self.counts[i] for i in range(self.n))
+		if w_sum < 1e-7:
+			return 
 
 		with nogil:
 			for i in range(self.n):
@@ -2951,6 +3045,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		for key in it.product(*keys):
 			table.append(list(key) + [1./m,])
 
-		d = ConditionalProbabilityTable(table, parents)
+		d = JointProbabilityTable(table, parents)
 		d.fit(X, weights, pseudocount=pseudocount)
 		return d

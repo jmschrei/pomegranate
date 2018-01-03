@@ -31,6 +31,17 @@ datasets = [numpy.random.randint(2, size=(10, 4)),
             numpy.random.randint(2, size=(1000, 7)),
             numpy.random.randint(2, size=(100, 9))]
 
+datasets_nan = []
+for dataset in datasets:
+    X = dataset.copy().astype('float64')
+    n, d = X.shape
+    
+    idx = numpy.random.choice(n*d, replace=False, size=n*d//5)
+    i, j = idx // d, idx % d
+    X[i, j] = numpy.nan
+
+    datasets_nan.append(X)
+
 def setup_monty():
     # Build a model of the Monty Hall Problem
     global monty_network, monty_index, prize_index, guest_index
@@ -886,3 +897,21 @@ def test_chow_liu_structure_learning():
     for X, logp in zip(datasets, logps):
         model = BayesianNetwork.from_samples(X, algorithm='chow-liu')
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+
+
+def test_exact_nan_structure_learning():
+    logps = -6.13764, -159.6505, -2055.76364, -201.73615
+    for X, logp in zip(datasets_nan, logps):
+        model = BayesianNetwork.from_samples(X, algorithm='exact')
+        model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
+
+        assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)  
+
+
+def test_greedy_nan_structure_learning():
+    logps = -7.5239, -159.6505, -2058.5706, -203.7662
+    for X, logp in zip(datasets_nan, logps):
+        model = BayesianNetwork.from_samples(X, algorithm='greedy')
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+
