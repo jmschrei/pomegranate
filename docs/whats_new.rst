@@ -5,15 +5,15 @@
 Release History
 ===============
 
-Version 0.8.2
+Version 0.9.0
 =============
 
 Highlights
 ----------
 
-	- Missing value support has been added in for all models except Bayesian networks and factor graphs. This is done by included the string `nan` in string datasets, or `numpy.nan` in numeric datasets. Model fitting and inference is supported for all models except Bayesian networks for this. The technique is to not collect sufficient statistics from missing data, not to impute the missing values.
+	- Missing value support has been added in for all models except factor graphs. This is done by included the string `nan` in string datasets, or `numpy.nan` in numeric datasets. Model fitting and inference is supported for all models for this. The technique is to not collect sufficient statistics from missing data, not to impute the missing values.
 
-	- The unit testing suite has been greatly expanded, from around 140 tests to around 360 tests.
+	- The unit testing suite has been greatly expanded, from around 140 tests to around 370 tests.
 
 Changelog
 ---------
@@ -41,7 +41,7 @@ Distributions
 
 	- Fixed an issue where IndependentComponentDistribution would have incorrect per-dimension weights after serialization.
 
-	- Added in missing value support for fitting and log probability calculations for all univariate distributions, ICD, and MGD through calculating sufficient statistics only on data that exists
+	- Added in missing value support for fitting and log probability calculations for all univariate distributions, ICD, MGD, and CPTs through calculating sufficient statistics only on data that exists. The only distributions that currently do not support missing values are JointProbabilityTables and DirichletDistributions.
 
 	- Fixed an issue with multivariate Gaussian distributions where the covariance matrix is no longer invertible with enough missing data by subtracting the smallest eigenvalue from the diagonal
 
@@ -77,6 +77,8 @@ BayesianNetwork
 	- Factored out `_check_input` into a function that be used independently
 
 	- Added unit tests to check each of the above functions extensively
+
+	- Missing value support added for the `log_probability`, `fit`, and `from_samples` methods. Chow-Liu trees are not supported for missing values, but using a constraint graph still works.
 
 
 Version 0.8.1
