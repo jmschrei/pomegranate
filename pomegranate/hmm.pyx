@@ -3300,7 +3300,7 @@ cdef class HiddenMarkovModel(GraphModel):
         if not s.endswith('//'): # s is a filename
             try:
                 with open(s, 'r') as infile:
-                    s = infile.read().strip()
+                    s = infile.read().strip(); assert s.endswitch('//')
             except:
                 raise IOError("String must be properly formatted HMMER3 file or filename of properly formatted HMMER3 file.")
 
