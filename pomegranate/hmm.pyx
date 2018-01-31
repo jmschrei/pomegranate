@@ -3340,7 +3340,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 tmpstates.append(State(DiscreteDistribution({alphabet[i] : exp(-1*float(m_emit[i+1])) for i in range(len(alphabet))}), name="M%d" % K)) # match state
                 tmpstates.append(State(DiscreteDistribution({alphabet[i] : exp(-1*float(i_emit[i])) for i in range(len(alphabet))}), name="I%d" % K)) # insertion state
                 tmpstates.append(State(None, name="D%d" % K)) # deletion state
-            if K != 0:
+            if K == 0:
                 raise IOError("No match states in profile HMM.")
             model.add_states(tmpstates); name2state = {state.name:state for state in tmpstates}; name2state["M0"] = model.start; name2state["M%d"%(K+1)] = model.end
             
