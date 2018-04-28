@@ -339,3 +339,19 @@ def parallelize_function(X, cls, func, filename, **kwargs):
 
 	model = cls.from_json(filename)
 	return getattr(model, func)(X, **kwargs)
+
+def weight_set(items, weights):
+	"""Converts both items and weights to appropriate numpy arrays.
+
+	Convert the items into a numpy array with 64-bit floats, and the weight
+	array to the same. If no weights are passed in, then return a numpy array
+	with uniform weights.
+	"""
+
+	items = numpy.array(items, dtype=numpy.float64)
+	if weights is None: # Weight everything 1 if no weights specified
+		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
+	else: # Force whatever we have to be a Numpy array
+		weights = numpy.array(weights, dtype=numpy.float64)
+
+	return items, weights

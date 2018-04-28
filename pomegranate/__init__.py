@@ -6,6 +6,8 @@
 For detailed documentation and examples, see the README.
 """
 
+import os
+
 from .base import *
 from .parallel import *
 
@@ -19,7 +21,7 @@ from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 from .FactorGraph import FactorGraph
 
-__version__ = '0.9.0'
+__version__ = '0.10.0rc1'
 
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'

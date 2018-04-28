@@ -17,8 +17,9 @@ except:
 from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
-from .distributions cimport Distribution
-from .distributions cimport MultivariateDistribution
+
+from distributions.distributions cimport Distribution
+from distributions.distributions cimport MultivariateDistribution
 
 if sys.version_info[0] > 2:
 	xrange = range

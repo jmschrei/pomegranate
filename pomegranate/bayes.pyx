@@ -15,9 +15,9 @@ import numpy
 cimport numpy
 
 from .base cimport Model
-from .distributions cimport Distribution
-from .distributions import DiscreteDistribution
-from .distributions import IndependentComponentsDistribution
+from distributions.distributions cimport Distribution
+from distributions import DiscreteDistribution
+from distributions import IndependentComponentsDistribution
 from .hmm import HiddenMarkovModel
 from .gmm import GeneralMixtureModel
 
@@ -109,10 +109,13 @@ cdef class BayesModel(Model):
 		elif isinstance(dist, IndependentComponentsDistribution) and dist.discrete:
 			self.keymap = []
 			for i in range(self.d):
+				print type(distributions[i])
 				if isinstance(distributions[i], DiscreteDistribution):
 					keys = dist.distributions[i].keys()
+					print "b"
 					self.keymap.append({ key: i for i, key in enumerate(set(keys)) })
 				else:
+					print "a"
 					self.keymap.append(None)
 
 			for distribution in distributions:

@@ -23,12 +23,12 @@ filenames = [ "base",
 
 if not use_cython:
     extensions = [
-        Extension( "pomegranate.{}".format( name ),
-                   [ "pomegranate/{}.{}".format( name, ext ) ]) for name in filenames
-    ]
+        Extension( "pomegranate.{}".format( name ), [ "pomegranate/{}.{}".format( name, ext ) ]) for name in filenames
+    ] + [Extension("pomegranate.distributions.distributions", ["pomegranate/distributions/distributions.c"])]
 else:
     extensions = [
-            Extension("pomegranate.*", ["pomegranate/*.pyx"])
+            Extension("pomegranate.*", ["pomegranate/*.pyx"]),
+	        Extension("pomegranate.distributions.*", ["pomegranate/distributions/*.pyx"])
     ]
 
     extensions = cythonize( extensions )
@@ -43,7 +43,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.9.0',
+    version='0.10.0rc1',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=['pomegranate'],

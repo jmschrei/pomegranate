@@ -20,11 +20,13 @@ from libc.string cimport memset
 from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
-from .distributions import Distribution
-from .distributions cimport MultivariateDistribution
-from .distributions cimport DiscreteDistribution
-from .distributions cimport ConditionalProbabilityTable
-from .distributions cimport JointProbabilityTable
+
+from distributions import Distribution
+from distributions.distributions cimport MultivariateDistribution
+from distributions.DiscreteDistribution cimport DiscreteDistribution
+from distributions.ConditionalProbabilityTable cimport ConditionalProbabilityTable
+from distributions.JointProbabilityTable cimport JointProbabilityTable
+
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 from .utils cimport lgamma
