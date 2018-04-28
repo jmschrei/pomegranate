@@ -9,7 +9,7 @@ import numpy
 cimport numpy
 
 from .bayes cimport BayesModel
-from .distributions import Distribution
+from distributions import Distribution
 from .gmm import GeneralMixtureModel
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork

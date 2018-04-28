@@ -10,11 +10,13 @@ cimport numpy
 
 from .base cimport Model
 from .bayes cimport BayesModel
-from .distributions cimport Distribution
-from .distributions import DiscreteDistribution
-from .distributions import IndependentComponentsDistribution
-from .distributions import MultivariateGaussianDistribution
-from .distributions import DirichletDistribution
+
+from distributions.distributions cimport Distribution
+from distributions import DiscreteDistribution
+from distributions import IndependentComponentsDistribution
+from distributions import MultivariateGaussianDistribution
+from distributions import DirichletDistribution
+
 from .gmm import GeneralMixtureModel
 from .utils import _convert
 

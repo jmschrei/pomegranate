@@ -18,9 +18,10 @@ import time
 from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
-from .distributions cimport Distribution
-from .distributions cimport DiscreteDistribution
-from .distributions cimport IndependentComponentsDistribution
+
+from distributions.distributions cimport Distribution
+from distributions.DiscreteDistribution cimport DiscreteDistribution
+from distributions.IndependentComponentsDistribution cimport IndependentComponentsDistribution
 from .kmeans import Kmeans
 
 from .utils cimport _log
