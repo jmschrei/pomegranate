@@ -6,6 +6,7 @@ Installation
 The easiest way to get pomegranate is through pip using the command
 
 .. code-block:: bash
+
 	pip install pomegranate
 
 This should install all the dependencies in addition to the package.
@@ -13,6 +14,7 @@ This should install all the dependencies in addition to the package.
 You can also get pomegranate through conda using the command
 
 .. code-block:: bash
+
 	conda install pomegranate
 
 This version may not be as up to date as the pip version though.
@@ -42,6 +44,7 @@ Q. I've been getting the following error: ```ModuleNotFoundError: No module name
 A. A reported solution is to uninstall and reinstall without cached files using the following:
 
 .. code-block:: bash
+
 	pip uninstall pomegranate
 	pip install pomegranate --no-cache-dir
 
