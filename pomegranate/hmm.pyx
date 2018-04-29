@@ -1,8 +1,8 @@
 #cython: boundscheck=False
 #cython: cdivision=True
 # hmm.pyx: Yet Another Hidden Markov Model library
-# Contact: Jacob Schreiber (jmschreiber91@gmail.com)
-#          Adam Novak (anovak1@ucsc.edu)
+# Authors: Jacob Schreiber <jmschreiber91@gmail.com>
+#          Adam Novak <anovak1@ucsc.edu>
 
 from __future__ import print_function
 
@@ -23,6 +23,8 @@ from distributions.distributions cimport Distribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.IndependentComponentsDistribution cimport IndependentComponentsDistribution
 from .kmeans import Kmeans
+
+from .callbacks import History
 
 from .utils cimport _log
 from .utils cimport pair_lse
@@ -2369,7 +2371,7 @@ cdef class HiddenMarkovModel(GraphModel):
         pseudocount=None, transition_pseudocount=0, emission_pseudocount=0.0, 
         use_pseudocount=False, inertia=None, edge_inertia=0.0, 
         distribution_inertia=0.0, batch_size=None, batches_per_epoch=None, 
-        lr_decay=0.0, verbose=False, n_jobs=1):
+        lr_decay=0.0, callbacks=[], return_history=False, verbose=False, n_jobs=1):
         """Fit the model to data using either Baum-Welch, Viterbi, or supervised training.
 
         Given a list of sequences, performs re-estimation on the model
@@ -2482,6 +2484,13 @@ cdef class HiddenMarkovModel(GraphModel):
             suggested to be between 0.5 and 1. Default is 0, meaning no
             decay.
 
+        callbacks : list, optional
+            A list of callback objects that describe functionality that should
+            be undertaken over the course of training.
+
+        return_history : bool, optional
+            Whether to return the history during training as well as the model.
+
         verbose : bool, optional
             Whether to print the improvement in the model fitting at each
             iteration. Default is True.
@@ -2558,14 +2567,16 @@ cdef class HiddenMarkovModel(GraphModel):
         n_seen_batches = 0
         epoch_starts, epoch_ends = None, None
 
+        callbacks = [History()] + callbacks
+        for callback in callbacks:
+            callback.model = self
+            callback.on_training_begin()
+
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold or iteration < min_iterations + 1:
                 epoch_start_time = time.time()
 
-                if inertia is None:
-                    step_size = None
-                else:
-                    step_size = 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay) 
+                step_size = None if inertia is None else 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay)
                 
                 self.from_summaries(step_size, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
@@ -2611,7 +2622,9 @@ cdef class HiddenMarkovModel(GraphModel):
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
                 else:
-                    time_spent = time.time() - epoch_start_time
+                    epoch_end_time = time.time()
+                    time_spent = epoch_end_time - epoch_start_time
+
                     if not minibatching:
                         improvement = log_probability_sum - last_log_probability_sum
                     
@@ -2621,8 +2634,26 @@ cdef class HiddenMarkovModel(GraphModel):
 
                     total_improvement += improvement
 
+                    logs = {'learning_rate': step_size,
+                            'n_seen_batches' : n_seen_batches,
+                            'epoch' : iteration,
+                            'improvement' : improvement,
+                            'total_improvement' : total_improvement,
+                            'log_probability' : log_probability_sum,
+                            'last_log_probability' : last_log_probability_sum,
+                            'initial_log_probability' : initial_log_probability_sum,
+                            'epoch_start_time' : epoch_start_time,
+                            'epoch_end_time' : epoch_end_time,
+                            'duration' : time_spent }
+
+                    for callback in callbacks:
+                        callback.on_epoch_end(logs)
+
                 iteration += 1
                 last_log_probability_sum = log_probability_sum
+
+        for callback in callbacks:
+            callback.on_training_end(logs)
 
         self.clear_summaries()
 
@@ -2637,7 +2668,11 @@ cdef class HiddenMarkovModel(GraphModel):
             total_training_time = time.time() - training_start_time
             print("Total Training Time (s): {:.4f}".format(total_training_time))
 
-        return log_probability_sum - initial_log_probability_sum
+        history = callbacks[0]
+
+        if return_history:
+            return self, history
+        return self
 
     def summarize(self, sequences, weights=None, labels=None, algorithm='baum-welch', 
         check_input=True):
@@ -3384,7 +3419,8 @@ cdef class HiddenMarkovModel(GraphModel):
         use_pseudocount=False, stop_threshold=1e-9, min_iterations=0, 
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1, 
         batch_size=None, batches_per_epoch=None, lr_decay=0.0, end_state=False, 
-        state_names=None, name=None, verbose=False, n_jobs=1):
+        state_names=None, name=None, callbacks=[], return_history=False,
+        verbose=False, n_jobs=1):
         """Learn the transitions and emissions of a model directly from data.
 
         This method will learn both the transition matrix, emission distributions,
@@ -3532,6 +3568,13 @@ cdef class HiddenMarkovModel(GraphModel):
         name : str, optional
             The name of the model. Default is None
 
+        callbacks : list, optional
+            A list of callback objects that describe functionality that should
+            be undertaken over the course of training.
+
+        return_history : bool, optional
+            Whether to return the history during training as well as the model.
+
         verbose : bool, optional
             Whether to print the improvement in the model fitting at each
             iteration. Default is True.
@@ -3604,7 +3647,7 @@ cdef class HiddenMarkovModel(GraphModel):
         model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities, 
             state_names=state_names, name=name, ends=end_probabilities)
 
-        model.fit(X, weights=weights, labels=labels, stop_threshold=stop_threshold, 
+        _, history = model.fit(X, weights=weights, labels=labels, stop_threshold=stop_threshold, 
             min_iterations=min_iterations, max_iterations=max_iterations, 
             algorithm=algorithm, verbose=verbose, pseudocount=pseudocount,
             transition_pseudocount=transition_pseudocount, 
@@ -3612,6 +3655,9 @@ cdef class HiddenMarkovModel(GraphModel):
             use_pseudocount=use_pseudocount,
             inertia=inertia, edge_inertia=edge_inertia, 
             distribution_inertia=distribution_inertia, batch_size=batch_size,
-            batches_per_epoch=batches_per_epoch, lr_decay=lr_decay, n_jobs=n_jobs)
+            batches_per_epoch=batches_per_epoch, lr_decay=lr_decay, 
+            callbacks=callbacks, return_history=True, n_jobs=n_jobs)
 
+        if return_history:
+            return model, history
         return model

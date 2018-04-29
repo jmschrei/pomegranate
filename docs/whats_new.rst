@@ -5,6 +5,63 @@
 Release History
 ===============
 
+Version 0.10.0
+==============
+
+Highlights
+----------
+
+	- Added in callbacks to all models in the style of keras, with built-ins being History, ModelCheckpoint, and CVLogger. History is calculated for each model. Use `return_history=True` to gt the model and the history object that contains training.
+
+Changelog
+---------
+
+Callbacks
+---------
+
+	- Added in a callbacks module, and the use of callbacks in all iterative training procedures. Callbacks are called at the beginning of training, at the end of each epoch, and at the end of the training procedure, using the respective functions. See the documentation page for more details.
+
+
+Distributions
+-------------
+	
+	- Broke the distributions.pyx into a folder where each distribution has its own file. This will speed up compilation when the code is modified.
+
+
+HiddenMarkovModel
+-----------------
+
+    - Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model
+
+GeneralMixtureModel
+-------------------
+
+    - Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model
+
+
+NaiveBayes
+----------
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods that will be used only in semi-supervised learning
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model that will be used only in semi-supervised learning
+
+
+BayesClassifier
+---------------
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods that will be used only in semi-supervised learning
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model that will be used only in semi-supervised learning
+
 Version 0.9.0
 =============
 
