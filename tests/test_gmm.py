@@ -283,7 +283,10 @@ def test_gmm_multivariate_gaussian_fit():
 		          [1.4,  3.1],
 		          [1.0,  1.0]])
 
-	assert_almost_equal(gmm.fit(X), 15.242416, 4)
+	_, history = gmm.fit(X, return_history=True)
+	total_improvement = history.total_improvement[-1]
+
+	assert_almost_equal(total_improvement, 15.242416, 4)
 
 
 @with_setup(setup_multivariate_gaussian, teardown)

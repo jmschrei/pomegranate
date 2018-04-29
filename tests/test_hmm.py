@@ -918,11 +918,13 @@ def test_hmm_viterbi_fit():
 	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
-									 algorithm='viterbi', 
-									 verbose=False, 
-									 use_pseudocount=True)
+	_, history = model.fit(seqs,
+							   return_history=True,
+							   algorithm='viterbi', 
+							   verbose=False, 
+						       use_pseudocount=True)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 83.2834)
 
 
@@ -932,11 +934,13 @@ def test_hmm_viterbi_fit_no_pseudocount():
 	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 use_pseudocount=False)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 84.9318)
 
 
@@ -946,11 +950,13 @@ def test_hmm_viterbi_fit_w_pseudocount():
 	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 transition_pseudocount=1.)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 79.4713)
 
 
@@ -960,12 +966,14 @@ def test_hmm_viterbi_fit_w_pseudocount_priors():
 	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True, 
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 81.7439)
 
 
@@ -975,11 +983,13 @@ def test_hmm_viterbi_fit_w_inertia():
 	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.193)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 84.9318)
 
 
@@ -989,11 +999,13 @@ def test_hmm_viterbi_fit_w_inertia2():
 	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.82)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 84.9318)
 
 
@@ -1003,12 +1015,14 @@ def test_hmm_viterbi_fit_w_pseudocount_inertia():
 	'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 	'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='viterbi', 
 									 verbose=False, 
 									 edge_inertia=0.23,
 									 use_pseudocount=True) 
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 83.2834)
 
 
@@ -1018,12 +1032,14 @@ def test_hmm_bw_fit():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
 									 max_iterations=5)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 83.1132)
 
 
@@ -1032,12 +1048,14 @@ def test_hmm_bw_multivariate_discrete_fit():
 	seqs = [[['A', 'A'], ['A', 'C'], ['C', 'T']], [['A', 'A'], ['C', 'C'], ['T', 'T']],
 			[['A', 'A'], ['A', 'C'], ['C', 'C'], ['T', 'T']], [['A', 'A'], ['C', 'C']]]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
 									 max_iterations=5)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 13.3622)
 
 
@@ -1046,12 +1064,14 @@ def test_hmm_bw_multivariate_gaussian_fit():
 	seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]], 
 			[[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
 									 max_iterations=5)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 24.7013)
 
 @with_setup(setup, teardown)
@@ -1060,11 +1080,14 @@ def test_hmm_bw_fit_json():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
 									 max_iterations=5)
+
+	total_improvement = history.total_improvement[-1]
 
 	assert_equal(round(total_improvement, 4), 83.1132)
 	assert_almost_equal(sum(model.log_probability(seq) for seq in seqs), -42.2341, 4)
@@ -1079,12 +1102,14 @@ def test_hmm_bw_fit_no_pseudocount():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 	
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=False,
 									 max_iterations=5)
  
+ 	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 85.681)
 
 
@@ -1094,12 +1119,14 @@ def test_hmm_bw_fit_w_pseudocount():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.123,
 									 max_iterations=5)
 	
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 84.9408)
 
 
@@ -1109,13 +1136,15 @@ def test_hmm_bw_fit_w_pseudocount_priors():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True,
 									 max_iterations=5)
-	 
+	
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 81.2265)
 
 
@@ -1125,12 +1154,14 @@ def test_hmm_bw_fit_w_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.193,
 									 max_iterations=5)
-	 
+	
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 85.0528)
 
 
@@ -1140,12 +1171,14 @@ def test_hmm_bw_fit_w_inertia2():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.82,
 									 max_iterations=5)
   
+  	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 72.5134)
 
 
@@ -1155,13 +1188,15 @@ def test_hmm_bw_fit_w_pseudocount_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.02,
 									 use_pseudocount=True,
 									 max_iterations=5)
  
+ 	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 83.0764)
 
 
@@ -1171,12 +1206,14 @@ def test_hmm_bw_fit_w_frozen_distributions():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 distribution_inertia=1.00,
 									 max_iterations=5)
   
+  	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 64.474)
 
 
@@ -1186,12 +1223,14 @@ def test_hmm_bw_fit_w_frozen_edges():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=1.00,
 									 max_iterations=5)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 44.0208)
 
 
@@ -1201,13 +1240,15 @@ def test_hmm_bw_fit_w_edge_a_distribution_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.5,
 									 distribution_inertia=0.5,
 									 max_iterations=5)
  
+ 	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 81.5447)
 
 
@@ -1217,13 +1258,15 @@ def test_hmm_bw_fit_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=True,
 									 max_iterations=5,
 									 n_jobs=2)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 83.1132)
 
 
@@ -1233,13 +1276,15 @@ def test_hmm_bw_fit_no_pseudocount_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 	
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 use_pseudocount=False,
 									 max_iterations=5,
 									 n_jobs=2)
  
+ 	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 85.681)
 
 
@@ -1249,13 +1294,15 @@ def test_hmm_bw_fit_w_pseudocount_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.123,
 									 max_iterations=5,
 									 n_jobs=2)
 	
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 84.9408)
 
 
@@ -1265,14 +1312,16 @@ def test_hmm_bw_fit_w_pseudocount_priors_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 transition_pseudocount=0.278,
 									 use_pseudocount=True,
 									 max_iterations=5,
 									 n_jobs=2)
-	 
+	
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 81.2265)
 
 
@@ -1282,13 +1331,15 @@ def test_hmm_bw_fit_w_inertia_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.193,
 									 max_iterations=5,
 									 n_jobs=2)
-	 
+	
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 85.0528)
 
 
@@ -1298,13 +1349,15 @@ def test_hmm_bw_fit_w_inertia2_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True, 
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.82,
 									 max_iterations=5,
 									 n_jobs=2)
   
+  	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 72.5134)
 
 
@@ -1314,7 +1367,8 @@ def test_hmm_bw_fit_w_pseudocount_inertia_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.02,
@@ -1322,6 +1376,7 @@ def test_hmm_bw_fit_w_pseudocount_inertia_parallel():
 									 max_iterations=5,
 									 n_jobs=2)
  
+ 	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 83.0764)
 
 
@@ -1331,13 +1386,15 @@ def test_hmm_bw_fit_w_frozen_distributions_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 distribution_inertia=1.00,
 									 max_iterations=5,
 									 n_jobs=2)
   
+  	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 64.474)
 
 
@@ -1347,13 +1404,15 @@ def test_hmm_bw_fit_w_frozen_edges_parallel():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=1.00,
 									 max_iterations=5,
 									 n_jobs=2)
 
+	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 44.0208)
 
 
@@ -1363,7 +1422,8 @@ def test_hmm_bw_fit_w_edge_a_distribution_inertia():
 		'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT', 
 		'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
 
-	total_improvement = model.fit(seqs, 
+	_, history = model.fit(seqs,
+							   return_history=True,
 									 algorithm='baum-welch', 
 									 verbose=False, 
 									 edge_inertia=0.5,
@@ -1371,6 +1431,7 @@ def test_hmm_bw_fit_w_edge_a_distribution_inertia():
 									 max_iterations=5,
 									 n_jobs=2)
  
+ 	total_improvement = history.total_improvement[-1]
 	assert_equal(round(total_improvement, 4), 81.5447)
 
 

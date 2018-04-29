@@ -68,6 +68,7 @@ No good project is done alone, and so I'd like to thank all the previous contrib
    parallelism.rst
    gpu.rst
    nan.rst
+   callbacks.rst
 
 .. toctree::
    :maxdepth: 1

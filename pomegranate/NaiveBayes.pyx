@@ -19,6 +19,7 @@ from distributions import DirichletDistribution
 
 from .gmm import GeneralMixtureModel
 from .utils import _convert
+from .callbacks import History
 
 from joblib import Parallel
 from joblib import delayed
@@ -111,7 +112,7 @@ cdef class NaiveBayes(BayesModel):
 	@classmethod
 	def from_samples(self, distributions, X, y, weights=None,
 		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
-		verbose=False, n_jobs=1):
+		callbacks=[], return_history=False, verbose=False, n_jobs=1):
 		"""Create a naive Bayes classifier directly from the given dataset.
 
 		This will initialize the distributions using maximum likelihood estimates
@@ -169,6 +170,13 @@ cdef class NaiveBayes(BayesModel):
 			model is improving per iteration. Only required if doing
 			semisupervised learning. Default is 1e8.
 
+        callbacks : list, optional
+            A list of callback objects that describe functionality that should
+            be undertaken over the course of training.
+
+        return_history : bool, optional
+            Whether to return the history during training as well as the model.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
@@ -212,7 +220,10 @@ cdef class NaiveBayes(BayesModel):
 				distributions = [distribution.blank() for distribution in distributions]
 
 		model = NaiveBayes(distributions)
-		model.fit(X, y, weights=weights, pseudocount=pseudocount,
+		_, history = model.fit(X, y, weights=weights, pseudocount=pseudocount,
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
-			verbose=verbose, n_jobs=n_jobs)
+			verbose=verbose, callbacks=callbacks, return_history=True, n_jobs=n_jobs)
+
+		if return_history:
+			return model, history
 		return model

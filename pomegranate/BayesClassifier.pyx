@@ -116,7 +116,7 @@ cdef class BayesClassifier(BayesModel):
 	@classmethod
 	def from_samples(self, distributions, X, y, weights=None, 
 		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, 
-		verbose=False, n_jobs=1):
+		callbacks=[], return_history=False, verbose=False, n_jobs=1):
 		"""Create a Bayes classifier directly from the given dataset.
 
 		This will initialize the distributions using maximum likelihood estimates
@@ -176,6 +176,13 @@ cdef class BayesClassifier(BayesModel):
 			model is improving per iteration. Only required if doing
 			semisupervised learning. Default is 1e8.
 
+        callbacks : list, optional
+            A list of callback objects that describe functionality that should
+            be undertaken over the course of training.
+
+        return_history : bool, optional
+            Whether to return the history during training as well as the model.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
@@ -201,7 +208,7 @@ cdef class BayesClassifier(BayesModel):
 		y = numpy.array(y)
 
 		n, d = X.shape
-		n_components = numpy.unique(y).shape[0]
+		n_components = numpy.unique(y[y != -1]).shape[0]
 		if callable(distributions):
 			if d > 1:
 				distributions = [distributions.blank(d) for i in range(n_components)]
@@ -211,8 +218,10 @@ cdef class BayesClassifier(BayesModel):
 			distributions = [distribution.blank() for distribution in distributions]
 
 		model = BayesClassifier(distributions)
-		model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount, 
+		_, history = model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount, 
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
-			verbose=verbose, n_jobs=n_jobs)
+			callbacks=callbacks, return_history=True, verbose=verbose, n_jobs=n_jobs)
 
+		if return_history:
+			return model, history
 		return model
