@@ -12,6 +12,7 @@ Highlights
 ----------
 
 	- Added in callbacks to all models in the style of keras, with built-ins being History, ModelCheckpoint, and CVLogger. History is calculated for each model. Use `return_history=True` to gt the model and the history object that contains training.
+	- Added top-level Makefile for convenience in development to build/test/clean/install/uninstall with multiple conda environments.
 
 Changelog
 ---------
@@ -61,6 +62,12 @@ BayesClassifier
 	- Added in callback functionality to both the `fit` and `from_samples` methods that will be used only in semi-supervised learning
 
 	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model that will be used only in semi-supervised learning
+
+Makefile
+---------------
+
+	- There is a new top-level "convenience" Makefile for development to make it easy to develop with two conda environments.  The default is for two conda environments, py2.7 and py3.6, but those could be overridden at run time with, for example, `make PY3_ENV=py3.6.2 biginstall`.  Targets exist for `install, test, bigclean, and nbtest` along with variations of each that first activate either one or both conda environments.  For example, `make biginstall` will install for both `py2.7` and `py3.6` environments.  When developing pomegranate, one frequently wants to do a fully clean build, wipe out all installed targets, and replace them.  This can be done with `make bigclean biguninstall biginstall`.  In addition, there is a target `nbtest` for testing all of the jupyter notebooks to ensure that the cells run.  See the Makefile for a list of additional conda packages to install for this to work.  The default is to stop on first error but you can run `make ALLOW_ERRORS=--allow-errors nbtest` to run all cells and then inspect the html output manually for errors.
+
 
 Version 0.9.0
 =============
