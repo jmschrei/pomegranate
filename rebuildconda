@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Setting up conda:
+# Pass in the version of python as an argument with default of 2.7
+
+##########  Current setup BEGIN:
+_PYVER=${1:-2.7}
+#_PYVER=2.7
+#_PYVER=3.4
+#_PYVER=3.6
+penv_version=py${_PYVER}
+echo rebuilding conda environment $penv_version
+
+# List envs:
+conda info --envs
+# List all info:
+conda info -a
+
+source deactivate
+conda env remove --yes --name $penv_version
+conda create --yes --name $penv_version python=${_PYVER} ; source activate $penv_version
+conda config --get channels
+conda config --add channels conda-forge
+conda config --get channels
+# wip add packages that should be in base:
+base_packages=" cython "
+pom_packages=" scipy joblib nose networkx=1.11 "
+pom_nbtest_packages=" scikit-learn pandas seaborn pygraphviz pillow xlrd memory_profiler jupyter jupyter_contrib_nbextensions jupyter_nbextensions_configurator "
+echo "Don't forget to also install gnuplot-py since it isn't yet in the tools Makefile"
+conda install --yes $base_packages $pom_packages $pom_nbtest_packages
+source activate $penv_version
+# It would be nice if cmckeague would submit libpgm to conda-forge...  Also doesn't have a python 3 version
+if [ ${penv_version/py2.7.*/py2.7} == "py2.7" ]; then
+    conda install --yes -c cmckeague libpgm
+    # Note that omnia hmmlearn causes numpy downgrade to 1.12.1
+    conda install --yes -c omnia hmmlearn
+fi
+conda env export > $penv_version.yml
+
+##########  Current setup END
+#
+exit 0
+
+
+
+##########  Current setup Remove:
+source deactivate
+conda env remove --yes --name $penv_version
+##########
+
+
+##########  Purge packages:
+conda clean --dry-run --all
+
+
+##########  Bash aliases for quick change of environment:
+alias py27="source activate py2.7; p=~/miniconda2/envs/py2.7/lib/python2.7/site-packages "
+alias py36="source activate py3.6; p=~/miniconda2/envs/py3.6/lib/python3.6/site-packages "

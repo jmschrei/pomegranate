@@ -13,6 +13,7 @@ Highlights
 
 	- Added in callbacks to all models in the style of keras, with built-ins being History, ModelCheckpoint, and CVLogger. History is calculated for each model. Use `return_history=True` to gt the model and the history object that contains training.
 	- Added top-level Makefile for convenience in development to build/test/clean/install/uninstall with multiple conda environments.
+	- Added top-level rebuildconda for convenience in development to create or re-create a conda development environment for a given python version, defaulting to 2.7.
 
 Changelog
 ---------
@@ -67,7 +68,7 @@ Makefile
 ---------------
 
 	- There is a new top-level "convenience" Makefile for development to make it easy to develop with two conda environments.  The default is for two conda environments, py2.7 and py3.6, but those could be overridden at run time with, for example, `make PY3_ENV=py3.6.2 biginstall`.  Targets exist for `install, test, bigclean, and nbtest` along with variations of each that first activate either one or both conda environments.  For example, `make biginstall` will install for both `py2.7` and `py3.6` environments.  When developing pomegranate, one frequently wants to do a fully clean build, wipe out all installed targets, and replace them.  This can be done with `make bigclean biguninstall biginstall`.  In addition, there is a target `nbtest` for testing all of the jupyter notebooks to ensure that the cells run.  See the Makefile for a list of additional conda packages to install for this to work.  The default is to stop on first error but you can run `make ALLOW_ERRORS=--allow-errors nbtest` to run all cells and then inspect the html output manually for errors.
-
+	- There is a new top-level "convenience" rebuildconda script which will remove and create a conda environment for development.  Be careful using it that the environment you want to rebuild is the right one.  You can list environments with `conda info --envs`.  The default is to rebuild the `2.7` environment with name `py2.7`.  With this, you can create an alternative environment, test it out, and remove it as in `./rebuildconda 2.7.9 ; make PY2_ENV=py2.7.9 bigclean py2build py2test py2install nbtest ; source deactivate ; conda env remove --name py2.7.9`.
 
 Version 0.9.0
 =============
