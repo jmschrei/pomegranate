@@ -6,6 +6,7 @@
 
 from ..utils cimport _log
 from ..utils cimport isnan
+import numpy
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
