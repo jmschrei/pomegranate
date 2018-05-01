@@ -638,7 +638,7 @@ cdef class HiddenMarkovModel(GraphModel):
         self.end = other.end
 
     def draw(self, **kwargs):
-        raise ValueError("depricated. Please use .plot")
+        raise ValueError("deprecated. Please use .plot")
 
     def plot(self, precision=4, **kwargs):
         """Draw this model's graph using NetworkX and matplotlib.
