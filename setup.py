@@ -46,7 +46,10 @@ setup(
     version='0.10.0rc1',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
-    packages=['pomegranate'],
+    packages=[
+        'pomegranate',
+        'pomegranate/distributions',
+    ],
     url='http://pypi.python.org/pypi/pomegranate/',
     license='LICENSE.txt',
     description='Pomegranate is a graphical models library for Python, implemented in Cython for speed.',
@@ -65,7 +68,8 @@ setup(
     ],
     test_suite = 'nose.collector',
     package_data={
-        'pomegranate': ['*.pyd']
+        'pomegranate': ['*.pyd', '*.pxd'],
+        'pomegranate/distributions': ['*.pyd', '*.pxd'],
     },
     include_package_data=True,
     zip_safe=False,
