@@ -23,11 +23,15 @@
 Home
 ====
 
-pomegranate is a python package which implements fast, efficient, and extremely flexible probabilistic models ranging from probability distributions to Bayesian networks to mixtures of hidden Markov models. The most basic level of probabilistic modeling is the simple probability distribution. If we're modeling language, this may be a simple distribution over the frequency of all possible words a person can say. 
+pomegranate is a python package that implements fast and flexible probabilistic models ranging from individual probability distributions to compositional models such as Bayesian networks and hidden Markov models. Furthermore, pomegranate is flexible enough to allow a stacking of compositional models so that one can create a mixture of Bayesian networks or a hidden Markov model Bayes' classifier that allows for classification over sequences instead of fixed feature sets. These flexible models are paired with a variety of training features and strategies, including support for out-of-core, mini-batch, semi-supervised, and missing value learning that can all be done with built-in multi-threaded parallelism. Descriptions of each of these models and training strategies can be found in this documentation. 
+
+Below we give a brief description of the models available in pomegranate.
+
+The most basic level of probabilistic modeling is the simple probability distribution. If we're modeling language, this may be a simple distribution of all possible words that a person can say, with values being the frequency with which that person says them.
 
 (1) :ref:`distributions`
 
-The next level up are probabilistic models which use the simple distributions in more complex ways. A markov chain can extend a simple probability distribution to say that the probability of a certain word depends on the word(s) which have been said previously. A hidden Markov model may say that the probability of a certain words depends on the latent/hidden state of the previous word, such as a noun usually follows an adjective.
+The next level up are compositional models which use the simple distributions in more complex ways. A Markov chain can extend a simple probability distribution to say that the probability of a certain word depends on the word(s) which have been said previously. A hidden Markov model may say that the probability of a certain words depends on the latent/hidden state of the previous word, such as a noun usually follows an adjective.
 
 (2) :ref:`markovchain`
 (3) :ref:`naivebayes`
@@ -36,7 +40,7 @@ The next level up are probabilistic models which use the simple distributions in
 (6) :ref:`bayesiannetwork`
 (7) :ref:`factorgraph`
 
-The third level are stacks of probabilistic models which can model even more complex phenomena. If a single hidden Markov model can capture a dialect of a language (such as a certain person's speech usage) then a mixture of hidden Markov models may fine tune this to be situation specific. For example, a person may use more formal language at work and more casual language when speaking with friends. By modeling this as a mixture of HMMs, we represent the persons language as a "mixture" of these dialects.
+The third level are stacks of probabilistic models which can model even more complex phenomena. If a single hidden Markov model can capture a dialect of a language (such as a certain person's speech usage) then a mixture of hidden Markov models may fine tune this to be situation specific. For example, a person may use more formal language at work and more casual language when speaking with friends. By modeling this as a mixture of HMMs, we represent the person's language as a "mixture" of these dialects.
 
 (8) GMM-HMMs
 (9) Mixtures of Models
