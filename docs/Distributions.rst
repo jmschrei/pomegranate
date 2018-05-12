@@ -138,7 +138,7 @@ Training can be done on weighted samples by passing an array of weights in along
         "name" :"NormalDistribution"
     }
 
-Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `d.from_sample([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
+Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `d.from_samples([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
 
 API Reference
 -------------
