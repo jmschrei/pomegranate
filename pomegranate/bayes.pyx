@@ -85,7 +85,7 @@ cdef class BayesModel(Model):
         if weights is None:
             weights = numpy.ones_like(distributions, dtype='float64') / self.n
         else:
-            weights = numpy.array(weights, dtype='float64') / weights.sum()
+            weights = numpy.array(weights, dtype='float64') / sum(weights)
 
         self.weights = numpy.log(weights)
         self.weights_ptr = <double*> self.weights.data
