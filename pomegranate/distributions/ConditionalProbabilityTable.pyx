@@ -17,7 +17,6 @@ from ..utils import check_random_state
 import itertools as it
 import json
 import numpy
-import random
 import scipy
 
 from collections import OrderedDict

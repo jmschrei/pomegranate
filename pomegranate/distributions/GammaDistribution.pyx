@@ -6,7 +6,6 @@
 
 import numpy
 import scipy
-import random
 
 
 from ..utils cimport _log
@@ -205,7 +204,7 @@ cdef class GammaDistribution(Distribution):
 				shape = new_shape
 
 				# Re-start at some random place.
-				new_shape = random.random()
+				new_shape = numpy.random.random_sample()
 
 			iteration += 1
 

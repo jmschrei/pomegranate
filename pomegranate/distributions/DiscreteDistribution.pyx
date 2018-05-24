@@ -8,7 +8,6 @@ import numpy
 import sys
 import itertools as it
 import json
-import random
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
