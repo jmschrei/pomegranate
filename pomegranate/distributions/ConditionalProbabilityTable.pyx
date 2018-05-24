@@ -173,7 +173,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			idx, is_na = 0, 0
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
-					is_na = 1 
+					is_na = 1
 
 				idx += self.idxs[j] * <int> X[self.m-j]
 
@@ -257,7 +257,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 				if isinstance(symbol, str) and symbol == 'nan':
 					is_na = 1
 				elif isinstance(symbol, (int, float)) and numpy.isnan(symbol):
-					is_na = 1 
+					is_na = 1
 
 			if is_na:
 				continue

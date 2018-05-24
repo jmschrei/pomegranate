@@ -12,4 +12,4 @@ cdef class DirichletDistribution(MultivariateDistribution):
 	cdef double beta_norm
 	cdef numpy.ndarray summaries_ndarray
 	cdef double* summaries_ptr
-	
+

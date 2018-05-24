@@ -14,7 +14,7 @@ cdef class BayesModel(Model):
 
 	cdef public numpy.ndarray summaries
 	cdef double* summaries_ptr
-	
+
 	cdef object keymap
 	cdef public int n
 	cdef public bint is_vl_

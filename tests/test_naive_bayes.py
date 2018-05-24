@@ -385,9 +385,9 @@ def test_nb_multivariate_mixed_predict_parallel():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_fit():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
 	model.fit(X, y)
@@ -476,9 +476,9 @@ def test_nb_multivariate_mixed_nan_fit():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_fit_parallel():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
 	model.fit(X, y, n_jobs=2)
@@ -529,12 +529,12 @@ def test_nb_multivariate_mixed_fit_parallel():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_from_samples():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
-	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution], 
+	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution],
 		X, y)
 
 	d1 = model.distributions[0]
@@ -623,12 +623,12 @@ def test_nb_multivariate_mixed_nan_from_samples():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_from_samples_parallel():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
-	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution], 
+	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution],
 		X, y, n_jobs=2)
 
 	d1 = model.distributions[0]

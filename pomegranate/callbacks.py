@@ -6,7 +6,7 @@ class Callback(object):
 
 	A callback is a function or group of functions that can be executed during
 	the training process for any of pomegranate's models that have iterative
-	training procedures. A callback can be called at three stages-- the 
+	training procedures. A callback can be called at three stages-- the
 	beginning of training, at the end of each epoch (or iteration), and at
 	the end of training. Users can define any functions that they wish in
 	the corresponding functions.
@@ -95,7 +95,7 @@ class History(Callback):
 		self.learning_rates.append(logs['learning_rate'])
 		self.n_seen_batches.append(logs['n_seen_batches'])
 		self.initial_log_probability = logs['initial_log_probability']
-		
+
 
 class CSVLogger(Callback):
 	"""Logs results of training to a CSV file during training."""
@@ -105,8 +105,8 @@ class CSVLogger(Callback):
 		self.separator = separator
 		self.append = append
 		self.file = None
-		self.columns = ['epoch', 'duration', 'total_improvement', 'improvement', 
-			'log_probability', 'last_log_probability', 'epoch_start_time', 
+		self.columns = ['epoch', 'duration', 'total_improvement', 'improvement',
+			'log_probability', 'last_log_probability', 'epoch_start_time',
 			'epoch_end_time', 'n_seen_batches', 'learning_rate']
 
 	def on_training_begin(self):

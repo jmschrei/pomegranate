@@ -196,7 +196,7 @@ cdef class BayesModel(Model):
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
                 logp_arrays = parallel(delayed(self.log_probability, check_pickle=False)(
                     X[start:end]) for start, end in zip(starts, ends))
-            
+
             return numpy.concatenate(logp_arrays)
 
         if self.is_vl_ or self.d == 1:
@@ -210,7 +210,7 @@ cdef class BayesModel(Model):
         cdef double* logp = <double*> logp_ndarray.data
 
         cdef numpy.ndarray X_ndarray
-        cdef double* X_ptr 
+        cdef double* X_ptr
 
         if not self.is_vl_:
             X_ndarray = _check_input(X, self.keymap)
@@ -327,7 +327,7 @@ cdef class BayesModel(Model):
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
                 y_arrays = parallel(delayed(self.predict_log_proba, check_pickle=False)(
                     X[start:end]) for start, end in zip(starts, ends))
-            
+
             return numpy.concatenate(y_arrays)
 
         if not self.is_vl_:
@@ -422,9 +422,9 @@ cdef class BayesModel(Model):
             ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-                y_arrays = parallel(delayed(self.predict, check_pickle=False)(X[start:end]) 
+                y_arrays = parallel(delayed(self.predict, check_pickle=False)(X[start:end])
                     for start, end in zip(starts, ends))
-            
+
             return numpy.concatenate(y_arrays)
 
         if not self.is_vl_:
@@ -478,7 +478,7 @@ cdef class BayesModel(Model):
         free(r)
 
     def fit(self, X, y, weights=None, inertia=0.0, pseudocount=0.0,
-        stop_threshold=0.1, max_iterations=1e8, callbacks=[], 
+        stop_threshold=0.1, max_iterations=1e8, callbacks=[],
         return_history=False, verbose=False, n_jobs=1):
         """Fit the Bayes classifier to the data by passing data to its components.
 
@@ -571,7 +571,7 @@ cdef class BayesModel(Model):
             callback.on_training_begin()
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-            parallel( delayed(self.summarize, check_pickle=False)(X[start:end], 
+            parallel( delayed(self.summarize, check_pickle=False)(X[start:end],
                 y[start:end], weights[start:end]) for start, end in zip(starts, ends) )
 
             self.from_summaries(inertia, pseudocount)
@@ -602,15 +602,15 @@ cdef class BayesModel(Model):
                     self.from_summaries(inertia, pseudocount)
                     unsupervised.weights[:] = self.weights
 
-                    parallel( delayed(self.summarize, 
-                        check_pickle=False)(X_labeled[start:end], 
-                        y_labeled[start:end], weights_labeled[start:end]) 
+                    parallel( delayed(self.summarize,
+                        check_pickle=False)(X_labeled[start:end],
+                        y_labeled[start:end], weights_labeled[start:end])
                         for start, end in zip(labeled_starts, labeled_ends))
 
                     unsupervised.summaries[:] = self.summaries
 
-                    log_probability_sum = sum(parallel( delayed(unsupervised.summarize, 
-                        check_pickle=False)(X_unlabeled[start:end], weights_unlabeled[start:end]) 
+                    log_probability_sum = sum(parallel( delayed(unsupervised.summarize,
+                        check_pickle=False)(X_unlabeled[start:end], weights_unlabeled[start:end])
                         for start, end in zip(unlabeled_starts, unlabeled_ends)))
 
                     self.summaries[:] = unsupervised.summaries
@@ -708,7 +708,7 @@ cdef class BayesModel(Model):
         for i in range(self.n):
             weight = weights[y==i].sum()
             self.summaries[i] += weight
-            
+
     cdef double _summarize(self, double* X, double* weights, int n,
         int column_idx, int d) nogil:
         return -1
@@ -752,10 +752,10 @@ cdef class BayesModel(Model):
                 distribution.from_summaries(inertia, pseudocount)
             else:
                 distribution.from_summaries(inertia, **kwargs)
-            
+
             self.weights[i] = _log(summaries[i])
             self.summaries[i] = 0.
-        
+
         return self
 
     def clear_summaries(self):

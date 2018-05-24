@@ -54,7 +54,7 @@ cdef class UniformDistribution(Distribution):
 		"""Sample from this uniform distribution and return the value sampled."""
 		return numpy.random.uniform(self.start, self.end, n)
 
-	cdef double _summarize(self, double* items, double* weights, int n, 
+	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
 		cdef int i
 		cdef double minimum = INF, maximum = NEGINF

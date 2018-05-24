@@ -42,19 +42,19 @@ To run the tests, you also must have `nose` installed.
 
 ### User Installation
 
-pomegranate is now pip installable! Install using 
+pomegranate is now pip installable! Install using
 
 ```
 pip install pomegranate
 ```
 
-Pomegranate can also be installed with conda, using 
+Pomegranate can also be installed with conda, using
 
 ```
 conda install pomegranate
-``` 
+```
 
-Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. 
+Wheels have been built for Windows versions for quick installations without the need for a C++ compiler.
 
 **NOTE: If you are on OSX and python 2.7 you may encounter an error using pip on versions above 0.7.3. Please install those versions from GitHub or use 0.7.3.**
 
@@ -74,7 +74,7 @@ python setup.py install
 
 Lastly, you can also download the zip and manually move the files into your site-packages folder (or your PYTHON_PATH, if you've changed it).
 
-To build from source on Windows machines, you may need to download a C++ compiler. For Python 2 this minimal version of Visual Studio 2008 works well: https://www.microsoft.com/en-us/download/details.aspx?id=44266. For Python 3 this version of the Visual Studio Build Tools has been reported to work: http://go.microsoft.com/fwlink/?LinkId=691126. 
+To build from source on Windows machines, you may need to download a C++ compiler. For Python 2 this minimal version of Visual Studio 2008 works well: https://www.microsoft.com/en-us/download/details.aspx?id=44266. For Python 3 this version of the Visual Studio Build Tools has been reported to work: http://go.microsoft.com/fwlink/?LinkId=691126.
 
 If those do no work, it has been suggested that https://wiki.python.org/moin/WindowsCompilers may provide more information. Note that your compiler version must fit your python version. Run python --version to tell which python version you use. Don't forget to select the appropriate Windows version API you'd like to use. If you get an error message "ValueError: Unknown MS Compiler version 1900" remove your Python's Lib/distutils/distutil.cfg and retry. See http://stackoverflow.com/questions/34135280/valueerror-unknown-ms-compiler-version-1900 for details.
 
@@ -85,7 +85,7 @@ pip uninstall pomegranate
 pip install pomegranate --no-cache-dir
 ```
 
-If that doesn't work for you, you may need to downgrade your version of numpy to 1.11.3 and try the above again. 
+If that doesn't work for you, you may need to downgrade your version of numpy to 1.11.3 and try the above again.
 
 Some users on Macs have seen the following error when downloading: `MarkovChain.so: unknown file type, first eight bytes: 0x7F 0x45 0x4C 0x46 0x02 0x01 0x01 0x00`. This can be fixed by removing the `.so` files from the pomegranate installation or by building pomegranate from source.
 
@@ -99,7 +99,7 @@ Install dependencies and pomegranate via pip3:
 
 ```
 $ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
-$ sudo pip3 install --no-cache-dir pomegranate 
+$ sudo pip3 install --no-cache-dir pomegranate
 ```
 
 **Installing inside a virtualenv**

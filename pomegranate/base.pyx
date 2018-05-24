@@ -170,7 +170,7 @@ cdef class Model(object):
 			The labels of each value
 		"""
 
-		return (self.predict(X) == y).mean() 
+		return (self.predict(X) == y).mean()
 
 
 	def sample(self, n=None):
@@ -259,7 +259,7 @@ cdef class Model(object):
 		-------
 		None
 		"""
-		
+
 		return NotImplementedError
 
 	def clear_summaries(self):

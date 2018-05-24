@@ -14,4 +14,4 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 	cdef public int discrete
 	cdef double* weights_ptr
 	cdef void** distributions_ptr
-	
+

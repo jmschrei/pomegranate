@@ -240,7 +240,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		w_sum = sum(self.counts[i] for i in range(self.n))
 		if w_sum < 1e-7:
-			return 
+			return
 
 		with nogil:
 			for i in range(self.n):

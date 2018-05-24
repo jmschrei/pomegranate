@@ -8,4 +8,4 @@ from .distributions cimport Distribution
 
 cdef class ExponentialDistribution(Distribution):
 	cdef double rate, log_rate
-	
+
