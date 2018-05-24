@@ -114,15 +114,15 @@ cdef class BayesClassifier(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None, 
-		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, 
+	def from_samples(self, distributions, X, y, weights=None,
+		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
 		callbacks=[], return_history=False, verbose=False, n_jobs=1):
 		"""Create a Bayes classifier directly from the given dataset.
 
 		This will initialize the distributions using maximum likelihood estimates
 		derived by partitioning the dataset using the label vector. If any labels
 		are missing, the model will be trained using EM in a semi-supervised
-		setting. 
+		setting.
 
 		A homogeneous model can be defined by passing in a single distribution
 		callable as the first parameter and specifying the number of components,
@@ -218,7 +218,7 @@ cdef class BayesClassifier(BayesModel):
 			distributions = [distribution.blank() for distribution in distributions]
 
 		model = BayesClassifier(distributions)
-		_, history = model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount, 
+		_, history = model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount,
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
 			callbacks=callbacks, return_history=True, verbose=verbose, n_jobs=n_jobs)
 

@@ -222,4 +222,4 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 			distributions = [distributions[i].from_samples(X[:,i], weights) for i in range(d)]
 
 		return IndependentComponentsDistribution(distributions, distribution_weights)
-		
+

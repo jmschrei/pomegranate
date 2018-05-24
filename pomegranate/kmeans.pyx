@@ -38,7 +38,7 @@ DEF INF = float("inf")
 cdef double distance(double* X, double* centroid, int d) nogil:
 	cdef int i
 	cdef double distance = 0.0
-	
+
 	for i in range(d):
 		if not isnan(X[i]):
 			distance += (X[i] - centroid[i]) ** 2
@@ -203,7 +203,7 @@ cdef class Kmeans(Model):
 	n_init : int, optional
 		The number of initializations to do before taking the best. This can
 		help reduce the effect of converging to a local optima by sampling
-		multiple local optima and taking the best. 
+		multiple local optima and taking the best.
 
 
 	Attributes
@@ -335,7 +335,7 @@ cdef class Kmeans(Model):
 		for i in range(X.shape[0]):
 			for j in range(self.k):
 				centroid = self.centroids_ptr + j*d
-				dist[i, j] = distance(X_ptr + i*d, centroid, d) 
+				dist[i, j] = distance(X_ptr + i*d, centroid, d)
 
 		return dist
 
@@ -407,7 +407,7 @@ cdef class Kmeans(Model):
 
 		if not isinstance(X, numpy.ndarray):
 			X = numpy.array(X, dtype='float64')
-		
+
 		n, d = X.shape
 
 		best_centroids, best_distance = None, INF
@@ -428,7 +428,7 @@ cdef class Kmeans(Model):
 
 		if clear_summaries == 'auto':
 			clear_summaries = True if batches_per_epoch == None else False
-			
+
 		batches_per_epoch = batches_per_epoch or len(starts)
 		n_seen_batches = 0
 
@@ -444,10 +444,10 @@ cdef class Kmeans(Model):
 				iteration, improvement = 0, INF
 
 				if weights is not None and initial_centroids is None:
-					self.centroids = initialize_centroids(X[:ends[0]], 
+					self.centroids = initialize_centroids(X[:ends[0]],
 						weights[:ends[0]], self.k, self.init)
 				elif weights is None and initial_centroids is None:
-					self.centroids = initialize_centroids(X[:ends[0]], 
+					self.centroids = initialize_centroids(X[:ends[0]],
 						None, self.k, self.init)
 				else:
 					self.centroids = initial_centroids.copy()
@@ -468,15 +468,15 @@ cdef class Kmeans(Model):
 					n_seen_batches += batches_per_epoch
 					if n_seen_batches >= len(starts):
 						n_seen_batches = 0
-						
+
 					self.from_summaries(inertia, clear_summaries)
 
 					if weights is not None:
-						distance_sum = sum(parallel(delayed(self.summarize, 
-							check_pickle=False)(X[start:end], weights[start:end]) 
+						distance_sum = sum(parallel(delayed(self.summarize,
+							check_pickle=False)(X[start:end], weights[start:end])
 							for start, end in zip(epoch_starts, epoch_ends)))
 					else:
-						distance_sum = sum(parallel(delayed(self.summarize, 
+						distance_sum = sum(parallel(delayed(self.summarize,
 							check_pickle=False)(X[start:end]) for start, end in zip(
 								epoch_starts, epoch_ends)))
 
@@ -511,10 +511,10 @@ cdef class Kmeans(Model):
 		self.centroids_ptr = <double*> self.centroids.data
 		self.centroids_T = self.centroids.T.copy()
 		self.centroids_T_ptr = <double*> self.centroids_T.data
-		
+
 		for i in range(self.k):
 			self.centroid_norms[i] = self.centroids[i].dot(self.centroids[i])
-		
+
 		return self
 
 	def summarize(self, X, weights=None):
@@ -599,9 +599,9 @@ cdef class Kmeans(Model):
 				if dist < min_dist:
 					min_dist = dist
 					y = j
-			
+
 			total_dist += min_dist
-			
+
 			for l in range(d):
 				if not isnan(X[i*d + l]):
 					summary_sizes[y*d + l] += weights[i]
@@ -660,7 +660,7 @@ cdef class Kmeans(Model):
 
 						if self.summary_weights[i] == 0:
 							continue
-						
+
 						self.centroids_ptr[i] = \
 							inertia * self.centroids_ptr[i] \
 							+ (1-inertia) * self.summary_weights[i] \
@@ -695,8 +695,8 @@ cdef class Kmeans(Model):
 		return model
 
 	@classmethod
-	def from_samples(cls, k, X, weights=None, init='kmeans++', n_init=10, 
-		inertia=0.0, stop_threshold=0.1, max_iterations=1e3, batch_size=None, 
+	def from_samples(cls, k, X, weights=None, init='kmeans++', n_init=10,
+		inertia=0.0, stop_threshold=0.1, max_iterations=1e3, batch_size=None,
 		batches_per_epoch=None, clear_summaries=False, verbose=False, n_jobs=1):
 		"""
 		Fit a k-means object to the data directly.
@@ -725,7 +725,7 @@ cdef class Kmeans(Model):
 		n_init : int, optional
 			The number of initializations to do before taking the best. This can
 			help reduce the effect of converging to a local optima by sampling
-			multiple local optima and taking the best. 
+			multiple local optima and taking the best.
 
 		inertia : double, optional
 			The weight of the previous parameters of the model. The new
@@ -775,12 +775,12 @@ cdef class Kmeans(Model):
 
 		if not isinstance(X, numpy.ndarray):
 			X = numpy.array(X, dtype='float64')
-		
+
 		n, d = X.shape
 
 		model = Kmeans(k=k, init=init, n_init=n_init)
 		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
-			max_iterations=max_iterations, batch_size=batch_size, 
+			max_iterations=max_iterations, batch_size=batch_size,
 			batches_per_epoch=batches_per_epoch, clear_summaries=clear_summaries,
 			verbose=verbose, n_jobs=n_jobs)
 

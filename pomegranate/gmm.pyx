@@ -106,8 +106,8 @@ cdef class GeneralMixtureModel(BayesModel):
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(), numpy.exp(self.weights))
 
-    def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, 
-        stop_threshold=0.1, max_iterations=1e8, batch_size=None, 
+    def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0,
+        stop_threshold=0.1, max_iterations=1e8, batch_size=None,
         batches_per_epoch=None, lr_decay=0.0, callbacks=[],
         return_history=False, verbose=False, n_jobs=1):
         """Fit the model to new data using EM.
@@ -170,7 +170,7 @@ cdef class GeneralMixtureModel(BayesModel):
         lr_decay : double, optional, positive
             The step size decay as a function of the number of iterations.
             Functionally, this sets the inertia to be (2+k)^{-lr_decay}
-            where k is the number of iterations. This causes initial 
+            where k is the number of iterations. This causes initial
             iterations to have more of an impact than later iterations,
             and is frequently used in minibatch learning. This value is
             suggested to be between 0.5 and 1. Default is 0, meaning no
@@ -228,11 +228,11 @@ cdef class GeneralMixtureModel(BayesModel):
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             while improvement > stop_threshold and iteration < max_iterations + 1:
                 epoch_start_time = time.time()
-                step_size = 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay) 
+                step_size = 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay)
                 self.from_summaries(step_size, pseudocount)
 
                 if epoch_starts is not None and minibatching:
-                    updated_log_probability_sum = sum(self.log_probability(X[start:end]).sum() 
+                    updated_log_probability_sum = sum(self.log_probability(X[start:end]).sum()
                         for start, end in zip(epoch_starts, epoch_ends))
                     improvement = updated_log_probability_sum - log_probability_sum
 
@@ -244,11 +244,11 @@ cdef class GeneralMixtureModel(BayesModel):
                     n_seen_batches = 0
 
                 if weights is not None:
-                    log_probability_sum = sum(parallel(delayed(self.summarize, 
-                        check_pickle=False)(X[start:end], weights[start:end]) 
+                    log_probability_sum = sum(parallel(delayed(self.summarize,
+                        check_pickle=False)(X[start:end], weights[start:end])
                         for start, end in zip(epoch_starts, epoch_ends)))
                 else:
-                    log_probability_sum = sum(parallel(delayed(self.summarize, 
+                    log_probability_sum = sum(parallel(delayed(self.summarize,
                         check_pickle=False)(X[start:end]) for start, end in zip(
                             epoch_starts, epoch_ends)))
 
@@ -257,10 +257,10 @@ cdef class GeneralMixtureModel(BayesModel):
                 else:
                     epoch_end_time = time.time()
                     time_spent = epoch_end_time - epoch_start_time
-                    
+
                     if not minibatching:
                         improvement = log_probability_sum - last_log_probability_sum
-                    
+
                     if verbose:
                         print("[{}] Improvement: {}\tTime (s): {:.4}".format(
                             iteration, improvement, time_spent))
@@ -365,7 +365,7 @@ cdef class GeneralMixtureModel(BayesModel):
                 X_ptr = <double*> X_ndarray.data
                 d = len(X_ndarray)
                 with nogil:
-                    log_probability += self._summarize(X_ptr, weights_ptr+i, 
+                    log_probability += self._summarize(X_ptr, weights_ptr+i,
                         d, 0, self.d)
 
         return log_probability
@@ -395,7 +395,7 @@ cdef class GeneralMixtureModel(BayesModel):
             for j in range(self.n):
                 r[j*n + i] = cexp(r[j*n + i] - total) * weights[i]
                 summaries[j] += r[j*n + i]
-            
+
             log_probability_sum += total * weights[i]
 
             if self.is_vl_:
@@ -435,8 +435,8 @@ cdef class GeneralMixtureModel(BayesModel):
         return model
 
     @classmethod
-    def from_samples(self, distributions, n_components, X, weights=None, 
-        n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0, 
+    def from_samples(self, distributions, n_components, X, weights=None,
+        n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0,
         pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, batch_size=None,
         batches_per_epoch=None, lr_decay=0.0, callbacks=[], return_history=False,
         verbose=False, n_jobs=1):
@@ -525,7 +525,7 @@ cdef class GeneralMixtureModel(BayesModel):
         lr_decay : double, optional, positive
             The step size decay as a function of the number of iterations.
             Functionally, this sets the inertia to be (2+k)^{-lr_decay}
-            where k is the number of iterations. This causes initial 
+            where k is the number of iterations. This causes initial
             iterations to have more of an impact than later iterations,
             and is frequently used in minibatch learning. This value is
             suggested to be between 0.5 and 1. Default is 0, meaning no
@@ -558,7 +558,7 @@ cdef class GeneralMixtureModel(BayesModel):
             if distributions == DiscreteDistribution:
                 raise ValueError("cannot fit a discrete GMM "
                                  "without pre-initialized distributions")
-            
+
             distributions = [distributions for i in range(n_components)]
 
         else:
@@ -566,7 +566,7 @@ cdef class GeneralMixtureModel(BayesModel):
                 icd = True
             else:
                 n_components = len(distributions)
-            
+
             if n_components < 2:
                 raise ValueError("must have at least two distributions "
                                  "for general mixture models")
@@ -591,10 +591,10 @@ cdef class GeneralMixtureModel(BayesModel):
         y = kmeans.predict(X_kmeans)
 
         if icd:
-            distributions = [IndependentComponentsDistribution.from_samples(X_kmeans[y == i], 
+            distributions = [IndependentComponentsDistribution.from_samples(X_kmeans[y == i],
                 distributions=distributions) for i in range(n_components)]
         else:
-            distributions = [distribution.from_samples(X_kmeans[y == i]) 
+            distributions = [distribution.from_samples(X_kmeans[y == i])
                 for i, distribution in enumerate(distributions)]
 
         class_weights = numpy.array([(y == i).mean() for i in range(n_components)])

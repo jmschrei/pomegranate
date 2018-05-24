@@ -118,7 +118,7 @@ cdef class NaiveBayes(BayesModel):
 		This will initialize the distributions using maximum likelihood estimates
 		derived by partitioning the dataset using the label vector. If any labels
 		are missing, the model will be trained using EM in a semi-supervised
-		setting. 
+		setting.
 
 		A homogeneous model can be defined by passing in a single distribution
 		callable as the first parameter and specifying the number of components,
@@ -127,8 +127,8 @@ cdef class NaiveBayes(BayesModel):
 
 		A naive Bayes classifier is a subrset of the Bayes classifier in that
 		the math is identical, but the distributions are independent for each
-		feature. Simply put, one can create a multivariate Gaussian Bayes 
-		classifier with a full covariance matrix, but a Gaussian naive Bayes 
+		feature. Simply put, one can create a multivariate Gaussian Bayes
+		classifier with a full covariance matrix, but a Gaussian naive Bayes
 		would require a diagonal covariance matrix.
 
 		Parameters

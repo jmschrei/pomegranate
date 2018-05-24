@@ -113,4 +113,4 @@ cdef class LogNormalDistribution(Distribution):
 	@classmethod
 	def blank(cls):
 		return LogNormalDistribution(0, 0)
-		
+

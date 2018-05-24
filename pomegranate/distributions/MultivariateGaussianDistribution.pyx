@@ -249,7 +249,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 			for k in range(d):
 				x_jk = self.pair_sum[j*d + k]
 				w_jk = self.pair_w_sum[j*d + k]
-	            
+
 				if j == k:
 					x_j = self.column_sum[j*d + j]
 					x_k = self.column_sum[k*d + k]
@@ -267,7 +267,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		except:
 			min_eig = numpy.linalg.eig(self.cov)[0].min()
 			self.cov -= numpy.eye(d) * min_eig
-			
+
 			chol = scipy.linalg.cholesky(self.cov, lower=True)
 			self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
 				lower=True).T

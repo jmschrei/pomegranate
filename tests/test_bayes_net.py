@@ -35,7 +35,7 @@ datasets_nan = []
 for dataset in datasets:
     X = dataset.copy().astype('float64')
     n, d = X.shape
-    
+
     idx = numpy.random.choice(n*d, replace=False, size=n*d//5)
     i, j = idx // d, idx % d
     X[i, j] = numpy.nan
@@ -267,12 +267,12 @@ def test_check_input_dict():
     obs = {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'}
     _check_input(obs, monty_network)
 
-    obs = {'guest' : DiscreteDistribution({'A' : 0.25, 
+    obs = {'guest' : DiscreteDistribution({'A' : 0.25,
         'B' : 0.25, 'C' : 0.50})}
     _check_input(obs, monty_network)
 
     obs = {'hello' : 'A', 'prize' : 'B'}
-    assert_raises(ValueError, _check_input, obs, monty_network) 
+    assert_raises(ValueError, _check_input, obs, monty_network)
 
 
 @with_setup(setup_monty, teardown)
@@ -336,16 +336,16 @@ def test_check_input_list_of_dicts():
     obs = {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'}
     _check_input([obs], monty_network)
 
-    obs = {'guest' : DiscreteDistribution({'A' : 0.25, 
+    obs = {'guest' : DiscreteDistribution({'A' : 0.25,
         'B' : 0.25, 'C' : 0.50})}
     _check_input([obs], monty_network)
 
     obs = {'hello' : 'A', 'prize' : 'B'}
-    assert_raises(ValueError, _check_input, [obs], monty_network) 
+    assert_raises(ValueError, _check_input, [obs], monty_network)
 
-    obs = [{'guest' : 'A'}, {'guest' : 'A', 'prize' : 'C'}, 
+    obs = [{'guest' : 'A'}, {'guest' : 'A', 'prize' : 'C'},
         {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'},
-        {'guest' : DiscreteDistribution({'A' : 0.25, 
+        {'guest' : DiscreteDistribution({'A' : 0.25,
             'B' : 0.25, 'C' : 0.50})}]
     _check_input(obs, monty_network)
 
@@ -598,7 +598,7 @@ def test_guest_with_monty():
     assert_equal(b[monty_index], 'B')
     assert_discrete_equal(b[prize_index], DiscreteDistribution(
         {'A': 1. / 3, 'B': 0.0, 'C': 2. / 3}))
-    
+
     assert_equal(c[guest_index], 'A')
     assert_equal(c[monty_index], 'C')
     assert_discrete_equal(c[prize_index], DiscreteDistribution(
@@ -712,7 +712,7 @@ def test_single_dict_predict_proba():
 
 @with_setup(setup_large_monty, teardown)
 def test_single_dict_large_predict_proba():
-    obs = {'large_monty_friend' : True,  'large_monty_guest': 'A', 
+    obs = {'large_monty_friend' : True,  'large_monty_guest': 'A',
         'large_monty_prize': 'A', 'large_monty': 'C'}
     y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
     y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
@@ -725,7 +725,7 @@ def test_single_dict_large_predict_proba():
     assert_discrete_equal(y_hat[4], y1, 3)
     assert_discrete_equal(y_hat[5], y2, 3)
 
-    obs = {'large_monty_friend' : True, 'large_monty_prize': 'A', 
+    obs = {'large_monty_friend' : True, 'large_monty_prize': 'A',
         'large_monty': 'C', 'large_monty_remaining' : 2}
     y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
     y2 = DiscreteDistribution({True: 0.75, False: 0.25})
@@ -790,7 +790,7 @@ def test_list_of_dicts_predict_proba():
 
 @with_setup(setup_large_monty, teardown)
 def test_list_of_dicts_large_predict_proba():
-    obs = [{'large_monty_friend' : True,  'large_monty_guest': 'A', 
+    obs = [{'large_monty_friend' : True,  'large_monty_guest': 'A',
         'large_monty_prize': 'A', 'large_monty': 'C'}]
     y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
     y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
@@ -803,7 +803,7 @@ def test_list_of_dicts_large_predict_proba():
     assert_discrete_equal(y_hat[0][4], y1, 3)
     assert_discrete_equal(y_hat[0][5], y2, 3)
 
-    obs = [{'large_monty_friend' : True, 'large_monty_prize': 'A', 
+    obs = [{'large_monty_friend' : True, 'large_monty_prize': 'A',
         'large_monty': 'C', 'large_monty_remaining' : 2}]
     y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
     y2 = DiscreteDistribution({True: 0.75, False: 0.25})
@@ -906,7 +906,7 @@ def test_exact_nan_structure_learning():
         model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
 
         assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
-        assert_almost_equal(model.log_probability(X).sum(), logp, 4)  
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
 
 def test_greedy_nan_structure_learning():

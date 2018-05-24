@@ -21,4 +21,4 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	cdef public object marginal_keymap
 	cdef public int m
 	cdef void __summarize(self, items, double [:] weights)
-	
+

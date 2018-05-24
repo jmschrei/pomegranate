@@ -169,7 +169,7 @@ cdef double pair_lse(double x, double y) nogil:
 
 cdef double gamma(double x) nogil:
 	"""Calculate the gamma function on a number."""
-    
+
 	# Split the function domain into three intervals:
 	# (0, 0.001), [0.001, 12), and (12, infinity).
 
@@ -190,7 +190,7 @@ cdef double gamma(double x) nogil:
 	p[6] = -3.61444134186911729807069E+4
 	p[7] =  6.64561438202405440627855E+4
 
-	cdef double q[8] 
+	cdef double q[8]
 	q[0] = -3.08402300119738975254353E+1
 	q[1] =  3.15350626979604161529144E+2
 	q[2] = -1.01515636749021914166146E+3
@@ -233,7 +233,7 @@ cdef double gamma(double x) nogil:
 		for i in range(8):
 			num = (num + p[i]) * z
 			den = den * z + q[i]
-		
+
 		result = num/den + 1.0
 
 		# Apply correction if argument was not initially in (1,2)
@@ -261,7 +261,7 @@ cdef double lgamma(double x) nogil:
     # Asymptotic series should be good to at least 11 or 12 figures
     # For error analysis, see Whittiker and Watson
     # A Course in Modern Analysis (1927), page 252
-	
+
 	cdef double c[8]
 	c[0] =  1.0 / 12.0
 	c[1] = -1.0 / 360.0
@@ -270,7 +270,7 @@ cdef double lgamma(double x) nogil:
 	c[4] =  1.0 / 1188.0
 	c[5] = -691.0 / 360360.0
 	c[6] =  1.0 / 156.0
-	c[7] = -3617.0 / 122400.0 
+	c[7] = -3617.0 / 122400.0
 
 	cdef double z, sum
 	cdef int i
@@ -284,7 +284,7 @@ cdef double lgamma(double x) nogil:
 	for i in range(7):
 		sum *= z
 		sum += c[6-i]
-    
+
 	return (x - 0.5) * clog(x) - x + HALF_LOG2_PI + sum / x
 
 def plot_networkx(Q, edge_label=None, filename=None):
