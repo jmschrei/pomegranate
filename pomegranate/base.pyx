@@ -454,6 +454,7 @@ cdef class State(object):
 		# Otherwise it has a distribution, so decode that
 		name = str(d['name'])
 		weight = d['weight']
+		from .gmm import GeneralMixtureModel
 
 		c = d['distribution']['class']
 		dist = eval(c).from_json( json.dumps( d['distribution'] ) )

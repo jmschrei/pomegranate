@@ -83,7 +83,7 @@ cdef class NaiveBayes(BayesModel):
 		nb = {
 			'class' : 'NaiveBayes',
 			'models' : [json.loads(model.to_json()) for model in self.distributions],
-			'weights' : self.weights.tolist()
+			'weights' : numpy.exp(self.weights).tolist()
 		}
 
 		return json.dumps(nb, separators=separators, indent=indent)

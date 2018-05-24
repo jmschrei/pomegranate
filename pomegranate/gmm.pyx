@@ -421,7 +421,7 @@ cdef class GeneralMixtureModel(BayesModel):
                     'class' : 'GeneralMixtureModel',
                     'distributions'  : [ json.loads(dist.to_json())
                                          for dist in self.distributions ],
-                    'weights' : self.weights.tolist()
+                    'weights' : numpy.exp(self.weights).tolist()
                 }
 
         return json.dumps(model, separators=separators, indent=indent)
