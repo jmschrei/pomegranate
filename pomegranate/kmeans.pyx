@@ -95,7 +95,7 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 	if weights is None:
 		weights = numpy.ones(len(X), dtype='float64') / len(X)
 	else:
-		weights = weights.astype('float64') / weights.sum()
+		weights = weights.astype('float64') / sum(weights)
 
 	weights_ptr = <double*> (<numpy.ndarray> weights).data
 
