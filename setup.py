@@ -1,6 +1,8 @@
 from setuptools import setup
 from setuptools import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
+# https://stackoverflow.com/a/11181607/541202
+# import __builtin__ as __builtins__
 
 try:
     from Cython.Build import cythonize

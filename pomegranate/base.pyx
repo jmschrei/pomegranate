@@ -36,7 +36,7 @@ cdef class Model(object):
 		self.__setstate__(state)
 
 	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
+		"""Serialize the model to JSON.
 
 		Parameters
 		----------
@@ -56,6 +56,11 @@ cdef class Model(object):
 		"""
 
 		raise NotImplementedError
+
+	def to_yaml(self):
+		"""Serialize the model to YAML for compactness."""
+		import yaml
+		return yaml.safe_dump(json.loads(self.to_json()))
 
 	@classmethod
 	def from_json( cls, json ):
@@ -434,6 +439,11 @@ cdef class State(object):
 				'name' : self.name,
 				'weight' : self.weight
 			}, separators=separators, indent=indent )
+
+	def to_yaml(self):
+		"""Convert this state to YAML format."""
+		import yaml
+		return yaml.safe_dump(json.loads(self.to_json()))
 
 	@classmethod
 	def from_json( cls, s ):
