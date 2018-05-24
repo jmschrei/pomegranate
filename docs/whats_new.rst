@@ -60,7 +60,7 @@ Distributions
 HiddenMarkovModel
 -----------------
 
-    - Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
+	- Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
 
 	- Added in callback functionality to both the `fit` and `from_samples` methods
 
@@ -70,10 +70,12 @@ HiddenMarkovModel
 
 	- Resolved an issue where printing an empty model resulted in an error.
 
+	- Added method `sample_state` to sample the distribution of the model when in a given state such as returned by `predict_proba`
+
 GeneralMixtureModel
 -------------------
 
-    - Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
+	- Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
 
 	- Added in callback functionality to both the `fit` and `from_samples` methods
 

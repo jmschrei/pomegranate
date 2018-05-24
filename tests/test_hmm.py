@@ -288,6 +288,28 @@ def teardown():
 
     pass
 
+def sample_states(hmm, num_samples):
+    visible_states = hmm.silent_start
+    for i in range(visible_states):
+        state_proba = numpy.zeros(len(hmm.states))
+        state_proba[i] = 1.0
+        s = hmm.sample_state(state_proba, num_samples)
+        a = numpy.array(s)
+        if hmm.d == 1:
+            assert_equal(a.shape, (num_samples,))
+        else:
+            assert_equal(a.shape, (num_samples, hmm.d))
+    state_proba = numpy.zeros(len(hmm.states))
+    equal_prob = 1.0/visible_states
+    for i in range(visible_states):
+        state_proba[i] = equal_prob
+    s = hmm.sample_state(state_proba, num_samples)
+    a = numpy.array(s)
+    if hmm.d == 1:
+        assert_equal(a.shape, (num_samples,))
+    else:
+        assert_equal(a.shape, (num_samples, hmm.d))
+
 
 @with_setup(setup_univariate_discrete_dense)
 def test_hmm_univariate_discrete_dense_forward():
@@ -413,6 +435,29 @@ def test_hmm_multivariate_gaussian_dense_nan_forward():
          [-63.35506959, -49.99044883, -56.0924389,  -55.56636784, -inf, -52.28702405]])
 
     assert_array_almost_equal(f, logp)
+
+@with_setup(setup_univariate_discrete_dense)
+def test_hmm_univariate_discrete_dense_sample_state():
+    sample_states(model, 100)
+
+
+@with_setup(setup_univariate_gaussian_dense)
+def test_hmm_univariate_gaussian_dense_sample_state():
+    sample_states(model, 100)
+
+
+@with_setup(setup_univariate_poisson_dense)
+def test_hmm_univariate_poisson_dense_sample_state():
+    sample_states(model, 100)
+
+
+@with_setup(setup_multivariate_mixed_dense)
+def test_hmm_multivariate_mixed_dense_sample_state():
+    sample_states(model, 100)
+
+@with_setup(setup_multivariate_gaussian_dense)
+def test_hmm_multivariate_gaussian_dense_sample_state():
+    sample_states(model, 100)
 
 
 @with_setup(setup_univariate_discrete_dense)

@@ -1298,6 +1298,119 @@ cdef class HiddenMarkovModel(GraphModel):
 
         return numpy.array(emissions)
 
+    def sample_state(self, state_probs, length=1):
+        """Generate samples from a model in a given emission state
+
+        Returns a list of feature vectors.
+        The model must have been baked first in order to run this method.
+
+        Parameters
+        ----------
+        state_probs : array-like, shape (n_states)
+            The normalized probabilities of being in each state such as those
+            returned from predict_proba
+
+        length : int, optional
+            Generate this many sample feature vectors. Default is 1.
+
+        Returns
+        -------
+        sample_state : list of array-like, shape (n_nonsilent_states)
+
+        """
+
+        if self.d == 0:
+            raise ValueError("must bake model before sampling")
+
+        numStates = len(self.states)
+        if len(state_probs) != numStates:
+            raise ValueError("sample_state: state_probs size must match number of states")
+
+        # TODO: Test for or normalize the state_probs
+
+        cdef numpy.ndarray state_array
+        cdef double* _state_probs
+        cdef int _length = length
+        # print("type(state_probs):", type(state_probs))
+        # print("state_probs.shape:", state_probs.shape)
+        state_array = numpy.array(state_probs, dtype=numpy.float64)
+        _state_probs = <double*> state_array.data
+
+        return self._sample_state(_state_probs, _length)
+
+    cdef list _sample_state(self, double* state_probs, int length):
+        cdef int i, k, l, m=len(self.states)
+        cdef int numSamples = 0
+
+        # create cumulative probability for being in this state
+        cdef double cumulative_state_probability
+        cdef double [:] cum_state_probabilities = numpy.zeros(m)
+        cumulative_state_probability = 0.
+        for i in range(m):
+            cumulative_state_probability += state_probs[i]
+            cum_state_probabilities[i] = cumulative_state_probability
+
+        # create cumulative probability vectors from states to their out edges
+        cdef double cumulative_probability
+        cdef double [:] cum_probabilities = numpy.zeros(self.n_edges)
+
+        cdef int* out_edges = self.out_edge_count
+        cdef list samples = []
+
+        for k in range(m):
+            cumulative_probability = 0.
+            for l in range(out_edges[k], out_edges[k+1]):
+                cumulative_probability += cexp(
+                    self.out_transition_log_probabilities[l])
+                cum_probabilities[l] = cumulative_probability
+
+        # Record the number of samples
+        cdef int n = 0
+        cdef State toState
+        cdef double currentStateSample
+        cdef double nextStateSample
+
+        while numSamples < length:
+            # What should we pick as our current state?
+            # Generate a number between 0 and 1 to make a weighted decision
+            # as to which state to jump to next.
+            currentStateSample = random.random()
+            # print('currentStateSample:', currentStateSample)
+
+            # Find out which state we're supposed to be in by comparing the
+            # random number to the list of cumulative probabilities for this
+            # state, and then picking the selected state.
+            for i in range(m):
+                # print('which state i:', i, cum_state_probabilities[i])
+                if cum_state_probabilities[i] > currentStateSample:
+                    break
+            # print('which state i:', i)
+
+            # What should we pick as our next state?
+            # Generate a number between 0 and 1 to make a weighted decision
+            # as to which state to jump to next.
+            nextStateSample = random.random()
+            # print('nextStateSample:', nextStateSample)
+
+            # Find out which state we're supposed to go to by comparing the
+            # random number to the list of cumulative probabilities for that
+            # state, and then picking the selected state.
+            for k in range(out_edges[i], out_edges[i+1]):
+                # print('out_edge k:', k, cum_probabilities[k] )
+                if cum_probabilities[k] > nextStateSample:
+                    break
+            # print('out_edge k:', k, cum_probabilities[k] )
+            toState = self.states[self.out_transitions[k]]
+
+            if not toState.is_silent():
+                # There's an emission distribution, so sample from it
+                # print('dist.sample.shape:', toState.distribution.sample().shape)
+                samples.append(toState.distribution.sample())
+                numSamples += 1
+
+        # print('len(samples):', len(samples))
+        return samples
+
     cpdef double log_probability(self, sequence, check_input=True):
         """Calculate the log probability of a single sequence.
 
