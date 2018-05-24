@@ -260,6 +260,25 @@ def setup_multivariate_gaussian_dense():
     model = dense_model(d1, d2, d3, d4)
 
 
+def setup_general_mixture_gaussian():
+    global model
+
+    # should be able to pass list of weights
+    gmm1 = GeneralMixtureModel([NormalDistribution(5, 2), NormalDistribution(1, 2)], weights=[0.33, 0.67])
+    gmm2 = GeneralMixtureModel([NormalDistribution(3, 2), NormalDistribution(-1, 2)], weights=numpy.array([0.67, 0.33]))
+    s1 = State( gmm1 )
+    s2 = State( gmm2 )
+    model = HiddenMarkovModel()
+    model.add_states([s1, s2])
+    model.add_transition(model.start, s1, 0.5)
+    model.add_transition(model.start, s2, 0.5)
+    model.add_transition(s1, s1, 0.7)
+    model.add_transition(s1, s2, 0.3)
+    model.add_transition(s2, s2, 0.8)
+    model.add_transition(s2, s1, 0.2)
+    model.bake()
+
+
 def teardown():
     '''
     Remove the model at the end of the unit testing. Since it is stored in a
@@ -1641,3 +1660,16 @@ def test_hmm_multivariate_gaussian_minibatch():
     assert_not_equal(hmm.log_probability(X[0]), hmm4.log_probability(X[0]))
     assert_not_equal(hmm2.log_probability(X[0]), hmm3.log_probability(X[0]))
     assert_almost_equal(hmm3.log_probability(X[0]), hmm4.log_probability(X[0]))
+
+
+@with_setup(setup_general_mixture_gaussian, teardown)
+def test_hmm_json_general_mixture_gaussian():
+    model2 = HiddenMarkovModel.from_json(model.to_json())
+    for i in range(10):
+        sequence = numpy.random.randn(10)
+
+        logp1 = model.log_probability(sequence)
+        logp2 = model2.log_probability(sequence)
+
+        assert_almost_equal(logp1, logp2)
+
