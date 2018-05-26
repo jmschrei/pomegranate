@@ -164,6 +164,8 @@ Base
 	
 	- Parameters `column_idx` and `d` have been added to the `_summarize` method that all models expose. This is only useful for univariate distributions and models that fit univariate distributions and can be ignored by other models. The `column_idx` parameter specifies which column in a data matrix the distribution should be fit to, essentially serving as an offset. `d` refers to the number of dimensions that the data matrix has. This means that a univariate distribution will fit to all samples `i` such that `i*d + column_idx` in a pointer array. Multivariate distributions and models using those can ignore this.
 
+	- A convenience function `to_yaml` was added to `State` and `Model` classes.  `YAML` is a superset of `JSON` that can be 4 to 5 times more compact.  You need the `yaml` package installed to use it.
+
 
 Distributions
 -------------

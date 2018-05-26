@@ -1,6 +1,8 @@
 from setuptools import setup
 from setuptools import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
+# https://stackoverflow.com/a/11181607/541202
+# import __builtin__ as __builtins__
 
 try:
     from Cython.Build import cythonize
@@ -64,7 +66,8 @@ setup(
         "numpy >= 1.8.0",
         "joblib >= 0.9.0b4",
         "networkx >= 1.8.1, < 2.0",
-        "scipy >= 0.17.0"
+        "scipy >= 0.17.0",
+        "pyyaml"
     ],
     test_suite = 'nose.collector',
     package_data={
