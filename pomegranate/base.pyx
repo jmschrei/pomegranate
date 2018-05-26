@@ -8,6 +8,7 @@ from .distributions import Distribution
 import json
 import numpy
 import uuid
+import yaml
 
 
 # Define some useful constants
@@ -59,13 +60,17 @@ cdef class Model(object):
 
 	def to_yaml(self):
 		"""Serialize the model to YAML for compactness."""
-		import yaml
 		return yaml.safe_dump(json.loads(self.to_json()))
 
 	@classmethod
 	def from_json( cls, json ):
 		"""Deserialize this object from its JSON representation."""
 		raise NotImplementedError
+
+	@classmethod
+	def from_yaml( cls, yml ):
+		"""Deserialize this object from its YAML representation."""
+		return cls.from_json(json.dumps(yaml.load(yml)))
 
 	def copy(self):
 		"""Return a deep copy of this distribution object.

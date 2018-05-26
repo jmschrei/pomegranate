@@ -567,6 +567,20 @@ def test_hmm_multivariate_mixed_dense_predict_log_proba():
 
     assert_array_almost_equal(f, logp)
 
+@with_setup(setup_multivariate_mixed_dense)
+def test_hmm_multivariate_mixed_dense_predict_log_proba_json_yaml():
+    logp = numpy.array([[-1.3e-07, -32.35011618, -15.88142452, -48.83251208],
+        [-0.0, -125.38948844, -20.25379271, -140.90667878],
+        [-3.29e-06, -178.10391312, -12.6258323, -138.86820172]])
+
+    s = [[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [4, 6, 2, 0, 1]]
+    hmm_json = HiddenMarkovModel.from_json(model.to_json())
+    f = hmm_json.predict_log_proba(s)
+    assert_array_almost_equal(f, logp)
+    hmm_yaml = HiddenMarkovModel.from_yaml(model.to_yaml())
+    f = hmm_yaml.predict_log_proba(s)
+    assert_array_almost_equal(f, logp)
+
 @with_setup(setup_multivariate_gaussian_dense)
 def test_hmm_multivariate_gaussian_dense_predict_log_proba():
     f = model.predict_log_proba([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
@@ -574,6 +588,21 @@ def test_hmm_multivariate_gaussian_dense_predict_log_proba():
         [-3.5e-07, -21.03621875, -14.85696805, -21.01998258], 
         [-18.86968176, -0.07127267, -3.75635416, -3.09173086]])
 
+    assert_array_almost_equal(f, logp)
+
+
+@with_setup(setup_multivariate_gaussian_dense)
+def test_hmm_multivariate_gaussian_dense_predict_log_proba_json_yaml():
+    logp = numpy.array([[-0.01065581, -8.64827112, -4.56452191, -11.62376426],
+        [-3.5e-07, -21.03621875, -14.85696805, -21.01998258],
+        [-18.86968176, -0.07127267, -3.75635416, -3.09173086]])
+
+    s = [[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]]
+    hmm_json = HiddenMarkovModel.from_json(model.to_json())
+    f = hmm_json.predict_log_proba(s)
+    assert_array_almost_equal(f, logp)
+    hmm_yaml = HiddenMarkovModel.from_yaml(model.to_yaml())
+    f = hmm_yaml.predict_log_proba(s)
     assert_array_almost_equal(f, logp)
 
 
@@ -1059,6 +1088,34 @@ def test_hmm_bw_multivariate_discrete_fit():
     assert_equal(round(total_improvement, 4), 13.3622)
 
 
+@with_setup(setup_multivariate_discrete_sparse, teardown)
+def test_hmm_bw_multivariate_discrete_fit_json_yaml():
+    seqs = [[['A', 'A'], ['A', 'C'], ['C', 'T']], [['A', 'A'], ['C', 'C'], ['T', 'T']],
+            [['A', 'A'], ['A', 'C'], ['C', 'C'], ['T', 'T']], [['A', 'A'], ['C', 'C']]]
+
+    hmm_json = HiddenMarkovModel.from_json(model.to_json())
+    _, history = hmm_json.fit(seqs,
+                               return_history=True,
+                                     algorithm='baum-welch',
+                                     verbose=False,
+                                     use_pseudocount=True,
+                                     max_iterations=5)
+
+    total_improvement = history.total_improvement[-1]
+    assert_equal(round(total_improvement, 4), 13.3622)
+
+    hmm_yaml = HiddenMarkovModel.from_yaml(model.to_yaml())
+    _, history = hmm_yaml.fit(seqs,
+                              return_history=True,
+                              algorithm='baum-welch',
+                              verbose=False,
+                              use_pseudocount=True,
+                              max_iterations=5)
+
+    total_improvement = history.total_improvement[-1]
+    assert_equal(round(total_improvement, 4), 13.3622)
+
+
 @with_setup(setup_multivariate_gaussian_sparse, teardown)
 def test_hmm_bw_multivariate_gaussian_fit():
     seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]], 
@@ -1070,6 +1127,32 @@ def test_hmm_bw_multivariate_gaussian_fit():
                                      verbose=False, 
                                      use_pseudocount=True,
                                      max_iterations=5)
+
+    total_improvement = history.total_improvement[-1]
+    assert_equal(round(total_improvement, 4), 24.7013)
+
+@with_setup(setup_multivariate_gaussian_sparse, teardown)
+def test_hmm_bw_multivariate_gaussian_json_yaml():
+    seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]],
+            [[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
+
+    hmm_json = HiddenMarkovModel.from_json(model.to_json())
+    _, history = hmm_json.fit(seqs,
+                               return_history=True,
+                                     algorithm='baum-welch',
+                                     verbose=False,
+                                     use_pseudocount=True,
+                                     max_iterations=5)
+
+    total_improvement = history.total_improvement[-1]
+    assert_equal(round(total_improvement, 4), 24.7013)
+    hmm_yaml = HiddenMarkovModel.from_yaml(model.to_yaml())
+    _, history = hmm_yaml.fit(seqs,
+                              return_history=True,
+                              algorithm='baum-welch',
+                              verbose=False,
+                              use_pseudocount=True,
+                              max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
     assert_equal(round(total_improvement, 4), 24.7013)
