@@ -4,9 +4,9 @@
 
 *NOTE: pomegranate does not yet work with networkx 2.0. If you have problems, please downgrade networkx and try again.*
 
-The pomegranate paper can be [found here](http://jmlr.org/papers/volume18/17-636/17-636.pdf). Please consider citing it if you used it in your academic work.
+[JMLR-MLOSS Manuscript](http://jmlr.org/papers/volume18/17-636/17-636.pdf) Please consider citing it if you used it in your academic work.
 
-pomegranate is a package for probabilistic and graphical models for Python, implemented in cython for speed. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components used could be rearranged to do other cool things. It currently supports:
+pomegranate is a package for probabilistic and graphical models for Python, implemented in cython for speed. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components of a hidden Markov model could be re-arranged to form other probabilistic models. It currently supports:
 
 * Probability Distributions
 * General Mixture Models
@@ -33,7 +33,7 @@ It currently supports the following features:
 
 Please take a look at the [tutorials folder](https://github.com/jmschrei/pomegranate/tree/master/tutorials), which includes several tutorials on how to effectively use pomegranate!
 
-See [the website](http://pomegranate.readthedocs.org/en/latest/) for extensive documentation, API references, and FAQs about each of the models and supported features..
+See [the website](http://pomegranate.readthedocs.org/en/latest/) for extensive documentation, API references, and FAQs about each of the models and supported features.
 
 No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM, and all the current contributors to pomegranate, including the graduate students who share my office I annoy on a regular basis by bouncing ideas off of.
 
