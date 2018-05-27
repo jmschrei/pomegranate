@@ -8,13 +8,14 @@
 
 pomegranate is a package for probabilistic and graphical models for Python, implemented in cython for speed. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components of a hidden Markov model could be re-arranged to form other probabilistic models. It currently supports:
 
-* Probability Distributions
-* General Mixture Models
-* Hidden Markov Models
-* Naive Bayes
-* Bayes Classifiers
-* Markov Chains
-* Discrete Bayesian Networks
+* [Probability Distributions](http://pomegranate.readthedocs.io/en/latest/Distributions.html)
+* [General Mixture Models](http://pomegranate.readthedocs.io/en/latest/GeneralMixtureModel.html)
+* [Hidden Markov Models](http://pomegranate.readthedocs.io/en/latest/HiddenMarkovModel.html)
+* [Naive Bayes and Bayes Classifiers](http://pomegranate.readthedocs.io/en/latest/NaiveBayes.html)
+* [Markov Chains](http://pomegranate.readthedocs.io/en/latest/MarkovChain.html)
+* [Discrete Bayesian Networks](http://pomegranate.readthedocs.io/en/latest/BayesianNetwork.html)
+
+The discrete Bayesian networks also support novel work on structure learning in the presence of constraints through a constraint graph. These constraints can dramatically speed up structure learning through the use of loose general prior knowledge, and can frequently make the exact learning task take only polynomial time instead of exponential time. See the [PeerJ manuscript](https://peerj.com/articles/cs-122/) for the theory and the [pomegranate tutorial](https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_4b_Bayesian_Network_Structure_Learning.ipynb) for the practical usage! 
 
 To support the above algorithms, it has efficient implementations of the following:
 
@@ -23,13 +24,13 @@ To support the above algorithms, it has efficient implementations of the followi
 
 It currently supports the following features:
 
-* Multi-threaded Training
-* BLAS/GPU Acceleration
-* Out-of-Core Learning
-* Minibatch Learning
-* Semi-supervised Learning
-* Missing Value Support
-* Customized Callbacks
+* [Multi-threaded Training](http://pomegranate.readthedocs.io/en/latest/parallelism.html)
+* [BLAS/GPU Acceleration](http://pomegranate.readthedocs.io/en/latest/gpu.html)
+* [Out-of-Core Learning](http://pomegranate.readthedocs.io/en/latest/ooc.html)
+* [Minibatch Learning](http://pomegranate.readthedocs.io/en/latest/minibatch.html)
+* [Semi-supervised Learning](http://pomegranate.readthedocs.io/en/latest/semisupervised.html)
+* [Missing Value Support](http://pomegranate.readthedocs.io/en/latest/nan.html)
+* [Customized Callbacks](http://pomegranate.readthedocs.io/en/latest/callbacks.html)
 
 Please take a look at the [tutorials folder](https://github.com/jmschrei/pomegranate/tree/master/tutorials), which includes several tutorials on how to effectively use pomegranate!
 
