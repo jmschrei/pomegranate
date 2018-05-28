@@ -19,6 +19,7 @@ from .kmeans import Kmeans
 
 from distributions.distributions cimport Distribution
 from distributions import DiscreteDistribution
+from distributions import MultivariateDistribution
 from distributions import IndependentComponentsDistribution
 
 from .bayes cimport BayesModel
@@ -549,6 +550,10 @@ cdef class GeneralMixtureModel(BayesModel):
         """
 
         icd = False
+        if not isinstance(X, numpy.ndarray):
+            X = numpy.array(X)
+
+        n, d = X.shape
 
         if not callable(distributions) and not isinstance(distributions, list):
             raise ValueError("must either give initial distributions "
@@ -559,10 +564,14 @@ cdef class GeneralMixtureModel(BayesModel):
                 raise ValueError("cannot fit a discrete GMM "
                                  "without pre-initialized distributions")
 
-            distributions = [distributions for i in range(n_components)]
+            if not isinstance(distributions.blank(), MultivariateDistribution) and d > 1:
+                icd = True
+                distributions = [distributions for i in range(d)]
+            else:
+                distributions = [distributions for i in range(n_components)]
 
         else:
-            if X.shape[1] == len(distributions):
+            if d == len(distributions):
                 icd = True
             else:
                 n_components = len(distributions)
@@ -574,11 +583,6 @@ cdef class GeneralMixtureModel(BayesModel):
             for dist in distributions:
                 if not callable(dist):
                     raise ValueError("must pass in uninitialized distributions")
-
-        if not isinstance(X, numpy.ndarray):
-            X = numpy.array(X)
-
-        n, d = X.shape
 
         kmeans_batch_size = batch_size or len(X)
         X_kmeans = X[:batch_size]

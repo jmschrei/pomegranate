@@ -20,6 +20,7 @@ from .base cimport Model
 from .base cimport State
 
 from distributions.distributions cimport Distribution
+from distributions import MultivariateDistribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.IndependentComponentsDistribution cimport IndependentComponentsDistribution
 from .kmeans import Kmeans
@@ -3591,6 +3592,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
 
         X_concat = numpy.concatenate(X)
+
         if X_concat.ndim == 1:
             X_concat = X_concat.reshape(X_concat.shape[0], 1)
 
@@ -3635,7 +3637,15 @@ cdef class HiddenMarkovModel(GraphModel):
                 batch_size=batch_size, batches_per_epoch=batches_per_epoch)
             y = clf.predict(X_concat)
 
-            distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+            if callable(distribution):
+                if X_concat.shape[1] > 1 and not isinstance(distribution.blank(), MultivariateDistribution):
+                    distribution = [distribution for i in range(X_concat.shape[1])]
+                else:
+                    distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+
+            if isinstance(distribution, list):
+                distributions = [IndependentComponentsDistribution.from_samples(X_concat[y == i],
+                    distributions=distribution) for i in range(n_components)]
 
         transition_matrix = numpy.ones((n_components, n_components)) / n_components
         start_probabilities = numpy.ones(n_components) / n_components
