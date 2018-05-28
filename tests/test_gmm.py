@@ -74,6 +74,17 @@ def setup_univariate_mixed():
 	gmm = GeneralMixtureModel([d1, d2, d3, d4])
 
 
+def setup_multivariate_discrete():
+	d1 = IndependentComponentsDistribution([DiscreteDistribution({'A':0.5, 'B':0.5}), 
+	                                        DiscreteDistribution({'0':0.2, '1':0.2, '2':0.2, '3':0.4})])
+	d2 = IndependentComponentsDistribution([DiscreteDistribution({'A':0.1, 'B':0.9}), 
+	                                        DiscreteDistribution({'0':0.1, '1':0.6, '2':0.1, '3':0.2})])
+
+
+	global gmm
+	gmm = GeneralMixtureModel([d1, d2], weights=np.array([0.4,0.6]))
+
+
 def teardown():
 	"""
 	Teardown the model, so delete it.
@@ -351,6 +362,14 @@ def test_gmm_initialization():
 	assert_equal(gmm1.d, 5)
 	assert_equal(gmm2.d, 5)
 
+
+def test_gmm_multivariate_discrete_initialization():
+	d1 = IndependentComponentsDistribution([DiscreteDistribution({'A' : 0.5, 'B' : 0.5}), 
+                                            DiscreteDistribution({'0' : 0.2, '1' : 0.2, '2' : 0.2, '3' : 0.4})])
+	d2 = IndependentComponentsDistribution([DiscreteDistribution({'A' : 0.1, 'B' : 0.9}), 
+                                            DiscreteDistribution({'0' : 0.1, '1' : 0.6, '2' : 0.1, '3' : 0.2})])
+
+	GeneralMixtureModel([d1, d2], weights=np.array([0.4,0.6]))
 
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_gmm_dimension():
@@ -745,6 +764,11 @@ def test_gmm_multivariate_mixed_nan_predict():
 	assert_array_equal(y, y_hat)
 
 
+@with_setup(setup_multivariate_discrete)
+def test_gmm_multivariate_discrete_predict_proba():
+	probs = gmm.predict_proba(numpy.array([['A', '0'], ['B', '1']]))
+	assert_almost_equal(probs, [[0.86956522, 0.13043478], [0.10989011, 0.89010989]])
+
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_gmm_multivariate_gaussian_nan_predict_proba():
 	numpy.random.seed(0)
@@ -1089,4 +1113,3 @@ def test_gmm_multivariate_mixed_minibatch_nan_fit():
 
 	assert_almost_equal(p1, p2)
 	assert_raises(AssertionError, assert_almost_equal, p1, p3)
-

@@ -60,6 +60,11 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		self.name = "IndependentComponentsDistribution"
 		self.frozen = frozen
 
+	def __getitem__(self, idx):
+		"""Return the distribution at idx dimension."""
+
+		return self.distributions[idx]
+
 	def __reduce__(self):
 		"""Serialize the distribution for pickle."""
 		return self.__class__, (self.distributions, self.weights, self.frozen)
