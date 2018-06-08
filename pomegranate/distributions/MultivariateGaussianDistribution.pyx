@@ -82,6 +82,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		return self.__class__, (self.mu, self.cov, self.frozen)
 
 	def __dealloc__(self):
+		free(self._inv_dot_mu)
 		free(self._mu_new)
 		free(self.column_sum)
 		free(self.column_w_sum)

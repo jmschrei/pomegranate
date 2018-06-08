@@ -487,6 +487,7 @@ cdef class BayesianNetwork(GraphModel):
 
 				(<Model> self.distributions_ptr[j])._log_probability(sym, &logp, 1)
 				log_probability[i] += logp
+		free(sym)
 
 
 	def marginal(self):

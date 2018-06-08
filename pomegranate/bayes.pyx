@@ -240,6 +240,8 @@ cdef class BayesModel(Model):
             for i in range(n):
                 log_probability[i] = pair_lse(log_probability[i], logp[i] + self.weights_ptr[j])
 
+        free(logp)
+
     cdef double _vl_log_probability(self, double* X, int n) nogil:
         cdef int i
         cdef double log_probability_sum = NEGINF
