@@ -64,6 +64,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.parameters = [table, self.parents]
 
 	def __dealloc__(self):
+		free(self.idxs)
 		free(self.values)
 		free(self.counts)
 
