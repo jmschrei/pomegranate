@@ -28,11 +28,6 @@ subprocess.call('pip install numpydoc', shell=True)
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../..'))
 
-import mock
-
-MOCK_MODULES = ['numpy', 'scipy', 'joblib', 'networkx', 'cython', 'wheel', 'nose', 'scipy.interpolate', 'scipy.special']
-for mod_name in MOCK_MODULES:
-    sys.modules[mod_name] = mock.Mock()
 
 # -- General configuration ------------------------------------------------
 
