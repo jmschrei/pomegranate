@@ -63,7 +63,7 @@ cdef class GammaDistribution(Distribution):
 					_log(X[i]) * (alpha - 1) - beta * X[i])
 
 	def sample(self, n=None):
-		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1])
+		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1], n)
 
 	def fit(self, items, weights=None, inertia=0.0, epsilon=1E-9,
 		iteration_limit=1000, column_idx=0):
