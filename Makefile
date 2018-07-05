@@ -35,7 +35,8 @@ bigbuild: py2build
 biginstall: py2install
 biguninstall: py2uninstall
 bigtest: py2test
-bignbtest: py2test
+bignbtest: py2test py2nbtest
+	echo bignbtest: Not running py3nbtest because all notebooks are python 2 based
 endif
 
 ifdef PY3_ENV

@@ -2,13 +2,23 @@
 
 # Setting up conda:
 # Pass in the version of python as an argument with default of 2.7
+# Pass in the environment prefix as a second argument with default of py
+# This can be used for example to run the notebook tests as in:
+#  ./rebuildconda 2.7 pynbtest
+#  source activate pynbtest2.7
+#  make bigclean install nbtest >& nbtest.out
+#  source deactivate pynbtest2.7
+#  conda env remove --yes --name pynbtest2.7
 
 ##########  Current setup BEGIN:
+set -x
+
 _PYVER=${1:-2.7}
+_PYPREFIX=${2:-py}
 #_PYVER=2.7
 #_PYVER=3.4
 #_PYVER=3.6
-penv_version=py${_PYVER}
+penv_version=${_PYPREFIX}${_PYVER}
 echo rebuilding conda environment $penv_version
 
 # List envs:
@@ -26,11 +36,10 @@ conda config --get channels
 base_packages=" cython "
 pom_packages=" scipy joblib nose networkx=1.11 "
 pom_nbtest_packages=" scikit-learn pandas seaborn pygraphviz pillow xlrd memory_profiler jupyter jupyter_contrib_nbextensions jupyter_nbextensions_configurator "
-echo "Don't forget to also install gnuplot-py since it isn't yet in the tools Makefile"
 conda install --yes $base_packages $pom_packages $pom_nbtest_packages
 source activate $penv_version
 # It would be nice if cmckeague would submit libpgm to conda-forge...  Also doesn't have a python 3 version
-if [ ${penv_version/py2.7.*/py2.7} == "py2.7" ]; then
+if [ ${penv_version/${_PYPREFIX}2.7*/2.7} == "2.7" ]; then
     conda install --yes -c cmckeague libpgm
     # Note that omnia hmmlearn causes numpy downgrade to 1.12.1
     conda install --yes -c omnia hmmlearn
@@ -38,6 +47,16 @@ fi
 conda env export > $penv_version.yml
 
 ##########  Current setup END
+
+echo To remove this environment, run:
+echo source deactivate
+echo conda env remove --yes --name $penv_version
+
+echo
+echo Some quick shell aliases to switch between environments:
+alias py27="source activate py2.7"
+alias py36="source activate py3.6"
+
 #
 exit 0
 
