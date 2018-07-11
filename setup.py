@@ -13,20 +13,44 @@ else:
     use_cython = True
     ext = 'pyx'
 
-filenames = [ "base",
-              "BayesianNetwork",
-              "FactorGraph",
-              "distributions",
-              "hmm",
-              "gmm",
-              "NaiveBayes",
-              "MarkovChain"
-            ]
+filenames = [ 
+    "base",
+    "bayes",
+    "BayesianNetwork",
+    "FactorGraph",
+    "hmm",
+    "gmm",
+    "kmeans",
+    "NaiveBayes",
+    "BayesClassifier",
+    "MarkovChain",
+    "utils",
+    "parallel"
+]
+
+distributions = [
+    'distributions',
+    'UniformDistribution',
+    'BernoulliDistribution',
+    'NormalDistribution',
+    'LogNormalDistribution',
+    'ExponentialDistribution',
+    'BetaDistribution',
+    'GammaDistribution',
+    'DiscreteDistribution',
+    'PoissonDistribution',
+    'KernelDensities',
+    'IndependentComponentsDistribution',
+    'MultivariateGaussianDistribution',
+    'DirichletDistribution',
+    'ConditionalProbabilityTable',
+    'JointProbabilityTable'
+]
 
 if not use_cython:
     extensions = [
-        Extension( "pomegranate.{}".format( name ), [ "pomegranate/{}.{}".format( name, ext ) ]) for name in filenames
-    ] + [Extension("pomegranate.distributions.distributions", ["pomegranate/distributions/distributions.c"])]
+        Extension( "pomegranate.{}".format( name ), [ "pomegranate/{}.{}".format(name, ext) ]) for name in filenames
+    ] + [Extension("pomegranate.distributions.{}".format(dist), ["pomegranate/distributions/{}.{}".format(dist, ext)]) for dist in distributions]
 else:
     extensions = [
             Extension("pomegranate.*", ["pomegranate/*.pyx"]),
