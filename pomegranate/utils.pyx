@@ -69,7 +69,7 @@ cdef class PriorityQueue(object):
 
 	def delete(self, variables):
 		entry = self.entries.pop(variables)
-		entry[-1] = None
+		entry[-1] = ((-1,),)
 		self.n -= 1
 
 	def empty(self):
@@ -78,7 +78,7 @@ cdef class PriorityQueue(object):
 	def pop(self):
 		while not self.empty():
 			weight, item = heapq.heappop(self.pq)
-			if item is not None:
+			if item[0] != (-1,):
 				del self.entries[item[0]]
 				self.n -= 1
 				return weight, item
