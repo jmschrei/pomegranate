@@ -103,7 +103,7 @@ cdef class BayesModel(Model):
             keys = []
             for distribution in distributions:
                 keys.extend(distribution.keys())
-            self.keymap = [{key: i for i, key in enumerate(set(keys))}]
+            self.keymap = [{key: i for i, key in enumerate(keys)}]
             for distribution in distributions:
                 distribution.bake(tuple(keys))
 
