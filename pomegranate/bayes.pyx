@@ -109,18 +109,21 @@ cdef class BayesModel(Model):
 
         elif isinstance(dist, IndependentComponentsDistribution):
             self.keymap = [{} for i in range(self.d)]
+            keymap_tuples = [tuple() for i in range(self.d)]
+
             for distribution in distributions:
                 for i in range(self.d):
                     if isinstance(distribution[i], DiscreteDistribution):
                         for key in distribution[i].keys():
                             if key not in self.keymap[i]:
                                 self.keymap[i][key] = len(self.keymap[i])
+                                keymap_tuples[i] += (key,)
 
             for distribution in distributions:
                 for i in range(self.d):
                     d = distribution[i]
                     if isinstance(d, DiscreteDistribution):
-                        d.bake(tuple(self.keymap[i].keys()))
+                        d.bake(keymap_tuples[i])
 
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(),
