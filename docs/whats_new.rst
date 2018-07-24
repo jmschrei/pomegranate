@@ -29,6 +29,8 @@ Distributions
 	
 	- Broke the distributions.pyx into a folder where each distribution has its own file. This will speed up compilation when the code is modified.
 
+	- Added in a `dtype` attribute to DiscreteDistribution, ConditionalProbabilityTable, and JointProbabilityTable, to prevent automatic casting of keys as floats when converting to and from jsons
+
 
 HiddenMarkovModel
 -----------------
@@ -63,6 +65,12 @@ BayesClassifier
 	- Added in callback functionality to both the `fit` and `from_samples` methods that will be used only in semi-supervised learning
 
 	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model that will be used only in semi-supervised learning
+
+
+BayesianNetwork
+---------------
+
+	- Modified the built keymap to be a numpy array of objects to prevent casting of all keys as the type of the first column.
 
 Makefile
 ---------------
