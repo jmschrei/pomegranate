@@ -367,7 +367,8 @@ cdef class BayesianNetwork(GraphModel):
 		indices = {state.distribution : i for i, state in enumerate(self.states)}
 
 		n, self.idxs = 0, []
-		self.keymap = numpy.array([state.distribution.keys() for state in self.states])
+		self.keymap = numpy.array([state.distribution.keys() for state in self.states], dtype=object)
+
 		for i, state in enumerate(self.states):
 			d = state.distribution
 

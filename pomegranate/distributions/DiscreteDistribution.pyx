@@ -55,6 +55,7 @@ cdef class DiscreteDistribution(Distribution):
 
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
+		self.dtype = str(type(characters.keys()[0])).split()[-1].strip('>').strip("'")
 
 		self.dist = characters.copy()
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
@@ -308,6 +309,7 @@ cdef class DiscreteDistribution(Distribution):
 
 		return json.dumps({
 								'class' : 'Distribution',
+								'dtype' : self.dtype,
 								'name'  : self.name,
 								'parameters' : [{str(key): value for key, value in self.dist.items()}],
 								'frozen' : self.frozen

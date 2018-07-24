@@ -51,6 +51,11 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.column_idxs_ptr = <int*> self.column_idxs.data
 		self.n_columns = len(parents) + 1
 
+		self.dtypes = []
+		for column in table[0]:
+			dtype = str(type(column)).split()[-1].strip('>').strip("'")
+			self.dtypes.append(dtype)
+
 		memset(self.counts, 0, self.n*sizeof(double))
 		memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
 
@@ -371,6 +376,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 					'class' : 'Distribution',
 		            'name' : 'ConditionalProbabilityTable',
 		            'table' : table,
+		            'dtypes' : self.dtypes,
 		            'parents' : [json.loads(dist.to_json()) for dist in self.parents]
 		        }
 

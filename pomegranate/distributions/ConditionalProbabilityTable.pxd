@@ -16,7 +16,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	cdef int* marginal_idxs
 	cdef public numpy.ndarray column_idxs
 	cdef int* column_idxs_ptr
-	cdef public list parents, parameters
+	cdef public list parents, parameters, dtypes
 	cdef public object keymap
 	cdef public object marginal_keymap
 	cdef public int m

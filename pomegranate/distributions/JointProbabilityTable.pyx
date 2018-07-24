@@ -47,6 +47,11 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.count = 0
 
+		self.dtypes = []
+		for column in table[0]:
+			dtype = str(type(column)).split()[-1].strip('>').strip("'")
+			self.dtypes.append(dtype)
+
 		memset(self.counts, 0, self.n*sizeof(double))
 
 		self.idxs[0] = 1
@@ -292,6 +297,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 					'class' : 'Distribution',
 		            'name' : 'JointProbabilityTable',
 		            'table' : table,
+		            'dtypes' : self.dtypes,
 		            'parents' : [json.loads(dist.to_json()) for dist in self.parameters[1]]
 		        }
 

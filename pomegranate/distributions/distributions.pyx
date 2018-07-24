@@ -287,9 +287,13 @@ cdef class Distribution(Model):
 			d['parameters'][0] = [cls.from_json(json.dumps(dist)) for dist in d['parameters'][0]]
 			return IndependentComponentsDistribution(d['parameters'][0], d['parameters'][1], d['frozen'])
 		elif d['name'] == 'DiscreteDistribution':
-			try:
+			if d['dtype'] == 'str':
+				dist = {str(key) : value for key, value in d['parameters'][0].items()}
+			elif d['dtype'] == 'int':
+				dist = {int(key) : value for key, value in d['parameters'][0].items()}
+			elif d['dtype'] == 'float':
 				dist = {float(key) : value for key, value in d['parameters'][0].items()}
-			except:
+			else:
 				dist = d['parameters'][0]
 
 			return DiscreteDistribution(dist, frozen=d['frozen'])
@@ -300,10 +304,14 @@ cdef class Distribution(Model):
 
 			for row in d['table']:
 				table.append([])
-				for item in row:
-					try:
+				for dtype, item in zip(d['dtypes'], row):
+					if dtype == 'str':
+						table[-1].append(str(item))
+					elif dtype == 'int':
+						table[-1].append(int(item))
+					elif dtype == 'float':
 						table[-1].append(float(item))
-					except:
+					else:
 						table[-1].append(item)
 
 			if d['name'] == 'JointProbabilityTable':

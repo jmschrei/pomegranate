@@ -9,6 +9,7 @@ from .distributions cimport Distribution
 cdef class DiscreteDistribution(Distribution):
 	cdef bint encoded_summary
 	cdef int n
+	cdef str dtype
 	cdef dict dist, log_dist
 	cdef tuple encoded_keys
 	cdef double* encoded_counts
