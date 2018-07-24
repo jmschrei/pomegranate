@@ -125,6 +125,8 @@ cdef class BayesModel(Model):
                     if isinstance(d, DiscreteDistribution):
                         d.bake(keymap_tuples[i])
 
+        
+
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(),
                                 numpy.exp(self.weights),
