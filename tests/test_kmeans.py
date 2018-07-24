@@ -343,13 +343,16 @@ def test_kmeans_nan_large_predict_parallel():
 
 @with_setup(setup_five_dimensions)
 def test_kmeans_nan_multiple_init():
+	numpy.random.seed(0)
 	model1 = Kmeans.from_samples(4, X_nan, init='kmeans++', n_init=1)
+	
+	numpy.random.seed(0)
 	model2 = Kmeans.from_samples(4, X_nan, init='kmeans++', n_init=25)
 
 	dist1 = model1.distance(X).min(axis=1).sum()
 	dist2 = model2.distance(X).min(axis=1).sum()
 
-	assert_greater(dist1, dist2)
+	assert_greater_equal(dist1, dist2)
 
 	model1 = Kmeans.from_samples(4, X_nan, init='first-k', n_init=1)
 	model2 = Kmeans.from_samples(4, X_nan, init='first-k', n_init=5)
