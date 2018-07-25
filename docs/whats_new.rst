@@ -31,6 +31,8 @@ Distributions
 
 	- Added in a `dtype` attribute to DiscreteDistribution, ConditionalProbabilityTable, and JointProbabilityTable, to prevent automatic casting of keys as floats when converting to and from jsons
 
+	- For MultivariateGaussianDistributions, added in an epsilon when performing a ridge adjustment on a non-positive semidefinite matrix to hopefully completely fix this issue.
+
 
 HiddenMarkovModel
 -----------------

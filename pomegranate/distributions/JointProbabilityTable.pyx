@@ -66,7 +66,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.keymap = OrderedDict(keys)
 		self.parents = parents
-		self.parameters = [table, self.parents]
+		self.parameters = [[list(row) for row in table], self.parents]
 
 	def __dealloc__(self):
 		free(self.idxs)
@@ -194,7 +194,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		else:
 			weights = numpy.asarray(weights, dtype='float64')
 
-		self._table_summarize(items, weights)
+		self.__summarize(items, weights)
 
 	cdef void __summarize(self, items, double [:] weights):
 		cdef int i, n = len(items)

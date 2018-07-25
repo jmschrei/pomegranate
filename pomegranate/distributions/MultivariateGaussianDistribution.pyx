@@ -33,6 +33,8 @@ DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
 
+eps = 1e-8
+
 cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 	property parameters:
 		def __get__(self):
@@ -266,8 +268,11 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 			self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
 				lower=True).T
 		except:
-			min_eig = numpy.linalg.eig(self.cov)[0].min()
-			self.cov -= numpy.eye(d) * min_eig
+			if self.cov.sum() == 0:
+				self.cov += numpy.eye(d) * min_covar
+			else:
+				min_eig = numpy.linalg.eig(self.cov)[0].min()
+				self.cov -= numpy.eye(d) * (min_eig - eps)
 
 			chol = scipy.linalg.cholesky(self.cov, lower=True)
 			self.inv_cov = scipy.linalg.solve_triangular(chol, numpy.eye(d),
