@@ -41,8 +41,29 @@ Currently pomegranate is not set up for a distributed environment, though the pi
 
 **How can I cite pomegranate?**
 
-I don't currently have a research paper which can be cited, but the GitHub repository can be.
+The research paper that presents pomegranate is:
 
+*Schreiber, J. (2018). Pomegranate: fast and flexible probabilistic modeling in python. Journal of Machine Learning Research, 18(164), 1-6.*
+
+which can be downloaded from `JML`_ or from `arXiv`_.
+
+ .. _jml: http://www.jmlr.org/papers/volume18/17-636/17-636.pdf
+ .. _arxiv: https://arxiv.org/abs/1711.00137
+
+The paper can be cited as:
+::
+
+	@article{schreiber2018pomegranate,
+		  title={Pomegranate: fast and flexible probabilistic modeling in python},
+		  author={Schreiber, Jacob},
+		  journal={Journal of Machine Learning Research},
+		  volume={18},
+		  number={164},
+		  pages={1--6},
+		  year={2018}
+		}
+
+Alternatively, the GitHub repository can be cited as:
 ::
 
 	@misc{Schreiber2016,
