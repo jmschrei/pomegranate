@@ -307,7 +307,12 @@ cdef class GraphModel(Model):
 
 	def __str__(self):
 		"""Represent this model with it's name and states."""
-		return "{}:{}".format(self.name, "".join(map(str, self.states)))
+		if self.states is not None:
+			state_str = "".join(map(str, self.states))
+		else:
+			state_str = ""
+
+		return "{}:{}".format(self.name, state_str)
 
 	def add_node(self, node):
 		"""Add a node to the graph."""

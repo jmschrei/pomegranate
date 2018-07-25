@@ -2726,9 +2726,9 @@ cdef class HiddenMarkovModel(GraphModel):
 
         if check_input:
             if weights is None:
-                weights_ndarray = numpy.ones(len(sequences), dtype='float64')
+                weights = numpy.ones(len(sequences), dtype='float64')
             else:
-                weights_ndarray = numpy.array(weights, dtype='float64')
+                weights = numpy.array(weights, dtype='float64')
 
             if labels is not None:
                 labels = numpy.array(labels)

@@ -33,6 +33,8 @@ Distributions
 
 	- For MultivariateGaussianDistributions, added in an epsilon when performing a ridge adjustment on a non-positive semidefinite matrix to hopefully completely fix this issue.
 
+	- NormalDistribution update should now check to see if the weights are below an epsilon, rather than equal to 0, resolving some stability issues.
+
 
 HiddenMarkovModel
 -----------------
@@ -42,6 +44,8 @@ HiddenMarkovModel
 	- Added in callback functionality to both the `fit` and `from_samples` methods
 
 	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model
+
+	- Resolved an issue in the `summary` method where default weights were assigned to the wrong variable when not passed in.
 
 GeneralMixtureModel
 -------------------

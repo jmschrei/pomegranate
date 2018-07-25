@@ -88,7 +88,7 @@ cdef class NormalDistribution(Distribution):
 		"""
 
 		# If no summaries stored or the summary is frozen, don't do anything.
-		if self.summaries[0] == 0 or self.frozen == True:
+		if self.summaries[0] < 1e-8 or self.frozen == True:
 			return
 
 		mu = self.summaries[1] / self.summaries[0]
