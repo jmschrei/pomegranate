@@ -2,11 +2,17 @@
 
 [![Build Status](https://travis-ci.org/jmschrei/pomegranate.svg?branch=master)](https://travis-ci.org/jmschrei/pomegranate) ![Build Status](https://ci.appveyor.com/api/projects/status/github/jmschrei/pomegranate?svg=True) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest)
 
+[**JMLR-MLOSS Manuscript**](http://jmlr.org/papers/volume18/17-636/17-636.pdf) Please consider citing it if you used it in your academic work.
+
+pomegranate is a package for probabilistic models in Python that is implemented in cython for speed. It's focus is on merging the easy-to-use scikit-learn API with the modularity that comes with probabilistic modeling to allow users to specify complicated models without needing to worry about implementation details. The models are built from the ground up with big data processing in mind and so natively support features like out-of-core learning and parallelism.
+
 *NOTE: pomegranate does not yet work with networkx 2.0. If you have problems, please downgrade networkx and try again.*
 
-[JMLR-MLOSS Manuscript](http://jmlr.org/papers/volume18/17-636/17-636.pdf) Please consider citing it if you used it in your academic work.
+### Installation
 
-pomegranate is a package for probabilistic and graphical models for Python, implemented in cython for speed. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components of a hidden Markov model could be re-arranged to form other probabilistic models. It currently supports:
+pomegranate is pip installable using `pip install pomegranate` and conda installable using `conda install pomegranate`. If neither work, more detailed installation instructions can be found [here](http://pomegranate.readthedocs.io/en/latest/install.html).
+
+### Models
 
 * [Probability Distributions](http://pomegranate.readthedocs.io/en/latest/Distributions.html)
 * [General Mixture Models](http://pomegranate.readthedocs.io/en/latest/GeneralMixtureModel.html)
@@ -19,10 +25,10 @@ The discrete Bayesian networks also support novel work on structure learning in 
 
 To support the above algorithms, it has efficient implementations of the following:
 
-* Kmeans
+* Kmeans/Kmeans++/Kmeans||
 * Factor Graphs
 
-It currently supports the following features:
+### Features
 
 * [Multi-threaded Training](http://pomegranate.readthedocs.io/en/latest/parallelism.html)
 * [BLAS/GPU Acceleration](http://pomegranate.readthedocs.io/en/latest/gpu.html)
@@ -51,10 +57,6 @@ pomegranate requires:
 ```
 
 To run the tests, you also must have `nose` installed.
-
-### User Installation
-
-pomegranate is pip installable using `pip install pomegranate` and conda installable using `conda install pomegranate`. If that does not work, more detailed installation instructions can be found [here](http://pomegranate.readthedocs.io/en/latest/install.html).
 
 ## Contributing
 
