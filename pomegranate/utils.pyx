@@ -355,3 +355,15 @@ def weight_set(items, weights):
 		weights = numpy.array(weights, dtype=numpy.float64)
 
 	return items, weights
+
+def _check_nan(X):
+	"""Checks to see if a value is nan, either as a float or a string."""
+	
+	if isinstance(X, (str, unicode, numpy.string_)):
+		if X == 'nan':
+			return True
+		return False
+
+	if X is None or numpy.isnan(X):
+		return True
+	return False

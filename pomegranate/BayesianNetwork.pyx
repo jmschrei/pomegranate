@@ -34,6 +34,7 @@ from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import plot_networkx
 from .utils import parallelize_function
+from .utils import _check_nan
 
 
 try:
@@ -56,15 +57,6 @@ DEF NEGINF = float("-inf")
 
 nan = numpy.nan
 
-def _check_nan(X):
-	if isinstance(X, str):
-		if X == 'nan':
-			return True
-		return False
-
-	if X is None or numpy.isnan(X):
-		return True
-	return False
 
 def _check_input(X, model):
 	"""Ensure that the keys in the sample are valid keys.
@@ -1062,20 +1054,7 @@ cdef class BayesianNetwork(GraphModel):
 		X = numpy.array(X)
 		n, d = X.shape
 
-		keys = [numpy.unique(X[:,i]) for i in range(d)]
-
-		for i in range(d):
-			keys_ = []
-			for key in keys[i]:
-				if isinstance(key, str) and key == 'nan':
-					continue
-				elif numpy.isnan(key):
-					continue
-
-				keys_.append(key)
-
-			keys[i] = keys_
-
+		keys = [set([x for x in X[:,i] if not _check_nan(x)]) for i in range(d)]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(d)])
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
 
@@ -1095,13 +1074,14 @@ cdef class BayesianNetwork(GraphModel):
 					X_count[x] = weight
 
 			weights = numpy.array(list(X_count.values()), dtype='float64')
-			X = numpy.array(list(X_count.keys()))
+			X = numpy.array(list(X_count.keys()), dtype=X.dtype)
 			n, d = X.shape
+
 
 		X_int = numpy.zeros((n, d), dtype='float64')
 		for i in range(n):
 			for j in range(d):
-				if X[i, j] == 'nan' or isnan(X[i, j]):
+				if _check_nan(X[i, j]):
 					X_int[i, j] = nan
 				else:
 					X_int[i, j] = keymap[j][X[i, j]]

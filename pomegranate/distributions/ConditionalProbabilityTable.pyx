@@ -11,6 +11,7 @@ from libc.math cimport exp as cexp
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import _check_nan
 
 import itertools as it
 import json
@@ -259,9 +260,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			item = tuple(items[i])
 
 			for symbol in item:
-				if isinstance(symbol, str) and symbol == 'nan':
-					is_na = 1
-				elif isinstance(symbol, (int, float)) and numpy.isnan(symbol):
+				if _check_nan(symbol):
 					is_na = 1
 
 			if is_na:
@@ -394,9 +393,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		for i in range(d):
 			keys_ = []
 			for key in keys[i]:
-				if isinstance(key, str) and key == 'nan':
-					continue
-				elif numpy.isnan(key):
+				if _check_nan(key):
 					continue
 
 				keys_.append(key)

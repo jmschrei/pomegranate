@@ -287,7 +287,7 @@ cdef class Distribution(Model):
 			d['parameters'][0] = [cls.from_json(json.dumps(dist)) for dist in d['parameters'][0]]
 			return IndependentComponentsDistribution(d['parameters'][0], d['parameters'][1], d['frozen'])
 		elif d['name'] == 'DiscreteDistribution':
-			if d['dtype'] == 'str':
+			if d['dtype'] in ('str', 'unicode', 'numpy.string_'):
 				dist = {str(key) : value for key, value in d['parameters'][0].items()}
 			elif d['dtype'] == 'int':
 				dist = {int(key) : value for key, value in d['parameters'][0].items()}
@@ -305,7 +305,7 @@ cdef class Distribution(Model):
 			for row in d['table']:
 				table.append([])
 				for dtype, item in zip(d['dtypes'], row):
-					if dtype == 'str':
+					if dtype in ('str', 'unicode', 'numpy.string_'):
 						table[-1].append(str(item))
 					elif dtype == 'int':
 						table[-1].append(int(item))

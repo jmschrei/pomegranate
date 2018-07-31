@@ -11,6 +11,8 @@ Version 0.10.0
 Highlights
 ----------
 
+	- Broke distributions into their own files and placed them in their own folder
+	- Fixed Bayesian network failing in call to np.isnan when fitting to character data
 	- Added in callbacks to all models in the style of keras, with built-ins being History, ModelCheckpoint, and CVLogger. History is calculated for each model. Use `return_history=True` to gt the model and the history object that contains training.
 	- Added top-level Makefile for convenience in development to build/test/clean/install/uninstall with multiple conda environments.
 	- Added top-level rebuildconda for convenience in development to create or re-create a conda development environment for a given python version, defaulting to 2.7.
@@ -46,6 +48,8 @@ HiddenMarkovModel
 	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model
 
 	- Resolved an issue in the `summary` method where default weights were assigned to the wrong variable when not passed in.
+
+	- Resolved an issue where printing an empty model resulted in an error.
 
 GeneralMixtureModel
 -------------------
