@@ -39,6 +39,8 @@ Distributions
 
 	- Fixed an issue with BernoulliDistribution where it would raise a ZeroDivisionError when `from_summaries` was called with no observations.
 
+	- Fixed an issue where an IndependentComponentsDistribution would print upon calls to `log_probability`
+
 
 HiddenMarkovModel
 -----------------

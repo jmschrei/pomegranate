@@ -20,7 +20,6 @@ from .MarkovChain import MarkovChain
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 from .FactorGraph import FactorGraph
-from .DeepMixtureModel import DeepMixtureModel
 
 __version__ = '0.10.0rc1'
 

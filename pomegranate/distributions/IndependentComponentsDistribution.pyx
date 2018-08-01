@@ -88,8 +88,6 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		cdef numpy.ndarray logp_array
 		cdef double* logp_ptr
 
-		print(self.discrete)
-
 		if self.discrete:
 			if not isinstance(X[0], (list, tuple, numpy.ndarray)) or len(X) == 1:
 				n = 1
@@ -100,8 +98,6 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 			for i in range(n):
 				for j in range(self.d):
 					logp_array[i] += self.distributions[j].log_probability(X[i][j]) * self.weights[j]
-
-			print(logp_array)
 
 			if n == 1:
 				return logp_array[0]
