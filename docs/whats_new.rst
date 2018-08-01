@@ -37,6 +37,8 @@ Distributions
 
 	- NormalDistribution update should now check to see if the weights are below an epsilon, rather than equal to 0, resolving some stability issues.
 
+	- Fixed an issue with BernoulliDistribution where it would raise a ZeroDivisionError when `from_summaries` was called with no observations.
+
 
 HiddenMarkovModel
 -----------------

@@ -74,6 +74,9 @@ cdef class BernoulliDistribution(Distribution):
 	def from_summaries(self, inertia=0.0):
 		"""Update the parameters of the distribution from the summaries."""
 
+		if self.summaries[0] < 1e-8 or self.frozen:
+			return
+
 		p = self.summaries[1] / self.summaries[0]
 		self.p = self.p * inertia + p * (1-inertia)
 		self.logp[0] = _log(1-p)
