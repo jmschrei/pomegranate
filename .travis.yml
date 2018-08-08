@@ -48,9 +48,9 @@ deploy:
   edge:
     branch: v1.8.45
   provider: pypi
-  user: "jmschreiber"
+  user: jmschreiber
   password:
-    secure: "f7Joonip7SHxPv0OpSKnGOpW8ubH2+2LFOT3F9ln0mLzeqaQyY3zccCDQf8ckCYHsbQKZqEXgR/ShwePbAY6ms+NXQWiy/q/Pe5Mabzh6nYzHp+BiSMNvv9xwR7J6vPZgZv++Flvsyx3kOI9jb4VdSJVALCGJT/dCwDtZqlsVl0="
-  distributions: "sdist bdist_wheel"
+    secure: LWOUsHlAVUqRgQ/6nF4e2Z/KnCHvF1kCj07yrjQvo/ETr3WStp7N9krAz4APHWLGlsb0vGUXtoUUOJgf8Q21PzLjgP6ib/xR9nv/PhvFYUMzK8sbWUHqErohPy2kTe8GTuuVku2211NABbL366z7CtRm9GqOrtvlWcrXLnRKYj0=
+  distributions: sdist bdist_wheel
   on:
     tags: true
