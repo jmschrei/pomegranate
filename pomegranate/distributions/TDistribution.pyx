@@ -50,9 +50,9 @@ cdef class TDistribution(Distribution):
 			if isnan(X[i]):
 				log_probability[i] = 0.
 			else:
-				log_probability[i] = lgamma(0.5 * (self.df + 1)) - lgamma(0.5 * self.df)
-				                     - 0.5 * _log(self.df) - 0.5 * LOG_PI
-														 - 0.5 * (self.df + 1) + _log(1 + X[i] ** 2 / self.df)
+				log_probability[i] = lgamma(0.5 * (self.df + 1)) - lgamma(0.5 * self.df) \
+                             - 0.5 * _log(self.df) - 0.5 * LOG_PI \
+                             - 0.5 * (self.df + 1) + _log(1 + X[i] ** 2 / self.df)
 
 	def sample(self, n=None):
 		return numpy.random.standard_t(self.df, n)
