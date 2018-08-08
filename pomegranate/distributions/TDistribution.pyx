@@ -48,7 +48,7 @@ cdef class TDistribution(Distribution):
         cdef int i
         for i in range(n):
             if isnan(X[i]):
-				        log_probability[i] = 0.
+                log_probability[i] = 0.
             else:
                 log_probability[i] = lgamma(0.5 * (self.df + 1)) - lgamma(0.5 * self.df) \
                                      - 0.5 * _log(self.df) - 0.5 * LOG_PI \
