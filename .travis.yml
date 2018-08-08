@@ -45,6 +45,8 @@ install:
 script:
 - python setup.py test
 deploy:
+  edge:
+    branch: v1.8.45
   provider: pypi
   user: "jmschreiber"
   password:
