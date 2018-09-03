@@ -4,6 +4,8 @@
 # BernoulliDistribution.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+import numpy
+
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 
