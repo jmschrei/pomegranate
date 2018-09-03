@@ -101,10 +101,25 @@ cpdef disable_gpu():
 	global GPU
 	GPU[0] = 0
 
-
 cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
 	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)
 	return X
+
+cdef python_log_probability(model, double* X, double* log_probability, int n):
+	cdef int i
+	cdef numpy.npy_intp dim = n * model.d
+	cdef numpy.ndarray X_ndarray
+
+	print n, model.d
+
+	X_ndarray = numpy.PyArray_SimpleNewFromData(1, &dim, numpy.NPY_FLOAT64, X)
+	X_ndarray = X_ndarray.reshape(n, model.d)
+
+	logp = model.log_probability(X_ndarray)
+	
+	for i in range(n):
+		log_probability[i] = logp[i]
+
 
 cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil:
 	cdef double alpha = 1
