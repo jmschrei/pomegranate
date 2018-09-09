@@ -3640,26 +3640,31 @@ cdef class HiddenMarkovModel(GraphModel):
             if callable(distribution):
                 if X_concat.shape[1] > 1 and not isinstance(distribution.blank(), MultivariateDistribution):
                     distribution = [distribution for i in range(X_concat.shape[1])]
-                else:
+                elif X_concat.shape[1] > 1:
                     distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+                else:
+                    distributions = [distribution.from_samples(X_concat[y == i][:,0]) for i in range(n_components)]
 
             if isinstance(distribution, list):
                 distributions = [IndependentComponentsDistribution.from_samples(X_concat[y == i],
                     distributions=distribution) for i in range(n_components)]
 
-        transition_matrix = numpy.ones((n_components, n_components)) / n_components
-        start_probabilities = numpy.ones(n_components) / n_components
+        k = n_components
+        transition_matrix = numpy.ones((k, k)) / k
+        start_probabilities = numpy.ones(k) / k
 
         end_probabilities = None
         if end_state:
-            end_probabilities = numpy.ones(n_components) / n_components
+            end_probabilities = numpy.ones(k) / k
 
-        model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, start_probabilities,
-            state_names=state_names, name=name, ends=end_probabilities)
+        model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, 
+            start_probabilities, state_names=state_names, name=name, 
+            ends=end_probabilities)
 
-        _, history = model.fit(X, weights=weights, labels=labels, stop_threshold=stop_threshold,
-            min_iterations=min_iterations, max_iterations=max_iterations,
-            algorithm=algorithm, verbose=verbose, pseudocount=pseudocount,
+        _, history = model.fit(X, weights=weights, labels=labels, 
+            stop_threshold=stop_threshold, min_iterations=min_iterations, 
+            max_iterations=max_iterations, algorithm=algorithm, 
+            verbose=verbose, pseudocount=pseudocount,
             transition_pseudocount=transition_pseudocount,
             emission_pseudocount=emission_pseudocount,
             use_pseudocount=use_pseudocount,

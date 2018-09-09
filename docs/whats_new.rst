@@ -5,6 +5,21 @@
 Release History
 ===============
 
+Version 0.11.0
+==============
+
+Highlights
+----------
+
+	- Fixed an issue with GammaDistribution update
+
+
+Distributions
+-------------
+
+	- Fixed an error in GammaDistribution's cython level update step where sufficient statistics were incorrectly collected from a data set. This will only affect GammaDistributions that are used as part of a composition model rather than stand-alone ones.
+
+
 Version 0.10.0
 ==============
 

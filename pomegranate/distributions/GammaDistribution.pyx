@@ -130,8 +130,8 @@ cdef class GammaDistribution(Distribution):
 				continue
 
 			w += weights[i]
-			xw = item * weights[i]
-			logxw = _log(item) * weights[i]
+			xw += item * weights[i]
+			logxw += _log(item) * weights[i]
 
 		with gil:
 			self.summaries[0] += xw
@@ -191,12 +191,15 @@ cdef class GammaDistribution(Distribution):
 		# (digamma derivative) functions. Luckily, scipy.special.polygamma(0, x)
 		# is the digamma function (0th derivative of the digamma), and
 		# scipy.special.polygamma(1, x) is the trigamma function.
+
 		while abs(shape - new_shape) > epsilon and iteration < iteration_limit:
 			shape = new_shape
 
 			new_shape = shape - (_log(shape) -
 				scipy.special.polygamma(0, shape) -
 				statistic) / (1.0 / shape - scipy.special.polygamma(1, shape))
+
+			#print new_shape, scipy.special.polygamma(1, shape)
 
 			# Don't let shape escape from valid values
 			if abs(new_shape) == float("inf") or new_shape == 0:
@@ -219,11 +222,12 @@ cdef class GammaDistribution(Distribution):
 		# Get the previous parameters
 		prior_shape, prior_rate = self.parameters
 
+
 		# Calculate the new parameters, respecting inertia, with an inertia
 		# of 0 being completely replacing the parameters, and an inertia of
 		# 1 being to ignore new training data.
-		self.alpha = prior_shape*inertia + shape*(1-inertia)
-		self.beta =	prior_rate*inertia + rate*(1-inertia)
+		self.alpha = prior_shape*inertia + shape*(1.0-inertia)
+		self.beta =	prior_rate*inertia + rate*(1.0-inertia)
 		self.summaries = [0, 0, 0]
 
 	def clear_summaries(self):
