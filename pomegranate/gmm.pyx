@@ -25,6 +25,8 @@ from distributions import IndependentComponentsDistribution
 from .bayes cimport BayesModel
 from .utils cimport _log
 from .utils cimport pair_lse
+from .utils cimport python_log_probability
+from .utils cimport python_summarize
 from .utils import _check_input
 
 from .callbacks import History
@@ -381,7 +383,10 @@ cdef class GeneralMixtureModel(BayesModel):
         memset(summaries, 0, self.n*sizeof(double))
 
         for j in range(self.n):
-            if self.is_vl_:
+            if self.cython == 0:
+                with gil:
+                    python_log_probability(self.distributions[j], X, r+j*n, n)
+            elif self.is_vl_:
                 r[j*n] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, n)
             else:
                 (<Model> self.distributions_ptr[j])._log_probability(X, r+j*n, n)
@@ -403,8 +408,12 @@ cdef class GeneralMixtureModel(BayesModel):
                 break
 
         for j in range(self.n):
-            (<Model> self.distributions_ptr[j])._summarize(X, r+j*n, n,
-                0, d)
+            if self.cython == 0:
+                with gil:
+                    python_summarize(self.distributions[j], X, r+j*n, n)
+            else:
+                (<Model> self.distributions_ptr[j])._summarize(X, r+j*n, n,
+                    0, d)
 
         with gil:
             for j in range(self.n):
@@ -560,15 +569,22 @@ cdef class GeneralMixtureModel(BayesModel):
                              "or constructor")
 
         if callable(distributions):
-            if distributions == DiscreteDistribution:
+            d_ = distributions
+
+            if d_ == DiscreteDistribution:
                 raise ValueError("cannot fit a discrete GMM "
                                  "without pre-initialized distributions")
 
-            if not isinstance(distributions.blank(), MultivariateDistribution) and d > 1:
-                icd = True
-                distributions = [distributions for i in range(d)]
-            else:
+            if not hasattr(distributions, "blank"):
+                distributions 
+
+            if not isinstance(d_, Distribution) and not isinstance(d_, Model):
                 distributions = [distributions for i in range(n_components)]
+            elif not isinstance(d_.blank(), MultivariateDistribution) and d > 1:
+                icd = True
+                distributions = [d_ for i in range(d)]
+            else:
+                distributions = [d_ for i in range(n_components)]
 
         else:
             if d == len(distributions):

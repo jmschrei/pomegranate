@@ -81,7 +81,7 @@ cdef class BayesModel(Model):
             elif self.d != dist.d:
                 raise TypeError("mis-matching dimensions between distributions in list")
 
-            if not isinstance(dist, Distribution) or not isinstance(dist, Model):
+            if not isinstance(dist, Distribution) and not isinstance(dist, Model):
                 self.cython = 0
             elif dist.model == 'HiddenMarkovModel':
                 self.is_vl_ = 1

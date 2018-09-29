@@ -110,8 +110,6 @@ cdef python_log_probability(model, double* X, double* log_probability, int n):
 	cdef numpy.npy_intp dim = n * model.d
 	cdef numpy.ndarray X_ndarray
 
-	print n, model.d
-
 	X_ndarray = numpy.PyArray_SimpleNewFromData(1, &dim, numpy.NPY_FLOAT64, X)
 	X_ndarray = X_ndarray.reshape(n, model.d)
 
@@ -120,6 +118,22 @@ cdef python_log_probability(model, double* X, double* log_probability, int n):
 	for i in range(n):
 		log_probability[i] = logp[i]
 
+cdef python_summarize(model, double* X, double* weights, int n):
+	cdef int i
+	cdef numpy.npy_intp dim = n * model.d
+	cdef numpy.npy_intp n_elements = n
+	cdef numpy.ndarray X_ndarray
+	cdef numpy.ndarray w_ndarray
+
+	X_ndarray = numpy.PyArray_SimpleNewFromData(1, &dim, numpy.NPY_FLOAT64, X)
+	if model.d > 1:
+		X_ndarray = X_ndarray.reshape(n, model.d)
+
+	w_ndarray = numpy.PyArray_SimpleNewFromData(1, &n_elements, 
+		numpy.NPY_FLOAT64, weights)
+	
+	model.summarize(X_ndarray, w_ndarray)
+	
 
 cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil:
 	cdef double alpha = 1
