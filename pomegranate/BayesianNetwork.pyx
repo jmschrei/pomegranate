@@ -37,11 +37,13 @@ from .utils import parallelize_function
 from .utils import _check_nan
 
 
+
+import tempfile	
+import matplotlib.pyplot as plt
+import matplotlib.image
+
 try:
-	import tempfile
 	import pygraphviz
-	import matplotlib.pyplot as plt
-	import matplotlib.image
 except ImportError:
 	pygraphviz = None
 
