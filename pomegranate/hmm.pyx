@@ -3317,6 +3317,87 @@ cdef class HiddenMarkovModel(GraphModel):
         # Bake the model
         model.bake(verbose=verbose)
         return model
+    
+    @classmethod
+    def from_hmmer(cls, s, verbose=False):
+        """Read in a serialized model and return the appropriate classifier.
+
+        Parameters
+        ----------
+        s : str
+            A HMMER3 formatted string containing the file (or the filename).
+        Returns
+        -------
+        models : list
+            A list of properly initialized and baked model.
+        """
+
+        # Load the HMMER3 file
+        from math import exp; s = s.strip()
+        if not s.endswith('//'): # s is a filename
+            try:
+                with open(s, 'r') as infile:
+                    s = infile.read().strip(); assert s.endswitch('//')
+            except:
+                raise IOError("String must be properly formatted HMMER3 file or filename of properly formatted HMMER3 file.")
+
+        # Create the HMM objects
+        hmms = list()
+        for hmmstr in s.split('\n//')[:-1]: # each HMM ends in // on its own line
+            # Parse HMMER profile HMM string
+            tags = dict(); header = 0; alphabet = None; hmmlines = list()
+            for line in hmmstr.strip().splitlines():
+                l = line.strip()
+                if len(l) == 0 or l[0] == '#': # ignore empty lines (shouldn't be any) and comment lines
+                    continue
+                elif header == 0: # header tags (I currently ignore the tags, minus "name")
+                    if l.startswith('HMM') and l[3] != 'E': # beginning of actual HMM
+                        header = 1; alphabet = l.split()[1:]
+                    else: # tag line
+                        parts = l.split()
+                        if parts[0] in tags:
+                            if not isinstance(tags[parts[0]], list):
+                                tags[parts[0]] = [tags[parts[0]]]
+                            tags[parts[0]].append(' '.join(parts[1:]))
+                        else:
+                            tags[parts[0]] = ' '.join(parts[1:])
+                elif header == 1: # the ignored line after the line starting with HMM
+                    header = 2
+                else:
+                    if l.startswith('COMPO'): # not sure if this is relevant to pomegranate, probably not
+                        parts = l.strip().split(); tags[parts[0]] = ' '.join(parts[1:])
+                    else:
+                        hmmlines.append(l)
+
+            # Create all states
+            model = HiddenMarkovModel(tags['NAME']); tmpstates = list(); K = 0
+            i_emit = hmmlines[0].split(); tmpstates.append(State(DiscreteDistribution({alphabet[i] : exp(-1*float(i_emit[i])) for i in range(len(alphabet))}), name="I0")) # insertion state
+            for l in range(2,len(hmmlines),3):
+                m_emit,i_emit,state_trans = [hmmlines[l+i].split() for i in range(0,3)]; K = int(m_emit[0])
+                tmpstates.append(State(DiscreteDistribution({alphabet[i] : exp(-1*float(m_emit[i+1])) for i in range(len(alphabet))}), name="M%d" % K)) # match state
+                tmpstates.append(State(DiscreteDistribution({alphabet[i] : exp(-1*float(i_emit[i])) for i in range(len(alphabet))}), name="I%d" % K)) # insertion state
+                tmpstates.append(State(None, name="D%d" % K)) # deletion state
+            if K == 0:
+                raise IOError("No match states in profile HMM.")
+            model.add_states(tmpstates); name2state = {state.name:state for state in tmpstates}; name2state["M0"] = model.start; name2state["M%d"%(K+1)] = model.end
+            
+            # Create all transitions
+            for l in range(1,len(hmmlines),3):
+                k = int(l/3); parts = hmmlines[l].split()
+                model.add_transition(name2state["M%d"%k], name2state["M%d"%(k+1)], exp(-1*float(parts[0])))     # 0: M_k -> M_k+1
+                model.add_transition(name2state["M%d"%k], name2state["I%d"%k],     exp(-1*float(parts[1])))     # 1: M_k -> I_k
+                if parts[2] != '*': # no D_k+1 in last row
+                    model.add_transition(name2state["M%d"%k], name2state["D%d"%(k+1)], exp(-1*float(parts[2]))) # 2: M_k -> D_k+1
+                model.add_transition(name2state["I%d"%k], name2state["M%d"%(k+1)], exp(-1*float(parts[3])))     # 3: I_k -> M_k+1
+                model.add_transition(name2state["I%d"%k], name2state["I%d"%k],     exp(-1*float(parts[4])))     # 4: I_k -> I_k
+                if k != 0: # no D0 state
+                    model.add_transition(name2state["D%d"%k], name2state["M%d"%(k+1)], exp(-1*float(parts[5]))) # 5: D_k -> M_k+1
+                if parts[6] != '*': # no D0 state and no D_k+1 in last row
+                    model.add_transition(name2state["D%d"%k], name2state["D%d"%(k+1)], exp(-1*float(parts[6]))) # 6: D_k -> D_k+1
+
+            # Bake the model and add to output list
+            model.bake(); hmms.append(model)
+        return hmms
 
     @classmethod
     def from_matrix(cls, transition_probabilities, distributions, starts, ends=None,
