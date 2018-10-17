@@ -26,6 +26,7 @@ from .utils cimport _log
 from .utils cimport pair_lse
 from .utils import _check_input
 from .utils import _convert
+from .utils import check_random_state
 
 from joblib import Parallel
 from joblib import delayed
@@ -168,7 +169,7 @@ cdef class BayesModel(Model):
                                     p=numpy.exp(self.weights))
             samples.append(d.sample(random_state=random_seeds[i]))
 
-        return samples if n > 1 else samples[0]
+        return numpy.array(samples) if n > 1 else samples[0]
 
     def log_probability(self, X, n_jobs=1):
         """Calculate the log probability of a point under the distribution.

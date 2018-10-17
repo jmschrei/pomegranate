@@ -10,6 +10,7 @@ from nose.tools import assert_less_equal
 from nose.tools import assert_raises
 from nose.tools import assert_greater
 from numpy.testing import assert_array_almost_equal
+from numpy.testing import assert_array_equal
 import pickle
 import random
 import numpy
@@ -266,8 +267,8 @@ def setup_general_mixture_gaussian():
     # should be able to pass list of weights
     gmm1 = GeneralMixtureModel([NormalDistribution(5, 2), NormalDistribution(1, 2)], weights=[0.33, 0.67])
     gmm2 = GeneralMixtureModel([NormalDistribution(3, 2), NormalDistribution(-1, 2)], weights=numpy.array([0.67, 0.33]))
-    s1 = State( gmm1 )
-    s2 = State( gmm2 )
+    s1 = State(gmm1, "s1")
+    s2 = State(gmm2, "s2")
     model = HiddenMarkovModel()
     model.add_states([s1, s2])
     model.add_transition(model.start, s1, 0.5)
@@ -1661,9 +1662,11 @@ def test_hmm_univariate_discrete_from_samples():
 
 @with_setup(setup_univariate_discrete_dense, teardown)
 def test_hmm_univariate_discrete_from_samples_with_labels():
-    X = [model.sample() for i in range(25)]
-    Y = X[:]
-    model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, labels=Y)
+    X, y = zip(*model.sample(25, path=True))
+    y = [[state.name for state in seq if not state.is_silent()] for seq in y]
+
+    model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, 
+        max_iterations=25, labels=y)
 
     logp1 = sum(map(model.log_probability, X))
     logp2 = sum(map(model2.log_probability, X))
@@ -1756,3 +1759,10 @@ def test_hmm_json_general_mixture_gaussian():
 
         assert_almost_equal(logp1, logp2)
 
+@with_setup(setup_general_mixture_gaussian, teardown)
+def test_hmm_general_mixture_sample():
+    x = numpy.array([ 1.614694, -1.338741,  1.986941,  3.965294,  2.261895, 
+        -3.611122, 5.5398  ,  4.284478,  8.205439,  3.252719])
+
+    assert_array_almost_equal(model.sample(length=10, random_state=5), x)
+    assert_raises(AssertionError, assert_array_almost_equal, model.sample(length=10), x)

@@ -1116,8 +1116,18 @@ def test_gmm_multivariate_mixed_minibatch_nan_fit():
 
 @with_setup(setup_multivariate_mixed, teardown)
 def test_gmm_multivariate_mixed_random_sample():
-	x = numpy.array([0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
-			0, 0, 0, 0, 0])
+	x = numpy.array([[ 4.61023781e+00,  2.68284944e-02,  5.15017758e+01,  1.62716647e+00, 5.00000000e+00],
+					 [ 1.97078941e+00,  1.02011059e-02,  1.53902626e+00, -2.20447410e-01, 4.00000000e+00],
+					 [-2.37630710e-01,  2.01296137e-02,  8.15899779e-02, -1.76634150e+00, 1.00000000e+01]])
 
-	assert_array_equal(gmm.sample(3, random_state=5), x)
-	assert_raises(AssertionError, assert_array_equal, d.sample(3), x)
+	assert_array_almost_equal(gmm.sample(3, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, gmm.sample(3), x)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_gmm_multivariate_mixed_random_sample():
+	x = numpy.array([[-0.937128,  3.919795,  7.066424, 11.901844, 16.691532],
+			         [ 1.875753,  0.915462,  2.591164,  3.173006,  4.656439],
+			         [ 0.307347,  3.411364,  7.450107, 11.520762, 16.511734]])
+
+	assert_array_almost_equal(gmm.sample(3, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, gmm.sample(3), x)
