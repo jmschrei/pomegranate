@@ -132,7 +132,7 @@ cdef class BayesModel(Model):
                                 numpy.exp(self.weights),
                                 self.n)
 
-    def sample(self, n=1):
+    def sample(self, n=1, random_state=None):
         """Generate a sample from the model.
 
         First, randomly select a component weighted by the prior probability,
@@ -142,6 +142,11 @@ cdef class BayesModel(Model):
         ----------
         n : int, optional
             The number of samples to generate. Defaults to 1.
+
+        random_state : int, numpy.random.RandomState, or None
+            The random state used for generating samples. If set to none, a
+            random seed will be used. If set to either an integer or a
+            random seed, will produce deterministic outputs.
 
         Returns
         -------
@@ -153,11 +158,15 @@ cdef class BayesModel(Model):
             of the samples.
         """
 
+        random_state = check_random_state(random_state)
+
         samples = []
+        random_seeds = random_state.randint(1000000, size=n)
+
         for i in range(n):
-            d = numpy.random.choice(self.distributions,
+            d = random_state.choice(self.distributions,
                                     p=numpy.exp(self.weights))
-            samples.append(d.sample())
+            samples.append(d.sample(random_state=random_seeds[i]))
 
         return samples if n > 1 else samples[0]
 

@@ -1113,3 +1113,11 @@ def test_gmm_multivariate_mixed_minibatch_nan_fit():
 
 	assert_almost_equal(p1, p2)
 	assert_raises(AssertionError, assert_almost_equal, p1, p3)
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_gmm_multivariate_mixed_random_sample():
+	x = numpy.array([0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+			0, 0, 0, 0, 0])
+
+	assert_array_equal(gmm.sample(3, random_state=5), x)
+	assert_raises(AssertionError, assert_array_equal, d.sample(3), x)
