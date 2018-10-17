@@ -9,6 +9,7 @@ import numpy
 from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils cimport lgamma
+from ..utils import check_random_state
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -29,11 +30,6 @@ cdef class BetaDistribution(Distribution):
 			self.beta_norm = lgamma(alpha+beta) - lgamma(alpha) - lgamma(beta)
 
 	def __init__(self, alpha, beta, frozen=False):
-		"""
-		Make a new beta distribution. Both alpha and beta are both shape
-		parameters.
-		"""
-
 		self.alpha = alpha
 		self.beta = beta
 		self.beta_norm = lgamma(alpha+beta) - lgamma(alpha) - lgamma(beta)
@@ -58,9 +54,9 @@ cdef class BetaDistribution(Distribution):
 				log_probability[i] = beta_norm + (alpha-1)*_log(X[i]) + \
 					(beta-1)*_log(1-X[i])
 
-	def sample(self, n=None):
-		"""Return a random sample from the beta distribution."""
-		return numpy.random.beta(self.alpha, self.beta, n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.beta(self.alpha, self.beta, n)
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:

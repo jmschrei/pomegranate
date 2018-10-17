@@ -8,6 +8,7 @@ import numpy
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 
@@ -18,9 +19,7 @@ DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
 
 cdef class NormalDistribution(Distribution):
-	"""
-	A normal distribution based on a mean and standard deviation.
-	"""
+	"""A normal distribution based on a mean and standard deviation."""
 
 	property parameters:
 		def __get__(self):
@@ -28,12 +27,7 @@ cdef class NormalDistribution(Distribution):
 		def __set__(self, parameters):
 			self.mu, self.sigma = parameters
 
-	def __cinit__(self, mean, std, frozen=False, min_std=0.0):
-		"""
-		Make a new Normal distribution with the given mean mean and standard
-		deviation std.
-		"""
-
+	def __init__(self, mean, std, frozen=False, min_std=0.0):
 		self.mu = mean
 		self.sigma = std
 		self.name = "NormalDistribution"
@@ -56,8 +50,9 @@ cdef class NormalDistribution(Distribution):
 				log_probability[i] = self.log_sigma_sqrt_2_pi - ((X[i] - self.mu) ** 2) *\
 					self.two_sigma_squared
 
-	def sample(self, n=None):
-		return numpy.random.normal(self.mu, self.sigma, n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.normal(self.mu, self.sigma, n)
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:

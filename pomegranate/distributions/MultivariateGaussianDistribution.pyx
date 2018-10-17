@@ -24,6 +24,7 @@ from ..utils cimport mdot
 from ..utils cimport ndarray_wrap_cpointer
 from ..utils cimport _is_gpu_enabled
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 
@@ -137,8 +138,9 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		return logp
 
-	def sample(self, n=None):
-		return numpy.random.multivariate_normal(self.parameters[0],
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.multivariate_normal(self.parameters[0],
 			self.parameters[1], n)
 
 	cdef double _summarize(self, double* X, double* weights, int n,

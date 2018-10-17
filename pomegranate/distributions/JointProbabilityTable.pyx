@@ -11,6 +11,7 @@ from libc.math cimport exp as cexp
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 import itertools as it
 import json
@@ -84,8 +85,9 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 	def __len__(self):
 		return self.k
 
-	def sample(self, n=None):
-		a = numpy.random.uniform(0, 1)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		a = random_state.uniform(0, 1)
 		for i in range(self.n):
 			if cexp(self.values[i]) > a:
 				return self.keymap.keys()[i][-1]

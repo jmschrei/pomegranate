@@ -12,6 +12,7 @@ import random
 from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils cimport lgamma
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 
@@ -34,12 +35,7 @@ cdef class GammaDistribution(Distribution):
 		def __set__(self, parameters):
 			self.alpha, self.beta = parameters
 
-	def __cinit__(self, double alpha, double beta, bint frozen=False):
-		"""
-		Make a new gamma distribution. Alpha is the shape parameter and beta is
-		the rate parameter.
-		"""
-
+	def __init__(self, double alpha, double beta, bint frozen=False):
 		self.alpha = alpha
 		self.beta = beta
 		self.summaries = [0, 0, 0]
@@ -62,8 +58,9 @@ cdef class GammaDistribution(Distribution):
 				log_probability[i] = (_log(beta) * alpha - lgamma(alpha) +
 					_log(X[i]) * (alpha - 1) - beta * X[i])
 
-	def sample(self, n=None):
-		return numpy.random.gamma(self.parameters[0], 1.0 / self.parameters[1], n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.gamma(self.parameters[0], 1.0 / self.parameters[1], n)
 
 	def fit(self, items, weights=None, inertia=0.0, epsilon=1E-9,
 		iteration_limit=1000, column_idx=0):
