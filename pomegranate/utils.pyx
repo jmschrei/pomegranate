@@ -393,3 +393,4 @@ def check_random_state(seed):
 		return seed
 	raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
 					 ' instance' % seed)
+	

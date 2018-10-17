@@ -1758,11 +1758,3 @@ def test_hmm_json_general_mixture_gaussian():
         logp2 = model2.log_probability(sequence)
 
         assert_almost_equal(logp1, logp2)
-
-@with_setup(setup_general_mixture_gaussian, teardown)
-def test_hmm_general_mixture_sample():
-    x = numpy.array([ 1.614694, -1.338741,  1.986941,  3.965294,  2.261895, 
-        -3.611122, 5.5398  ,  4.284478,  8.205439,  3.252719])
-
-    assert_array_almost_equal(model.sample(length=10, random_state=5), x)
-    assert_raises(AssertionError, assert_array_almost_equal, model.sample(length=10), x)
