@@ -191,8 +191,8 @@ cdef class DiscreteDistribution(Distribution):
 	def sample(self, n=None, random_state=None):
 		random_state = check_random_state(random_state)
 
-		keys = self.dist.keys()
-		probabilities = self.dist.values()
+		keys = list(self.dist.keys())
+		probabilities = list(self.dist.values())
 
 		if n is None:
 			return random_state.choice(keys, p=probabilities)
