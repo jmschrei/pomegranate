@@ -8,6 +8,7 @@ import numpy
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 
@@ -18,8 +19,10 @@ DEF SQRT_2_PI = 2.50662827463
 DEF LOG_2_PI = 1.83787706641
 
 cdef class LogNormalDistribution(Distribution):
-	"""
-	Represents a lognormal distribution over non-negative floats.
+	"""A lognormal distribution over non-negative floats.
+
+	The parameters are the mu and sigma of the normal distribution, which 
+	is the the exponential of the log normal distribution.
 	"""
 
 	property parameters:
@@ -29,12 +32,6 @@ cdef class LogNormalDistribution(Distribution):
 			self.mu, self.sigma = parameters
 
 	def __init__(self, double mu, double sigma, double min_std=0.0, frozen=False):
-		"""
-		Make a new lognormal distribution. The parameters are the mu and sigma
-		of the normal distribution, which is the the exponential of the log
-		normal distribution.
-		"""
-
 		self.mu = mu
 		self.sigma = sigma
 		self.summaries = [0, 0, 0]
@@ -55,9 +52,9 @@ cdef class LogNormalDistribution(Distribution):
 				log_probability[i] = -_log(X[i] * self.sigma * SQRT_2_PI) - 0.5\
 					* ((_log(X[i]) - self.mu) / self.sigma) ** 2
 
-	def sample(self, n=None):
-		"""Return a sample from this distribution."""
-		return numpy.random.lognormal(self.mu, self.sigma, n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.lognormal(self.mu, self.sigma, n)
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:

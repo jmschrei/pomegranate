@@ -8,6 +8,7 @@ import numpy
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 
@@ -16,9 +17,7 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 cdef class ExponentialDistribution(Distribution):
-	"""
-	Represents an exponential distribution on non-negative floats.
-	"""
+	"""Represents an exponential distribution on non-negative floats."""
 
 	property parameters:
 		def __get__(self):
@@ -27,11 +26,6 @@ cdef class ExponentialDistribution(Distribution):
 			self.rate = parameters[0]
 
 	def __init__(self, double rate, bint frozen=False):
-		"""
-		Make a new inverse gamma distribution. The parameter is called "rate"
-		because lambda is taken.
-		"""
-
 		self.rate = rate
 		self.summaries = [0, 0]
 		self.name = "ExponentialDistribution"
@@ -50,8 +44,9 @@ cdef class ExponentialDistribution(Distribution):
 			else:
 				log_probability[i] = self.log_rate - self.rate * X[i]
 
-	def sample(self, n=None):
-		return numpy.random.exponential(1. / self.parameters[0], n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.exponential(1. / self.parameters[0], n)
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:

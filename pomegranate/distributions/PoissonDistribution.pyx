@@ -9,6 +9,7 @@ import numpy
 from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils cimport lgamma
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 
@@ -19,10 +20,12 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 cdef class PoissonDistribution(Distribution):
-	"""
-	A discrete probability distribution which expresses the probability of a
+	"""The probability of a number of events occuring in a fixed time window.
+
+	A probability distribution which expresses the probability of a
 	number of events occurring in a fixed time window. It assumes these events
-	occur with at a known rate, and independently of each other.
+	occur with at a known rate, and independently of each other. It can
+	operate over both integer and float values.
 	"""
 
 	property parameters:
@@ -31,7 +34,7 @@ cdef class PoissonDistribution(Distribution):
 		def __set__(self, parameters):
 			self.l = parameters[0]
 
-	def __cinit__(self, l, frozen=False):
+	def __init__(self, l, frozen=False):
 		self.l = l
 		self.logl = _log(l)
 		self.name = "PoissonDistribution"
@@ -53,8 +56,9 @@ cdef class PoissonDistribution(Distribution):
 			else:
 				log_probability[i] = X[i] * self.logl - self.l - lgamma(X[i]+1)
 
-	def sample(self, n=None):
-		return numpy.random.poisson(self.l, n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.poisson(self.l, n)
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:

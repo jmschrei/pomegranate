@@ -10,6 +10,7 @@ from ..utils cimport pair_lse
 from ..utils cimport _log
 from ..utils cimport lgamma
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 
 cdef class DirichletDistribution(MultivariateDistribution):
@@ -44,8 +45,9 @@ cdef class DirichletDistribution(MultivariateDistribution):
 			for j in range(d):
 				log_probability[i] += self.alphas_ptr[j] * _log(X[i*d + j])
 
-	def sample(self, n=None):
-		return numpy.random.dirichlet(self.alphas, n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.dirichlet(self.alphas, n)
 
 	cdef double _summarize(self, double* X, double* weights, int n,
 		int column_idx, int d) nogil:

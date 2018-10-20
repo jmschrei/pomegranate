@@ -8,6 +8,7 @@ from pomegranate import (Distribution,
 						 ExponentialDistribution,
 						 GammaDistribution,
 						 PoissonDistribution,
+						 BetaDistribution,
 						 GaussianKernelDensity,
 						 TriangleKernelDensity,
 						 UniformKernelDensity,
@@ -246,6 +247,15 @@ def test_distributions_uniform_json_serialization():
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
 
+def test_distributions_uniform_random_sample():
+	d = UniformDistribution(0, 10)
+
+	x = numpy.array([2.21993171, 8.70732306, 2.06719155, 9.18610908, 
+		4.88411189])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
 def test_distributions_normal_initialization():
 	d = NormalDistribution(5, 2)
 	assert_equal(d.name, "NormalDistribution")
@@ -434,8 +444,18 @@ def test_distributions_normal_json_serialization():
 	assert_array_equal(e.summaries, [0, 0, 0])
 
 
+def test_distributions_normal_random_sample():
+	d = NormalDistribution(0, 1)
+
+	x = numpy.array([ 0.44122749, -0.33087015,  2.43077119, -0.25209213,  
+		0.10960984])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
+
 @with_setup(setup, teardown)
-def test_discrete():
+def test_distributions_discrete():
 	d = DiscreteDistribution({'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25})
 
 	assert_equal(d.log_probability('C'), -1.3862943611198906)
@@ -530,6 +550,16 @@ def test_lognormal():
 	assert_equal(round(f.parameters[1], 4), 0.0237)
 
 
+def test_distributions_lognormal_random_sample():
+	d = LogNormalDistribution(0, 1)
+
+	x = numpy.array([1.55461432,  0.71829843, 11.36764528,  0.77717313,  
+		1.11584263])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
+
 @with_setup(setup, teardown)
 def test_gamma():
 	d = GammaDistribution(5, 2)
@@ -561,6 +591,15 @@ def test_gamma():
 	assert_equal(round(f.parameters[1], 4), 10.5916)
 
 
+def test_distributions_gamma_random_sample():
+	d = GammaDistribution(0.5, 1)
+
+	x = numpy.array([0.049281, 0.042733, 0.238545, 0.773426, 0.088091])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
+
 @with_setup(setup, teardown)
 def test_exponential():
 	d = ExponentialDistribution(3)
@@ -586,6 +625,15 @@ def test_exponential():
 	f = pickle.loads(pickle.dumps(e))
 	assert_equal(f.name, "ExponentialDistribution")
 	assert_equal(round(f.parameters[0], 4), 0.4545)
+
+
+def test_distributions_exponential_random_sample():
+	d = ExponentialDistribution(7)
+
+	x = numpy.array([0.03586, 0.292267, 0.033083, 0.358359, 0.095748])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
 
 
 @with_setup(setup, teardown)
@@ -620,6 +668,23 @@ def test_poisson():
 	assert_equal(e.name, "PoissonDistribution")
 	assert_equal(e.parameters[0], 5)
 
+
+def test_distributions_poisson_random_sample():
+	d = PoissonDistribution(1)
+
+	x = numpy.array([0, 1, 2, 2, 0])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
+
+def test_distributions_beta_random_sample():
+	d = BetaDistribution(1, 1)
+
+	x = numpy.array([0.612564, 0.098563, 0.735983, 0.583171, 0.69296 ])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
 
 @with_setup(setup, teardown)
 def test_gaussian_kernel():
@@ -660,6 +725,15 @@ def test_gaussian_kernel():
 	assert_equal(round(f.log_probability(0), 4), -5.1262)
 
 
+def test_distributions_gaussian_kernel_random_sample():
+	d = GaussianKernelDensity([0, 4, 3, 5, 7, 4, 2])
+
+	x = numpy.array([5.367586, 2.574708, 2.114238, 2.170925, 4.596907])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
+
 @with_setup(setup, teardown)
 def test_triangular_kernel():
 	d = TriangleKernelDensity([1, 6, 3, 4, 5, 2])
@@ -685,6 +759,15 @@ def test_triangular_kernel():
 	f = pickle.loads(pickle.dumps(e))
 	assert_equal(f.name, "TriangleKernelDensity")
 	assert_equal(round(f.log_probability(6.5), 4), -2.4849)
+
+
+def test_distributions_triangle_kernel_random_sample():
+	d = TriangleKernelDensity([0, 4, 3, 5, 7, 4, 2])
+
+	x = numpy.array([4.118801, 2.31576 , 4.018591, 1.770455, 4.612734])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
 
 
 @with_setup(setup, teardown)
@@ -714,6 +797,16 @@ def test_uniform_kernel():
 	assert_equal(e.name, "UniformKernelDensity")
 	assert_equal(round(f.log_probability(2.2), 4), -0.4055)
 	assert_equal(round(f.log_probability(6.2), 4), -2.1972)
+
+
+def test_distributions_uniform_kernel_random_sample():
+	d = UniformKernelDensity([0, 4, 3, 5, 7, 4, 2])
+
+	x = numpy.array([4.223488, 2.531816, 4.036836, 1.593601, 4.375442])
+
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
 
 @with_setup(setup, teardown)
 def test_bernoulli():
@@ -764,6 +857,14 @@ def test_bernoulli():
 	assert_equal(f.name, "BernoulliDistribution")
 	assert_equal(round(f.parameters[0], 4), 0.1667)
 
+def test_distributions_uniform_kernel_random_sample():
+	d = BernoulliDistribution(0.2)
+
+	x = numpy.array([0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 
+			0, 0, 0, 0, 0])
+
+	assert_array_equal(d.sample(20, random_state=5), x)
+	assert_raises(AssertionError, assert_array_equal, d.sample(20), x)
 
 @with_setup(setup, teardown)
 def test_independent():
@@ -885,6 +986,21 @@ def test_independent():
 	assert_almost_equal(d.parameters[0][1].parameters[0], -1.5898, 4)
 	assert_almost_equal(d.parameters[0][1].parameters[1], 0.36673, 4)
 	assert_almost_equal(d.parameters[0][2].parameters[0], 1.27660, 4)
+
+
+def test_distributions_independent_random_sample():
+	d = IndependentComponentsDistribution([NormalDistribution(5, 2),
+										   UniformDistribution(0, 10),
+										   ExponentialDistribution(7),
+										   LogNormalDistribution(0, 0.4)])
+
+	x = numpy.array([[5.882455, 2.219932, 0.03586 , 1.193024],
+					 [4.33826 , 8.707323, 0.292267, 0.876036],
+					 [9.861542, 2.067192, 0.033083, 2.644041]])
+
+	assert_array_almost_equal(d.sample(3, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
 
 def test_conditional():
 	phditis = DiscreteDistribution({True: 0.01, False: 0.99})
@@ -1245,6 +1361,33 @@ def test_multivariate_log_probability():
 	for i in range(100):
 		assert_almost_equal(d.log_probability(X[i]), logp[i])
 
+
+def test_distributions_mgd_random_sample():
+	mu = numpy.array([5., 1.])
+	cov = numpy.eye(2)
+	d = MultivariateGaussianDistribution(mu, cov)
+
+	x = numpy.array([[5.441227, 0.66913 ],
+			         [7.430771, 0.747908],
+			         [5.10961 , 2.582481]])
+
+	assert_array_almost_equal(d.sample(3, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
+
+def test_distributions_independent_random_sample():
+	d = IndependentComponentsDistribution([NormalDistribution(5, 2),
+										   UniformDistribution(0, 10),
+										   ExponentialDistribution(7),
+										   LogNormalDistribution(0, 0.4)])
+
+	x = numpy.array([[5.882455, 2.219932, 0.03586 , 1.193024],
+					 [4.33826 , 8.707323, 0.292267, 0.876036],
+					 [9.861542, 2.067192, 0.033083, 2.644041]])
+
+	assert_array_almost_equal(d.sample(3, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
 def test_cpd_sampling():
 	d1 = DiscreteDistribution({"A": 0.1, "B": 0.9})
 	d2 = ConditionalProbabilityTable(
@@ -1276,3 +1419,15 @@ def test_cpd_sampling():
 		) / 1000.0
 	assert_almost_equal(est[0], true2[0], 1)
 	assert_almost_equal(est[1], true2[1], 1)
+
+def test_distributions_cpt_random_sample():
+	d1 = DiscreteDistribution({"A": 0.1, "B": 0.9})
+	d = ConditionalProbabilityTable(
+		[["A", "A", 0.1], ["A", "B", 0.9], ["B", "A", 0.7], ["B", "B", 0.3]],
+		[d1])
+
+	x = numpy.array(['B', 'A', 'B', 'B', 'A', 'B', 'A', 'A', 'B', 'A', 'A', 
+		'B', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A'])
+
+	assert_array_equal(d.sample(n=20, random_state=5), x)
+	assert_raises(AssertionError, assert_array_equal, d.sample(n=10), x)

@@ -12,6 +12,7 @@ from libc.math cimport exp as cexp
 from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils import _check_nan
+from ..utils import check_random_state
 
 import itertools as it
 import json
@@ -131,14 +132,17 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		self.keymap = OrderedDict(keymap)
 
-	def sample(self, parent_values=None):
+	def sample(self, parent_values=None, n=None, random_state=None):
 		"""Return a random sample from the conditional probability table."""
+		random_state = check_random_state(random_state)
+
 		if parent_values is None:
 			parent_values = {}
 
 		for parent in self.parents:
 			if parent not in parent_values:
-				parent_values[parent] = parent.sample()
+				parent_values[parent] = parent.sample(
+					random_state=random_state)
 
 		sample_cands = []
 		sample_vals = []
@@ -151,8 +155,14 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 				sample_vals.append(cexp(self.values[ind]))
 
 		sample_vals /= numpy.sum(sample_vals)
-		sample_ind = numpy.where(numpy.random.multinomial(1, sample_vals))[0][0]
-		return sample_cands[sample_ind]
+		sample_ind = numpy.where(random_state.multinomial(1, sample_vals))[0][0]
+
+		if n is None:
+			return sample_cands[sample_ind]
+		else:
+			states = random_state.randint(1000000, size=n)
+			return [self.sample(parent_values, n=None, random_state=state)
+				for state in states]
 
 	def log_probability(self, X):
 		"""
