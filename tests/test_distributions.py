@@ -455,7 +455,7 @@ def test_distributions_normal_random_sample():
 
 
 @with_setup(setup, teardown)
-def test_discrete():
+def test_distributions_discrete():
 	d = DiscreteDistribution({'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25})
 
 	assert_equal(d.log_probability('C'), -1.3862943611198906)
@@ -520,16 +520,6 @@ def test_discrete():
 	f = pickle.loads(pickle.dumps(e))
 	assert_equal(f.name, "DiscreteDistribution")
 	assert_equal(f.parameters[0], {'A': 0.5625, 'B': 0.4375})
-
-
-def test_distributions_discrete_random_sample():
-	d = DiscreteDistribution({'A': 0.1, 'C': 0.35, 'G': 0.05, 'T': 0.5})
-
-	x = numpy.array(['C', 'T', 'C', 'T', 'T', 'T', 'T', 'T', 'C', 'C', 'A', 
-		'T', 'C', 'C', 'T', 'C', 'C', 'C', 'T', 'T'])
-
-	assert_array_equal(d.sample(20, random_state=5), x)
-	assert_raises(AssertionError, assert_array_equal, d.sample(5), x)
 
 
 @with_setup(setup, teardown)
