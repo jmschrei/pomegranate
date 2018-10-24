@@ -157,9 +157,9 @@ cdef class HiddenMarkovModel(GraphModel):
     Examples
     --------
     >>> from pomegranate import *
-    >>> d1 = DiscreteDistribution({'A' : 0.35, 'C' : 0.20, 'G' : 0.05, 'T' : 40})
-    >>> d2 = DiscreteDistribution({'A' : 0.25, 'C' : 0.25, 'G' : 0.25, 'T' : 25})
-    >>> d3 = DiscreteDistribution({'A' : 0.10, 'C' : 0.40, 'G' : 0.40, 'T' : 10})
+    >>> d1 = DiscreteDistribution({'A' : 0.35, 'C' : 0.20, 'G' : 0.05, 'T' : 0.40})
+    >>> d2 = DiscreteDistribution({'A' : 0.25, 'C' : 0.25, 'G' : 0.25, 'T' : 0.25})
+    >>> d3 = DiscreteDistribution({'A' : 0.10, 'C' : 0.40, 'G' : 0.40, 'T' : 0.10})
     >>>
     >>> s1 = State(d1, name="s1")
     >>> s2 = State(d2, name="s2")
@@ -177,9 +177,9 @@ cdef class HiddenMarkovModel(GraphModel):
     >>> model.add_transition(s3, model.end, 0.30)
     >>> model.bake()
     >>>
-    >>> print model.log_probability(list('ACGACTATTCGAT'))
-    -4.31828085576
-    >>> print ", ".join(state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1])
+    >>> print(model.log_probability(list('ACGACTATTCGAT')))
+    -22.73896159971087
+    >>> print(", ".join(state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1]))
     example-start, s1, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s3, example-end
     """
 
