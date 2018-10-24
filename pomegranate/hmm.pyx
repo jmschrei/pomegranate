@@ -177,9 +177,9 @@ cdef class HiddenMarkovModel(GraphModel):
     >>> model.add_transition(s3, model.end, 0.30)
     >>> model.bake()
     >>>
-    >>> print model.log_probability(list('ACGACTATTCGAT'))
-    >>> print ", ".join(state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1])
+    >>> print(model.log_probability(list('ACGACTATTCGAT')))
     -22.73896159971087
+    >>> print(", ".join(state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1]))
     example-start, s1, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s3, example-end
     """
 
