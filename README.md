@@ -10,7 +10,7 @@ pomegranate is a package for probabilistic models in Python that is implemented 
 
 ### Installation
 
-pomegranate is pip installable using `pip install pomegranate` and conda installable using `conda install pomegranate`. If neither work, more detailed installation instructions can be found [here](http://pomegranate.readthedocs.io/en/latest/install.html).
+pomegranate is pip-installable using `pip install pomegranate` and conda-installable using `conda install pomegranate`. If neither work, more detailed installation instructions can be found [here](http://pomegranate.readthedocs.io/en/latest/install.html).
 
 ### Models
 
