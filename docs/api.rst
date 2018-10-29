@@ -49,13 +49,13 @@ This method will initialize a model to a data set. In the case of a simple distr
 Compositional Methods
 ---------------------
 
-These methods are available for the compositional models, i.e., mixture models, hidden Markov models, Bayesian networks, naive Bayes classifiers, and Bayesian classifiers. These methods perform inference on the data. In the case of Bayesian networks it will use the forward-backward algorithm to make predictions on all variables for which values are not provided. For all other models, this will return the model component that yields the highest posterior P(M|D) for some sample. This value is calculated using Bayes' rule, where the likelihood of each sample given each component multiplied by the prior of that component is normalized by the likelihood of that sample given all components multiplied by the prior of those components. 
+These methods are available for the compositional models, i.e., mixture models, hidden Markov models, Bayesian networks, naive Bayes classifiers, and Bayes' classifiers. These methods perform inference on the data. In the case of Bayesian networks it will use the forward-backward algorithm to make predictions on all variables for which values are not provided. For all other models, this will return the model component that yields the highest posterior P(M|D) for some sample. This value is calculated using Bayes' rule, where the likelihood of each sample given each component multiplied by the prior of that component is normalized by the likelihood of that sample given all components multiplied by the prior of those components. 
 
 .. code-block:: python
 
 	model.predict(X)
 
-This will return the most likely value for the data. In the case of Bayesian networks this is the most likely value that the variable takes given the structure of the network and the other observed values. In the other cases it is the model component that most likely explains this sample, such as the mixture component that a sample most likely falls under, or the class that is being predicted by a Bayesian classifier.
+This will return the most likely value for the data. In the case of Bayesian networks this is the most likely value that the variable takes given the structure of the network and the other observed values. In the other cases it is the model component that most likely explains this sample, such as the mixture component that a sample most likely falls under, or the class that is being predicted by a Bayes' classifier.
 
 .. code-block:: python
 
