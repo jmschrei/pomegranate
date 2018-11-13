@@ -165,8 +165,61 @@ cdef double pair_lse(double x, double y) nogil:
 	if y == NEGINF:
 		return x
 	if x > y:
-		return x + clog( cexp( y-x ) + 1 )
-	return y + clog( cexp( x-y ) + 1 )
+		return x + clog(cexp(y-x) + 1)
+	return y + clog(cexp(x-y) + 1)
+
+def logsumexp(X):
+	"""Calculate the log-sum-exp of an array to add in log space."""
+
+	X = numpy.array(X, dtype='float64')
+	
+	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+	cdef double x
+	cdef int i, n = X.shape[0]
+	cdef double y = 0.
+	cdef double x_max = NEGINF
+
+	with nogil:
+		for i in range(n):
+			x = X_ptr[i]
+			if x > x_max:
+				x_max = x
+
+		for i in range(n):
+			x = X_ptr[i]
+			if x == NEGINF:
+				continue
+
+			y += cexp(x - x_max)
+
+	return x_max + clog(y)
+
+def logaddexp(X, Y):
+	"""Calculate the log-add-exp of a pair of arrays."""
+
+	X = numpy.array(X, dtype='float64')
+	Y = numpy.array(Y, dtype='float64')
+
+	if len(X.shape) != len(Y.shape):
+		raise ValueError("Both arrays must be of the same shape.")
+	if X.shape[0] != Y.shape[0]:
+		raise ValueError("Both arrays must be of the same shape.")
+	if len(X.shape) > 1:
+		raise ValueError("Both arrays must of one dimensional.")
+
+	Z = numpy.zeros_like(Y)
+
+	cdef int i, n = X.shape[0]
+	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+	cdef double* Y_ptr = <double*> (<numpy.ndarray> Y).data
+	cdef double* Z_ptr = <double*> (<numpy.ndarray> Z).data
+
+	with nogil:
+		for i in range(n):
+			Z_ptr[i] = pair_lse(X_ptr[i], Y_ptr[i])
+
+	return Z
+
 
 cdef double gamma(double x) nogil:
 	"""Calculate the gamma function on a number."""
