@@ -1,10 +1,10 @@
 <img src="https://github.com/jmschrei/pomegranate/blob/master/docs/logo/pomegranate-logo.png" width=300>
 
-[![Build Status](https://travis-ci.org/jmschrei/pomegranate.svg?branch=master)](https://travis-ci.org/jmschrei/pomegranate) ![Build Status](https://ci.appveyor.com/api/projects/status/github/jmschrei/pomegranate?svg=True) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/jmschrei/pomegranate.svg?branch=master)](https://travis-ci.org/jmschrei/pomegranate) ![Build Status](https://ci.appveyor.com/api/projects/status/github/jmschrei/pomegranate?svg=True) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jmschrei/pomegranate/master)
 
 [**JMLR-MLOSS Manuscript**](http://jmlr.org/papers/volume18/17-636/17-636.pdf) Please consider citing it if you used it in your academic work.
 
-pomegranate is a package for probabilistic models in Python that is implemented in cython for speed. It's focus is on merging the easy-to-use scikit-learn API with the modularity that comes with probabilistic modeling to allow users to specify complicated models without needing to worry about implementation details. The models are built from the ground up with big data processing in mind and so natively support features like out-of-core learning and parallelism.
+pomegranate is a package for probabilistic models in Python that is implemented in cython for speed. It's focus is on merging the easy-to-use scikit-learn API with the modularity that comes with probabilistic modeling to allow users to specify complicated models without needing to worry about implementation details. The models are built from the ground up with big data processing in mind and so natively support features like out-of-core learning and parallelism. Click on the binder badge above to interactively play with the tutorials!
 
 *NOTE: pomegranate does not yet work with networkx 2.0. If you have problems, please downgrade networkx and try again.*
 
