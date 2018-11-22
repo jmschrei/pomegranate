@@ -29,6 +29,8 @@ from .callbacks import History
 
 from .utils cimport _log
 from .utils cimport pair_lse
+from .utils cimport python_log_probability
+from .utils cimport python_summarize
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -62,6 +64,9 @@ DEF SQRT_2_PI = 2.50662827463
 
 def _check_input(sequence, model):
     n = len(sequence)
+
+    if not isinstance(model, Distribution) and not isinstance(model, Model):
+        return numpy.array(sequence, dtype=numpy.float64)
 
     if not model.discrete:
         sequence_ndarray = numpy.array(sequence, dtype=numpy.float64)
@@ -192,6 +197,7 @@ cdef class HiddenMarkovModel(GraphModel):
     cdef public bint discrete
     cdef public bint multivariate
     cdef int summaries
+    cdef int cython
     cdef int* tied_state_count
     cdef int* tied
     cdef int* tied_edge_group_size
@@ -1134,6 +1140,11 @@ cdef class HiddenMarkovModel(GraphModel):
 
         self.distributions_ptr = <void**> self.distributions.data
 
+        self.cython = 1
+        for dist in self.distributions:
+            if not isinstance(dist, Distribution) and not isinstance(dist, Model):
+                self.cython = 0
+
         # This holds the index of the start state
         try:
             self.start_index = indices[self.start]
@@ -1380,8 +1391,12 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef numpy.ndarray f_ndarray = numpy.zeros((n+1, m), dtype=numpy.float64)
         cdef double* f
 
+        print(self.cython)
+
         sequence_ndarray = _check_input(sequence, self)
         sequence_data = <double*> sequence_ndarray.data
+
+        print("made it here!")
 
         with nogil:
             f = <double*> self._forward(sequence_data, n, NULL)
@@ -1412,7 +1427,12 @@ cdef class HiddenMarkovModel(GraphModel):
             e = <double*> calloc(n*self.silent_start, sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
-                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                    if self.cython == 1:
+                        (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                    else:
+                        with gil:
+                            python_log_probability(self.distributions[l], sequence+i*dim, e+l*n+i, 1)
+
                     e[l*n + i] += self.state_weights[l]
         else:
             e = emissions
@@ -1578,7 +1598,12 @@ cdef class HiddenMarkovModel(GraphModel):
             e = <double*> calloc(n*self.silent_start, sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
-                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                    if self.cython == 1:
+                        (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                    else:
+                        with gil:
+                            python_log_probability(self.distributions[l], sequence+i*dim, e+l*n+i, 1)
+
                     e[l*n + i] += self.state_weights[l]
         else:
             e = emissions
@@ -1816,7 +1841,11 @@ cdef class HiddenMarkovModel(GraphModel):
         # Calculate the emissions table
         for l in range(self.silent_start):
             for i in range(n):
-                (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                if self.cython == 1:
+                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                else:
+                    python_log_probability(self.distributions[l], sequence+i*dim, e+l*n+i, 1)
+
                 e[l*n + i] += self.state_weights[l]
 
         f = self._forward(sequence, n, e)
@@ -2002,7 +2031,12 @@ cdef class HiddenMarkovModel(GraphModel):
         # Fill in the emission table
         for l in range(self.silent_start):
             for i in range(n):
-                (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                if self.cython == 1:
+                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                else:
+                    with gil:
+                        python_log_probability(self.distributions[l], sequence+i*dim, e+l*n+i, 1)
+
                 e[l*n + i] += self.state_weights[l]
 
         for i in range(m):
@@ -2233,7 +2267,12 @@ cdef class HiddenMarkovModel(GraphModel):
             e = <double*> calloc(n*self.silent_start, sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
-                    (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                    if self.cython == 1:
+                        (<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+                    else:
+                        with gil:
+                            python_log_probability(self.distributions[l], sequence+i*dim, e+l*n+i, 1)
+
                     e[l*n + i] += self.state_weights[l]
         else:
             e = emissions
@@ -2793,7 +2832,12 @@ cdef class HiddenMarkovModel(GraphModel):
         e = <double*> calloc(n*self.silent_start, sizeof(double))
         for l in range(self.silent_start):
             for i in range(n):
-                (<Model> distributions[l])._log_probability(sequence+i*d, e+l*n+i, 1)
+                if self.cython == 1:
+                    (<Model> distributions[l])._log_probability(sequence+i*d, e+l*n+i, 1)
+                else:
+                    with gil:
+                        python_log_probability(self.distributions[l], sequence+i*d, e+l*n+i, 1)
+
                 e[l*n + i] += self.state_weights[l]
 
         f = self._forward(sequence, n, e)
@@ -2883,7 +2927,13 @@ cdef class HiddenMarkovModel(GraphModel):
                         weights[i] = cexp(f[(i+1)*m + k] + b[(i+1)*m + k] -
                             log_sequence_probability) * weight[0]
 
-                    (<Model>distributions[k])._summarize(sequence, weights, n, 0, self.d)
+                    if self.cython == 0:
+                        with gil:
+                            python_summarize(self.distributions[k], sequence, 
+                                weights, n)
+                    else:
+                        (<Model>distributions[k])._summarize(sequence, weights, 
+                            n, 0, self.d)
 
             # Update the master expected transitions vector representing the sparse matrix.
             with gil:
@@ -2990,8 +3040,13 @@ cdef class HiddenMarkovModel(GraphModel):
                 transitions[past*m + present] += weight
 
             if present < self.silent_start:
-                (<Model> distributions[present])._summarize(sequence+j*self.d,
-                    &weight, 1, 0, self.d)
+                if self.cython == 0:
+                    with gil:
+                        python_summarize(self.distributions[present], sequence+j*self.d,
+                            &weight, 1)
+                else:
+                    (<Model> distributions[present])._summarize(sequence+j*self.d,
+                        &weight, 1, 0, self.d)
                 j += 1
 
         with gil:
