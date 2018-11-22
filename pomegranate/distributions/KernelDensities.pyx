@@ -8,6 +8,7 @@ import numpy
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 from libc.math cimport fabs
@@ -161,14 +162,15 @@ cdef class GaussianKernelDensity(KernelDensity):
 
 			log_probability[i] = _log(prob)
 
-	def sample(self, n=None):
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
 		sigma = self.parameters[1]
 		if n is None:
-			mu = numpy.random.choice(self.parameters[0], p=self.parameters[2])
-			return numpy.random.normal(mu, sigma)
+			mu = random_state.choice(self.parameters[0], p=self.parameters[2])
+			return random_state.normal(mu, sigma)
 		else:
-			mus = numpy.random.choice(self.parameters[0], n, p=self.parameters[2])
-			samples = [numpy.random.normal(mu, sigma) for mu in mus]
+			mus = random_state.choice(self.parameters[0], n, p=self.parameters[2])
+			samples = [random_state.normal(mu, sigma) for mu in mus]
 			return numpy.array(samples)
 
 
@@ -202,14 +204,15 @@ cdef class UniformKernelDensity(KernelDensity):
 
 			log_probability[i] = _log(prob)
 
-	def sample(self, n=None):
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
 		band = self.parameters[1]
 		if n is None:
-			mu = numpy.random.choice(self.parameters[0], p=self.parameters[2])
-			return numpy.random.uniform(mu-band, mu+band)
+			mu = random_state.choice(self.parameters[0], p=self.parameters[2])
+			return random_state.uniform(mu-band, mu+band)
 		else:
-			mus = numpy.random.choice(self.parameters[0], n, p=self.parameters[2])
-			samples = [numpy.random.uniform(mu-band, mu+band) for mu in mus]
+			mus = random_state.choice(self.parameters[0], n, p=self.parameters[2])
+			samples = [random_state.uniform(mu-band, mu+band) for mu in mus]
 			return numpy.array(samples)
 
 
@@ -244,12 +247,13 @@ cdef class TriangleKernelDensity(KernelDensity):
 
 			log_probability[i] = _log(prob)
 
-	def sample(self, n=None):
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
 		band = self.parameters[1]
 		if n is None:
-			mu = numpy.random.choice(self.parameters[0], p=self.parameters[2])
-			return numpy.random.triangular(mu-band, mu, mu+band)
+			mu = random_state.choice(self.parameters[0], p=self.parameters[2])
+			return random_state.triangular(mu-band, mu, mu+band)
 		else:
-			mus = numpy.random.choice(self.parameters[0], n, p=self.parameters[2])
-			samples = [numpy.random.triangular(mu-band, mu, mu+band) for mu in mus]
+			mus = random_state.choice(self.parameters[0], n, p=self.parameters[2])
+			samples = [random_state.triangular(mu-band, mu, mu+band) for mu in mus]
 			return numpy.array(samples)

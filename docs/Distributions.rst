@@ -3,7 +3,7 @@
 Probability Distributions
 =========================
 
-`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_1_Distributions.ipynb>`_
+`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_1_Distributions.ipynb>`_
 
 While probability distributions are frequently used as components of more complex models such as mixtures and hidden Markov models, they can also be used by themselves. Many data science tasks require fitting a distribution to data or generating samples under a distribution. pomegranate has a large library of both univariate and multivariate distributions which can be used with an intuitive interface.
 

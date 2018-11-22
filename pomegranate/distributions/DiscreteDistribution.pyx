@@ -16,6 +16,7 @@ from libc.string cimport memset
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 from libc.math cimport sqrt as csqrt
 
@@ -187,17 +188,16 @@ cdef class DiscreteDistribution(Distribution):
 			else:
 				log_probability[i] = self.encoded_log_probability[<int> X[i]]
 
-	def sample(self, n=None):
-		if n is None:
-			rand = random.random()
-			for key, value in self.items():
-				if value >= rand:
-					return key
-				rand -= value
-		else:
-			samples = [self.sample() for i in range(n)]
-			return numpy.array(samples)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
 
+		keys = list(self.dist.keys())
+		probabilities = list(self.dist.values())
+
+		if n is None:
+			return random_state.choice(keys, p=probabilities)
+		else:
+			return random_state.choice(keys, p=probabilities, size=n)
 
 	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0,
 		column_idx=0):

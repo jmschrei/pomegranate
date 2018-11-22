@@ -4,9 +4,11 @@
 # UniformDistribution.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+import numpy
+
 from ..utils cimport _log
 from ..utils cimport isnan
-import numpy
+from ..utils import check_random_state
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -21,13 +23,7 @@ cdef class UniformDistribution(Distribution):
 		def __set__(self, parameters):
 			self.start, self.end = parameters
 
-	def __cinit__(UniformDistribution self, double start, double end, bint frozen=False):
-		"""
-		Make a new Uniform distribution over floats between start and end,
-		inclusive. Start and end must not be equal.
-		"""
-
-		# Store the parameters
+	def __init__(UniformDistribution self, double start, double end, bint frozen=False):
 		self.start = start
 		self.end = end
 		self.summaries = [INF, NEGINF, 0]
@@ -49,10 +45,10 @@ cdef class UniformDistribution(Distribution):
 			else:
 				log_probability[i] = NEGINF
 
-
-	def sample(self, n=None):
+	def sample(self, n=None, random_state=None):
 		"""Sample from this uniform distribution and return the value sampled."""
-		return numpy.random.uniform(self.start, self.end, n)
+		random_state = check_random_state(random_state)
+		return random_state.uniform(self.start, self.end, n)
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
