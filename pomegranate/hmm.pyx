@@ -29,8 +29,12 @@ from .callbacks import History
 
 from .utils cimport _log
 from .utils cimport pair_lse
+
 from .utils cimport python_log_probability
 from .utils cimport python_summarize
+
+from .utils import check_random_state
+
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -161,9 +165,9 @@ cdef class HiddenMarkovModel(GraphModel):
     Examples
     --------
     >>> from pomegranate import *
-    >>> d1 = DiscreteDistribution({'A' : 0.35, 'C' : 0.20, 'G' : 0.05, 'T' : 40})
-    >>> d2 = DiscreteDistribution({'A' : 0.25, 'C' : 0.25, 'G' : 0.25, 'T' : 25})
-    >>> d3 = DiscreteDistribution({'A' : 0.10, 'C' : 0.40, 'G' : 0.40, 'T' : 10})
+    >>> d1 = DiscreteDistribution({'A' : 0.35, 'C' : 0.20, 'G' : 0.05, 'T' : 0.40})
+    >>> d2 = DiscreteDistribution({'A' : 0.25, 'C' : 0.25, 'G' : 0.25, 'T' : 0.25})
+    >>> d3 = DiscreteDistribution({'A' : 0.10, 'C' : 0.40, 'G' : 0.40, 'T' : 0.10})
     >>>
     >>> s1 = State(d1, name="s1")
     >>> s2 = State(d2, name="s2")
@@ -181,9 +185,9 @@ cdef class HiddenMarkovModel(GraphModel):
     >>> model.add_transition(s3, model.end, 0.30)
     >>> model.bake()
     >>>
-    >>> print model.log_probability(list('ACGACTATTCGAT'))
-    -4.31828085576
-    >>> print ", ".join(state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1])
+    >>> print(model.log_probability(list('ACGACTATTCGAT')))
+    -22.73896159971087
+    >>> print(", ".join(state.name for i, state in model.viterbi(list('ACGACTATTCGAT'))[1]))
     example-start, s1, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s2, s3, example-end
     """
 
@@ -1159,7 +1163,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 model with no end. Please ensure it has an end.")
 
 
-    def sample(self, length=0, path=False):
+    def sample(self, n=None, length=0, path=False, random_state=None):
         """Generate a sequence from the model.
 
         Returns the sequence generated, as a list of emitted items. The
@@ -1177,6 +1181,9 @@ cdef class HiddenMarkovModel(GraphModel):
 
         Parameters
         ----------
+        n : int or None, optional
+            The number of samples to generate. If None, return only one sample.
+
         length : int, optional
             Generate a sequence with a maximal length of this size. Used if
             you have no explicit end state. Default is 0.
@@ -1184,6 +1191,11 @@ cdef class HiddenMarkovModel(GraphModel):
         path : bool, optional
             Return the path of hidden states in addition to the emissions. If
             true will return a tuple of (sample, path). Default is False.
+
+        random_state : int, numpy.random.RandomState, or None
+            The random state used for generating samples. If set to none, a
+            random seed will be used. If set to either an integer or a
+            random seed, will produce deterministic outputs.
 
         Returns
         -------
@@ -1195,9 +1207,16 @@ cdef class HiddenMarkovModel(GraphModel):
         if self.d == 0:
             raise ValueError("must bake model before sampling")
 
-        return self._sample(length, path)
+        random_state = check_random_state(random_state)
 
-    cdef list _sample(self, int length, int path):
+        if n is None:
+            return self._sample(length, path, random_state)
+        else:
+            return [self.sample(length=length, path=path, random_state=i) 
+                for i in random_state.randint(10000000, size=n)]
+
+
+    cdef numpy.ndarray _sample(self, int length, int path, random_state):
         cdef int i, j, k, l, li, m=len(self.states)
         cdef double cumulative_probability
         cdef double [:,:] transition_probabilities = numpy.zeros((m,m))
@@ -1232,20 +1251,21 @@ cdef class HiddenMarkovModel(GraphModel):
 
             if not state.is_silent():
                 # There's an emission distribution, so sample from it
-                emissions.append(state.distribution.sample())
+                emissions.append(state.distribution.sample(
+                    random_state=random_state))
                 n += 1
 
             # If we've reached the specified length, return the appropriate
             # values
             if length != 0 and n >= length:
                 if path:
-                    return [emissions, sequence_path]
-                return emissions
+                    return numpy.array([emissions, sequence_path])
+                return numpy.array(emissions)
 
             # What should we pick as our next state?
             # Generate a number between 0 and 1 to make a weighted decision
             # as to which state to jump to next.
-            sample = random.random()
+            sample = random_state.uniform(0, 1)
 
             # Save the last state id we were in
             j = i
@@ -1277,7 +1297,7 @@ cdef class HiddenMarkovModel(GraphModel):
                         cumulative_probability += cum_probabilities[k]
 
                 # Randomly select a number in that probability range
-                sample = random.uniform(0, cumulative_probability)
+                sample = random_state.uniform(0, cumulative_probability)
 
                 # Select the state is corresponds to
                 for k in range(out_edges[i], out_edges[i+1]):
@@ -1288,8 +1308,9 @@ cdef class HiddenMarkovModel(GraphModel):
         # Done! Return either emissions, or emissions and path.
         if path:
             sequence_path.append(self.end)
-            return [emissions, sequence_path]
-        return emissions
+            return numpy.array([emissions, sequence_path])
+
+        return numpy.array(emissions)
 
     cpdef double log_probability(self, sequence, check_input=True):
         """Calculate the log probability of a single sequence.
@@ -1947,7 +1968,7 @@ cdef class HiddenMarkovModel(GraphModel):
         free(e)
         free(b)
         free(f)
-
+        
         return expected_transitions_ndarray, emission_weights_ndarray
 
     cpdef tuple viterbi(self, sequence):
@@ -3655,8 +3676,8 @@ cdef class HiddenMarkovModel(GraphModel):
             X_ = [x for x, label in zip(X, labels) if label != None]
             X_ = numpy.concatenate(X_)
 
-            labels_ = [[label for label in l] for l in labels if l is not None]
-            labels_ = numpy.concatenate(labels_)
+            labels_ = numpy.concatenate([l for l in labels if l is not None])
+
             labels_ = numpy.array([l for l in labels_ if l != str(name)+"-start" and l != str(name)+"-end"])
             label_set = numpy.unique(labels_)
 

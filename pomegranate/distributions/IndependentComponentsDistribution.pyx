@@ -13,6 +13,7 @@ from libc.string cimport memset
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 from ..utils import weight_set
 
@@ -135,11 +136,13 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 				(<Model> self.distributions_ptr[j])._log_probability(X+i*self.d+j, &logp, 1)
 				log_probability[i] += logp * self.weights_ptr[j]
 
-	def sample(self, n=None):
+	def sample(self, n=None, random_state=None):
 		if n is None:
-			return numpy.array([d.sample() for d in self.parameters[0]])
+			return numpy.array([d.sample(random_state=random_state) 
+				for d in self.parameters[0]])
 		else:
-			return numpy.array([self.sample() for i in range(n)])
+			return numpy.array([d.sample(n, random_state=random_state)
+				for d in self.parameters[0]]).T.copy()
 
 	def fit(self, X, weights=None, inertia=0, pseudocount=0.0):
 		"""

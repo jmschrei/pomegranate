@@ -12,6 +12,7 @@ from scipy.linalg.cython_blas cimport dgemm
 
 cimport numpy
 import numpy
+import numbers
 
 import heapq, itertools
 
@@ -193,8 +194,61 @@ cdef double pair_lse(double x, double y) nogil:
 	if y == NEGINF:
 		return x
 	if x > y:
-		return x + clog( cexp( y-x ) + 1 )
-	return y + clog( cexp( x-y ) + 1 )
+		return x + clog(cexp(y-x) + 1)
+	return y + clog(cexp(x-y) + 1)
+
+def logsumexp(X):
+	"""Calculate the log-sum-exp of an array to add in log space."""
+
+	X = numpy.array(X, dtype='float64')
+	
+	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+	cdef double x
+	cdef int i, n = X.shape[0]
+	cdef double y = 0.
+	cdef double x_max = NEGINF
+
+	with nogil:
+		for i in range(n):
+			x = X_ptr[i]
+			if x > x_max:
+				x_max = x
+
+		for i in range(n):
+			x = X_ptr[i]
+			if x == NEGINF:
+				continue
+
+			y += cexp(x - x_max)
+
+	return x_max + clog(y)
+
+def logaddexp(X, Y):
+	"""Calculate the log-add-exp of a pair of arrays."""
+
+	X = numpy.array(X, dtype='float64')
+	Y = numpy.array(Y, dtype='float64')
+
+	if len(X.shape) != len(Y.shape):
+		raise ValueError("Both arrays must be of the same shape.")
+	if X.shape[0] != Y.shape[0]:
+		raise ValueError("Both arrays must be of the same shape.")
+	if len(X.shape) > 1:
+		raise ValueError("Both arrays must of one dimensional.")
+
+	Z = numpy.zeros_like(Y)
+
+	cdef int i, n = X.shape[0]
+	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+	cdef double* Y_ptr = <double*> (<numpy.ndarray> Y).data
+	cdef double* Z_ptr = <double*> (<numpy.ndarray> Z).data
+
+	with nogil:
+		for i in range(n):
+			Z_ptr[i] = pair_lse(X_ptr[i], Y_ptr[i])
+
+	return Z
+
 
 cdef double gamma(double x) nogil:
 	"""Calculate the gamma function on a number."""
@@ -267,12 +321,12 @@ cdef double gamma(double x) nogil:
 
 		# Apply correction if argument was not initially in (1,2)
 		if arg_was_less_than_one:
-		    # Use identity gamma(z) = gamma(z+1)/z
-		    # The variable "result" now holds gamma of the original y + 1
-		    # Thus we use y-1 to get back the original y.
+			# Use identity gamma(z) = gamma(z+1)/z
+			# The variable "result" now holds gamma of the original y + 1
+			# Thus we use y-1 to get back the original y.
 			result /= (y-1.0)
 		else:
-		    # Use the identity gamma(z+n) = z*(z+1)* ... *(z+n-1)*gamma(z)
+			# Use the identity gamma(z+n) = z*(z+1)* ... *(z+n-1)*gamma(z)
 			for i in range(n):
 				result *= y+i
 
@@ -286,10 +340,10 @@ cdef double gamma(double x) nogil:
 	return cexp(lgamma(x));
 
 cdef double lgamma(double x) nogil:
-    # Abramowitz and Stegun 6.1.41
-    # Asymptotic series should be good to at least 11 or 12 figures
-    # For error analysis, see Whittiker and Watson
-    # A Course in Modern Analysis (1927), page 252
+	# Abramowitz and Stegun 6.1.41
+	# Asymptotic series should be good to at least 11 or 12 figures
+	# For error analysis, see Whittiker and Watson
+	# A Course in Modern Analysis (1927), page 252
 
 	cdef double c[8]
 	c[0] =  1.0 / 12.0
@@ -396,3 +450,29 @@ def _check_nan(X):
 	if X is None or numpy.isnan(X):
 		return True
 	return False
+
+def check_random_state(seed):
+	"""Turn seed into a np.random.RandomState instance.
+
+	This function will check to see whether the input seed is a valid seed
+	for generating random numbers. This is a slightly modified version of
+	the code from sklearn.utils.validation.
+
+	Parameters
+	----------
+	seed : None | int | instance of RandomState
+		If seed is None, return the RandomState singleton used by np.random.
+		If seed is an int, return a new RandomState instance seeded with seed.
+		If seed is already a RandomState instance, return it.
+		Otherwise raise ValueError.
+	"""
+
+	if seed is None or seed is numpy.random:
+		return numpy.random.mtrand._rand
+	if isinstance(seed, (numbers.Integral, numpy.integer)):
+		return numpy.random.RandomState(seed)
+	if isinstance(seed, numpy.random.RandomState):
+		return seed
+	raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
+					 ' instance' % seed)
+	

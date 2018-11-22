@@ -11,6 +11,7 @@ from libc.stdlib cimport free
 
 from ..utils cimport _log
 from ..utils cimport isnan
+from ..utils import check_random_state
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -51,8 +52,9 @@ cdef class BernoulliDistribution(Distribution):
 			else:
 				log_probability[i] = self.logp[<int> X[i]]
 
-	def sample(self, n=None):
-		return numpy.random.choice(2, p=[1-self.p, self.p], size=n)
+	def sample(self, n=None, random_state=None):
+		random_state = check_random_state(random_state)
+		return random_state.choice(2, p=[1-self.p, self.p], size=n)
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
