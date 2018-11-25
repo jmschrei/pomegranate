@@ -24,6 +24,7 @@ from .callbacks import History
 
 from .utils cimport _log
 from .utils cimport pair_lse
+from .utils cimport python_log_probability
 from .utils import _check_input
 from .utils import _convert
 from .utils import check_random_state
@@ -68,6 +69,7 @@ cdef class BayesModel(Model):
     def __init__(self, distributions, weights=None):
         self.d = 0
         self.is_vl_ = 0
+        self.cython = 1
 
         self.n = len(distributions)
         if len(distributions) < 2:
@@ -79,7 +81,10 @@ cdef class BayesModel(Model):
                 raise TypeError("must have initialized distributions in list")
             elif self.d != dist.d:
                 raise TypeError("mis-matching dimensions between distributions in list")
-            if dist.model == 'HiddenMarkovModel':
+
+            if not isinstance(dist, Distribution) and not isinstance(dist, Model):
+                self.cython = 0
+            elif dist.model == 'HiddenMarkovModel':
                 self.is_vl_ = 1
                 self.keymap = dist.keymap
 
@@ -100,6 +105,7 @@ cdef class BayesModel(Model):
         dist = distributions[0]
         if self.is_vl_ == 1:
             pass
+
         elif isinstance(dist, DiscreteDistribution):
             keys = []
             for distribution in distributions:
@@ -246,12 +252,22 @@ cdef class BayesModel(Model):
         cdef int i, j, d = self.d
         cdef double* logp = <double*> calloc(n, sizeof(double))
 
-        (<Model> self.distributions_ptr[0])._log_probability(X, log_probability, n)
+        if self.cython == 1:
+            (<Model> self.distributions_ptr[0])._log_probability(X, log_probability, n)
+        else:
+            with gil:
+                python_log_probability(self.distributions[0], X, log_probability, n)
+
         for i in range(n):
             log_probability[i] += self.weights_ptr[0]
 
         for j in range(1, self.n):
-            (<Model> self.distributions_ptr[j])._log_probability(X, logp, n)
+            if self.cython == 1:
+                (<Model> self.distributions_ptr[j])._log_probability(X, logp, n)
+            else:
+                with gil:
+                    python_log_probability(self.distributions[j], X, logp, n)
+
             for i in range(n):
                 log_probability[i] = pair_lse(log_probability[i], logp[i] + self.weights_ptr[j])
 
@@ -385,7 +401,11 @@ cdef class BayesModel(Model):
             if self.is_vl_:
                 y[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
             else:
-                (<Model> self.distributions_ptr[j])._log_probability(X, y+j*n, n)
+                if self.cython == 1:
+                    (<Model> self.distributions_ptr[j])._log_probability(X, y+j*n, n)
+                else:
+                    with gil:
+                        python_log_probability(self.distributions[j], X, y+j*n, n)
 
         for i in range(n):
             y_sum = NEGINF
@@ -478,7 +498,11 @@ cdef class BayesModel(Model):
             if self.is_vl_:
                 r[j] = (<Model> self.distributions_ptr[j])._vl_log_probability(X, d)
             else:
-                (<Model> self.distributions_ptr[j])._log_probability(X, r+j*n, n)
+                if self.cython == 1:
+                    (<Model> self.distributions_ptr[j])._log_probability(X, r+j*n, n)
+                else:
+                    with gil:
+                        python_log_probability(self.distributions[j], X, r+j*n, n)
 
         for i in range(n):
             max_logp = NEGINF

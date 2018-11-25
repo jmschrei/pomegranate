@@ -11,6 +11,8 @@ Version 0.11.0
 Highlights
 ----------
 
+	- Allowed for user specified custom distributions by implementing a Python fallback option if the distribution object doesn't inherit from the base distribution class.
+
 	- Fixed an issue with GammaDistribution update
 
 
