@@ -1412,12 +1412,8 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef numpy.ndarray f_ndarray = numpy.zeros((n+1, m), dtype=numpy.float64)
         cdef double* f
 
-        print(self.cython)
-
         sequence_ndarray = _check_input(sequence, self)
         sequence_data = <double*> sequence_ndarray.data
-
-        print("made it here!")
 
         with nogil:
             f = <double*> self._forward(sequence_data, n, NULL)
