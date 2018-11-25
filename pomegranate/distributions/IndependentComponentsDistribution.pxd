@@ -12,6 +12,7 @@ from .distributions cimport MultivariateDistribution
 cdef class IndependentComponentsDistribution(MultivariateDistribution):
 	cdef public numpy.ndarray distributions, weights
 	cdef public int discrete
+	cdef public int cython
 	cdef double* weights_ptr
 	cdef void** distributions_ptr
 

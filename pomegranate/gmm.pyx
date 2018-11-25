@@ -575,16 +575,15 @@ cdef class GeneralMixtureModel(BayesModel):
                 raise ValueError("cannot fit a discrete GMM "
                                  "without pre-initialized distributions")
 
-            if not hasattr(distributions, "blank"):
-                distributions 
-
-            if not isinstance(d_, Distribution) and not isinstance(d_, Model):
-                distributions = [distributions for i in range(n_components)]
-            elif not isinstance(d_.blank(), MultivariateDistribution) and d > 1:
+            if d == 1:
+                distributions = [d_ for i in range(n_components)]
+            elif isinstance(d_.blank(), MultivariateDistribution):
+                distributions = [d_ for i in range(n_components)]
+            elif d_.blank().d > 1:
+                distributions = [d_ for i in range(n_components)]
+            else:
                 icd = True
                 distributions = [d_ for i in range(d)]
-            else:
-                distributions = [d_ for i in range(n_components)]
 
         else:
             if d == len(distributions):

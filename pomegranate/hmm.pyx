@@ -3672,6 +3672,8 @@ cdef class HiddenMarkovModel(GraphModel):
         if X_concat.ndim == 1:
             X_concat = X_concat.reshape(X_concat.shape[0], 1)
 
+        n, d = X_concat.shape
+
         if labels is not None:
             X_ = [x for x, label in zip(X, labels) if label != None]
             X_ = numpy.concatenate(X_)
@@ -3714,12 +3716,14 @@ cdef class HiddenMarkovModel(GraphModel):
             y = clf.predict(X_concat)
 
             if callable(distribution):
-                if X_concat.shape[1] > 1 and not isinstance(distribution.blank(), MultivariateDistribution):
-                    distribution = [distribution for i in range(X_concat.shape[1])]
-                elif X_concat.shape[1] > 1:
+                if d == 1:
+                    distributions = [distribution.from_samples(X_concat[y == i][:,0]) for i in range(n_components)]
+                elif isinstance(distribution.blank(), MultivariateDistribution):
+                    distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+                elif distribution.blank().d > 1:
                     distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
                 else:
-                    distributions = [distribution.from_samples(X_concat[y == i][:,0]) for i in range(n_components)]
+                    distribution = [distribution for i in range(d)]
 
             if isinstance(distribution, list):
                 distributions = [IndependentComponentsDistribution.from_samples(X_concat[y == i],

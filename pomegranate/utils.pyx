@@ -116,8 +116,11 @@ cdef python_log_probability(model, double* X, double* log_probability, int n):
 
 	logp = model.log_probability(X_ndarray)
 	
-	for i in range(n):
-		log_probability[i] = logp[i]
+	if n == 1:
+		log_probability[0] = logp
+	else:
+		for i in range(n):
+			log_probability[i] = logp[i]
 
 cdef python_summarize(model, double* X, double* weights, int n):
 	cdef int i
