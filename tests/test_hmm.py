@@ -252,7 +252,8 @@ def setup_multivariate_mixed_dense():
 def setup_multivariate_gaussian_dense():
     global model
 
-    mu = numpy.random.randn(4, 5)
+    random_state = numpy.random.RandomState(0)
+    mu = random_state.normal(0, 1, size=(4, 5))
     d1 = MultivariateGaussianDistribution(mu[0], numpy.eye(5))
     d2 = MultivariateGaussianDistribution(mu[1], numpy.eye(5))
     d3 = MultivariateGaussianDistribution(mu[2], numpy.eye(5))
@@ -1601,8 +1602,9 @@ def test_hmm_initialization_error():
 def test_hmm_pickle_univariate():
     model2 = pickle.loads(pickle.dumps(model))
 
+    random_state = numpy.random.RandomState(0)
     for i in range(10):
-        sequence = numpy.random.randn(10)
+        sequence = random_state.normal(0, 1, size=10)
 
         logp1 = model.log_probability(sequence)
         logp2 = model2.log_probability(sequence)
@@ -1614,8 +1616,9 @@ def test_hmm_pickle_univariate():
 def test_hmm_json_univariate():
     model2 = HiddenMarkovModel.from_json(model.to_json())
 
+    random_state = numpy.random.RandomState(0)
     for i in range(10):
-        sequence = numpy.random.randn(10)
+        sequence = random_state.normal(0, 1, size=10)
 
         logp1 = model.log_probability(sequence)
         logp2 = model2.log_probability(sequence)
@@ -1627,8 +1630,9 @@ def test_hmm_json_univariate():
 def test_hmm_pickle_multivariate():
     model2 = pickle.loads(pickle.dumps(model))
 
+    random_state = numpy.random.RandomState(0)
     for i in range(10):
-        sequence = numpy.random.randn(10, 5)
+        sequence = random_state.normal(0, 1, size=(10, 5))
 
         logp1 = model.log_probability(sequence)
         logp2 = model2.log_probability(sequence)
@@ -1640,8 +1644,9 @@ def test_hmm_pickle_multivariate():
 def test_hmm_json_univariate():
     model2 = HiddenMarkovModel.from_json(model.to_json())
 
+    random_state = numpy.random.RandomState(0)
     for i in range(10):
-        sequence = numpy.random.randn(10, 5)
+        sequence = random_state.normal(0, 1, size=(10, 5))
 
         logp1 = model.log_probability(sequence)
         logp2 = model2.log_probability(sequence)
@@ -1651,7 +1656,7 @@ def test_hmm_json_univariate():
 
 @with_setup(setup_univariate_discrete_dense, teardown)
 def test_hmm_univariate_discrete_from_samples():
-    X = [model.sample() for i in range(25)]
+    X = [model.sample(random_state=0) for i in range(25)]
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25)
 
     logp1 = sum(map(model.log_probability, X))
@@ -1662,7 +1667,7 @@ def test_hmm_univariate_discrete_from_samples():
 
 @with_setup(setup_univariate_discrete_dense, teardown)
 def test_hmm_univariate_discrete_from_samples_with_labels():
-    X, y = zip(*model.sample(25, path=True))
+    X, y = zip(*model.sample(25, path=True, random_state=0))
     y = [[state.name for state in seq if not state.is_silent()] for seq in y]
 
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, 
@@ -1676,7 +1681,7 @@ def test_hmm_univariate_discrete_from_samples_with_labels():
 
 @with_setup(setup_univariate_gaussian_dense, teardown)
 def test_hmm_univariate_gaussian_from_samples():
-    X = [model.sample() for i in range(25)]
+    X = model.sample(n=25, random_state=0)
     model2 = HiddenMarkovModel.from_samples(NormalDistribution, 4, X, max_iterations=25)
 
     logp1 = sum(map(model.log_probability, X))
@@ -1687,7 +1692,7 @@ def test_hmm_univariate_gaussian_from_samples():
 
 @with_setup(setup_multivariate_gaussian_dense, teardown)
 def test_hmm_multivariate_gaussian_from_samples():
-    X = [model.sample() for i in range(25)]
+    X = model.sample(n=25, random_state=0)
     model2 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution, 4, X, max_iterations=25)
 
     logp1 = sum(map(model.log_probability, X))
@@ -1697,7 +1702,7 @@ def test_hmm_multivariate_gaussian_from_samples():
 
 @with_setup(setup_univariate_discrete_dense, teardown)
 def test_hmm_univariate_discrete_from_samples_end_state():
-    X = [model.sample() for i in range(25)]
+    X = model.sample(n=25, random_state=0)
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, end_state=True)
 
     #We get non-zero end probabilities for each state
@@ -1708,7 +1713,7 @@ def test_hmm_univariate_discrete_from_samples_end_state():
 
 @with_setup(setup_univariate_discrete_dense, teardown)
 def test_hmm_univariate_discrete_from_samples_no_end_state():
-    X = [model.sample() for i in range(25)]
+    X = [model.sample(random_state=0) for i in range(25)]
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, end_state=False)
 
     #We don't have end probabilities for each state
@@ -1718,7 +1723,8 @@ def test_hmm_univariate_discrete_from_samples_no_end_state():
     assert_equal(model2.dense_transition_matrix()[3][model2.end_index],0)
 
 def test_hmm_multivariate_gaussian_ooc():
-    X = numpy.concatenate([numpy.random.randn(100, 15, 3) + i for i in range(3)])
+    random_state = numpy.random.RandomState(0)
+    X = numpy.concatenate([random_state.normal(0, 1, size=(100, 15, 3)) + i for i in range(3)])
 
     hmm = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution,
         3, X, init='first-k', max_iterations=5)
@@ -1731,7 +1737,8 @@ def test_hmm_multivariate_gaussian_ooc():
     assert_not_equal(hmm.log_probability(X[0]), hmm3.log_probability(X[0]))
 
 def test_hmm_multivariate_gaussian_minibatch():
-    X = numpy.concatenate([numpy.random.randn(100, 15, 3) + i for i in range(3)])
+    random_state = numpy.random.RandomState(0)
+    X = numpy.concatenate([random_state.normal(0, 1, size=(100, 15, 3)) + i for i in range(3)])
 
     hmm = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution,
         3, X, init='first-k', max_iterations=5)
@@ -1751,8 +1758,9 @@ def test_hmm_multivariate_gaussian_minibatch():
 @with_setup(setup_general_mixture_gaussian, teardown)
 def test_hmm_json_general_mixture_gaussian():
     model2 = HiddenMarkovModel.from_json(model.to_json())
+    random_state = numpy.random.RandomState(0)
     for i in range(10):
-        sequence = numpy.random.randn(10)
+        sequence = random_state.normal(0, 1, size=10)
 
         logp1 = model.log_probability(sequence)
         logp2 = model2.log_probability(sequence)

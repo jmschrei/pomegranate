@@ -889,9 +889,6 @@ cdef class HiddenMarkovModel(GraphModel):
             else:
                 normal_states.append(state)
 
-        numpy.random.seed(0)
-        random.seed(0)
-
         normal_states = list(sorted(normal_states, key=attrgetter('name')))
         silent_states = list(sorted(silent_states, key=attrgetter('name')))
 

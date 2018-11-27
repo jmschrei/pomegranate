@@ -15,11 +15,18 @@ Highlights
 
 	- Fixed an issue with GammaDistribution update
 
+	- Removed deterministic seed being set in hmm.bake
+
 
 Distributions
 -------------
 
 	- Fixed an error in GammaDistribution's cython level update step where sufficient statistics were incorrectly collected from a data set. This will only affect GammaDistributions that are used as part of a composition model rather than stand-alone ones.
+
+HiddenMarkovModel
+-----------------
+
+	- Removed a deterministic seed being set in hmm.bake. These lines were set because it was thought that there was some randomness in either the internal state generation of the topological sort. However, it appears that this is not necessary, and so it has been removed.
 
 
 Version 0.10.0
