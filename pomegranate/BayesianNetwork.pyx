@@ -241,18 +241,8 @@ cdef class BayesianNetwork(GraphModel):
 		free(self.parent_count)
 		free(self.parent_idxs)
 
-	def plot(self, filename=None, **kwargs):
-		"""Draw this model's graph using NetworkX and matplotlib.
-
-		Note that this relies on networkx's built-in graphing capabilities (and
-		not Graphviz) and thus can't draw self-loops.
-
-		See networkx.draw_networkx() for the keywords you can pass in.
-
-		Parameters
-		----------
-		**kwargs : any
-			The arguments to pass into networkx.draw_networkx()
+	def plot(self, filename=None):
+		"""Draw this model's graph using pygraphviz.
 
 		Returns
 		-------
