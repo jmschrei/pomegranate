@@ -25,14 +25,19 @@ except ImportError:
 	pygraphviz = None
 
 cdef int* GPU = <int*> calloc(1, sizeof(int))
+cdef int* has_cupy = <int*> calloc(1, sizeof(int))
 
 try:
 	import cupy
 	from cupy import cuda
 	cuda.Device().cublas_handle
 	enable_gpu()
+
+	global has_cupy
+	has_cupy[0] = 1
 except:
-	pass
+	global has_cupy
+	has_cupy[0] = 0
 
 numpy.import_array()
 
@@ -96,7 +101,11 @@ cdef int _is_gpu_enabled() nogil:
 
 cpdef enable_gpu():
 	global GPU
-	GPU[0] = 1
+	
+	if has_cupy[0] == 0:
+		raise Warning("Please install cupy before attempting to utilize a GPU.")
+	else:
+		GPU[0] = 1
 
 cpdef disable_gpu():
 	global GPU
