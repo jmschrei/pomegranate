@@ -2606,15 +2606,15 @@ cdef class HiddenMarkovModel(GraphModel):
 
             starts_unlabeled = [int(i*len(X_unlabeled)/n_jobs) for i in range(n_jobs)]
             ends_unlabeled = [int(i*len(X_unlabeled)/n_jobs) for i in range(1, n_jobs+1)]
+
+        if batch_size is None:
+            starts = [int(i*n/n_jobs) for i in range(n_jobs)]
+            ends = [int(i*n/n_jobs) for i in range(1, n_jobs+1)]
         else:
-            if batch_size is None:
-                starts = [int(i*n/n_jobs) for i in range(n_jobs)]
-                ends = [int(i*n/n_jobs) for i in range(1, n_jobs+1)]
-            else:
-                starts = list(range(0, n, batch_size))
-                if starts[-1] == n:
-                    starts = starts[:-1]
-                ends = list(range(batch_size, n, batch_size)) + [n]
+            starts = list(range(0, n, batch_size))
+            if starts[-1] == n:
+                starts = starts[:-1]
+            ends = list(range(batch_size, n, batch_size)) + [n]
 
         minibatching = batches_per_epoch is not None
         batches_per_epoch = batches_per_epoch or len(starts)

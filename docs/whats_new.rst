@@ -28,6 +28,8 @@ HiddenMarkovModel
 
 	- Removed a deterministic seed being set in hmm.bake. These lines were set because it was thought that there was some randomness in either the internal state generation of the topological sort. However, it appears that this is not necessary, and so it has been removed.
 
+	- Fixed a bug where semi-supervised learning would not work because of an undefined variable.
+
 
 Version 0.10.0
 ==============
