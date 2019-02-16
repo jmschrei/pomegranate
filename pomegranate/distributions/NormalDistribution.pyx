@@ -97,7 +97,7 @@ cdef class NormalDistribution(Distribution):
 		self.sigma = self.sigma*inertia + sigma*(1-inertia)
 		self.summaries = [0, 0, 0]
 		self.log_sigma_sqrt_2_pi = -_log(sigma * SQRT_2_PI)
-		self.two_sigma_squared = 1. / (2 * sigma ** 2)
+		self.two_sigma_squared = 1. / (2 * sigma ** 2) if sigma > 0 else 0
 
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
