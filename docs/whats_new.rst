@@ -12,10 +12,11 @@ Highlights
 ----------
 
 	- Allowed for user specified custom distributions by implementing a Python fallback option if the distribution object doesn't inherit from the base distribution class.
-
 	- Fixed an issue with GammaDistribution update
-
 	- Removed deterministic seed being set in hmm.bake
+	- Made pomegranate compatible with NetworkX v2.0 and above
+	- NeuralHMMs and Neural Mixture Models are now possible through the custom distributions
+	- Many new tutorials
 
 
 Distributions
@@ -23,12 +24,29 @@ Distributions
 
 	- Fixed an error in GammaDistribution's cython level update step where sufficient statistics were incorrectly collected from a data set. This will only affect GammaDistributions that are used as part of a composition model rather than stand-alone ones.
 
+	- Added in support for custom distributions. This is done by checking whether a distribution is inherited from the base pomegranate distribution object. If not, it will use the python methods. 
+
+	- Added in examples of using custom distributions, including neural networks, with pomegranate models.
+
+	- Made NormalDistribution.blank and LogNormalDistribution.blank return distributions with a standard deviation of 1, to avoid DivisionByZero errors.
+
+	- Added in a NeuralNetworkWrapper distribution that should handle wrapping a neural network correctly for use in pomegranate. This assumes a keras-like API.
+
 HiddenMarkovModel
 -----------------
 
 	- Removed a deterministic seed being set in hmm.bake. These lines were set because it was thought that there was some randomness in either the internal state generation of the topological sort. However, it appears that this is not necessary, and so it has been removed.
 
 	- Fixed a bug where semi-supervised learning would not work because of an undefined variable.
+
+	- Added in support for networkx v2.0 and above using their new API.
+
+Tutorials
+---------
+	
+	- Revamped the tutorials in the tutorials folder, greatly expanding their scope
+
+	- Added in new tutorials about custom distributions and neural probabilistic models
 
 
 Version 0.10.0

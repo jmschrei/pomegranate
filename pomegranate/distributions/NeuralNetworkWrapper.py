@@ -1,5 +1,7 @@
 # NeuralNetworkWrapper.py
+# Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+import numpy
 
 class NeuralNetworkWrapper():
     '''A wrapper for a neural network model for use in pomegranate.
@@ -10,15 +12,25 @@ class NeuralNetworkWrapper():
     It is currently built to work with keras models, but can be easily
     modified to work with the package of your choice.
     
-    Note: Training works by having each call to `summarize` append the
-    observed data and corresponding label to the neural network model 
-    object. After multiple calls to `summarize`, the model object will
-    now store a large chunk of the data set (if not the entire thing) 
-    along with the corresponding labels. The `from_summaries` method then
-    will have the model perform a single round of training on that stored
-    data. To ensure that only a single round of training is performed
-    (and not one round per wrapper object in the model) we only perform
-    training if the class ID of the wrapper object is 0.
+    Training works in a somewhat hacky manner. Internally, pomegranate
+    will scan over all components of the model, calling `summarize` for each
+    one, and then `from_summaries` at the end. During the EM procedure, the
+    samples and their associated weights are passed in to the `summarize`
+    function. The associated weights are the responsibilities calculated
+    during the EM algorithm. In theory, one could simply update the model
+    using the samples and their corresponding weights. In practice, it's much
+    better to reconstruct the whole responsibility matrix for the batch of
+    data and then train on soft labels.
+    
+    The process for training is as follows. When pomegranate starts a round of
+    optimization, this wrapper will store a pointer to the data set to the
+    neural network model object. This data set is the same one passed to each
+    NeuralNetworkWrapper, the only difference being the ~weights~. Thus, each
+    successive call will store the weights that are passed in (the responsibilities
+    from the EM algorithm) to an associated label matrix. The result is a single
+    copy of the data batch and a corresponding matrix of soft labels. Keras
+    allows us to train a classifier on soft labels, and this is the preferred
+    strategy.
     
     Parameters
     ----------
@@ -89,12 +101,11 @@ class NeuralNetworkWrapper():
         None
         '''
 
-        self.model.X.append(X.copy())
-        self.model.w.append(w.copy())
-        
-        y = numpy.zeros((X.shape[0], self.n_classes))
-        y[:, self.i] = 1
-        self.model.y.append(y)
+        if self.i == 0:
+            self.model.X = X.copy()
+            self.model.y = numpy.zeros((X.shape[0], self.n_classes))
+            
+        self.model.y[:, self.i] = w
         
     def from_summaries(self, inertia=0.0):
         '''Perform a single gradient update to the network.
@@ -118,15 +129,19 @@ class NeuralNetworkWrapper():
 
 
         if self.i == 0:
-            X = numpy.concatenate(self.model.X)
-            w = numpy.concatenate(self.model.w)
-            y = numpy.concatenate(self.model.y)
-        
-            self.model.train_on_batch(X, y, sample_weight=w)
-        
-        self.clear_summaries()
+            self.model.train_on_batch(self.model.X, self.model.y)
+            self.clear_summaries()
     
     def clear_summaries(self):
-        self.model.X = []
-        self.model.y = []
-        self.model.w = []
+        self.model.X = None
+        self.model.y = None
+
+
+    @classmethod
+    def from_samples(self, X, weights):
+        '''The training of this wrapper on data should be performed in the main model.
+
+        This method should not be used directly to train the network.
+        '''
+
+        return self

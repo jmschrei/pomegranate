@@ -106,4 +106,4 @@ cdef class NormalDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return NormalDistribution(0, 0)
+		return NormalDistribution(0, 1)

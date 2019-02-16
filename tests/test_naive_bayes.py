@@ -596,7 +596,7 @@ def test_nb_multivariate_gaussian_nan_from_samples():
 	assert_array_almost_equal(d11.parameters, [0.85, 0.55])
 	assert_array_almost_equal(d12.parameters, [2.0, 0.6000000000000003])
 	assert_array_almost_equal(d13.parameters, [0.1, 0.0])
-	assert_array_almost_equal(d21.parameters, [0.0, 0.0])
+	assert_array_almost_equal(d21.parameters, [0.0, 1.0])
 	assert_array_almost_equal(d22.parameters, [3.6, 0.0])
 	assert_array_almost_equal(d23.parameters, [3.3, 0.0])
 

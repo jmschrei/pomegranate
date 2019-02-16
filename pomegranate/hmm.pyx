@@ -23,6 +23,7 @@ from distributions.distributions cimport Distribution
 from distributions import MultivariateDistribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.IndependentComponentsDistribution cimport IndependentComponentsDistribution
+from distributions.NeuralNetworkWrapper import NeuralNetworkWrapper
 from .kmeans import Kmeans
 
 from .callbacks import History
@@ -306,7 +307,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Get all the edges from the graph
         edges = []
-        for start, end, data in self.graph.edges_iter(data=True):
+        for start, end, data in self.graph.edges(data=True):
             # If this edge is part of a group of tied edges, annotate this group
             # it is a part of
             s, e = indices[start], indices[end]
@@ -761,11 +762,11 @@ cdef class HiddenMarkovModel(GraphModel):
             merge_count = 0
 
             # Reindex the states based on ones which are still there
-            prestates = self.graph.nodes()
+            prestates = list(self.graph.nodes)
             indices = { prestates[i]: i for i in range(len(prestates)) }
 
             # Go through all the edges, summing in and out edges
-            for a, b in self.graph.edges():
+            for a, b in list(self.graph.edges()):
                 out_edge_count[indices[a]] += 1
                 in_edge_count[indices[b]] += 1
 
@@ -797,11 +798,11 @@ cdef class HiddenMarkovModel(GraphModel):
         # Go through the model checking to make sure out edges sum to 1.
         # Normalize them to 1 if this is not the case.
         if merge in ['all', 'partial']:
-            for state in self.graph.nodes():
+            for state in list(self.graph.nodes()):
 
                 # Perform log sum exp on the edges to see if they properly sum to 1
                 out_edges = round(sum(numpy.e**x['probability']
-                    for x in self.graph.edge[state].values()), 8)
+                    for x in self.graph.adj[state].values()), 8)
 
                 # The end state has no out edges, so will be 0
                 if out_edges != 1. and state != self.end:
@@ -812,7 +813,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
                     # Reweight the edges so that the probability (not logp) sums
                     # to 1.
-                    for edge in self.graph.edge[state].values():
+                    for edge in self.graph.adj[state].values():
                         edge['probability'] = edge['probability'] - log(out_edges)
 
         # Automatically merge adjacent silent states attached by a single edge
@@ -825,7 +826,7 @@ cdef class HiddenMarkovModel(GraphModel):
             for a, b, e in self.graph.edges(data=True):
                 # Since we may have removed a or b in a previous iteration,
                 # a simple fix is to just check to see if it's still there
-                if a not in self.graph.nodes() or b not in self.graph.nodes():
+                if a not in list(self.graph.nodes()) or b not in list(self.graph.nodes()):
                     continue
 
                 if a == self.start or b == self.end:
@@ -891,6 +892,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         normal_states = list(sorted(normal_states, key=attrgetter('name')))
         silent_states = list(sorted(silent_states, key=attrgetter('name')))
+        silent_order = {state: i for i, state in enumerate(reversed(silent_states))}
 
         # We need the silent states to be in topological sort order: any
         # transition between silent states must be from a lower-numbered state
@@ -902,7 +904,8 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Get the sorted silent states. Isn't it convenient how NetworkX has
         # exactly the algorithm we need?
-        silent_states_sorted = networkx.topological_sort(silent_subgraph, nbunch=silent_states)
+        silent_states_sorted = list(networkx.lexicographical_topological_sort(
+            silent_subgraph, silent_order.__getitem__))
 
         # What's the index of the first silent state?
         self.silent_start = len(normal_states)
@@ -998,7 +1001,7 @@ cdef class HiddenMarkovModel(GraphModel):
         # such a manner that all edges pointing to the same node are grouped
         # together. This will allow us to run the algorithms in time
         # nodes*edges instead of nodes*nodes.
-        for a, b in self.graph.edges_iter():
+        for a, b in self.graph.edges():
             # Increment the total number of edges going to node b.
             self.in_edge_count[indices[b]+1] += 1
             # Increment the total number of edges leaving node a.
@@ -1022,7 +1025,7 @@ cdef class HiddenMarkovModel(GraphModel):
         # Now we go through the edges again in order to both fill in the
         # transition probability matrix, and also to store the indices sorted
         # by the end-node.
-        for a, b, data in self.graph.edges_iter(data=True):
+        for a, b, data in self.graph.edges(data=True):
             # Put the edge in the dict. Its weight is log-probability
             start = self.in_edge_count[indices[b]]
 
@@ -3317,7 +3320,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Get all the edges from the graph
         edges = []
-        for start, end, data in self.graph.edges_iter(data=True):
+        for start, end, data in self.graph.edges(data=True):
             # If this edge is part of a group of tied edges, annotate this group
             # it is a part of
             s, e = indices[start], indices[end]
@@ -3702,6 +3705,8 @@ cdef class HiddenMarkovModel(GraphModel):
 
                 distribution = DiscreteDistribution({key: value for key, value in zip(keymap, emissions)})
                 distributions.append(distribution)
+        elif isinstance(distribution, list) and isinstance(distribution[0], NeuralNetworkWrapper):
+            distributions = distribution
         else:
             clf = Kmeans(n_components, init=init, n_init=n_init)
             clf.fit(X_concat, weights, max_iterations=max_kmeans_iterations,

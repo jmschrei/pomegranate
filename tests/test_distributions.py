@@ -266,7 +266,7 @@ def test_distributions_normal_initialization():
 def test_distributions_normal_blank():
 	d = NormalDistribution.blank()
 	assert_equal(d.name, "NormalDistribution")
-	assert_array_equal(d.parameters, [0, 0])
+	assert_array_equal(d.parameters, [0, 1])
 	assert_array_equal(d.summaries, [0, 0, 0])
 
 
