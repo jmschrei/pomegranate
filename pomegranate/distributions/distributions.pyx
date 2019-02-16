@@ -32,6 +32,7 @@ from .DirichletDistribution import DirichletDistribution
 from .ConditionalProbabilityTable import ConditionalProbabilityTable
 from .JointProbabilityTable import JointProbabilityTable
 
+from .NeuralNetworkWrapper import NeuralNetworkWrapper
 
 cdef class Distribution(Model):
 	"""A probability distribution.

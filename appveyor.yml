@@ -56,6 +56,16 @@ environment:
       PYTHON_ARCH: "64"
       MINICONDA: C:\Miniconda3-x64
 
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "32"
+      MINICONDA: C:\Miniconda3
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      MINICONDA: C:\Miniconda3-x64
+
 install:
   # If there is a newer build queued for the same PR, cancel this one.
   # The AppVeyor 'rollout builds' option is supposed to serve the same
