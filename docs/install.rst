@@ -29,7 +29,7 @@ Lastly, you can get the bleeding edge from GitHub using the following commands:
 
 On Windows machines you may need to download a C++ compiler if you wish to build from source yourself. For Python 2 this `minimal version of Visual Studio 2008 works well <https://www.microsoft.com/en-us/download/details.aspx?id=44266>`_. For Python 3 `this version of the Visual Studio build tools <http://go.microsoft.com/fwlink/?LinkId=691126>`_ has been reported to work.
 
-The requirements for pomegranate can be found in the requirements.txt file in the repository, and include numpy, scipy, networkx (below v2.0), joblib, cupy (if using a GPU), and cython (if building from source or on an Ubuntu machine). 
+The requirements for pomegranate can be found in the requirements.txt file in the repository, and include numpy, scipy, networkx (v2.0 and above), joblib, cupy (if using a GPU), and cython (if building from source or on an Ubuntu machine). 
 
 FAQ
 ---
