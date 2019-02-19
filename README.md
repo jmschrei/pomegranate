@@ -6,8 +6,6 @@
 
 pomegranate is a package for probabilistic models in Python that is implemented in cython for speed. It's focus is on merging the easy-to-use scikit-learn API with the modularity that comes with probabilistic modeling to allow users to specify complicated models without needing to worry about implementation details. The models are built from the ground up with big data processing in mind and so natively support features like out-of-core learning and parallelism. Click on the binder badge above to interactively play with the tutorials!
 
-*NOTE: pomegranate does not yet work with networkx 2.0. If you have problems, please downgrade networkx and try again.*
-
 ### Installation
 
 pomegranate is pip-installable using `pip install pomegranate` and conda-installable using `conda install pomegranate`. If neither work, more detailed installation instructions can be found [here](http://pomegranate.readthedocs.io/en/latest/install.html).
