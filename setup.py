@@ -28,7 +28,7 @@ filenames = [
     "parallel"
 ]
 
-distributions = [
+cython_distributions = [
     'distributions',
     'UniformDistribution',
     'BernoulliDistribution',
@@ -44,14 +44,13 @@ distributions = [
     'MultivariateGaussianDistribution',
     'DirichletDistribution',
     'ConditionalProbabilityTable',
-    'JointProbabilityTable',
-    "NeuralNetworkWrapper"
+    'JointProbabilityTable'
 ]
 
 if not use_cython:
     extensions = [
         Extension( "pomegranate.{}".format( name ), [ "pomegranate/{}.{}".format(name, ext) ]) for name in filenames
-    ] + [Extension("pomegranate.distributions.{}".format(dist), ["pomegranate/distributions/{}.{}".format(dist, ext)]) for dist in distributions]
+    ] + [Extension("pomegranate.distributions.{}".format(dist), ["pomegranate/distributions/{}.{}".format(dist, ext)]) for dist in cython_distributions]
 else:
     extensions = [
             Extension("pomegranate.*", ["pomegranate/*.pyx"]),
