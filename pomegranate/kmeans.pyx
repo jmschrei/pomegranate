@@ -63,13 +63,15 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 	k : int
 		The number of centroids to extract.
 
-	init : str, one of 'first-k', 'random', 'kmeans++'
+	init : str, one of 'first-k', 'random', 'kmeans++', 'kmeans||'
 		'first-k' : use the first k samples as the centroids
 		'random' : randomly select k samples as the centroids
 		'kmeans++' : use the kmeans++ initialization algorithm, which
 			iteratively selects the next centroid randomly, but weighted
 			based on distance to nearest centroid, to be likely to choose
 			good initializations
+		'kmeans||' : use the scalable kmeans++ initialization algorithm,
+			as described in http://theory.stanford.edu/~sergei/papers/vldb12-kmpar.pdf
 
 	Returns
 	-------
@@ -423,7 +425,7 @@ cdef class Kmeans(Model):
 		else:
 			starts = list(range(0, n, batch_size))
 			if starts[-1] == n:
-				starts = starts[:-1]
+				del starts[-1]
 			ends = list(range(batch_size, n, batch_size)) + [n]
 
 		if clear_summaries == 'auto':
