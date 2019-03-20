@@ -116,7 +116,7 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 				else:
 					logp[i] += (dot[i*d + j] - self._inv_dot_mu[j])**2
 			else:
-				logp[i] = -0.5 * (d * LOG_2_PI + logp[i]) - 0.5 * self._log_det
+				logp[i] = -0.5 * (d * LOG_2_PI + logp[i] + self._log_det)
 
 		if not _is_gpu_enabled():
 			free(dot)
