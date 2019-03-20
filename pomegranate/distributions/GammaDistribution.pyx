@@ -49,6 +49,7 @@ cdef class GammaDistribution(Distribution):
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
 		cdef double alpha = self.alpha
+		cdef double alpha_minus_one = self.alpha - 1
 		cdef double beta = self.beta
 
 		for i in range(n):
@@ -56,7 +57,7 @@ cdef class GammaDistribution(Distribution):
 				log_probability[i] = 0.
 			else:
 				log_probability[i] = (_log(beta) * alpha - lgamma(alpha) +
-					_log(X[i]) * (alpha - 1) - beta * X[i])
+					_log(X[i]) * alpha_minus_one - beta * X[i])
 
 	def sample(self, n=None, random_state=None):
 		random_state = check_random_state(random_state)
