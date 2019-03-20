@@ -190,6 +190,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
 					is_na = 1
+					break
 
 				idx += self.idxs[j] * <int> X[self.m-j]
 
