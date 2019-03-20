@@ -43,16 +43,16 @@ cdef class BetaDistribution(Distribution):
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
-		cdef double alpha = self.alpha
-		cdef double beta = self.beta
+		cdef double alpha_minus_one = self.alpha - 1
+		cdef double beta_minus_one = self.beta - 1
 		cdef double beta_norm = self.beta_norm
 
 		for i in range(n):
 			if isnan(X[i]):
 				log_probability[i] = 0.
 			else:
-				log_probability[i] = beta_norm + (alpha-1)*_log(X[i]) + \
-					(beta-1)*_log(1-X[i])
+				log_probability[i] = beta_norm + alpha_minus_one * _log(X[i]) + \
+					beta_minus_one * _log(1-X[i])
 
 	def sample(self, n=None, random_state=None):
 		random_state = check_random_state(random_state)
