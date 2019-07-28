@@ -2069,7 +2069,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 
 cdef double discrete_score_node(double* X, double* weights, int* m, int* parents,
 	int n, int d, int l, double pseudocount) nogil:
-	cdef int i, j, k, idx, is_na
+	cdef int i, j, k, idx
 	cdef double w_sum = 0
 	cdef double logp = 0
 	cdef double count, marginal_count
@@ -2080,23 +2080,21 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	memset(marginal_counts, 0, m[d-1]*sizeof(double))
 
 	for i in range(n):
-		idx, is_na = 0, 0
+		idx = 0
 		for j in range(d-1):
 			k = parents[j]
 			if isnan(X[i*l + k]):
-				is_na = 1
-			else:
-				idx += <int> X[i*l+k] * m[j]
+				break
+			idx += <int> X[i*l+k] * m[j]
+		else:
+			k = parents[d-1]
 
-		k = parents[d-1]
+			if isnan(X[i*l+k]):
+				continue
 
-		if is_na == 1 or isnan(X[i*l+k]):
-			continue
-
-
-		marginal_counts[idx] += weights[i]
-		idx += <int> X[i*l+k] * m[d-1]
-		counts[idx] += weights[i]
+			marginal_counts[idx] += weights[i]
+			idx += <int> X[i*l+k] * m[d-1]
+			counts[idx] += weights[i]
 
 	for i in range(m[d]):
 		w_sum += counts[i]
