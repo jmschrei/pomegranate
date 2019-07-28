@@ -277,7 +277,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
-		cdef int i, j, idx, k, is_na
+		cdef int i, j, idx, k
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))
 		cdef double* marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
 
@@ -285,26 +285,21 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		memset(marginal_counts, 0, self.n / self.k * sizeof(double))
 
 		for i in range(n):
-			idx, is_na = 0, 0
+			idx = 0
 			for j in range(self.m+1):
 				k = i*self.n_columns + self.column_idxs_ptr[self.m-j]
 				if isnan(items[k]):
-					is_na = 1
-					continue
-
+					break
 				idx += self.idxs[j] * <int> items[k]
+			else:
+				counts[idx] += weights[i]
 
-			if is_na:
-				continue
+				idx = 0
+				for j in range(self.m):
+					k = i*self.n_columns + self.column_idxs_ptr[self.m-1-j]
+					idx += self.marginal_idxs[j] * <int> items[k]
 
-			counts[idx] += weights[i]
-
-			idx = 0
-			for j in range(self.m):
-				k = i*self.n_columns + self.column_idxs_ptr[self.m-1-j]
-				idx += self.marginal_idxs[j] * <int> items[k]
-
-			marginal_counts[idx] += weights[i]
+				marginal_counts[idx] += weights[i]
 
 		with gil:
 			for i in range(self.n / self.k):
