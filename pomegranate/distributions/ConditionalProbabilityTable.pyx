@@ -183,18 +183,15 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		return self.values[idx]
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
-		cdef int i, j, idx, is_na = 0
+		cdef int i, j, idx
 
 		for i in range(n):
-			idx, is_na = 0, 0
+			idx = 0
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
-					is_na = 1
-
+					log_probability[i] = 0.
+					break
 				idx += self.idxs[j] * <int> X[self.m-j]
-
-			if is_na == 1:
-				log_probability[i] = 0.
 			else:
 				log_probability[i] = self.values[idx]
 
