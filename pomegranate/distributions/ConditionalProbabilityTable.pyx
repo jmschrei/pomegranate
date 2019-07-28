@@ -259,25 +259,21 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.__summarize(items, weights)
 
 	cdef void __summarize(self, items, double [:] weights):
-		cdef int i, n = len(items), is_na
+		cdef int i, n = len(items)
 		cdef tuple item
 
 		for i in range(n):
-			is_na = 0
 			item = tuple(items[i])
 
 			for symbol in item:
 				if _check_nan(symbol):
-					is_na = 1
+					break
+			else:
+				key = self.keymap[item]
+				self.counts[key] += weights[i]
 
-			if is_na:
-				continue
-
-			key = self.keymap[item]
-			self.counts[key] += weights[i]
-
-			key = self.marginal_keymap[item[:-1]]
-			self.marginal_counts[key] += weights[i]
+				key = self.marginal_keymap[item[:-1]]
+				self.marginal_counts[key] += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
