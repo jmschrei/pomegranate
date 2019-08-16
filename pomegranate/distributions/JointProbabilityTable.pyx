@@ -130,12 +130,10 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			idx, is_na = 0, 0
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
-					is_na = 1
+					log_probability[i] = 0.
+					break
 
 				idx += self.idxs[j] * <int> X[self.m-j]
-
-			if is_na == 1:
-				log_probability[i] = 0
 			else:
 				log_probability[i] = self.values[idx]
 
@@ -213,7 +211,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
-		cdef int i, j, idx, is_na
+		cdef int i, j, idx
 		cdef double count = 0
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))
 
@@ -223,15 +221,12 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			idx, is_na = 0, 0
 			for j in range(self.m+1):
 				if isnan(items[self.m-i]):
-					is_na = 1
+					break
 
 				idx += self.idxs[i] * <int> items[self.m-i]
-
-			if is_na == 1:
-				continue
-
-			counts[idx] += weights[i]
-			count += weights[i]
+			else:
+				counts[idx] += weights[i]
+				count += weights[i]
 
 		with gil:
 			self.count += count

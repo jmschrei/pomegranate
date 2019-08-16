@@ -2081,19 +2081,20 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		for j in range(d-1):
 			k = parents[j]
 			if isnan(X[i*l + k]):
-				is_na = 1
-			else:
+			#	is_na = 1
+				break
+			
 				idx += <int> X[i*l+k] * m[j]
+		else:
+			k = parents[d-1]
 
-		k = parents[d-1]
+			#if is_na == 1 or isnan(X[i*l+k]):
+			if isnan(X[i*l+k]):
+				continue
 
-		if is_na == 1 or isnan(X[i*l+k]):
-			continue
-
-
-		marginal_counts[idx] += weights[i]
-		idx += <int> X[i*l+k] * m[d-1]
-		counts[idx] += weights[i]
+			marginal_counts[idx] += weights[i]
+			idx += <int> X[i*l+k] * m[d-1]
+			counts[idx] += weights[i]
 
 	for i in range(m[d]):
 		w_sum += counts[i]
@@ -2103,7 +2104,10 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		if count > 0:
 			logp += count * _log(count / marginal_count)
 
-	logp -= _log(w_sum) / 2 * m[d+1]
+	if w_sum > 1:
+		logp -= _log(w_sum) / 2 * m[d+1]
+	else:
+		logp = NEGINF
 
 	free(counts)
 	free(marginal_counts)
