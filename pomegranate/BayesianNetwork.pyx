@@ -1057,7 +1057,10 @@ cdef class BayesianNetwork(GraphModel):
 			X_count = {}
 
 			for x, weight in izip(X, weights):
-				x = tuple(x)
+				# Convert NaN to None because two tuples containing
+				# (1.0, 2.0, 3.0, nan) are not considered equal, but two tuples
+				# containing (1.0, 2.0, 3.0, None) are considered equal
+				x = tuple(None if isnan(xn) else xn for xn in x)
 				if x in X_count:
 					X_count[x] += weight
 				else:
