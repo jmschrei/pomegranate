@@ -186,7 +186,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		cdef int i, j, idx
 
 		for i in range(n):
-			idx, is_na = 0, 0
+			idx = 0
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
 					log_probability[i] = 0.
