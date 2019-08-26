@@ -11,6 +11,23 @@ Version 0.11.0
 Highlights
 ----------
 
+	- Added speed improvements to Bayesian network structure learning when missing data is present.
+
+BayesianNetwork
+---------------
+
+	- By default duplicates get merged in a data set so that there are fewer rows with larger weights, dramatically improving speed. However, because `np.nan != np.nan`, rows with missing values don't get merged. This fix changes `np.nan` to `None` so that the rows get merged appropriately.
+
+	- A few misc changes that sometimes improve speed.
+
+	- Changed the probability calculation when a node is being scored given a single row. Previously it would return 0, meaning that sometimes it will return the densest graph possible erroneously. This may change your networks in edge cases, but will reduce their complexity.
+
+Version 0.11.0
+==============
+
+Highlights
+----------
+
 	- Allowed for user specified custom distributions by implementing a Python fallback option if the distribution object doesn't inherit from the base distribution class.
 	- Fixed an issue with GammaDistribution update
 	- Removed deterministic seed being set in hmm.bake
