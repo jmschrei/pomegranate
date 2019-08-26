@@ -1994,6 +1994,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 	cdef int n_parents = len(parent_set)
 
+
 	m[0] = 1
 	for j in range(n_parents+1):
 		for subset in it.combinations(parent_set, j):
@@ -2007,10 +2008,11 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 				m[j+2] = m[j] * (key_count[i] - 1)
 
 				best_structure = subset
-
+				
 				with nogil:
 					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
 						d, pseudocount)
+
 			else:
 				best_structure, best_score = (), NEGINF
 
@@ -2084,19 +2086,17 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		for j in range(d-1):
 			k = parents[j]
 			if isnan(X[i*l + k]):
-				is_na = 1
-			else:
-				idx += <int> X[i*l+k] * m[j]
+				break
+			
+			idx += <int> X[i*l+k] * m[j]
+		else:
+			k = parents[d-1]
+			if isnan(X[i*l+k]):
+				continue
 
-		k = parents[d-1]
-
-		if is_na == 1 or isnan(X[i*l+k]):
-			continue
-
-
-		marginal_counts[idx] += weights[i]
-		idx += <int> X[i*l+k] * m[d-1]
-		counts[idx] += weights[i]
+			marginal_counts[idx] += weights[i]
+			idx += <int> X[i*l+k] * m[d-1]
+			counts[idx] += weights[i]
 
 	for i in range(m[d]):
 		w_sum += counts[i]
@@ -2106,7 +2106,10 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		if count > 0:
 			logp += count * _log(count / marginal_count)
 
-	logp -= _log(w_sum) / 2 * m[d+1]
+	if w_sum > 1:
+		logp -= _log(w_sum) / 2 * m[d+1]
+	else:
+		logp = NEGINF
 
 	free(counts)
 	free(marginal_counts)

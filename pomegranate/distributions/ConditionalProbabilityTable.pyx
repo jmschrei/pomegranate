@@ -183,18 +183,16 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		return self.values[idx]
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
-		cdef int i, j, idx, is_na = 0
+		cdef int i, j, idx
 
 		for i in range(n):
-			idx, is_na = 0, 0
+			idx = 0
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
-					is_na = 1
+					log_probability[i] = 0.
+					break
 
 				idx += self.idxs[j] * <int> X[self.m-j]
-
-			if is_na == 1:
-				log_probability[i] = 0.
 			else:
 				log_probability[i] = self.values[idx]
 
@@ -262,29 +260,25 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.__summarize(items, weights)
 
 	cdef void __summarize(self, items, double [:] weights):
-		cdef int i, n = len(items), is_na
+		cdef int i, n = len(items)
 		cdef tuple item
 
 		for i in range(n):
-			is_na = 0
 			item = tuple(items[i])
 
 			for symbol in item:
 				if _check_nan(symbol):
-					is_na = 1
+					break
+			else:
+				key = self.keymap[item]
+				self.counts[key] += weights[i]
 
-			if is_na:
-				continue
-
-			key = self.keymap[item]
-			self.counts[key] += weights[i]
-
-			key = self.marginal_keymap[item[:-1]]
-			self.marginal_counts[key] += weights[i]
+				key = self.marginal_keymap[item[:-1]]
+				self.marginal_counts[key] += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
-		cdef int i, j, idx, k, is_na
+		cdef int i, j, idx, k
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))
 		cdef double* marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
 
@@ -292,26 +286,22 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		memset(marginal_counts, 0, self.n / self.k * sizeof(double))
 
 		for i in range(n):
-			idx, is_na = 0, 0
+			idx = 0
 			for j in range(self.m+1):
 				k = i*self.n_columns + self.column_idxs_ptr[self.m-j]
 				if isnan(items[k]):
-					is_na = 1
-					continue
+					break
 
 				idx += self.idxs[j] * <int> items[k]
+			else:
+				counts[idx] += weights[i]
 
-			if is_na:
-				continue
+				idx = 0
+				for j in range(self.m):
+					k = i*self.n_columns + self.column_idxs_ptr[self.m-1-j]
+					idx += self.marginal_idxs[j] * <int> items[k]
 
-			counts[idx] += weights[i]
-
-			idx = 0
-			for j in range(self.m):
-				k = i*self.n_columns + self.column_idxs_ptr[self.m-1-j]
-				idx += self.marginal_idxs[j] * <int> items[k]
-
-			marginal_counts[idx] += weights[i]
+				marginal_counts[idx] += weights[i]
 
 		with gil:
 			for i in range(self.n / self.k):
