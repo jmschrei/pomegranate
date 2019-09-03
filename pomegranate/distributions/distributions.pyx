@@ -380,9 +380,6 @@ cdef class MultivariateDistribution(Distribution):
 		logp_array = numpy.empty(n, dtype='float64')
 		logp_ptr = <double*> logp_array.data
 
-		X_ndarray = numpy.array(X, dtype='float64')
-		X_ptr = <double*> X_ndarray.data
-
 		with nogil:
 			self._log_probability(X_ptr, logp_ptr, n)
 
