@@ -562,7 +562,7 @@ cdef class Kmeans(Model):
 	cdef double _summarize(self, double* X, double* weights, int n,
 		int column_idx, int d) nogil:
 		cdef int i, j, l, y, k = self.k, inc = 1
-		cdef double min_dist, dist, total_dist, pdist = 0.0
+		cdef double min_dist, dist, total_dist = 0.0, pdist
 		cdef double* summary_sizes = <double*> calloc(k*d, sizeof(double))
 		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))
 		memset(summary_sizes, 0, k*d*sizeof(double))
