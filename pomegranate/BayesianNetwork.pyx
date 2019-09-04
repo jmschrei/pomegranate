@@ -2016,7 +2016,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 			else:
 				best_structure, best_score = (), NEGINF
 
-			for k, variable in enumerate(subset):
+			for variable in subset:
 				parent_subset = tuple(l for l in subset if l != variable)
 				structure, score = parent_graph[parent_subset]
 
