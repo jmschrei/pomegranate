@@ -373,12 +373,6 @@ cdef class BayesModel(Model):
         y = numpy.zeros((n, self.n), dtype='float64')
         y_ptr = <double*> y.data
 
-        if not self.is_vl_:
-            X_ndarray = _check_input(X, self.keymap)
-            X_ptr = <double*> X_ndarray.data
-            if d != self.d:
-                raise ValueError("sample only has {} dimensions but should have {} dimensions".format(d, self.d))
-
         with nogil:
             if not self.is_vl_:
                 self._predict_log_proba(X_ptr, y_ptr, n, d)
