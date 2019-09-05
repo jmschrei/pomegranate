@@ -1605,7 +1605,7 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 	o = PriorityQueue()
 	closed = {}
 
-	h = sum(parent_graphs[i][other_variables[i]][1] for j in range(d))
+	h = sum(parent_graphs[i][other_variables[i]][1] for i in range(d))
 	o.push(((), h, [() for i in range(d)]), 0)
 	while not o.empty():
 		weight, (variables, g, structure) = o.pop()
