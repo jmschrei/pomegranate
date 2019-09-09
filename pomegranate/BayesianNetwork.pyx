@@ -2106,7 +2106,7 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		if count > 0:
 			logp += count * _log(count / marginal_count)
 
-	if w_sum > 1:
+	if w_sum > 0:
 		logp -= _log(w_sum) / 2 * m[d+1]
 	else:
 		logp = NEGINF
