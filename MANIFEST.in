@@ -2,3 +2,6 @@ include *.txt
 include pomegranate/*.c
 include pomegranate/*.pxd
 include pomegranate/*.pyx
+include pomegranate/distributions/*.c
+include pomegranate/distributions/*.pxd
+include pomegranate/distributions/*.pyx
