@@ -44,9 +44,6 @@ numpy.import_array()
 cdef extern from "numpy/ndarraytypes.h":
 	void PyArray_ENABLEFLAGS(numpy.ndarray X, int flags)
 
-cdef bint isnan(double x) nogil:
-	return npy_isnan(x)
-
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
