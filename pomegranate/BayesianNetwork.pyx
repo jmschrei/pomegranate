@@ -1218,8 +1218,8 @@ cdef class ParentGraph(object):
 		else:
 			best_parents, best_score = value, self.calculate_value(value)
 
-		for variable in value:
-			parent_subset = tuple(parent for parent in value if parent != variable)
+		for i in range(len(value)):
+			parent_subset = value[:i] + value[i+1:]
 			parents, score = self[parent_subset]
 
 			if score > best_score:
