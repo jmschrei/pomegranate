@@ -31,10 +31,11 @@ try:
 	import cupy
 	from cupy import cuda
 	cuda.Device().cublas_handle
-	enable_gpu()
 
 	global has_cupy
 	has_cupy[0] = 1
+
+	enable_gpu()
 except:
 	global has_cupy
 	has_cupy[0] = 0
