@@ -5,7 +5,27 @@
 Release History
 ===============
 
-Version 0.11.0
+Version 0.11.2
+==============
+
+Highlights
+----------
+
+	- Faster BSNL, particularly when there is missing data, courtesy of @alexhenrie
+	- GPU acceleration should be fixed
+
+BayesianNetwork
+---------------
+
+	- A speed improvement by making `isnan` an inline function, courtesy of @alexhenrie
+	- A speed improvement by changing the manner that parent sets are iterated, courtesy of @alexhenrie
+
+Utils
+-----
+
+	- The `enable_gpu` call has been moved to the bottom of the GPU checking code and so should not crash anymore.
+
+Version 0.11.1
 ==============
 
 Highlights
