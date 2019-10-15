@@ -2008,7 +2008,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 				m[j+2] = m[j] * (key_count[i] - 1)
 
 				best_structure = subset
-				
+
 				with nogil:
 					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
 						d, pseudocount)
@@ -2087,7 +2087,7 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 			k = parents[j]
 			if isnan(X[i*l + k]):
 				break
-			
+
 			idx += <int> X[i*l+k] * m[j]
 		else:
 			k = parents[d-1]
