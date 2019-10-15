@@ -967,7 +967,7 @@ cdef class BayesianNetwork(GraphModel):
 		learning score. This currently enumerates all the exponential number of
 		structures and finds the best according to the score. This allows
 		weights on the different samples as well. The score that is optimized
-		is the minimum description length (MDL).
+		is the bayesian information criterion (bic).
 
 		Parameters
 		----------
