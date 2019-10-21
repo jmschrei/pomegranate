@@ -949,8 +949,6 @@ cdef class BayesianNetwork(GraphModel):
 		model.add_nodes(*states)
 
 		for i, parents in enumerate(structure):
-			d = states[i].distribution
-
 			for parent in parents:
 				model.add_edge(states[parent], states[i])
 
