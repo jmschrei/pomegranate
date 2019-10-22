@@ -154,6 +154,9 @@ def _check_input(X, model):
 
 	return True
 
+cdef numpy.ndarray exclude_missing(numpy.ndarray X):
+	return X[numpy.logical_not(numpy.isnan(X).any(axis=1))]
+
 
 cdef class BayesianNetwork(GraphModel):
 	"""A Bayesian Network Model.
@@ -1164,15 +1167,15 @@ cdef class ParentGraph(object):
 	cdef int* parents
 
 	def __init__(self, X, weights, key_count, i, pseudocount, max_parents):
-		self.X = X
+		self.X = exclude_missing(X)
 		self.weights = weights
 		self.key_count = key_count
 		self.i = i
 		self.pseudocount = pseudocount
 		self.max_parents = max_parents
 		self.values = {}
-		self.n = X.shape[0]
-		self.d = X.shape[1]
+		self.n = self.X.shape[0]
+		self.d = self.X.shape[1]
 		self.m = <int*> calloc(self.d+2, sizeof(int))
 		self.parents = <int*> calloc(self.d, sizeof(int))
 
@@ -1976,6 +1979,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 		The parents for each variable in this SCC
 	"""
 
+	X_ndarray = exclude_missing(X_ndarray)
+
 	cdef int j, k, variable, l
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 
@@ -2033,6 +2038,9 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
 	double pseudocount, int max_parents, tuple parent_set, int i):
+
+	X_ndarray = exclude_missing(X_ndarray)
+
 	cdef int j, k
 	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
 
@@ -2082,21 +2090,14 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	memset(marginal_counts, 0, m[d-1]*sizeof(double))
 
 	for i in range(n):
-		idx, is_na = 0, 0
+		idx = 0
 		for j in range(d-1):
 			k = parents[j]
-			if isnan(X[i*l + k]):
-				break
-			
 			idx += <int> X[i*l+k] * m[j]
-		else:
-			k = parents[d-1]
-			if isnan(X[i*l+k]):
-				continue
-
-			marginal_counts[idx] += weights[i]
-			idx += <int> X[i*l+k] * m[d-1]
-			counts[idx] += weights[i]
+		k = parents[d-1]
+		marginal_counts[idx] += weights[i]
+		idx += <int> X[i*l+k] * m[d-1]
+		counts[idx] += weights[i]
 
 	for i in range(m[d]):
 		w_sum += counts[i]
