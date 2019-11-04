@@ -2092,7 +2092,7 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		idx = 0
 		row = X+i*l
 		
-    		for j in range(d-1):
+		for j in range(d-1):
 			k = parents[j]
 			if isnan(row[k]):
 				break
