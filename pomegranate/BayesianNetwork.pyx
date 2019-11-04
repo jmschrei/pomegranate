@@ -1452,7 +1452,7 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 
 	if case == 0:
 		local_structure = discrete_exact_a_star(X[:,parents].copy(), weights,
-			key_count[list(parents)], pseudocount, max_parents, False, n_jobs)
+			key_count[list(parents)], pseudocount, max_parents, n_jobs)
 
 		for i, parent in enumerate(parents):
 			structure[parent] = tuple([parents[k] for k in local_structure[i]])
