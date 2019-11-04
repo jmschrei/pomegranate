@@ -969,6 +969,12 @@ cdef class BayesianNetwork(GraphModel):
 		weights on the different samples as well. The score that is optimized
 		is the minimum description length (MDL).
 
+		If not all states for a variable appear in the supplied data, this
+		function can not gurantee that the returned Bayesian Network is optimal
+		when 'exact' or 'exact-dp' is used. This is because the number of
+		states for each node is derived only from the data provided, and the
+		scoring function depends on the number of states of a variable.
+
 		Parameters
 		----------
 		X : array-like, shape (n_samples, n_nodes)
@@ -1452,7 +1458,7 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 
 	if case == 0:
 		local_structure = discrete_exact_a_star(X[:,parents].copy(), weights,
-			key_count[list(parents)], pseudocount, max_parents, False, n_jobs)
+			key_count[list(parents)], pseudocount, max_parents, n_jobs)
 
 		for i, parent in enumerate(parents):
 			structure[parent] = tuple([parents[k] for k in local_structure[i]])
@@ -2008,7 +2014,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 				m[j+2] = m[j] * (key_count[i] - 1)
 
 				best_structure = subset
-				
+
 				with nogil:
 					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
 						d, pseudocount)
@@ -2077,27 +2083,29 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
-	cdef double* sample;
+	cdef double* row;
 
 	memset(counts, 0, m[d]*sizeof(double))
 	memset(marginal_counts, 0, m[d-1]*sizeof(double))
 
 	for i in range(n):
-		idx, is_na = 0, 0
-		sample = X+i*l
-		for j in range(d-1):
+		idx = 0
+		row = X+i*l
+		
+    for j in range(d-1):
 			k = parents[j]
-			if isnan(sample[k]):
+			if isnan(row[k]):
 				break
 
-			idx += <int> sample[k] * m[j]
+			idx += <int> row[k] * m[j]
+
 		else:
 			k = parents[d-1]
-			if isnan(sample[k]):
+			if isnan(row[k]):
 				continue
 
 			marginal_counts[idx] += weights[i]
-			idx += <int> sample[k] * m[d-1]
+			idx += <int> row[k] * m[d-1]
 			counts[idx] += weights[i]
 
 	for i in range(m[d]):
