@@ -969,6 +969,12 @@ cdef class BayesianNetwork(GraphModel):
 		weights on the different samples as well. The score that is optimized
 		is the minimum description length (MDL).
 
+		If not all states for a variable appear in the supplied data, this
+		function can not gurantee that the returned Bayesian Network is optimal
+		when 'exact' or 'exact-dp' is used. This is because the number of
+		states for each node is derived only from the data provided, and the
+		scoring function depends on the number of states of a variable.
+
 		Parameters
 		----------
 		X : array-like, shape (n_samples, n_nodes)
@@ -2008,7 +2014,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 				m[j+2] = m[j] * (key_count[i] - 1)
 
 				best_structure = subset
-				
+
 				with nogil:
 					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
 						d, pseudocount)
@@ -2087,7 +2093,7 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 			k = parents[j]
 			if isnan(X[i*l + k]):
 				break
-			
+
 			idx += <int> X[i*l+k] * m[j]
 		else:
 			k = parents[d-1]
