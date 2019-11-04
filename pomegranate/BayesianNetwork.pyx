@@ -1599,17 +1599,18 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 		The parents for each variable in this SCC
 	"""
 
-	cdef int i, n = X.shape[0], d = X.shape[1]
-	cdef list parent_graphs = []
+	cdef int i, j, n = X.shape[0], d = X.shape[1]
+	cdef list parent_graphs, other_variables, prev_entry, local_structure
+	cdef tuple variables, parents, new_variables, entry
+	cdef set closed = set()
+	cdef ParentGraph pg
+	cdef double c, e, f, g, h
 
 	parent_graphs = [ParentGraph(X, weights, key_count, i, pseudocount, max_parents) for i in range(d)]
 
-	other_variables = {}
-	for i in range(d):
-		other_variables[i] = tuple(j for j in range(d) if j != i)
+	other_variables = [tuple(j for j in range(d) if j != i) for i in range(d)]
 
 	o = PriorityQueue()
-	closed = {}
 
 	h = sum(parent_graphs[i][other_variables[i]][1] for i in range(d))
 	o.push(((), h, [() for i in range(d)]), 0)
@@ -1618,33 +1619,36 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 
 		if variables in closed:
 			continue
-		else:
-			closed[variables] = 1
 
 		if len(variables) == d:
 			return tuple(structure)
 
-		out_set = tuple(i for i in range(d) if i not in variables)
-		for i in out_set:
+		closed.add(variables)
+
+		for i in range(d):
+			if i in variables:
+				continue
+
 			pg = parent_graphs[i]
 			parents, c = pg[variables]
 
-			e = g - c
 			f = weight - c + pg[other_variables[i]][1]
+
+			new_variables = tuple(sorted(variables + (i,)))
+
+			prev_entry = o.get(new_variables)
+			if prev_entry is not None:
+				if prev_entry[0] <= f:
+					continue
+				o.delete(new_variables)
+
+			e = g - c
 
 			local_structure = structure[:]
 			local_structure[i] = parents
 
-			new_variables = tuple(sorted(variables + (i,)))
 			entry = (new_variables, e, local_structure)
-
-			prev_entry = o.get(new_variables)
-			if prev_entry is not None:
-				if prev_entry[0] > f:
-					o.delete(new_variables)
-					o.push(entry, f)
-			else:
-				o.push(entry, f)
+			o.push(entry, f)
 
 
 def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
