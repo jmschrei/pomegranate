@@ -2083,25 +2083,29 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
+	cdef double* row;
 
 	memset(counts, 0, m[d]*sizeof(double))
 	memset(marginal_counts, 0, m[d-1]*sizeof(double))
 
 	for i in range(n):
-		idx, is_na = 0, 0
+		idx = 0
+		row = X+i*l
+		
 		for j in range(d-1):
 			k = parents[j]
-			if isnan(X[i*l + k]):
+			if isnan(row[k]):
 				break
 
-			idx += <int> X[i*l+k] * m[j]
+			idx += <int> row[k] * m[j]
+
 		else:
 			k = parents[d-1]
-			if isnan(X[i*l+k]):
+			if isnan(row[k]):
 				continue
 
 			marginal_counts[idx] += weights[i]
-			idx += <int> X[i*l+k] * m[d-1]
+			idx += <int> row[k] * m[d-1]
 			counts[idx] += weights[i]
 
 	for i in range(m[d]):
