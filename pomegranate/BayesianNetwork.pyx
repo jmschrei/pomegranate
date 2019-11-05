@@ -45,18 +45,10 @@ try:
 except ImportError:
 	pygraphviz = None
 
-if sys.version_info[0] > 2:
-	# Set up for Python 3
-	xrange = range
-	izip = zip
-else:
-	izip = it.izip
-
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
 nan = numpy.nan
-
 
 def _check_input(X, model):
 	"""Ensure that the keys in the sample are valid keys.
@@ -941,7 +933,7 @@ cdef class BayesianNetwork(GraphModel):
 				break
 
 		if state_names is not None:
-			states = [State(node, name=node_name) for node, node_name in izip(nodes,state_names)]
+			states = [State(node, name=node_name) for node, node_name in zip(nodes,state_names)]
 		else:
 			states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
 
@@ -1062,7 +1054,7 @@ cdef class BayesianNetwork(GraphModel):
 		if reduce_dataset:
 			X_count = {}
 
-			for x, weight in izip(X, weights):
+			for x, weight in zip(X, weights):
 				# Convert NaN to None because two tuples containing
 				# (1.0, 2.0, 3.0, nan) are not considered equal, but two tuples
 				# containing (1.0, 2.0, 3.0, None) are considered equal

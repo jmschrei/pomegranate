@@ -47,18 +47,19 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.values = <double*> calloc(self.n, sizeof(double))
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.count = 0
+		memset(self.counts, 0, self.n*sizeof(double))
+
+		self.n_columns = len(parents)
+		self.column_idxs = numpy.arange(len(parents)+1, dtype='int32')
 
 		self.dtypes = []
 		for column in table[0]:
 			dtype = str(type(column)).split()[-1].strip('>').strip("'")
 			self.dtypes.append(dtype)
 
-		memset(self.counts, 0, self.n*sizeof(double))
-
 		self.idxs[0] = 1
-		self.idxs[1] = self.k
 		for i in range(self.m-1):
-			self.idxs[i+2] = len(parents[self.m-i-1])
+			self.idxs[i+1] = len(set(row[self.m-i-2] for row in table))
 
 		keys = []
 		for i, row in enumerate(table):
@@ -67,7 +68,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.keymap = OrderedDict(keys)
 		self.parents = parents
-		self.parameters = [[list(row) for row in table], self.parents]
+		self.parameters = [[list(row) for row in table], self.parents, self.keymap]
 
 	def __dealloc__(self):
 		free(self.idxs)
@@ -107,7 +108,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.keymap = OrderedDict(keymap)
 
 	def keys(self):
-		return tuple(set(row[-1] for row in self.parameters[2].keys()))
+		return tuple(row for row in self.parameters[2].keys())
 
 	def log_probability(self, X):
 		"""
@@ -123,7 +124,8 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		key = self.keymap[X]
 		return self.values[key]
 
-	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
+	cdef void _log_probability(self, double* X, double* log_probability, 
+		int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
@@ -208,6 +210,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 			key = self.keymap[item]
 			self.counts[key] += weights[i]
+			self.count += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
@@ -235,21 +238,21 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		free(counts)
 
-	def from_summaries(self, double inertia=0.0, double pseudocount=0.0):
-		"""Update the parameters of the distribution using sufficient statistics."""
+	def from_summaries(self, inertia=0.0, pseudocount=0.0):
+		"""Update the parameters of the table."""
 
 		cdef int i, k
-		cdef double p = pseudocount
 
 		w_sum = sum(self.counts[i] for i in range(self.n))
 		if w_sum < 1e-7:
 			return
 
-		with nogil:
-			for i in range(self.n):
-				probability = ((self.counts[i] + p) / (self.count + p * self.k))
-				self.values[i] = _log(cexp(self.values[i])*inertia +
-					probability*(1-inertia))
+		for i in range(self.n):
+			probability = ((self.counts[i] + pseudocount) / 
+				(self.count + pseudocount * self.k))
+			
+			self.values[i] = _log(cexp(self.values[i])*inertia +
+				probability*(1-inertia))
 
 		for i in range(self.n):
 			self.parameters[0][i][-1] = cexp(self.values[i])
@@ -260,8 +263,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		"""Clear the summary statistics stored in the object."""
 
 		self.count = 0
-		with nogil:
-			memset(self.counts, 0, self.n*sizeof(double))
+		memset(self.counts, 0, self.n*sizeof(double))
 
 	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
 		"""Update the parameters of the table based on the data."""
@@ -301,11 +303,14 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_samples(cls, X, parents, weights=None, pseudocount=0.0):
+	def from_samples(cls, X, parents=None, weights=None, pseudocount=0.0):
 		"""Learn the table from data."""
 
 		X = numpy.array(X)
 		n, d = X.shape
+
+		if parents is None:
+			parents = list(range(X.shape[1]))
 
 		keys = [numpy.unique(X[:,i]) for i in range(d)]
 		m = numpy.prod([k.shape[0] for k in keys])
