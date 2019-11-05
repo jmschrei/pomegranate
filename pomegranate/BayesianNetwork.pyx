@@ -1284,7 +1284,7 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 						mutual_info[k*d + j] = mutual_info[j*d + k]
 
 
-	structure = [() for i in range(d)]
+	structure = [[] for i in range(d)]
 	visited = [root]
 	unvisited = list(range(d))
 	unvisited.remove(root)
@@ -1298,14 +1298,14 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 				if score < min_score:
 					min_score, min_x, min_y = score, x, y
 
-		structure[min_y] += (min_x,)
+		structure[min_y].append(min_x)
 		visited.append(min_y)
 		unvisited.remove(min_y)
 
 	free(marg_j)
 	free(marg_k)
 	free(joint_count)
-	return tuple(structure)
+	return tuple(tuple(x) for x in structure)
 
 
 def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
