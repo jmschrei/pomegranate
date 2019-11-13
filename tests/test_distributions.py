@@ -1185,11 +1185,11 @@ def test_distributions_cpt_log_probability():
 
 @with_setup(setup_cpt)
 def test_distributions_cpt_nan_log_probability():
-	assert_equal(monty.log_probability(('A', 'nan', 'C')), 0.)
-	assert_equal(monty.log_probability(('nan', 'nan', 'C')), 0.)
+	assert_almost_equal(monty.log_probability(('A', 'nan', 'C')), -0.69314718)
+	assert_almost_equal(monty.log_probability(('nan', 'nan', 'C')), -1.09861229)
 	assert_equal(monty.log_probability(('A', 'nan', 'nan')), 0.)
 	assert_equal(monty.log_probability(('nan', 'nan', 'nan')), 0.)
-	assert_equal(monty.log_probability(('nan', 'B', 'C')), 0.)
+	assert_almost_equal(monty.log_probability(('nan', 'B', 'C')), -0.69314718)
 	assert_equal(monty.log_probability(('A', 'B', 'nan')), 0.)
 
 
@@ -1205,11 +1205,11 @@ def test_distributions_cpt_probability():
 
 @with_setup(setup_cpt)
 def test_distributions_cpt_nan_probability():
-	assert_equal(monty.probability(('A', 'nan', 'C')), 1.)
-	assert_equal(monty.probability(('nan', 'nan', 'C')), 1.)
+	assert_almost_equal(monty.probability(('A', 'nan', 'C')), 1./2)
+	assert_almost_equal(monty.probability(('nan', 'nan', 'C')), 1./3)
 	assert_equal(monty.probability(('A', 'nan', 'nan')), 1.)
 	assert_equal(monty.probability(('nan', 'nan', 'nan')), 1.)
-	assert_equal(monty.probability(('nan', 'B', 'C')), 1.)
+	assert_almost_equal(monty.probability(('nan', 'B', 'C')), 1./2)
 	assert_equal(monty.probability(('A', 'B', 'nan')), 1.)
 
 

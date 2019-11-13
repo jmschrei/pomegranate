@@ -16,8 +16,6 @@ from ..utils import check_random_state
 import itertools as it
 import json
 import numpy
-import random
-import scipy
 
 from collections import OrderedDict
 
@@ -126,7 +124,13 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		key = self.keymap[X]
 		return self.values[key]
 
-	cdef void _log_probability(self, double* X, double* log_probability, 
+	def log_probability_by_idx(self, idx: int):
+		"""
+		Return the log probability of an index, as in the keymap.
+		"""
+		return self.values[idx]
+
+	cdef void _log_probability(self, double* X, double* log_probability,
 		int n) nogil:
 		cdef int i, j, idx
 
@@ -156,7 +160,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		"""
 
 		if isinstance(neighbor_values, dict):
-			neighbor_values = [neighbor_values.get(d, None) for d in self.parents]
+			neighbor_values = [neighbor_values.get(p, None) for p in self.parents + [self]]
 
 		if isinstance(neighbor_values, list):
 			wrt = neighbor_values.index(None)
@@ -248,9 +252,9 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			return
 
 		for i in range(self.n):
-			probability = ((self.counts[i] + pseudocount) / 
+			probability = ((self.counts[i] + pseudocount) /
 				(self.count + pseudocount * self.k))
-			
+
 			self.values[i] = _log(cexp(self.values[i])*inertia +
 				probability*(1-inertia))
 

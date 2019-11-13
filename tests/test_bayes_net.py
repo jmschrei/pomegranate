@@ -1131,7 +1131,7 @@ def test_chow_liu_structure_learning():
 
 
 def test_exact_nan_structure_learning():
-    logps = -6.13764, -159.6505, -2055.76364, -201.73615
+    logps = -19.0954, -274.3978, -3876.3350, float("-inf")
     for X, logp in zip(datasets_nan, logps):
         model = BayesianNetwork.from_samples(X, algorithm='exact')
         model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
@@ -1141,7 +1141,7 @@ def test_exact_nan_structure_learning():
 
 
 def test_greedy_nan_structure_learning():
-    logps = -7.5239, -159.6505, -2058.5706, -203.7662
+    logps = -21.3925, -274.3978, -3882.3880, float("-inf")
     for X, logp in zip(datasets_nan, logps):
         model = BayesianNetwork.from_samples(X, algorithm='greedy')
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)

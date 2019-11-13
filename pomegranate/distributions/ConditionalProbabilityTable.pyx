@@ -13,12 +13,11 @@ from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils import _check_nan
 from ..utils import check_random_state
+from ..utils import logsumexp
 
 import itertools as it
 import json
 import numpy
-import random
-import scipy
 
 from collections import OrderedDict
 
@@ -81,6 +80,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.marginal_keymap = OrderedDict(marginal_keys)
 		self.parents = parents
 		self.parameters = [table, self.parents]
+		self._joint = None
 
 	def __dealloc__(self):
 		free(self.idxs)
@@ -128,6 +128,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			self.values[i] = values[i]
 
 		self.keymap = OrderedDict(keymap)
+		self._joint = None
 
 	def sample(self, parent_values=None, n=None, random_state=None):
 		"""Return a random sample from the conditional probability table."""
@@ -161,23 +162,45 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			return [self.sample(parent_values, n=None, random_state=state)
 				for state in states]
 
+	@staticmethod
+	def _matches(key, X):
+		for k, x in zip(key, X):
+			if not _check_nan(x) and k != x:
+				return False
+		return True
+
 	def log_probability(self, X):
 		"""
 		Return the log probability of a value, which is a tuple in proper
 		ordering, like the training data.
 		"""
+		if not isinstance(X, tuple):
+			if isinstance(X, (list, numpy.ndarray)):
+				X = tuple(X)
+			else:
+				X = (X,)
 
-		X = tuple(X)
+		if _check_nan(X[-1]):
+			return 0.0
 
-		for x in X:
-			if isinstance(x, str):
-				if x == 'nan':
-					return 0.0
-			elif x is None or numpy.isnan(x):
-				return 0.0
+		joint = self.joint()
 
-		idx = self.keymap[X]
-		return self.values[idx]
+		my_log_prob = logsumexp([
+			joint.log_probability_by_idx(idx)
+			for key, idx in joint.keymap.items()
+			if key == X or ConditionalProbabilityTable._matches(key, X)
+		])
+
+		if all(_check_nan(x) for x in X[:-1]):
+			parents_log_prob = 0.0
+		else:
+			parents_log_prob = logsumexp([
+				joint.log_probability_by_idx(idx)
+				for key, idx in joint.keymap.items()
+				if key[:-1] == X[:-1] or ConditionalProbabilityTable._matches(key[:-1], X[:-1])
+			])
+
+		return my_log_prob - parents_log_prob
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
@@ -201,24 +224,35 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		by the parent distributions.
 		"""
 
+		if self._joint is not None:
+			return self._joint
+
 		neighbor_values = neighbor_values or self.parents+[None]
 		if isinstance(neighbor_values, dict):
 			neighbor_values = [neighbor_values.get(p, None) for p in self.parents + [self]]
 
+		neighbor_value_cache = {j: {} for j in range(len(neighbor_values)-1)}
 		table, total = [], 0
 		for key, idx in self.keymap.items():
 			scaled_val = self.values[idx]
 
 			for j, k in enumerate(key):
 				if neighbor_values[j] is not None:
-					scaled_val += neighbor_values[j].log_probability(k)
+					if k not in neighbor_value_cache[j]:
+						if isinstance(neighbor_values[j], ConditionalProbabilityTable):
+							neighbor_value_cache[j][k] = neighbor_values[j].log_probability((['nan'] * neighbor_values[j].m) + [k])
+						else:
+							neighbor_value_cache[j][k] = neighbor_values[j].log_probability(k)
+
+					scaled_val += neighbor_value_cache[j][k]
 
 			scaled_val = cexp(scaled_val)
 			total += scaled_val
 			table.append(key + (scaled_val,))
 
 		table = [row[:-1] + (row[-1] / total if total > 0 else 1. / self.n,) for row in table]
-		return JointProbabilityTable(table, self.parents)
+		self._joint = JointProbabilityTable(table, self.parents)
+		return self._joint
 
 	def marginal(self, neighbor_values=None):
 		"""
@@ -272,6 +306,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 				key = self.marginal_keymap[item[:-1]]
 				self.marginal_counts[key] += weights[i]
+		self._joint = None
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:
@@ -342,6 +377,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		with nogil:
 			memset(self.counts, 0, self.n*sizeof(double))
 			memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
+		self._joint = None
 
 	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
