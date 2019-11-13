@@ -14,7 +14,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 	cdef int* idxs
 	cdef public list parents, parameters, dtypes
 	cdef public object keymap
-	cdef public object marginal_keymap
 	cdef public int m
 	cdef void __summarize(self, items, double [:] weights)
 

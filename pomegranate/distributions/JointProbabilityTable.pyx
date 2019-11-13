@@ -123,6 +123,12 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		key = self.keymap[X]
 		return self.values[key]
 
+	def log_probability_by_idx(self, idx: int):
+		"""
+		Return the log probability of an index, as in the keymap.
+		"""
+		return self.values[idx]
+
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
