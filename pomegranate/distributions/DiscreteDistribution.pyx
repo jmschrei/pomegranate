@@ -233,7 +233,6 @@ cdef class DiscreteDistribution(Distribution):
 		self.encoded_summary = 1
 
 		encoded_counts = <double*> calloc(self.n, sizeof(double))
-		memset(encoded_counts, 0, self.n*sizeof(double))
 
 		for i in range(n):
 			item = items[i*d + column_idx]

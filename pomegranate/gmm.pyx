@@ -380,8 +380,6 @@ cdef class GeneralMixtureModel(BayesModel):
         cdef int i, j
         cdef double total, logp, log_probability_sum = 0.0
 
-        memset(summaries, 0, self.n*sizeof(double))
-
         for j in range(self.n):
             if self.cython == 0:
                 with gil:
