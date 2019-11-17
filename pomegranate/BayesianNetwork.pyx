@@ -859,7 +859,7 @@ cdef class BayesianNetwork(GraphModel):
 
 	@classmethod
 	def from_structure(cls, X, structure, weights=None, pseudocount=0.0,
-		name=None, state_names=None, n_jobs=1):
+		name=None, state_names=None):
 		"""Return a Bayesian network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -891,11 +891,6 @@ cdef class BayesianNetwork(GraphModel):
 
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
-
-		n_jobs : int
-			The number of jobs to use to parallelize, either the number of threads
-			or the number of processes to use. -1 means use all available resources.
-			Default is 1.
 
 		Returns
 		-------

@@ -300,7 +300,7 @@ cdef class Distribution(Model):
 			return DiscreteDistribution(dist, frozen=d['frozen'])
 
 		elif 'Table' in d['name']:
-			parents = [Distribution.from_json(json.dumps(j)) for j in d['parents']]
+			parents = [j if isinstance(j, int) else Distribution.from_json(json.dumps(j)) for j in d['parents']]
 			table = []
 
 			for row in d['table']:

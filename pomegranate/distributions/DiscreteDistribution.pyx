@@ -81,6 +81,7 @@ cdef class DiscreteDistribution(Distribution):
 
 	def __mul__(self, other):
 		"""Multiply this by another distribution sharing the same keys."""
+
 		assert set(self.keys()) == set(other.keys())
 		distribution, total = {}, 0.0
 

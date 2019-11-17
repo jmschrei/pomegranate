@@ -66,8 +66,9 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			keys.append((tuple(row[:-1]), i))
 			self.values[i] = _log(row[-1])
 
+		self.column_keys = [numpy.unique([row[i] for row in table]) for i in range(self.m)]
 		self.keymap = OrderedDict(keys)
-		self.parents = parents
+		self.parents = list(parents)
 		self.parameters = [[list(row) for row in table], self.parents, self.keymap]
 
 	def __dealloc__(self):
@@ -160,7 +161,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			wrt = neighbor_values.index(None)
 
 		# Determine the keys for the respective parent distribution
-		d = {k: 0 for k in self.parents[wrt].keys()}
+		d = {k: 0 for k in self.column_keys[wrt]} #self.parents[wrt].keys()}
 		total = 0.0
 
 		for key, idx in self.keymap.items():
@@ -181,7 +182,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			d[key] = value / total if total > 0 else 1. / len(self.parents[wrt].keys())
 
 		return DiscreteDistribution(d)
-
 
 	def summarize(self, items, weights=None):
 		"""Summarize the data into sufficient statistics to store."""
@@ -297,7 +297,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		            'name' : 'JointProbabilityTable',
 		            'table' : table,
 		            'dtypes' : self.dtypes,
-		            'parents' : [json.loads(dist.to_json()) for dist in self.parameters[1]]
+		            'parents' : [dist if isinstance(dist, int) else json.loads(dist.to_json()) for dist in self.parameters[1]]
 		        }
 
 		return json.dumps(model, separators=separators, indent=indent)
