@@ -17,6 +17,7 @@ from libc.string cimport memset
 from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils import check_random_state
+from ..utils import _check_nan
 
 from libc.math cimport sqrt as csqrt
 
@@ -170,13 +171,10 @@ cdef class DiscreteDistribution(Distribution):
 		return self.__log_probability(X)
 
 	cdef double __log_probability(self, X):
-		if isinstance(X, (str, unicode)):
-			if X == 'nan':
-				return 0.
-		elif X is None or numpy.isnan(X):
+		if _check_nan(X):
 			return 0.
-
-		return self.log_dist.get(X, NEGINF)
+		else:
+			return self.log_dist.get(X, NEGINF)
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
@@ -325,9 +323,7 @@ cdef class DiscreteDistribution(Distribution):
 		total = 0
 
 		for X, weight in izip(items, weights):
-			if isinstance(X, str) and X == 'nan':
-				continue
-			elif isinstance(X, (int, float)) and numpy.isnan(X):
+			if _check_nan(X):
 				continue
 
 			total += weight

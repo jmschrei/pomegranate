@@ -451,15 +451,11 @@ def weight_set(items, weights):
 
 def _check_nan(X):
 	"""Checks to see if a value is nan, either as a float or a string."""
-	
 	if isinstance(X, (str, unicode, numpy.string_)):
-		if X == 'nan':
-			return True
-		return False
-
-	if X is None or numpy.isnan(X):
-		return True
-	return False
+		return X == 'nan'
+	if isinstance(X, (float, numpy.float, numpy.float32, numpy.float64)):
+		return numpy.isnan(X)
+	return X is None
 
 def check_random_state(seed):
 	"""Turn seed into a np.random.RandomState instance.

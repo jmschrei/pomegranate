@@ -35,6 +35,7 @@ from .utils cimport python_log_probability
 from .utils cimport python_summarize
 
 from .utils import check_random_state
+from .utils import _check_nan
 
 
 from libc.stdlib cimport calloc
@@ -84,9 +85,7 @@ def _check_input(sequence, model):
                 symbol = sequence[i][j]
                 keymap = model.keymap[j]
 
-                if isinstance(symbol, str) and symbol == 'nan':
-                    sequence_ndarray[i, j] = numpy.nan
-                elif isinstance(symbol, (int, float)) and numpy.isnan(symbol):
+                if _check_nan(symbol):
                     sequence_ndarray[i, j] = numpy.nan
                 elif symbol in keymap:
                     sequence_ndarray[i, j] = keymap[symbol]
@@ -100,9 +99,7 @@ def _check_input(sequence, model):
         for i in range(n):
             symbol = sequence[i]
 
-            if isinstance(symbol, str) and symbol == 'nan':
-                sequence_ndarray[i] = numpy.nan
-            elif isinstance(symbol, (int, float)) and numpy.isnan(symbol):
+            if _check_nan(symbol):
                 sequence_ndarray[i] = numpy.nan
             elif sequence[i] in keymap:
                 sequence_ndarray[i] = keymap[symbol]
