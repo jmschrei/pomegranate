@@ -58,9 +58,6 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			dtype = str(type(column)).split()[-1].strip('>').strip("'")
 			self.dtypes.append(dtype)
 
-		memset(self.counts, 0, self.n*sizeof(double))
-		memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
-
 		self.idxs[0] = 1
 		self.idxs[1] = self.k
 		for i in range(self.m-1):
@@ -281,9 +278,6 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		cdef int i, j, idx, k
 		cdef double* counts = <double*> calloc(self.n, sizeof(double))
 		cdef double* marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
-
-		memset(counts, 0, self.n*sizeof(double))
-		memset(marginal_counts, 0, self.n / self.k * sizeof(double))
 
 		for i in range(n):
 			idx = 0

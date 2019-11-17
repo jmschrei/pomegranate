@@ -158,10 +158,6 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		cdef double* pair_sum
 		cdef double* pair_w_sum = <double*> calloc(d*d, sizeof(double))
 
-		memset(column_sum, 0, d*d*sizeof(double))
-		memset(column_w_sum, 0, d*sizeof(double))
-		memset(pair_w_sum, 0, d*d*sizeof(double))
-
 		cdef double* y = <double*> calloc(n*d, sizeof(double))
 		cdef double alpha = 1
 		cdef double beta = 0
@@ -203,7 +199,6 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		else:
 			pair_sum = <double*> calloc(d*d, sizeof(double))
-			memset(pair_sum, 0, d*d*sizeof(double))
 
 			dgemm('N', 'T', &d, &d, &n, &alpha, y, &d, y, &d, &beta, pair_sum, &d)
 
