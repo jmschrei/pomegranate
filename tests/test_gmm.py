@@ -134,34 +134,50 @@ def test_gmm_univariate_gaussian_log_probability():
 	X = np.array([[1.1], [2.7], [3.0], [4.8], [6.2]])
 	logp = [-2.35925975, -2.03120691, -1.99557605, -2.39638244, -2.03147258]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.8], [2.1], [3.1], [5.2], [6.5]])
 	logp = [-2.39618117, -2.26893273, -1.9995911,  -2.22202965, -2.14007514]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[0.9], [2.2], [3.2], [5.0], [5.8]])
 	logp = [-2.26957032, -2.22113386, -2.01155305, -2.31613252, -2.01751101]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.0], [2.1], [3.5], [4.3], [5.2]])
 	logp = [-2.31613252, -2.26893273, -2.09160506, -2.42491769, -2.22202965]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.2], [2.9], [3.1], [4.2], [5.5]])
 	logp = [-2.39638244, -1.9995911,  -1.9995911,  -2.39618117, -2.09396318]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.8], [1.9], [3.0], [4.9], [5.7]])
 	logp = [-2.39618117, -2.35895351, -1.99557605, -2.35925975, -2.03559364]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.2], [3.1], [2.9], [4.2], [5.9]])
 	logp = [-2.39638244, -1.9995911,  -1.9995911,  -2.39618117, -2.00766654]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.0], [2.9], [3.9], [4.1], [6.0]])
 	logp = [-2.31613252, -1.9995911,  -2.26893273, -2.35895351, -2.00650306]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 
 @with_setup(setup_univariate_mixed, teardown)
@@ -170,41 +186,57 @@ def test_gmm_mixed_log_probability():
 	logp = [-2.01561437061559, -2.7951359521294536, -2.8314639809821918,
 			-2.9108132001193265, -3.1959940375620945]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.8], [2.1], [3.1], [5.2], [6.5]])
 	logp = [-2.4758296236378774, -2.6201420691379314, -2.8383034405278975,
 			-2.966292939154318, -3.2891059316267657]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[0.9], [2.2], [3.2], [5.0], [5.8]])
 	logp = [-1.8326789033955484, -2.660084457680723, -2.8432332382831653,
 			-2.9359363402629808, -3.0888100501157312]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.0], [2.1], [3.5], [4.3], [5.2]])
 	logp = [-1.9296484854978633, -2.6201420691379314, -2.850660742142904,
 			-2.8698462265150058, -2.966292939154318]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.2], [2.9], [3.1], [4.2], [5.5]])
 	logp = [-2.0938404063492411, -2.8222781320451804, -2.8383034405278975,
 			-2.8650550479352965, -3.0216937107055277]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.8], [1.9], [3.0], [4.9], [5.7]])
 	logp = [-2.4758296236378774, -2.527780058213545, -2.8314639809821918,
 			-2.9227254358998933, -3.0651517040535605]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.2], [3.1], [2.9], [4.2], [5.9]])
 	logp = [-2.0938404063492411, -2.8383034405278975, -2.8222781320451804,
 			-2.8650550479352965, -3.1137381280223324]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 	X = np.array([[1.0], [2.9], [3.9], [4.1], [6.0]])
 	logp = [-1.9296484854978633, -2.8222781320451804, -2.8560160466782816,
 			-2.8612291168066575, -3.1399218398841575]
 	assert_array_almost_equal(gmm.log_probability(X), logp)
+	assert_array_almost_equal(gmm.log_probability(X, n_jobs=2), logp)
+	assert_array_almost_equal(gmm.log_probability(X, batch_size=2), logp)
 
 
 @with_setup(setup_multivariate_gaussian, teardown)
@@ -278,7 +310,10 @@ def test_gmm_multivariate_gaussian_predict():
 				  [4., 3., 8., 1., 2.]])
 
 	assert_almost_equal(gmm.predict(X), gmm.predict_proba(X).argmax(axis=1))
-
+	assert_almost_equal(gmm.predict(X, n_jobs=2), gmm.predict_proba(X).argmax(axis=1))
+	assert_almost_equal(gmm.predict(X), gmm.predict_proba(X, n_jobs=2).argmax(axis=1))
+	assert_almost_equal(gmm.predict(X, batch_size=2), gmm.predict_proba(X).argmax(axis=1))
+	assert_almost_equal(gmm.predict(X), gmm.predict_proba(X, batch_size=3).argmax(axis=1))
 
 def test_gmm_multivariate_gaussian_fit():
 	d1 = MultivariateGaussianDistribution([0, 0], [[1, 0], [0, 1]])
@@ -685,8 +720,12 @@ def test_gmm_multivariate_gaussian_nan_log_probability():
   			    1.66533454e-16,  -2.70671185e+00,  -5.69860159e+00]
 
 	logp = gmm.log_probability(X)
+	logp2 = gmm.log_probability(X, n_jobs=2)
+	logp4 = gmm.log_probability(X, n_jobs=4)
 
 	assert_array_almost_equal(logp, logp_t)
+	assert_array_almost_equal(logp2, logp_t)
+	assert_array_almost_equal(logp4, logp_t)
 
 
 @with_setup(setup_multivariate_mixed, teardown)
@@ -703,10 +742,15 @@ def test_gmm_multivariate_mixed_nan_log_probability():
 		 [ 0.0116,  nan, 0.022, 0.006,   nan]])
 
 	logp = gmm.log_probability(X)
+	logp2 = gmm.log_probability(X, n_jobs=2)
+	logp4 = gmm.log_probability(X, n_jobs=4)
+
 	logp_t = [ -3.447266,  -4.038374,  -6.900469,  -2.282948,  -1.216055,
         -3.080241,  -9.789394,  -2.4831  ,  -0.799054, -13.052867]
 
 	assert_array_almost_equal(logp, logp_t)
+	assert_array_almost_equal(logp2, logp_t)
+	assert_array_almost_equal(logp4, logp_t)
 
 
 def test_gmm_multivariate_gaussian_nan_fit_predict():

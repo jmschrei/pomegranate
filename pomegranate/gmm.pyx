@@ -29,6 +29,8 @@ from .utils cimport python_log_probability
 from .utils cimport python_summarize
 from .utils import _check_input
 
+from .io import BaseGenerator
+from .io import DataGenerator
 from .callbacks import History
 
 from joblib import Parallel
@@ -121,7 +123,7 @@ cdef class GeneralMixtureModel(BayesModel):
 
         Parameters
         ----------
-        X : array-like, shape (n_samples, n_dimensions)
+        X : array-like or generator, shape (n_samples, n_dimensions)
             This is the data to train on. Each row is a sample, and each column
             is a dimension to train on.
 
@@ -203,25 +205,15 @@ cdef class GeneralMixtureModel(BayesModel):
         """
 
         initial_log_probability_sum = NEGINF
-        total_improvement = 0
-        iteration, improvement = 0, INF
-        n = len(X)
-
+        total_improvement, iteration, improvement = 0, 0, INF
+    
         training_start_time = time.time()
 
-        if batch_size is None:
-            starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-            ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+        if not isinstance(X, BaseGenerator):
+            data_generator = DataGenerator(X, weights, batch_size=batch_size,
+                batches_per_epoch=batches_per_epoch)
         else:
-            starts = list(range(0, n, batch_size))
-            if starts[-1] == n:
-                starts = starts[:-1]
-            ends = list(range(batch_size, n, batch_size)) + [n]
-
-        minibatching = batches_per_epoch is not None
-        batches_per_epoch = batches_per_epoch or len(starts)
-        n_seen_batches = 0
-        epoch_starts, epoch_ends = None, None
+            data_generator = X
 
         callbacks = [History()] + callbacks
         for callback in callbacks:
@@ -229,40 +221,25 @@ cdef class GeneralMixtureModel(BayesModel):
             callback.on_training_begin()
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+            f = delayed(self.summarize, check_pickle=False)
+
             while improvement > stop_threshold and iteration < max_iterations + 1:
                 epoch_start_time = time.time()
                 step_size = 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay)
+
+                # Update parameters from the stored sufficient statistics
                 self.from_summaries(step_size, pseudocount)
 
-                if epoch_starts is not None and minibatching:
-                    updated_log_probability_sum = sum(self.log_probability(X[start:end]).sum()
-                        for start, end in zip(epoch_starts, epoch_ends))
-                    improvement = updated_log_probability_sum - log_probability_sum
-
-                epoch_starts = starts[n_seen_batches:n_seen_batches+batches_per_epoch]
-                epoch_ends = ends[n_seen_batches:n_seen_batches+batches_per_epoch]
-
-                n_seen_batches += batches_per_epoch
-                if n_seen_batches >= len(starts):
-                    n_seen_batches = 0
-
-                if weights is not None:
-                    log_probability_sum = sum(parallel(delayed(self.summarize,
-                        check_pickle=False)(X[start:end], weights[start:end])
-                        for start, end in zip(epoch_starts, epoch_ends)))
-                else:
-                    log_probability_sum = sum(parallel(delayed(self.summarize,
-                        check_pickle=False)(X[start:end]) for start, end in zip(
-                            epoch_starts, epoch_ends)))
+                # Calculate new sufficient statistics from the data
+                log_probability_sum = sum(parallel(f(*batch) for batch in 
+                    data_generator.batches()))
 
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
                 else:
                     epoch_end_time = time.time()
                     time_spent = epoch_end_time - epoch_start_time
-
-                    if not minibatching:
-                        improvement = log_probability_sum - last_log_probability_sum
+                    improvement = log_probability_sum - last_log_probability_sum
 
                     if verbose:
                         print("[{}] Improvement: {}\tTime (s): {:.4}".format(
@@ -270,18 +247,19 @@ cdef class GeneralMixtureModel(BayesModel):
 
                     total_improvement += improvement
 
-                    logs = {'learning_rate': step_size,
-                            'n_seen_batches' : n_seen_batches,
-                            'epoch' : iteration,
-                            'improvement' : improvement,
-                            'total_improvement' : total_improvement,
-                            'log_probability' : log_probability_sum,
-                            'last_log_probability' : last_log_probability_sum,
-                            'initial_log_probability' : initial_log_probability_sum,
-                            'epoch_start_time' : epoch_start_time,
-                            'epoch_end_time' : epoch_end_time,
-                            'duration' : time_spent }
-
+                    logs = {
+                        'learning_rate': step_size,
+                        'n_seen_batches' : None,
+                        'epoch' : iteration,
+                        'improvement' : improvement,
+                        'total_improvement' : total_improvement,
+                        'log_probability' : log_probability_sum,
+                        'last_log_probability' : last_log_probability_sum,
+                        'initial_log_probability' : initial_log_probability_sum,
+                        'epoch_start_time' : epoch_start_time,
+                        'epoch_end_time' : epoch_end_time,
+                        'duration' : time_spent
+                    }
 
                     for callback in callbacks:
                         callback.on_epoch_end(logs)
@@ -559,8 +537,11 @@ cdef class GeneralMixtureModel(BayesModel):
         """
 
         icd = False
-        if not isinstance(X, numpy.ndarray):
-            X = numpy.array(X)
+        if not isinstance(X, BaseGenerator):
+            data_generator = DataGenerator(X, weights, batch_size=batch_size, 
+                batches_per_epoch=batches_per_epoch)
+        else:
+            data_generator = X
 
         n, d = X.shape
 
@@ -576,8 +557,6 @@ cdef class GeneralMixtureModel(BayesModel):
                                  "without pre-initialized distributions")
 
             if d == 1:
-                distributions = [d_ for i in range(n_components)]
-            elif isinstance(d_.blank(), MultivariateDistribution):
                 distributions = [d_ for i in range(n_components)]
             elif d_.blank().d > 1:
                 distributions = [d_ for i in range(n_components)]
@@ -599,24 +578,23 @@ cdef class GeneralMixtureModel(BayesModel):
                 if not callable(dist):
                     raise ValueError("must pass in uninitialized distributions")
 
-        kmeans_batch_size = batch_size or len(X)
-        X_kmeans = X[:batch_size]
-
+        X_kmeans, weights_kmeans = next(data_generator.batches())
         kmeans = Kmeans(n_components, init=init, n_init=n_init)
-        kmeans.fit(X_kmeans, weights=weights, max_iterations=max_kmeans_iterations,
-            batch_size=kmeans_batch_size, batches_per_epoch=batches_per_epoch,
+        kmeans.fit(X_kmeans, weights=weights_kmeans, max_iterations=max_kmeans_iterations,
+            batch_size=batch_size, batches_per_epoch=batches_per_epoch,
             n_jobs=n_jobs)
 
         y = kmeans.predict(X_kmeans)
 
         if icd:
-            distributions = [IndependentComponentsDistribution.from_samples(X_kmeans[y == i],
+            distributions = [IndependentComponentsDistribution.from_samples(
+                X_kmeans[y == i], weights_kmeans[y == i], 
                 distributions=distributions) for i in range(n_components)]
         else:
-            distributions = [distribution.from_samples(X_kmeans[y == i])
-                for i, distribution in enumerate(distributions)]
+            distributions = [distribution.from_samples(X_kmeans[y == i],
+                weights_kmeans[y == i]) for i, distribution in enumerate(distributions)]
 
-        class_weights = numpy.array([(y == i).mean() for i in range(n_components)])
+        class_weights = numpy.array([(weights_kmeans * (y == i)).mean() for i in range(n_components)])
 
         model = GeneralMixtureModel(distributions, class_weights)
         _, history = model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,

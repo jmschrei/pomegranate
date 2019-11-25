@@ -161,7 +161,8 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			wrt = neighbor_values.index(None)
 
 		# Determine the keys for the respective parent distribution
-		d = {k: 0 for k in self.column_keys[wrt]} #self.parents[wrt].keys()}
+		#d = {k: 0 for k in self.column_keys[wrt]} #self.parents[wrt].keys()}
+		d = {k: 0 for k in self.parents[wrt].keys()}
 		total = 0.0
 
 		for key, idx in self.keymap.items():

@@ -20,6 +20,8 @@ from distributions import DirichletDistribution
 from .gmm import GeneralMixtureModel
 from .utils import _convert
 from .callbacks import History
+from .io import BaseGenerator
+from .io import DataGenerator
 
 from joblib import Parallel
 from joblib import delayed
@@ -110,7 +112,7 @@ cdef class NaiveBayes(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None,
+	def from_samples(self, distributions, X, y=None, weights=None,
 		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
 		callbacks=[], return_history=False, verbose=False, n_jobs=1):
 		"""Create a naive Bayes classifier directly from the given dataset.
@@ -138,7 +140,7 @@ cdef class NaiveBayes(BayesModel):
 			if all components will be the same distribution, or an array of
 			callables, one for each feature.
 
-		X : array-like, shape (n_samples, n_dimensions)
+		X : array-like or generator, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on.
 
@@ -202,12 +204,19 @@ cdef class NaiveBayes(BayesModel):
 				elif distribution in (MultivariateGaussianDistribution, DirichletDistribution):
 					raise ValueError("naive Bayes only supported independent features. Use BayesClassifier instead")
 
+		if not isinstance(X, BaseGenerator):
+			if y is None:
+				raise ValueError("Must pass in both X and y as arrays or a data generator for X.")
 
-		X = numpy.array(X)
-		y = numpy.array(y)
+			batch_size = len(X) // n_jobs + len(X) % n_jobs
+			data_generator = DataGenerator(X, weights, y, batch_size=batch_size)
+		else:
+			data_generator = X
 
-		n, d = X.shape
-		n_components = numpy.unique(y[y != -1]).shape[0]
+		n_components = data_generator.classes
+		n_components = len(n_components[n_components != -1])
+		n, d = data_generator.shape
+		
 		if callable(distributions):
 			if d > 1:
 				distributions = [ICD([distributions.blank() for j in range(d)]) for i in range(n_components)]
@@ -220,7 +229,7 @@ cdef class NaiveBayes(BayesModel):
 				distributions = [distribution.blank() for distribution in distributions]
 
 		model = NaiveBayes(distributions)
-		_, history = model.fit(X, y, weights=weights, pseudocount=pseudocount,
+		_, history = model.fit(data_generator, pseudocount=pseudocount,
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
 			verbose=verbose, callbacks=callbacks, return_history=True, n_jobs=n_jobs)
 

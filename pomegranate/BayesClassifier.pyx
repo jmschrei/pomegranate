@@ -202,7 +202,7 @@ cdef class BayesClassifier(BayesModel):
 		if isinstance(distributions, (list, numpy.ndarray, tuple)):
 			for distribution in distributions:
 				if not callable(distribution):
-					raise ValueError("must pass in class constructors, not initiated distributions (i.e. NormalDistribution)")
+					raise ValueError("must pass in class constructors, not initiated distributions (e.g. NormalDistribution)")
 
 		X = numpy.array(X)
 		y = numpy.array(y)
@@ -218,9 +218,10 @@ cdef class BayesClassifier(BayesModel):
 			distributions = [distribution.blank() for distribution in distributions]
 
 		model = BayesClassifier(distributions)
-		_, history = model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount,
-			stop_threshold=stop_threshold, max_iterations=max_iterations,
-			callbacks=callbacks, return_history=True, verbose=verbose, n_jobs=n_jobs)
+		_, history = model.fit(X, y, weights=weights, inertia=inertia, 
+			pseudocount=pseudocount, stop_threshold=stop_threshold, 
+			max_iterations=max_iterations, callbacks=callbacks, 
+			return_history=True, verbose=verbose, n_jobs=n_jobs)
 
 		if return_history:
 			return model, history

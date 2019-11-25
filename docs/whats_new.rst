@@ -5,6 +5,26 @@
 Release History
 ===============
 
+Version 0.11.3
+==============
+
+Highlights
+----------
+
+	- MarkovNetwork models have been added in and include both inference and structure learning.
+
+MarkovNetwork
+-------------
+	
+	- MarkovNetwork models have been added in as a new probabilistic model.
+	- Loopy belief propagation inference has been added in using the FactorGraph backend
+	- Structure learning has been added in using Chow-Liu trees
+
+Distributions
+-------------
+
+	- Added a warning to DiscreteDistribution when the user passes in an empty dictionary. 
+
 Version 0.11.2
 ==============
 
