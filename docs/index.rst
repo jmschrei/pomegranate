@@ -10,9 +10,10 @@
 |
  
 .. image:: https://travis-ci.org/jmschrei/pomegranate.svg?branch=master
-	:target: https://travis-ci.org/jmschrei/pomegranate
+   :target: https://travis-ci.org/jmschrei/pomegranate
 
 .. image:: https://ci.appveyor.com/api/projects/status/github/jmschrei/pomegranate?svg=True
+   :target: https://ci.appveyor.com/project/JacobSchreiber/pomegranate/branch/master
 
 .. image:: https://readthedocs.org/projects/pomegranate/badge/?version=latest
    :target: http://pomegranate.readthedocs.io/en/latest/?badge=latest
