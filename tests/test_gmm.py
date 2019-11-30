@@ -1,4 +1,7 @@
 from pomegranate import *
+from pomegranate.io import DataGenerator
+from pomegranate.io import DataFrameGenerator
+
 from nose.tools import with_setup
 from nose.tools import assert_true
 from nose.tools import assert_equal
@@ -8,6 +11,8 @@ from nose.tools import assert_not_equal
 from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
+
+import pandas
 import random
 import pickle
 import numpy as np
@@ -1175,3 +1180,103 @@ def test_gmm_multivariate_mixed_random_sample():
 
 	assert_array_almost_equal(gmm.sample(3, random_state=5), x)
 	assert_raises(AssertionError, assert_array_almost_equal, gmm.sample(3), x)
+
+def test_io_log_probability():
+	X = numpy.random.randn(100, 5) + 0.5
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	d = MultivariateGaussianDistribution
+	model = GeneralMixtureModel.from_samples(d, n_components=2, X=X)
+
+	logp1 = model.log_probability(X)
+	logp2 = model.log_probability(X2)
+	logp3 = model.log_probability(X3)
+
+	assert_array_almost_equal(logp1, logp2)
+	assert_array_almost_equal(logp1, logp3)
+
+def test_io_predict():
+	X = numpy.random.randn(100, 5) + 0.5
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	d = MultivariateGaussianDistribution
+	model = GeneralMixtureModel.from_samples(d, n_components=2, X=X)
+
+	y_hat1 = model.predict(X)
+	y_hat2 = model.predict(X2)
+	y_hat3 = model.predict(X3)
+
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+def test_io_predict_proba():
+	X = numpy.random.randn(100, 5) + 0.5
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	d = MultivariateGaussianDistribution
+	model = GeneralMixtureModel.from_samples(d, n_components=2, X=X)
+
+	y_hat1 = model.predict_proba(X)
+	y_hat2 = model.predict_proba(X2)
+	y_hat3 = model.predict_proba(X3)
+
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+def test_io_predict_log_proba():
+	X = numpy.random.randn(100, 5) + 0.5
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	d = MultivariateGaussianDistribution
+	model = GeneralMixtureModel.from_samples(d, n_components=2, X=X)
+
+	y_hat1 = model.predict_log_proba(X)
+	y_hat2 = model.predict_log_proba(X2)
+	y_hat3 = model.predict_log_proba(X3)
+
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+def test_io_fit():
+	X = numpy.random.randn(100, 5) + 0.5
+	weights = numpy.abs(numpy.random.randn(100))
+	data_generator = DataGenerator(X, weights)
+
+	mu1 = numpy.array([0, 0, 0, 0, 0])
+	mu2 = numpy.array([1, 1, 1, 1, 1])
+	cov = numpy.eye(5)
+
+	d1 = MultivariateGaussianDistribution(mu1, cov)
+	d2 = MultivariateGaussianDistribution(mu2, cov)
+	gmm1 = GeneralMixtureModel([d1, d2])
+	gmm1.fit(X, weights, max_iterations=5)
+
+	d1 = MultivariateGaussianDistribution(mu1, cov)
+	d2 = MultivariateGaussianDistribution(mu2, cov)
+	gmm2 = GeneralMixtureModel([d1, d2])
+	gmm2.fit(data_generator, max_iterations=5)
+
+	logp1 = gmm1.log_probability(X)
+	logp2 = gmm2.log_probability(X)
+
+	assert_array_almost_equal(logp1, logp2)
+
+def test_io_from_samples_gmm():
+	X = numpy.random.randn(100, 5) + 0.5
+	weights = numpy.abs(numpy.random.randn(100))
+	data_generator = DataGenerator(X, weights)
+
+	d = MultivariateGaussianDistribution
+	gmm1 = GeneralMixtureModel.from_samples(d, n_components=2, X=X, 
+		weights=weights, max_iterations=5, init='first-k')
+	gmm2 = GeneralMixtureModel.from_samples(d, n_components=2, 
+		X=data_generator, max_iterations=5, init='first-k')
+
+	logp1 = gmm1.log_probability(X)
+	logp2 = gmm2.log_probability(X)
+
+	assert_array_almost_equal(logp1, logp2)

@@ -221,7 +221,7 @@ cdef class BayesModel(Model):
         else:
             n, d = X.shape
 
-        if n_jobs > 1:
+        if n_jobs > 1 or isinstance(X, BaseGenerator):
             if batch_size is None:
                 batch_size = 1 if self.is_vl_ else n // n_jobs + n % n_jobs
 
@@ -372,7 +372,7 @@ cdef class BayesModel(Model):
         cdef numpy.ndarray y
         cdef double* y_ptr
 
-        if n_jobs > 1:
+        if n_jobs > 1 or isinstance(X, BaseGenerator):
             if batch_size is None:
                 batch_size = 1 if self.is_vl_ else len(X) // n_jobs + len(X) % n_jobs
 
@@ -477,7 +477,7 @@ cdef class BayesModel(Model):
         cdef numpy.ndarray y
         cdef int* y_ptr
 
-        if n_jobs > 1:
+        if n_jobs > 1 or isinstance(X, BaseGenerator):
             if batch_size is None:
                 batch_size = 1 if self.is_vl_ else len(X) // n_jobs + len(X) % n_jobs
 

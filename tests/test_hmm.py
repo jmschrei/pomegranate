@@ -2,6 +2,8 @@ from __future__ import (division)
 
 from pomegranate import *
 from pomegranate.parallel import log_probability
+from pomegranate.io import SequenceGenerator
+
 from nose.tools import with_setup
 from nose.tools import assert_almost_equal
 from nose.tools import assert_equal
@@ -11,6 +13,7 @@ from nose.tools import assert_raises
 from nose.tools import assert_greater
 from numpy.testing import assert_array_almost_equal
 from numpy.testing import assert_array_equal
+
 import pickle
 import random
 import numpy
@@ -1733,3 +1736,56 @@ def test_hmm_json_general_mixture_gaussian():
         logp2 = model2.log_probability(sequence)
 
         assert_almost_equal(logp1, logp2)
+
+def test_io_fit():
+    X = [numpy.random.choice(['A', 'B'], size=25) for i in range(20)]
+    weights = numpy.abs(numpy.random.randn(20))
+    data_generator = SequenceGenerator(X, weights)
+
+    s1 = State(DiscreteDistribution({'A': 0.3, 'B': 0.7}))
+    s2 = State(DiscreteDistribution({'A': 0.9, 'B': 0.1}))
+    model1 = HiddenMarkovModel()
+    model1.add_states(s1, s2)
+    model1.add_transition(model1.start, s1, 0.8)
+    model1.add_transition(model1.start, s2, 0.2)
+    model1.add_transition(s1, s1, 0.3)
+    model1.add_transition(s1, s2, 0.7)
+    model1.add_transition(s2, s1, 0.4)
+    model1.add_transition(s2, s2, 0.6)
+    model1.bake()
+    model1.fit(X, weights=weights, max_iterations=5)
+
+    s1 = State(DiscreteDistribution({'A': 0.3, 'B': 0.7}))
+    s2 = State(DiscreteDistribution({'A': 0.9, 'B': 0.1}))
+    model2 = HiddenMarkovModel()
+    model2.add_states(s1, s2)
+    model2.add_transition(model2.start, s1, 0.8)
+    model2.add_transition(model2.start, s2, 0.2)
+    model2.add_transition(s1, s1, 0.3)
+    model2.add_transition(s1, s2, 0.7)
+    model2.add_transition(s2, s1, 0.4)
+    model2.add_transition(s2, s2, 0.6)
+    model2.bake()
+    model2.fit(X, weights=weights, max_iterations=5)
+
+    logp1 = [model1.log_probability(x) for x in X]
+    logp2 = [model2.log_probability(x) for x in X]
+
+    assert_array_almost_equal(logp1, logp2)
+
+def test_io_from_samples_hmm():
+    X = [numpy.random.choice(['A', 'B'], size=25) for i in range(20)]
+    weights = numpy.abs(numpy.random.randn(20))
+    data_generator = SequenceGenerator(X, weights)
+
+    model1 = HiddenMarkovModel.from_samples(DiscreteDistribution,
+        n_components=2, X=X, weights=weights, max_iterations=5,
+        init='first-k', random_state=1)
+    model2 = HiddenMarkovModel.from_samples(DiscreteDistribution,
+        n_components=2, X=data_generator, max_iterations=5,
+        init='first-k', random_state=1)
+
+    logp1 = [model1.log_probability(x) for x in X]
+    logp2 = [model2.log_probability(x) for x in X]
+
+    assert_array_almost_equal(logp1, logp2)

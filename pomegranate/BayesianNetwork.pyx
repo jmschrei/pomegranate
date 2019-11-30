@@ -36,6 +36,9 @@ from .utils import plot_networkx
 from .utils import parallelize_function
 from .utils import _check_nan
 
+from .io import BaseGenerator
+from .io import DataGenerator
+
 
 try:
 	import tempfile
@@ -185,26 +188,26 @@ cdef class BayesianNetwork(GraphModel):
 	-1.71479842809
 	>>> print model.predict_proba({'s2' : 'A'})
 	array([ {
-	    "frozen" :false,
-	    "class" :"Distribution",
-	    "parameters" :[
-	        {
-	            "A" :0.05882352941176471,
-	            "B" :0.9411764705882353
-	        }
-	    ],
-	    "name" :"DiscreteDistribution"
+		"frozen" :false,
+		"class" :"Distribution",
+		"parameters" :[
+			{
+				"A" :0.05882352941176471,
+				"B" :0.9411764705882353
+			}
+		],
+		"name" :"DiscreteDistribution"
 	},
-	       {
-	    "frozen" :false,
-	    "class" :"Distribution",
-	    "parameters" :[
-	        {
-	            "A" :1.0,
-	            "B" :0.0
-	        }
-	    ],
-	    "name" :"DiscreteDistribution"
+		   {
+		"frozen" :false,
+		"class" :"Distribution",
+		"parameters" :[
+			{
+				"A" :1.0,
+				"B" :0.0
+			}
+		],
+		"name" :"DiscreteDistribution"
 	}], dtype=object)
 	>>> print model.impute([[None, 'A']])
 	[['B', 'A']]
@@ -418,24 +421,27 @@ cdef class BayesianNetwork(GraphModel):
 		if self.d == 0:
 			raise ValueError("must bake model before computing probability")
 
-		X = numpy.array(X, ndmin=2)
-		n, d = X.shape
+		n = len(X)
 
-		if n_jobs > 1:
-			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+		if n_jobs > 1 or isinstance(X, BaseGenerator):
+			batch_size = n // n_jobs + n % n_jobs
+
+			if not isinstance(X, BaseGenerator):
+				data_generator = DataGenerator(X, batch_size=batch_size)
+			else:
+				data_generator = X
 
 			fn = '.pomegranate.tmp'
 			with open(fn, 'w') as outfile:
 				outfile.write(self.to_json())
 
-			with Parallel(n_jobs=n_jobs) as parallel:
-				logp_arrays = parallel(delayed(parallelize_function)(
-					X[start:end], BayesianNetwork, 'log_probability', fn)
-					for start, end in zip(starts, ends))
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				f = delayed(parallelize_function)
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'log_probability', 
+					fn) for batch in data_generator.batches())
 
 			os.remove(fn)
-			return numpy.concatenate(logp_arrays)
+			return numpy.concatenate(logp_array)
 
 		logp = numpy.zeros(n, dtype='float64')
 		for i in range(n):
@@ -580,6 +586,29 @@ cdef class BayesianNetwork(GraphModel):
 		if self.d == 0:
 			raise ValueError("must bake model before using forward-backward algorithm")
 
+		n = len(X)
+
+		if n_jobs > 1 or isinstance(X, BaseGenerator):
+			batch_size = n // n_jobs + n % n_jobs
+
+			if not isinstance(X, BaseGenerator):
+				data_generator = DataGenerator(X, batch_size=batch_size)
+			else:
+				data_generator = X
+
+			fn = '.pomegranate.tmp'
+			with open(fn, 'w') as outfile:
+				outfile.write(self.to_json())
+
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				f = delayed(parallelize_function)
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'predict_proba', 
+					fn) for batch in data_generator.batches())
+
+			os.remove(fn)
+			return numpy.concatenate(logp_array)
+
+
 		if check_input:
 			_check_input(X, self)
 
@@ -597,31 +626,13 @@ cdef class BayesianNetwork(GraphModel):
 			return self.graph.predict_proba(data, max_iterations)
 
 		else:
-			if n_jobs > 1:
-				starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-				ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+			y_hat = []
+			for x in X:
+				y_ = self.predict_proba(x, max_iterations=max_iterations,
+					check_input=False, n_jobs=1)
+				y_hat.append(y_)
 
-				fn = '.pomegranate.tmp'
-				with open(fn, 'w') as outfile:
-					outfile.write(self.to_json())
-
-				with Parallel(n_jobs=n_jobs) as parallel:
-					y_hat = parallel(delayed(parallelize_function)(
-						X[start:end], BayesianNetwork, 'predict_proba', fn,
-						check_input=False)
-						for start, end in zip(starts, ends))
-
-				os.remove(fn)
-				return numpy.concatenate(y_hat)
-
-			else:
-				y_hat = []
-				for x in X:
-					y_ = self.predict_proba(x, max_iterations=max_iterations,
-						check_input=False, n_jobs=1)
-					y_hat.append(y_)
-
-				return y_hat
+			return y_hat
 
 
 	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, verbose=False,
@@ -637,7 +648,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		Parameters
 		----------
-		X : array-like, shape (n_samples, n_nodes)
+		X : array-like or generator, shape (n_samples, n_nodes)
 			The data to train on, where each row is a sample and each column
 			corresponds to the associated variable.
 
@@ -672,17 +683,16 @@ cdef class BayesianNetwork(GraphModel):
 
 		training_start_time = time.time()
 
-		if weights is None:
-			weights = numpy.ones(len(X), dtype='float64')
+		batch_size = len(X) // n_jobs + len(X) % n_jobs
+		if not isinstance(X, BaseGenerator):
+			data_generator = DataGenerator(numpy.array(X, dtype=object), 
+				weights, batch_size=batch_size)
 		else:
-			weights = numpy.array(weights, dtype='float64')
-
-		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+			data_generator = X
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-			parallel( delayed(self.summarize, check_pickle=False)(
-				X[start:end], weights[start:end]) for start, end in zip(starts, ends))
+			f = delayed(self.summarize, check_pickle=False)
+			parallel(f(*batch) for batch in data_generator.batches())
 
 		self.from_summaries(inertia, pseudocount)
 		self.bake()
@@ -828,20 +838,19 @@ cdef class BayesianNetwork(GraphModel):
 
 		# Load a dictionary from a JSON formatted string
 		try:
-			d = json.loads( s )
+			d = json.loads(s)
 		except:
 			try:
-				with open( s, 'r' ) as infile:
-					d = json.load( infile )
+				with open(s, 'r') as infile:
+					d = json.load(infile)
 			except:
 				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
 		# Make a new generic Bayesian Network
-		model = BayesianNetwork( str(d['name']) )
-
+		model = BayesianNetwork(str(d['name']))
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
+		states = [State.from_json(json.dumps(j)) for j in d['states']]
 		structure = d['structure']
 		for state, parents in zip(states, structure):
 			if len(parents) > 0:
@@ -898,15 +907,19 @@ cdef class BayesianNetwork(GraphModel):
 			A Bayesian network with the specified structure.
 		"""
 
-		X = numpy.array(X)
-		d = len(structure)
-
-		nodes = [None for i in range(d)]
-
-		if weights is None:
-			weights = numpy.ones(X.shape[0], dtype='float64')
+		if isinstance(X, BaseGenerator):
+			batches = [batch for batch in X.batches()]
+			X = numpy.concatenate([batch[0] for batch in batches])
+			weights = numpy.concatenate([batch[1] for batch in batches])
 		else:
-			weights = numpy.array(weights, dtype='float64')
+			X = numpy.array(X)
+			if weights is None:
+				weights = numpy.ones(X.shape[0], dtype='float64')
+			else:
+				weights = numpy.array(weights, dtype='float64')
+
+		d = len(structure)
+		nodes = [None for i in range(d)]
 
 		for i, parents in enumerate(structure):
 			if len(parents) == 0:
@@ -964,7 +977,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		Parameters
 		----------
-		X : array-like, shape (n_samples, n_nodes)
+		X : array-like or generator, shape (n_samples, n_nodes)
 			The data to fit the structure too, where each row is a sample and
 			each column corresponds to the associated variable.
 
@@ -1034,17 +1047,22 @@ cdef class BayesianNetwork(GraphModel):
 			The learned BayesianNetwork.
 		"""
 
-		X = numpy.array(X)
+		if isinstance(X, BaseGenerator):
+			batches = [batch for batch in X.batches()]
+			X = numpy.concatenate([batch[0] for batch in batches])
+			weights = numpy.concatenate([batch[1] for batch in batches])
+		else:
+			X = numpy.array(X)
+			if weights is None:
+				weights = numpy.ones(X.shape[0], dtype='float64')
+			else:
+				weights = numpy.array(weights, dtype='float64')
+
 		n, d = X.shape
 
 		keys = [set([x for x in X[:,i] if not _check_nan(x)]) for i in range(d)]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(d)])
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
-
-		if weights is None:
-			weights = numpy.ones(X.shape[0], dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
 
 		if reduce_dataset:
 			X_count = {}
@@ -1053,7 +1071,7 @@ cdef class BayesianNetwork(GraphModel):
 				# Convert NaN to None because two tuples containing
 				# (1.0, 2.0, 3.0, nan) are not considered equal, but two tuples
 				# containing (1.0, 2.0, 3.0, None) are considered equal
-				x = tuple(None if isnan(xn) else xn for xn in x)
+				x = tuple(None if _check_nan(xn) else xn for xn in x)
 				if x in X_count:
 					X_count[x] += weight
 				else:

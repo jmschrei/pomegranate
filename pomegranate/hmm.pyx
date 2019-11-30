@@ -3413,8 +3413,8 @@ cdef class HiddenMarkovModel(GraphModel):
         use_pseudocount=False, stop_threshold=1e-9, min_iterations=0,
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1,
         initialization_batch_size=None, batches_per_epoch=None, lr_decay=0.0, 
-        end_state=False, state_names=None, name=None, callbacks=[], 
-        return_history=False, verbose=False, n_jobs=1):
+        end_state=False, state_names=None, name=None, random_state=None, 
+        callbacks=[], return_history=False, verbose=False, n_jobs=1):
         """Learn the transitions and emissions of a model directly from data.
 
         This method will learn both the transition matrix, emission distributions,
@@ -3560,6 +3560,11 @@ cdef class HiddenMarkovModel(GraphModel):
         name : str, optional
             The name of the model. Default is None
 
+        random_state : int, numpy.random.RandomState, or None
+            The random state used for generating samples. If set to none, a
+            random seed will be used. If set to either an integer or a
+            random seed, will produce deterministic outputs.
+
         callbacks : list, optional
             A list of callback objects that describe functionality that should
             be undertaken over the course of training.
@@ -3580,6 +3585,8 @@ cdef class HiddenMarkovModel(GraphModel):
         model : HiddenMarkovModel
             The model fit to the data.
         """
+
+        random_state = check_random_state(random_state)
 
         if not isinstance(X, BaseGenerator):
             data_generator = SequenceGenerator(X, weights, labels)
@@ -3634,7 +3641,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
             distributions = []
             for i in range(n_components):
-                emissions = numpy.random.uniform(0, 1, len(keymap))
+                emissions = random_state.uniform(0, 1, len(keymap))
                 emissions /= emissions.sum()
 
                 distribution = DiscreteDistribution({key: value for key, value in zip(keymap, emissions)})

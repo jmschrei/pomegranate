@@ -20,10 +20,36 @@ MarkovNetwork
 	- Loopy belief propagation inference has been added in using the FactorGraph backend
 	- Structure learning has been added in using Chow-Liu trees
 
+BayesianNetwork
+---------------
+
+	- Chow-Liu tree building has been sped up slightly, courtesy of @alexhenrie
+	- Constraint Graphs no longer fail when passing in graphs with self loops, courtesy of @alexhenrie
+
 Distributions
 -------------
 
 	- Added a warning to DiscreteDistribution when the user passes in an empty dictionary. 
+
+io
+---
+	
+	- New file added, io.py, that contains data generators that can be operated on
+	- Added DataGenerator, a base generator that 
+
+HiddenMarkovModel
+-----------------
+
+	- Added RandomState parameter to `from_samples` to account for randomness when building discrete models.
+
+Misc
+----
+
+	- Unneccessary calls to memset have been removed, courtesy of @alexhenrie
+	- Checking for missing values has been slightly refactored to be cleaner, courtesy of @mareksmid-lucid
+	- Include the LICENSE file in MANIFEST.in and simplify a bit, courtesy of @toddrme2178
+
+
 
 Version 0.11.2
 ==============
