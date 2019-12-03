@@ -1,8 +1,10 @@
-import itertools as it
+import itertools
 import json
 import time
 import numpy
 cimport numpy
+
+from scipy.special import logsumexp
 
 from joblib import Parallel
 from joblib import delayed
@@ -35,9 +37,6 @@ except ImportError:
 
 nan = numpy.nan
 
-def _check_input(X, model):
-	return True
-
 cdef class MarkovNetwork(Model):
 	"""A Markov Network Model.
 
@@ -52,37 +51,49 @@ cdef class MarkovNetwork(Model):
 
 	name : str, optional
 		The name of the model. Default is None
-
 	"""
+
 	cdef object graph
 	cdef list idxs
+	cdef public list keys_
 	cdef public numpy.ndarray keymap
 	cdef int* parent_count
 	cdef int* parent_idxs
-	cdef numpy.ndarray distributions
+	cdef public numpy.ndarray distributions
 	cdef void** distributions_ptr
+	cdef public float partition
 
 	def __init__(self, distributions, name=None):
 		self.distributions = numpy.array(distributions)
+		if len(self.distributions) == 0:
+			raise ValueError("Must pass in at least one distribution to initialize a Markov Network.")
+
 		self.name = 'MarkovNetwork'
 		self.d = len(set(numpy.concatenate([d.parents for d in distributions])))
 
-	def __dealloc__( self ):
+	@property
+	def structure(self):
+		return tuple(tuple(d.parents) for d in self.distributions)
+
+	def __dealloc__(self):
 		free(self.parent_count)
 		free(self.parent_idxs)
 
-	def bake(self):
+	def bake(self, calculate_partition=True):
 		"""Finalize the topology of the underlying factor graph model.
 
-		Assign a numerical index to every state and create the underlying arrays
-		corresponding to the states and edges between the states. This method
-		must be called before any of the probability-calculating methods. This
-		includes converting conditional probability tables into joint probability
-		tables and creating a list of both marginal and table nodes.
+		Assign a numerical index to every clique and create the underlying
+		factor graph model. This method must be called before any of the 
+		probability-calculating or inference methods because the probability
+		calculating methods rely on the partition function and the inference
+		methods rely on the factor graph.
 
 		Parameters
 		----------
-		None
+		calculate_partition : bool, optional
+			Whether to calculate the partition function. This is not necessary if
+			the goal is simply to perform inference, but is required if the goal
+			is to calculate the probability of examples under the model.
 
 		Returns
 		-------
@@ -92,6 +103,7 @@ cdef class MarkovNetwork(Model):
 		# Initialize the factor graph
 		self.graph = FactorGraph(self.name+'-fg')
 		self.idxs = []
+		self.keys_ = [None for i in range(self.d)]
 
 		marginal_nodes = numpy.empty(self.d, dtype=object)
 		factor_nodes = {}
@@ -99,10 +111,12 @@ cdef class MarkovNetwork(Model):
 
 		# Determine all marginal nodes and their distributions
 		for i, d in enumerate(self.distributions):
-			keys = numpy.array(d.keys())
+			keys = numpy.array(d.keys(), dtype=object)
 
 			for j, parent in enumerate(d.parents):
 				keys_ = numpy.unique(keys[:,j])
+				self.keys_[parent] = keys_
+
 				d_ = DiscreteDistribution({key: 1. / len(keys_) for key in keys_})
 				m = State(d_, str(parent)+"-marginal")
 				marginal_nodes[parent] = m
@@ -135,13 +149,17 @@ cdef class MarkovNetwork(Model):
 		self.parent_count = <int*> calloc(self.d+1, sizeof(int))
 		self.parent_idxs = <int*> calloc(n, sizeof(int))
 
-	def log_probability(self, X, n_jobs=1):
-		"""Return the log probability of samples under the Markov network.
+		self.partition = float("inf")
+		if calculate_partition == True:
+			X_ = list(itertools.product(*self.keys_))
+			self.partition = logsumexp(self.log_probability(X_, 
+				unnormalized=True))
 
-		The log probability is just the sum of the log probabilities under each of
-		the components. The log probability of a sample under the graph A - B is
-		just P(A,B) from the joint probability table. This will return a vector of 
-		log probabilities, one for each sample.
+	def probability(self, X, n_jobs=1, unnormalized=False):
+		"""Return the probability of samples under the Markov network.
+
+		This is just a wrapper that exponentiates the result from the log
+		probability method.
 
 		Parameters
 		----------
@@ -151,10 +169,49 @@ cdef class MarkovNetwork(Model):
 			the connections between these variables are, just that they are all
 			ordered the same.
 
-		n_jobs : int
+		n_jobs : int, optional
 			The number of jobs to use to parallelize, either the number of threads
 			or the number of processes to use. -1 means use all available resources.
 			Default is 1.
+
+		unnormalized : bool, optional
+			Whether to return the unnormalized or normalized probabilities. The
+			normalized probabilities requires the partition function to be
+			calculated.
+
+		Returns
+		-------
+		prob : numpy.ndarray or double
+			The log probability of the samples if many, or the single log probability.
+		"""
+
+		return numpy.exp(self.log_probability(X, n_jobs=n_jobs, 
+			unnormalized=unnormalized))
+
+	def log_probability(self, X, n_jobs=1, unnormalized=False):
+		"""Return the log probability of samples under the Markov network.
+
+		The log probability is just the sum of the log probabilities under 
+		each of the components minus the partition function. This method will 
+		return a vector of log probabilities, one for each sample.
+
+		Parameters
+		----------
+		X : array-like, shape (n_samples, n_dim)
+			The sample is a vector of points where each dimension represents the
+			same variable as added to the graph originally. It doesn't matter what
+			the connections between these variables are, just that they are all
+			ordered the same.
+
+		n_jobs : int, optional
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
+		unnormalized : bool, optional
+			Whether to return the unnormalized or normalized probabilities. The
+			normalized probabilities requires the partition function to be
+			calculated.
 
 		Returns
 		-------
@@ -163,11 +220,17 @@ cdef class MarkovNetwork(Model):
 		"""
 
 		if self.d == 0:
-			raise ValueError("must bake model before computing probability")
+			raise ValueError("Must bake model before computing probability")
+		if self.partition == float("inf") and unnormalized == False:
+			raise ValueError("Must calculate partition before computing probability")
 
-		X = numpy.array(X, ndmin=2)
+		X = numpy.array(X, ndmin=2, dtype=object)
 		n, d = X.shape
 		logp = numpy.zeros(n, dtype='float64')
+
+		if unnormalized == False:
+			logp -= self.partition
+
 		for i in range(n):
 			for j, d in enumerate(self.distributions):
 				logp[i] += d.log_probability(X[i, self.idxs[j]])
@@ -193,6 +256,9 @@ cdef class MarkovNetwork(Model):
 
 				(<Model> self.distributions_ptr[j])._log_probability(sym, &logp, 1)
 				log_probability[i] += logp
+
+			log_probability[i] -= self.partition
+
 		free(sym)
 
 
@@ -219,13 +285,14 @@ cdef class MarkovNetwork(Model):
 
 		return self.graph.marginal()
 
-	def predict(self, X, max_iterations=100, check_input=True, n_jobs=1):
+	def predict(self, X, max_iterations=100, n_jobs=1):
 		"""Predict missing values of a data matrix using MLE.
 
 		Impute the missing values of a data matrix using the maximally likely
-		predictions according to the forward-backward algorithm. Run each
-		sample through the algorithm (predict_proba) and replace missing values
-		with the maximally likely predicted emission.
+		predictions according to the loopy belief propagation (also known as the
+		forward-backward) algorithm. Run each example through the algorithm 
+		(predict_proba) and replace missing values with the maximally likely 
+		predicted emission.
 
 		Parameters
 		----------
@@ -237,10 +304,6 @@ cdef class MarkovNetwork(Model):
 		max_iterations : int, optional
 			Number of iterations to run loopy belief propagation for. Default
 			is 100.
-
-		check_input : bool, optional
-			Check to make sure that the observed symbol is a valid symbol for that
-			distribution to produce. Default is True.
 
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
@@ -254,10 +317,10 @@ cdef class MarkovNetwork(Model):
 		"""
 
 		if self.d == 0:
-			raise ValueError("must bake model before using impute")
+			raise ValueError("Must bake model before calling predict.")
 
 		y_hat = self.predict_proba(X, max_iterations=max_iterations,
-			check_input=check_input, n_jobs=n_jobs)
+			n_jobs=n_jobs)
 
 		for i in range(len(y_hat)):
 			for j in range(len(y_hat[i])):
@@ -280,12 +343,12 @@ cdef class MarkovNetwork(Model):
 			The evidence supplied to the graph. This can either be a dictionary
 			with keys being state names and values being the observed values
 			(either the emissions or a distribution over the emissions) or an
-			array with the values being ordered according to the nodes incorporation
-			in the graph (the order fed into .add_states/add_nodes) and None for
-			variables which are unknown. It can also be vectorized, so a list of
-			dictionaries can be passed in where each dictionary is a single sample,
-			or a list of lists where each list is a single sample, both formatted
-			as mentioned before.
+			array with the values being ordered according to the nodes 
+			incorporation in the graph and None for variables which are unknown.
+			It can also be vectorized, so a list of dictionaries can be passed 
+			in where each dictionary is a single sample, or a list of lists where 
+			each list is a single sample, both formatted as mentioned before. 
+			The preferred method is as an numpy array.
 
 		max_iterations : int, optional
 			The number of iterations with which to do loopy belief propagation.
@@ -308,10 +371,7 @@ cdef class MarkovNetwork(Model):
 		"""
 
 		if self.d == 0:
-			raise ValueError("must bake model before using forward-backward algorithm")
-
-		if check_input:
-			_check_input(X, self)
+			raise ValueError("Must bake model before calling predict_proba")
 
 		if isinstance(X, dict):
 			return self.graph.predict_proba(X, max_iterations)
@@ -337,7 +397,7 @@ cdef class MarkovNetwork(Model):
 
 
 	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, verbose=False,
-		n_jobs=1):
+		calculate_partition=True, n_jobs=1):
 		"""Fit the model to data using MLE estimates.
 
 		Fit the model to the data by updating each of the components of the model,
@@ -371,6 +431,11 @@ cdef class MarkovNetwork(Model):
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
 
+		calculate_partition : bool, optional
+			Whether to calculate the partition function. This is not necessary if
+			the goal is simply to perform inference, but is required if the goal
+			is to calculate the probability of examples under the model.
+
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
 			or the number of processes to use. -1 means use all available resources.
@@ -397,7 +462,7 @@ cdef class MarkovNetwork(Model):
 				X[start:end], weights[start:end]) for start, end in zip(starts, ends))
 
 		self.from_summaries(inertia, pseudocount)
-		self.bake()
+		self.bake(calculate_partition=calculate_partition)
 
 		if verbose:
 			total_time_spent = time.time() - training_start_time
@@ -448,7 +513,8 @@ cdef class MarkovNetwork(Model):
 		for i, d in enumerate(self.distributions):
 			d.summarize(X, weights)
 
-	def from_summaries(self, inertia=0.0, pseudocount=0.0):
+	def from_summaries(self, inertia=0.0, pseudocount=0.0,
+		calculate_partition=True):
 		"""Use MLE on the stored sufficient statistics to train the model.
 
 		Parameters
@@ -462,6 +528,11 @@ cdef class MarkovNetwork(Model):
 			effectively smoothes the states to prevent 0. probability symbols
 			if they don't happen to occur in the data. Default is 0.
 
+		calculate_partition : bool, optional
+			Whether to calculate the partition function. This is not necessary if
+			the goal is simply to perform inference, but is required if the goal
+			is to calculate the probability of examples under the model.
+
 		Returns
 		-------
 		None
@@ -470,7 +541,7 @@ cdef class MarkovNetwork(Model):
 		for d in self.distributions:
 			d.from_summaries(inertia, pseudocount)
 
-		self.bake()
+		self.bake(calculate_partition=calculate_partition)
 
 	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to a JSON.
@@ -539,7 +610,7 @@ cdef class MarkovNetwork(Model):
 
 	@classmethod
 	def from_structure(cls, X, structure, weights=None, pseudocount=0.0,
-		name=None):
+		name=None, calculate_partition=True):
 		"""Return a Markov network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -587,12 +658,13 @@ cdef class MarkovNetwork(Model):
 			distributions.append(distribution)
 
 		model = MarkovNetwork(distributions)
-		model.bake()
+		model.bake(calculate_partition=calculate_partition)
 		return model
 
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='chow-liu', max_parents=-1,
-		 pseudocount=0.0, name=None, reduce_dataset=True, n_jobs=1):
+		 pseudocount=0.0, name=None, reduce_dataset=True, 
+		 calculate_partition=True, n_jobs=1):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Markov structure
@@ -728,9 +800,9 @@ cdef class MarkovNetwork(Model):
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		print(structure)
-
-		return MarkovNetwork.from_structure(X, structure, weights, pseudocount, name)
+		return MarkovNetwork.from_structure(X, structure=structure, 
+			weights=weights, pseudocount=pseudocount, name=name,
+			calculate_partition=calculate_partition)
 
 def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray,
 	numpy.ndarray key_count_ndarray, double pseudocount):

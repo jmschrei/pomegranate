@@ -53,7 +53,7 @@ If that doesn't work for you, you may need to downgrade your version of numpy to
 
 Q. I've been getting the following error: ```MarkovChain.so: unknown file type, first eight bytes: 0x7F 0x45 0x4C 0x46 0x02 0x01 0x01 0x00.``` 
 
-A .This can be fixed by removing the .so files from the pomegranate installation or by building pomegranate from source.
+A. This can be fixed by removing the .so files from the pomegranate installation or by building pomegranate from source.
 
 
 Q. I'm encountering some other error when I try to install pomegranate.

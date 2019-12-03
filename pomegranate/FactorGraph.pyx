@@ -21,9 +21,6 @@ from .base cimport State
 from distributions.distributions cimport Distribution
 from distributions.distributions cimport MultivariateDistribution
 
-if sys.version_info[0] > 2:
-	xrange = range
-
 cdef class FactorGraph(GraphModel):
 	"""A Factor Graph model.
 
@@ -110,7 +107,7 @@ cdef class FactorGraph(GraphModel):
 		# We need a good way to get transition probabilities by state index that
 		# isn't N^2 to build or store. So we will need a reverse of the above
 		# mapping. It's awkward but asymptotically fine.
-		indices = {self.states[i]: i for i in xrange(n)}
+		indices = {self.states[i]: i for i in range(n)}
 		self.edges = [(indices[a], indices[b]) for a, b in self.edges]
 
 		# We need a new array for an undirected model which will store all
@@ -263,13 +260,13 @@ cdef class FactorGraph(GraphModel):
 			# Go through and set edges which are encoded as leaving the
 			# marginal distributions as the marginal distribution
 			if self.marginals[i] == 1:
-				for k in xrange(self.edge_count[i], self.edge_count[i+1]):
+				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					out_messages[k] = distributions[i]
 					in_messages[i] = distributions[i]
 			# Otherwise follow the edge, then set the message to be
 			# the marginal on the other side.
 			else:
-				for k in xrange(self.edge_count[i], self.edge_count[i+1]):
+				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					kl = self.transitions[k]
 					out_messages[k] = distributions[kl]
 					in_messages[k] = distributions[kl]
@@ -292,7 +289,7 @@ cdef class FactorGraph(GraphModel):
 				# this marginal node. So we start by looping over each edge, and
 				# for each edge loop over all other edges and multiply the factors
 				# together.
-				for k in xrange(self.edge_count[i], self.edge_count[i+1]):
+				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					ki = self.transitions[k]
 					# Start off by weighting by the distribution at this factor--
 					# keep in mind that this is a uniform distribution unless evidence
@@ -300,7 +297,7 @@ cdef class FactorGraph(GraphModel):
 					# specific value, acting as a filter.
 					message = distributions[i]
 
-					for l in xrange(self.edge_count[i], self.edge_count[i+1]):
+					for l in range(self.edge_count[i], self.edge_count[i+1]):
 						# Don't include the previous message received from here
 						if k == l:
 							continue
@@ -309,7 +306,7 @@ cdef class FactorGraph(GraphModel):
 						# together.
 						message *= in_messages[l]
 
-					for l in xrange(self.edge_count[ki], self.edge_count[ki+1]):
+					for l in range(self.edge_count[ki], self.edge_count[ki+1]):
 						li = self.transitions[l]
 
 						if li == i:
@@ -325,14 +322,14 @@ cdef class FactorGraph(GraphModel):
 				# We need to calculate the new in messages for the marginals.
 				# This involves taking in all messages from all edges except the
 				# message from the marginal we are trying to send a message to.
-				for k in xrange(self.edge_count[i], self.edge_count[i+1]):
+				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					ki = self.transitions[k]
 
 					# We can simply calculate this by turning the CPT into a
 					# joint probability table using the other messages, and
 					# then summing out those variables.
 					d = {}
-					for l in xrange(self.edge_count[i], self.edge_count[i+1]):
+					for l in range(self.edge_count[i], self.edge_count[i+1]):
 						# Don't take in messages from the marginal we are trying
 						# to send a message to.
 						if k == l:
@@ -341,7 +338,7 @@ cdef class FactorGraph(GraphModel):
 						li = self.transitions[l]
 						d[self.states[li].distribution] = out_messages[l]
 
-					for l in xrange(self.edge_count[ki], self.edge_count[ki+1]):
+					for l in range(self.edge_count[ki], self.edge_count[ki+1]):
 						li = self.transitions[l]
 
 						if li == i:
@@ -350,14 +347,14 @@ cdef class FactorGraph(GraphModel):
 			# Calculate the current estimates on the marginals to compare to the
 			# last iteration, so that we can stop if we reach convergence.
 			done = 1
-			for i in xrange(len(self.states)):
+			for i in range(len(self.states)):
 				if self.marginals[i] == 0:
 					continue
 
 				current_distributions[i] = distributions[i]
 				# Multiply the factors together by the original marginal to
 				# calculate the new estimate of the marginal
-				for k in xrange(self.edge_count[i], self.edge_count[i+1]):
+				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					current_distributions[i] *= in_messages[k]
 
 				if not current_distributions[i].equals(prior_distributions[i]):

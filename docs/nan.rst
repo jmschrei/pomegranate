@@ -3,6 +3,8 @@
 Missing Values
 ==============
 
+- `IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/C_Feature_Tutorial_4_Missing_Values.ipynb>`_
+
 As of version 0.9.0, pomegranate supports missing values for almost all methods. This means that models can be fit to data sets that have missing values in them, inference can be done on samples that have missing values, and even structure learning can be done in the presence of missing values. Currently, this support exists in the form of calculating sufficient statistics with respect to only the variables that are present in a sample and ignoring the missing values, in contrast to imputing the missing values and using those for the estimation. 
 
 Missing value support was added in a manner that requires the least user thought. All one has to do is add ``numpy.nan`` to mark an entry as missing for numeric data sets, or the string ``'nan'`` for string data sets. pomegranate will automatically handle missing values appropriately. The functions have been written in such a way to minimize the overhead of missing value support, by only acting differently when a missing value is found. However, it may take some models longer to do calculations in the presence of missing values than on dense data. For example, when calculating the log probability of a sample under a multivariate Gaussian distribution one can typically use BLAS or a GPU since a dot product is taken between the data and the inverse covariance matrix. Unfortunately, since missing data can occur in any of the columns, a new inverse covariance matrix has to be calculated for each sample and BLAS cannot be utilized at all. 

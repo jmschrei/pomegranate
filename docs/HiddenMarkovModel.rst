@@ -12,15 +12,15 @@ The HMM implementation in pomegranate is based off of the implementation in its 
 
 .. code-block:: python
 	
-	from yahmm import *
-	model = Model()
+	>>> from yahmm import *
+	>>> model = Model()
 
 would now be written as
 
 .. code-block:: python
 	
-	from pomegranate import *
-	model = HiddenMarkovModel()
+	>>> from pomegranate import *
+	>>> model = HiddenMarkovModel()
 
 and the remaining method calls should be identical.
 
@@ -70,8 +70,8 @@ The second way to initialize models is to use the ``from_samples`` class method.
 
 .. code-block:: python
 
-	from pomegranate import *
-	model = HiddenMarkovModel.from_samples(NormalDistribution, n_components=5, X=X)
+	>>> from pomegranate import *
+	>>> model = HiddenMarkovModel.from_samples(NormalDistribution, n_components=5, X=X)
 
 Much like a mixture model, all arguments present in the ``fit`` step can also be passed in to this method. Also like a mixture model, it is initialized by running k-means on the concatenation of all data, ignoring that the symbols are part of a structured sequence. The clusters returned are used to initialize all parameters of the distributions, i.e. both mean and covariances for multivariate Gaussian distributions. The transition matrix is initialized as uniform random probabilities. After the components (distributions on the nodes) are initialized, the given training algorithm is used to refine the parameters of the distributions and learn the appropriate transition probabilities.
 

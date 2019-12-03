@@ -16,34 +16,34 @@ Here is an example of a traditional multivariate Gaussian mixture where we pass 
 
 .. code-block:: python
 	
-	from pomegranate import *
-	d1 = MultivariateGaussianDistribution([1, 6, 3], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-	d2 = MultivariateGaussianDistribution([2, 8, 4], [[1, 0, 0], [0, 1, 0], [0, 0, 2]])
-	d3 = MultivariateGaussianDistribution([0, 4, 8], [[2, 0, 0], [0, 3, 0], [0, 0, 1]])
-	model = GeneralMixtureModel([d1, d2, d3], weights=[0.25, 0.60, 0.15])
+	>>> from pomegranate import *
+	>>> d1 = MultivariateGaussianDistribution([1, 6, 3], [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+	>>> d2 = MultivariateGaussianDistribution([2, 8, 4], [[1, 0, 0], [0, 1, 0], [0, 0, 2]])
+	>>> d3 = MultivariateGaussianDistribution([0, 4, 8], [[2, 0, 0], [0, 3, 0], [0, 0, 1]])
+	>>> model = GeneralMixtureModel([d1, d2, d3], weights=[0.25, 0.60, 0.15])
 
 Alternatively, if we want to model each dimension differently, then we can replace the multivariate Gaussian distributions with ``IndependentComponentsDistribution`` objects.
 
 .. code-block:: python
 
-	from pomegranate import *
-	d1 = IndependentComponentsDistributions([NormalDistribution(5, 2), ExponentialDistribution(1), LogNormalDistribution(0.4, 0.1)])
-	d2 = IndependentComponentsDistributions([NormalDistribution(3, 1), ExponentialDistribution(2), LogNormalDistribution(0.8, 0.2)])
-	model = GeneralMixtureModel([d1, d2], weights=[0.66, 0.34])
+	>>> from pomegranate import *
+	>>> d1 = IndependentComponentsDistributions([NormalDistribution(5, 2), ExponentialDistribution(1), LogNormalDistribution(0.4, 0.1)])
+	>>> d2 = IndependentComponentsDistributions([NormalDistribution(3, 1), ExponentialDistribution(2), LogNormalDistribution(0.8, 0.2)])
+	>>> model = GeneralMixtureModel([d1, d2], weights=[0.66, 0.34])
 
 If we do not know the parameters of our distributions beforehand and want to learn them entirely from data, then we can use the ``from_samples`` class method. This method will run k-means to initialize the components, using the returned clusters to initialize all parameters of the distributions, i.e. both mean and covariances for multivariate Gaussian distributions. Afterwards, expectation-maximization is used to refine the parameters of the model, iterating until convergence.
 
 .. code-block:: python
 	
-	from pomegranate import *
-	model = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=3, X=X)
+	>>> from pomegranate import *
+	>>> model = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=3, X=X)
 
 If we want to model each dimension using a different distribution, then we can pass in a list of callables and they will be initialized using k-means as well.
 
 .. code-block:: python
 
-	from pomegranate import *
-	model = GeneralMixtureModel.from_samples([NormalDistribution, ExponentialDistribution, LogNormalDistribution], n_components=5, X=X)
+	>>> from pomegranate import *
+	>>> model = GeneralMixtureModel.from_samples([NormalDistribution, ExponentialDistribution, LogNormalDistribution], n_components=5, X=X)
 
 
 Probability
