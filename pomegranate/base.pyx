@@ -70,7 +70,7 @@ cdef class Model(object):
 	@classmethod
 	def from_yaml( cls, yml ):
 		"""Deserialize this object from its YAML representation."""
-		return cls.from_json(json.dumps(yaml.load(yml)))
+		return cls.from_json(json.dumps(yaml.load(yml, Loader=yaml.SafeLoader)))
 
 	def copy(self):
 		"""Return a deep copy of this distribution object.
