@@ -10,9 +10,6 @@ matrix:
   - os: osx
     language: generic
     env: PYTHON=3.7
-  - os: osx
-    language: generic
-    env: PYTHON=3.8
   - os: linux
     language: generic
     env: PYTHON=3.5
