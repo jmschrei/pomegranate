@@ -57,8 +57,8 @@ Contributions are eagerly accepted! If you would like to contribute a feature th
 
    api.rst
    ooc.rst
+   io.rst
    semisupervised.rst
-   minibatch.rst
    parallelism.rst
    gpu.rst
    nan.rst
@@ -75,4 +75,5 @@ Contributions are eagerly accepted! If you would like to contribute a feature th
    NaiveBayes.rst
    MarkovChain.rst
    BayesianNetwork.rst
+   MarkovNetwork.rst
    FactorGraph.rst

@@ -6,7 +6,6 @@
 
 from __future__ import print_function
 
-from cython.view cimport array as cvarray
 from libc.math cimport exp as cexp
 from operator import attrgetter
 import math, random, itertools as it, sys, json
@@ -30,13 +29,14 @@ from .callbacks import History
 
 from .utils cimport _log
 from .utils cimport pair_lse
-
 from .utils cimport python_log_probability
 from .utils cimport python_summarize
 
 from .utils import check_random_state
 from .utils import _check_nan
 
+from .io import BaseGenerator
+from .io import SequenceGenerator
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -48,13 +48,6 @@ cimport numpy
 
 from joblib import Parallel
 from joblib import delayed
-
-if sys.version_info[0] > 2:
-    # Set up for Python 3
-    xrange = range
-    izip = zip
-else:
-    izip = it.izip
 
 try:
     import pygraphviz
@@ -108,17 +101,6 @@ def _check_input(sequence, model):
                     .format(symbol))
 
     return sequence_ndarray
-
-# Useful python-based array-intended operations
-def log(value):
-    """Return the natural log of the value or -infinity if the value is 0."""
-
-    if isinstance(value, numpy.ndarray):
-        to_return = numpy.zeros((value.shape))
-        to_return[value > 0] = numpy.log(value[value > 0])
-        to_return[value == 0] = NEGINF
-        return to_return
-    return _log(value)
 
 cdef class HiddenMarkovModel(GraphModel):
     """A Hidden Markov Model
@@ -287,7 +269,7 @@ cdef class HiddenMarkovModel(GraphModel):
         n = self.n_tied_edge_groups-1
 
         # Go through each group one at a time
-        for i in xrange(n):
+        for i in range(n):
             # Create an empty list for that group
             groups.append([])
 
@@ -295,12 +277,12 @@ cdef class HiddenMarkovModel(GraphModel):
             start, end = self.tied_edge_group_size[i], self.tied_edge_group_size[i+1]
 
             # Add each edge as a tuple of indices
-            for j in xrange(start, end):
+            for j in range(start, end):
                 groups[i].append((self.tied_edges_starts[j], self.tied_edges_ends[j]))
 
         # Now reverse this into a dictionary, such that each pair of edges points
         # to a label (a number in this case)
-        d = { tup : i for i in xrange(n) for tup in groups[i] }
+        d = { tup : i for i in range(n) for tup in groups[i] }
 
         # Get all the edges from the graph
         edges = []
@@ -316,10 +298,10 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Get distribution tie information
         ties = []
-        for i in xrange(self.silent_start):
+        for i in range(self.silent_start):
             start, end = self.tied_state_count[i], self.tied_state_count[i+1]
 
-            for j in xrange(start, end):
+            for j in range(start, end):
                 ties.append((i, self.tied[j]))
 
         state['distribution ties'] = ties
@@ -462,7 +444,7 @@ cdef class HiddenMarkovModel(GraphModel):
         """
 
         pseudocount = pseudocount or probability
-        self.graph.add_edge(a, b, probability=log(probability),
+        self.graph.add_edge(a, b, probability=_log(probability),
             pseudocount=pseudocount, group=group)
 
     def add_transitions(self, a, b, probabilities, pseudocounts=None,
@@ -505,19 +487,19 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Allow addition of many transitions from many states
         if isinstance(a, list) and isinstance(b, list):
-            edges = izip(a, b, probabilities, pseudocounts, groups)
+            edges = zip(a, b, probabilities, pseudocounts, groups)
             for start, end, probability, pseudocount, group in edges:
                 self.add_transition(start, end, probability, pseudocount, group)
 
         # Allow for multiple transitions to a specific state
         elif isinstance(a, list) and isinstance(b, State):
-            edges = izip(a, probabilities, pseudocounts, groups)
+            edges = zip(a, probabilities, pseudocounts, groups)
             for start, probability, pseudocount, group in edges:
                 self.add_transition(start, b, probability, pseudocount, group)
 
         # Allow for multiple transitions from a specific state
         elif isinstance(a, State) and isinstance(b, list):
-            edges = izip(b, probabilities, pseudocounts, groups)
+            edges = zip(b, probabilities, pseudocounts, groups)
             for end, probability, pseudocount, group in edges:
                 self.add_transition(a, end, probability, pseudocount, group)
 
@@ -538,8 +520,8 @@ cdef class HiddenMarkovModel(GraphModel):
         m = len(self.states)
         transition_log_probabilities = numpy.zeros((m, m)) + NEGINF
 
-        for i in xrange(m):
-            for n in xrange(self.out_edge_count[i], self.out_edge_count[i+1]):
+        for i in range(m):
+            for n in range(self.out_edge_count[i], self.out_edge_count[i+1]):
                 transition_log_probabilities[i, self.out_transitions[n]] = \
                     self.out_transition_log_probabilities[n]
 
@@ -645,9 +627,6 @@ cdef class HiddenMarkovModel(GraphModel):
         self.graph = networkx.union(self.graph, other.graph)
         self.add_transition(self.end, other.start, 1.00)
         self.end = other.end
-
-    def draw(self, **kwargs):
-        raise ValueError("deprecated. Please use .plot")
 
     def plot(self, precision=4, **kwargs):
         """Draw this model's graph using NetworkX and matplotlib.
@@ -811,7 +790,7 @@ cdef class HiddenMarkovModel(GraphModel):
                     # Reweight the edges so that the probability (not logp) sums
                     # to 1.
                     for edge in self.graph.adj[state].values():
-                        edge['probability'] = edge['probability'] - log(out_edges)
+                        edge['probability'] = edge['probability'] - _log(out_edges)
 
         # Automatically merge adjacent silent states attached by a single edge
         # of 1.0 probability, as that adds nothing to the model. Traverse the
@@ -1012,7 +991,7 @@ cdef class HiddenMarkovModel(GraphModel):
             self.finite = 1
         # Take the cumulative sum so that we can associate array indices with
         # in or out transitions
-        for i in xrange(1, n+1):
+        for i in range(1, n+1):
             self.in_edge_count[i] += self.in_edge_count[i-1]
             self.out_edge_count[i] += self.out_edge_count[i-1]
 
@@ -1694,7 +1673,7 @@ cdef class HiddenMarkovModel(GraphModel):
         for ir in range(n):
             #if self.finite == 0 and ir == 0:
             #   continue
-            # Cython xranges cannot go backwards properly, redo to handle
+            # Cython ranges cannot go backwards properly, redo to handle
             # it properly
             i = n - ir - 1
             for kr in range(m-self.silent_start):
@@ -1941,7 +1920,7 @@ cdef class HiddenMarkovModel(GraphModel):
             if k < self.silent_start:
                 # Now think about emission probabilities from this state
 
-                for i in xrange(n):
+                for i in range(n):
                     # For each symbol that came out
 
                     # What's the weight of this symbol for that state?
@@ -2403,14 +2382,14 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Go through each symbol and determine what the most likely state
         # that it came from is.
-        for k in xrange(n):
+        for k in range(n):
             maximum_index = -1
             maximum_emission_weight = NEGINF
 
             # Go through each hidden state and see which one has the maximal
             # weight for emissions. Tied states are not taken into account
             # here, because we are not performing training.
-            for l in xrange(self.silent_start):
+            for l in range(self.silent_start):
                 if emission_weights[k, l] > maximum_emission_weight:
                     maximum_emission_weight = emission_weights[k, l]
                     maximum_index = l
@@ -2424,8 +2403,8 @@ cdef class HiddenMarkovModel(GraphModel):
         min_iterations=0, max_iterations=1e8, algorithm='baum-welch',
         pseudocount=None, transition_pseudocount=0, emission_pseudocount=0.0,
         use_pseudocount=False, inertia=None, edge_inertia=0.0,
-        distribution_inertia=0.0, batch_size=None, batches_per_epoch=None,
-        lr_decay=0.0, callbacks=[], return_history=False, verbose=False, n_jobs=1):
+        distribution_inertia=0.0, batches_per_epoch=None, lr_decay=0.0, 
+        callbacks=[], return_history=False, verbose=False, n_jobs=1):
         """Fit the model to data using either Baum-Welch, Viterbi, or supervised training.
 
         Given a list of sequences, performs re-estimation on the model
@@ -2515,13 +2494,6 @@ cdef class HiddenMarkovModel(GraphModel):
             Whether to use inertia when updating the distribution parameters.
             Default is 0.0.
 
-        batch_size : int or None, optional
-            The number of samples in a batch to summarize on. This controls
-            the size of the set sent to `summarize` and so does not make the
-            update any less exact. This is useful when training on a memory
-            map and cannot load all the data into memory. If set to None,
-            batch_size is 1 / n_jobs. Default is None.
-
         batches_per_epoch : int or None, optional
             The number of batches in an epoch. This is the number of batches to
             summarize before calling `from_summaries` and updating the model
@@ -2575,51 +2547,20 @@ cdef class HiddenMarkovModel(GraphModel):
 
         training_start_time = time.time()
 
-        for sequence in sequences:
-            sequence_ndarray = _check_input(sequence, self)
-            X.append(sequence_ndarray)
-
-        if weights is None:
-            weights = numpy.ones(len(X), dtype='float64')
+        if not isinstance(sequences, BaseGenerator):
+            data_generator = SequenceGenerator(sequences, weights, labels)
         else:
-            weights = numpy.array(weights, dtype='float64')
+            data_generator = sequences
 
-        n = len(X)
+        n = data_generator.shape[0]
 
         semisupervised = False
         if labels is not None:
             if None in labels:
                 semisupervised = True
-                X_labeled = [x for x, label in zip(X, labels) if label != None]
-                X_unlabeled = [x for x, label in zip(X, labels) if label == None]
 
-                weights_labeled = numpy.array([weight for weight, label in zip(weights, labels) if label != None])
-                weights_unlabeled = numpy.array([weight for weight, label in zip(weights, labels) if label == None])
-
-                labels = [label for label in labels if label != None]
-
-            labels = numpy.array([numpy.array(label) for label in labels])
-
-        if semisupervised:
-            starts_labeled = [int(i*len(X_labeled)/n_jobs) for i in range(n_jobs)]
-            ends_labeled = [int(i*len(X_labeled)/n_jobs) for i in range(1, n_jobs+1)]
-
-            starts_unlabeled = [int(i*len(X_unlabeled)/n_jobs) for i in range(n_jobs)]
-            ends_unlabeled = [int(i*len(X_unlabeled)/n_jobs) for i in range(1, n_jobs+1)]
-
-        if batch_size is None:
-            starts = [int(i*n/n_jobs) for i in range(n_jobs)]
-            ends = [int(i*n/n_jobs) for i in range(1, n_jobs+1)]
-        else:
-            starts = list(range(0, n, batch_size))
-            if starts[-1] == n:
-                starts = starts[:-1]
-            ends = list(range(batch_size, n, batch_size)) + [n]
-
-        minibatching = batches_per_epoch is not None
-        batches_per_epoch = batches_per_epoch or len(starts)
+        batches_per_epoch = batches_per_epoch 
         n_seen_batches = 0
-        epoch_starts, epoch_ends = None, None
 
         callbacks = [History()] + callbacks
         for callback in callbacks:
@@ -2627,60 +2568,40 @@ cdef class HiddenMarkovModel(GraphModel):
             callback.on_training_begin()
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+            f = delayed(self.summarize, check_pickle=False)
+
             while improvement > stop_threshold or iteration < min_iterations + 1:
                 epoch_start_time = time.time()
-
                 step_size = None if inertia is None else 1 - ((1 - inertia) * (2 + iteration) ** -lr_decay)
 
                 self.from_summaries(step_size, pseudocount, transition_pseudocount,
                     emission_pseudocount, use_pseudocount,
                     edge_inertia, distribution_inertia)
 
-                if epoch_starts is not None and minibatching:
-                    updated_log_probability_sum = sum(self.log_probability(X[i])
-                        for i in range(epoch_starts[0], epoch_ends[-1]))
-                    improvement = updated_log_probability_sum - log_probability_sum
-
-                epoch_starts = starts[n_seen_batches:n_seen_batches+batches_per_epoch]
-                epoch_ends = ends[n_seen_batches:n_seen_batches+batches_per_epoch]
-
-                n_seen_batches += batches_per_epoch
-                if n_seen_batches >= len(starts):
-                    n_seen_batches = 0
-
                 if iteration >= max_iterations + 1:
                     break
 
                 if semisupervised:
-                    log_probability_sum = sum(parallel(delayed(self.summarize,
-                        check_pickle=False)(X_labeled[start:end],
-                        weights_labeled[start:end], labels[start:end],
-                        algorithm='labeled', check_input=False)
-                        for start, end in zip(starts_labeled, ends_labeled)))
+                    log_probability_sum = sum(parallel(f(*batch, algorithm='labeled', 
+                        check_input=True) for batch in data_generator.labeled_batches()))
 
-                    log_probability_sum += sum(parallel(delayed(self.summarize,
-                        check_pickle=False)(X_unlabeled[start:end],
-                        weights_unlabeled[start:end], algorithm=algorithm,
-                        check_input=False)
-                        for start, end in zip(starts_unlabeled, ends_unlabeled)))
+                    log_probability_sum += sum(parallel(f(*batch, algorithm=algorithm, 
+                        check_input=True) for batch in data_generator.unlabeled_batches()))
 
                 elif labels is not None:
-                    log_probability_sum = sum(parallel(delayed(self.summarize, check_pickle=False)(X[start:end],
-                        weights[start:end], labels[start:end], alg, False)
-                        for start, end in zip(epoch_starts, epoch_ends)))
+                    log_probability_sum = sum(parallel(f(*batch, 
+                        algorithm=algorithm) for batch in data_generator.batches()))
+
                 else:
-                    log_probability_sum = sum(parallel(delayed(self.summarize, check_pickle=False)(X[start:end],
-                        weights[start:end], None, alg, False)
-                        for start, end in zip(epoch_starts, epoch_ends)))
+                    log_probability_sum = sum(parallel(f(*batch, algorithm=algorithm,
+                        check_input=True) for batch in data_generator.batches()))
 
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
                 else:
                     epoch_end_time = time.time()
                     time_spent = epoch_end_time - epoch_start_time
-
-                    if not minibatching:
-                        improvement = log_probability_sum - last_log_probability_sum
+                    improvement = log_probability_sum - last_log_probability_sum
 
                     if verbose:
                         print("[{}] Improvement: {}\tTime (s): {:.4}".format(
@@ -3300,7 +3221,7 @@ cdef class HiddenMarkovModel(GraphModel):
         n = self.n_tied_edge_groups-1
 
         # Go through each group one at a time
-        for i in xrange(n):
+        for i in range(n):
             # Create an empty list for that group
             groups.append([])
 
@@ -3308,12 +3229,12 @@ cdef class HiddenMarkovModel(GraphModel):
             start, end = self.tied_edge_group_size[i], self.tied_edge_group_size[i+1]
 
             # Add each edge as a tuple of indices
-            for j in xrange(start, end):
+            for j in range(start, end):
                 groups[i].append((self.tied_edges_starts[j], self.tied_edges_ends[j]))
 
         # Now reverse this into a dictionary, such that each pair of edges points
         # to a label (a number in this case)
-        d = { tup : i for i in xrange(n) for tup in groups[i] }
+        d = { tup : i for i in range(n) for tup in groups[i] }
 
         # Get all the edges from the graph
         edges = []
@@ -3329,10 +3250,10 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Get distribution tie information
         ties = []
-        for i in xrange(self.silent_start):
+        for i in range(self.silent_start):
             start, end = self.tied_state_count[i], self.tied_state_count[i+1]
 
-            for j in xrange(start, end):
+            for j in range(start, end):
                 ties.append((i, self.tied[j]))
 
         model['distribution ties'] = ties
@@ -3449,11 +3370,11 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Build the initial model
         model = HiddenMarkovModel(name=name)
-        state_names = state_names or ["s{}".format(i) for i in xrange(len(distributions))]
+        state_names = state_names or ["s{}".format(i) for i in range(len(distributions))]
 
         # Build state objects for every state with the appropriate distribution
         states = [State(distribution, name=name) for name, distribution in
-            izip(state_names, distributions)]
+            zip(state_names, distributions)]
 
         n = len(states)
 
@@ -3467,7 +3388,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 model.add_transition(model.start, states[i], prob)
 
         # Connect all states to each other if they have a non-zero probability
-        for i in xrange(n):
+        for i in range(n):
             for j, prob in enumerate(transition_probabilities[i]):
                 if prob != 0.:
                     model.add_transition(states[i], states[j], prob)
@@ -3488,9 +3409,9 @@ cdef class HiddenMarkovModel(GraphModel):
         transition_pseudocount=0, emission_pseudocount=0.0,
         use_pseudocount=False, stop_threshold=1e-9, min_iterations=0,
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1,
-        batch_size=None, batches_per_epoch=None, lr_decay=0.0, end_state=False,
-        state_names=None, name=None, callbacks=[], return_history=False,
-        verbose=False, n_jobs=1):
+        initialization_batch_size=None, batches_per_epoch=None, lr_decay=0.0, 
+        end_state=False, state_names=None, name=None, random_state=None, 
+        callbacks=[], return_history=False, verbose=False, n_jobs=1):
         """Learn the transitions and emissions of a model directly from data.
 
         This method will learn both the transition matrix, emission distributions,
@@ -3517,11 +3438,12 @@ cdef class HiddenMarkovModel(GraphModel):
         n_components : int
             The number of states (or components) to initialize.
 
-        X : array-like
+        X : array-like or generator
             An array of some sort (list, numpy.ndarray, tuple..) of sequences,
             where each sequence is a numpy array, which is 1 dimensional if
             the HMM is a one dimensional array, or multidimensional if the HMM
-            supports multiple dimensions.
+            supports multiple dimensions. Alternatively, a data generator
+            object that yields sequences.
 
         weights : array-like or None, optional
             An array of weights, one for each sequence to train on. If None,
@@ -3604,12 +3526,9 @@ cdef class HiddenMarkovModel(GraphModel):
         max_kmeans_iterations : int, optional
             The number of iterations to run k-means for before starting EM.
 
-        batch_size : int or None, optional
-            The number of samples in a batch to summarize on. This controls
-            the size of the set sent to `summarize` and so does not make the
-            update any less exact. This is useful when training on a memory
-            map and cannot load all the data into memory. If set to None,
-            batch_size is 1 / n_jobs. Default is None.
+        initialization_batch_size : int or None, optional
+            The number of batches to use to initialize the model. None means
+            use the entire data set. Default is None. 
 
         batches_per_epoch : int or None, optional
             The number of batches in an epoch. This is the number of batches to
@@ -3638,6 +3557,11 @@ cdef class HiddenMarkovModel(GraphModel):
         name : str, optional
             The name of the model. Default is None
 
+        random_state : int, numpy.random.RandomState, or None
+            The random state used for generating samples. If set to none, a
+            random seed will be used. If set to either an integer or a
+            random seed, will produce deterministic outputs.
+
         callbacks : list, optional
             A list of callback objects that describe functionality that should
             be undertaken over the course of training.
@@ -3659,70 +3583,95 @@ cdef class HiddenMarkovModel(GraphModel):
             The model fit to the data.
         """
 
+        random_state = check_random_state(random_state)
 
-        X_concat = numpy.concatenate(X)
+        if not isinstance(X, BaseGenerator):
+            data_generator = SequenceGenerator(X, weights, labels)
+        else:
+            data_generator = X
 
-        if X_concat.ndim == 1:
-            X_concat = X_concat.reshape(X_concat.shape[0], 1)
+        if initialization_batch_size is None:
+            initialization_batch_size = len(data_generator)
 
-        n, d = X_concat.shape
+        X_, labels_ = [], []
+        data = data_generator.batches()
+        for i in range(initialization_batch_size):
+            batch = next(data)
+
+            X_.extend(batch[0])
+            if labels is not None:
+                labels_.extend(batch[2])
 
         if labels is not None:
-            X_ = [x for x, label in zip(X, labels) if label != None]
-            X_ = numpy.concatenate(X_)
+            X_concat = [x for x, label in zip(X_, labels_) if label is not None]
+            X_concat = numpy.concatenate(X_concat)
 
-            labels_ = numpy.concatenate([l for l in labels if l is not None])
-
-            labels_ = numpy.array([l for l in labels_ if l != str(name)+"-start" and l != str(name)+"-end"])
-            label_set = numpy.unique(labels_)
+            labels_concat = numpy.concatenate([l for l in labels if l is not None])
+            labels_concat = numpy.array([l for l in labels_concat if l != str(name)+"-start" and l != str(name)+"-end"])
+            label_set = numpy.unique(labels_concat)
 
             if distribution is DiscreteDistribution:
-                keymap = numpy.unique(X_)
+                keymap = numpy.unique(X_concat)
 
                 distributions = []
                 for label in label_set:
+                    idx = labels_concat == label
+
                     d = DiscreteDistribution({key: 1. / len(keymap) for key in keymap})
-                    d.fit(X_[labels_ == label])
+                    d.fit(X_concat[idx])
                     distributions.append(d)
             else:
-                distributions = [distribution.from_samples(
-                    X_[labels_ == label]) for label in label_set]
+                distributions = []
+                for label in label_set:
+                    idx = labels_concat == label
+
+                    d = distribution.from_samples(X_concat[idx])
+                    distributions.append(d)
 
             if len(label_set) != n_components:
                 raise ValueError("Specified {} components, but only {} different "
                     "labels observed".format(n_components, len(label_set)))
 
         elif distribution is DiscreteDistribution:
+            X_concat = numpy.concatenate(X_)
             keymap = numpy.unique(X_concat)
 
             distributions = []
             for i in range(n_components):
-                emissions = numpy.random.uniform(0, 1, len(keymap))
+                emissions = random_state.uniform(0, 1, len(keymap))
                 emissions /= emissions.sum()
 
                 distribution = DiscreteDistribution({key: value for key, value in zip(keymap, emissions)})
                 distributions.append(distribution)
+
         elif isinstance(distribution, list) and isinstance(distribution[0], NeuralNetworkWrapper):
             distributions = distribution
+
         else:
+            X_concat = numpy.concatenate(X_)
+            if X_concat.ndim == 1:
+                X_concat = X_concat.reshape(X_concat.shape[0], 1)
+
+            n, d = X_concat.shape
+
             clf = Kmeans(n_components, init=init, n_init=n_init)
-            clf.fit(X_concat, weights, max_iterations=max_kmeans_iterations,
-                batch_size=batch_size, batches_per_epoch=batches_per_epoch)
+            clf.fit(X_concat, max_iterations=max_kmeans_iterations,
+                batches_per_epoch=batches_per_epoch)
             y = clf.predict(X_concat)
 
             if callable(distribution):
                 if d == 1:
-                    distributions = [distribution.from_samples(X_concat[y == i][:,0]) for i in range(n_components)]
-                elif isinstance(distribution.blank(), MultivariateDistribution):
-                    distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+                    distributions = [distribution.from_samples(X_concat[y == i][:,0]) 
+                        for i in range(n_components)]
                 elif distribution.blank().d > 1:
-                    distributions = [distribution.from_samples(X_concat[y == i]) for i in range(n_components)]
+                    distributions = [distribution.from_samples(X_concat[y == i]) 
+                    for i in range(n_components)]
                 else:
                     distribution = [distribution for i in range(d)]
 
             if isinstance(distribution, list):
-                distributions = [IndependentComponentsDistribution.from_samples(X_concat[y == i],
-                    distributions=distribution) for i in range(n_components)]
+                distributions = [IndependentComponentsDistribution.from_samples(
+                    X_concat[y == i], distributions=distribution) for i in range(n_components)]
 
         k = n_components
         transition_matrix = numpy.ones((k, k)) / k
@@ -3736,7 +3685,7 @@ cdef class HiddenMarkovModel(GraphModel):
             start_probabilities, state_names=state_names, name=name, 
             ends=end_probabilities)
 
-        _, history = model.fit(X, weights=weights, labels=labels, 
+        _, history = model.fit(data_generator, weights=weights, labels=labels, 
             stop_threshold=stop_threshold, min_iterations=min_iterations, 
             max_iterations=max_iterations, algorithm=algorithm, 
             verbose=verbose, pseudocount=pseudocount,
@@ -3744,7 +3693,7 @@ cdef class HiddenMarkovModel(GraphModel):
             emission_pseudocount=emission_pseudocount,
             use_pseudocount=use_pseudocount,
             inertia=inertia, edge_inertia=edge_inertia,
-            distribution_inertia=distribution_inertia, batch_size=batch_size,
+            distribution_inertia=distribution_inertia,
             batches_per_epoch=batches_per_epoch, lr_decay=lr_decay,
             callbacks=callbacks, return_history=True, n_jobs=n_jobs)
 

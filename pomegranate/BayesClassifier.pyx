@@ -15,6 +15,8 @@ from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 
 from .utils import _convert
+from .io import BaseGenerator
+from .io import DataGenerator
 
 from joblib import Parallel
 from joblib import delayed
@@ -114,7 +116,7 @@ cdef class BayesClassifier(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None,
+	def from_samples(self, distributions, X, y=None, weights=None,
 		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
 		callbacks=[], return_history=False, verbose=False, n_jobs=1):
 		"""Create a Bayes classifier directly from the given dataset.
@@ -202,13 +204,20 @@ cdef class BayesClassifier(BayesModel):
 		if isinstance(distributions, (list, numpy.ndarray, tuple)):
 			for distribution in distributions:
 				if not callable(distribution):
-					raise ValueError("must pass in class constructors, not initiated distributions (i.e. NormalDistribution)")
+					raise ValueError("must pass in class constructors, not initiated distributions (e.g. NormalDistribution)")
 
-		X = numpy.array(X)
-		y = numpy.array(y)
+		if not isinstance(X, BaseGenerator):
+			if y is None:
+				raise ValueError("Must pass in both X and y as arrays or a data generator for X.")
 
-		n, d = X.shape
-		n_components = numpy.unique(y[y != -1]).shape[0]
+			batch_size = len(X) // n_jobs + len(X) % n_jobs
+			data_generator = DataGenerator(X, weights, y, batch_size=batch_size)
+		else:
+			data_generator = X
+
+		n, d = data_generator.shape
+		n_components = len(data_generator.classes) - (-1 in data_generator.classes)
+
 		if callable(distributions):
 			if d > 1:
 				distributions = [distributions.blank(d) for i in range(n_components)]
@@ -218,9 +227,10 @@ cdef class BayesClassifier(BayesModel):
 			distributions = [distribution.blank() for distribution in distributions]
 
 		model = BayesClassifier(distributions)
-		_, history = model.fit(X, y, weights=weights, inertia=inertia, pseudocount=pseudocount,
-			stop_threshold=stop_threshold, max_iterations=max_iterations,
-			callbacks=callbacks, return_history=True, verbose=verbose, n_jobs=n_jobs)
+		_, history = model.fit(X=data_generator, weights=weights, inertia=inertia, 
+			pseudocount=pseudocount, stop_threshold=stop_threshold, 
+			max_iterations=max_iterations, callbacks=callbacks, 
+			return_history=True, verbose=verbose, n_jobs=n_jobs)
 
 		if return_history:
 			return model, history

@@ -55,6 +55,9 @@ cdef class DiscreteDistribution(Distribution):
 		Bernoulli distribution.
 		"""
 
+		if len(characters) == 0:
+			raise ValueError("Must pass in a dictionary with at least one value.")
+
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
 		self.dtype = str(type(list(characters.keys())[0])).split()[-1].strip('>').strip("'")
@@ -82,6 +85,7 @@ cdef class DiscreteDistribution(Distribution):
 
 	def __mul__(self, other):
 		"""Multiply this by another distribution sharing the same keys."""
+
 		assert set(self.keys()) == set(other.keys())
 		distribution, total = {}, 0.0
 
@@ -342,4 +346,4 @@ cdef class DiscreteDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return DiscreteDistribution({})
+		return DiscreteDistribution({'None': 1.0})

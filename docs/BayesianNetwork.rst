@@ -89,9 +89,9 @@ You can calculate the probability of a sample under a Bayesian network as the pr
 
 .. code-block:: python
 	
-	>>> print model.probability([['A', 'A', 'A'],
+	>>> print(model.probability([['A', 'A', 'A'],
 		                     ['A', 'A', 'B'],
-		                     ['C', 'C', 'B']])
+		                     ['C', 'C', 'B']]))
 	[ 0.          0.05555556  0.05555556]
 
 Prediction
@@ -101,9 +101,9 @@ Bayesian networks are frequently used to infer/impute the value of missing varia
 
 .. code-block:: python
 
-	>>> print model.predict([['A', 'B', None],
+	>>> print(model.predict([['A', 'B', None],
 		                 ['A', 'C', None],
-		                 ['C', 'B', None]])
+		                 ['C', 'B', None]]))
 	[['A' 'B' 'C']
 	 ['A' 'C' 'B']
 	 ['C' 'B' 'A']]
@@ -112,9 +112,9 @@ In this example, the final column is the one that is always missing, but a more 
 
 .. code-block:: python
 
-	>>> print model.predict([['A', 'B', None],
+	>>> print(model.predict([['A', 'B', None],
 	                 ['A', None, 'C'],
-	                 [None, 'B', 'A']])
+	                 [None, 'B', 'A']]))
 	[['A' 'B' 'C']
 	 ['A' 'B' 'C']
  	 ['C' 'B' 'A']]

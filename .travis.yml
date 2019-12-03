@@ -3,9 +3,6 @@ matrix:
   include:
   - os: osx
     language: generic
-    env: PYTHON=2.7
-  - os: osx
-    language: generic
     env: PYTHON=3.5
   - os: osx
     language: generic
@@ -15,9 +12,6 @@ matrix:
     env: PYTHON=3.7
   - os: linux
     language: generic
-    env: PYTHON=2.7
-  - os: linux
-    language: generic
     env: PYTHON=3.5
   - os: linux
     language: generic
@@ -25,6 +19,9 @@ matrix:
   - os: linux
     language: generic
     env: PYTHON=3.7
+  - os: linux
+    language: generic
+    env: PYTHON=3.8
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then if [[ "$PYTHON" == "2.7" ]]; then wget
   http://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh -O miniconda.sh;

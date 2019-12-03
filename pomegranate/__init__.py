@@ -19,9 +19,10 @@ from .BayesClassifier import BayesClassifier
 from .MarkovChain import MarkovChain
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
+from .MarkovNetwork import MarkovNetwork
 from .FactorGraph import FactorGraph
 
-__version__ = '0.11.2'
+__version__ = '0.11.3'
 
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'

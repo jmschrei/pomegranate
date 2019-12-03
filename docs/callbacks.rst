@@ -3,6 +3,8 @@
 Callbacks
 =========
 
+- `IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/C_Feature_Tutorial_8_Callbacks.ipynb>`_
+
 Callback refer to functions that should be executing during the training procedure. These functions can be executed either at the start of training, the end of each epoch, or at the end of training. They mirror in style the callbacks from keras, and so are passed in using the `callbacks` keyword in `fit` and `from_sample` methods.
 
 In pomegranate, a callback is an object that inherits from the `pomegranate.callbacks.Callback` object and has the following three methods implemented or inherited:
@@ -41,28 +43,26 @@ The following callbacks are built in to pomegranate:
 
 .. code-block:: python
 
-	from pomegranate.callbacks import ModelCheckpoint
-	from pomegranate import *
-
-	HiddenMarkovModel.from_samples(X, callbacks=[ModelCheckpoint()])
+	>>> from pomegranate.callbacks import ModelCheckpoint
+	>>> from pomegranate import *
+	>>> HiddenMarkovModel.from_samples(X, callbacks=[ModelCheckpoint()])
 
 3. ``CSVLogger(filename, separator=',', append=False)``: This callback will save the statistics from the logs dictionary to rows in a file at the end of each epoch. The filename specifies where to save the logs to, the separator is the symbol to separate values, and append indicates whether to save to the end of a file or to overwrite it, if it currently exists.
 
 .. code-block:: python
 
-	from pomegranate.callbacks import CSVLogger, ModelCheckpoint
-	from pomegranate import *
-
-	HiddenMarkovModel.from_samples(X, callbacks=[CSVLogger('model.logs'), ModelCheckpoint()])
+	>>> from pomegranate.callbacks import CSVLogger, ModelCheckpoint
+	>>> from pomegranate import *
+	>>> HiddenMarkovModel.from_samples(X, callbacks=[CSVLogger('model.logs'), ModelCheckpoint()])
 
 4. ``LambdaCallback(on_training_begin=None, on_training_end=None, on_epoch_end=None)``: A convenient wrapper that allows you to pass functions in that get executed at the appropriate points. The function `on_epoch_end` and `on_training_end` should accept a single argument, the dictionary of logs, as described above.
 
 .. code-block:: python
 
-	from pomegranate.callbacks import LambdaCheckpoint
-	from pomegranate import *
-
-	def on_training_end(logs):
-		print "Total Improvement: {:4.4}".format(logs['total_improvement'])
-
-	HiddenMarkovModel.from_samples(X, callbacks=[LambdaCheckpoint(on_training_end=on_training_end)])
+	>>> from pomegranate.callbacks import LambdaCheckpoint
+	>>> from pomegranate import *
+	>>> 
+	>>> def on_training_end(logs):
+	>>> 	print "Total Improvement: {:4.4}".format(logs['total_improvement'])
+	>>> 
+	>>> HiddenMarkovModel.from_samples(X, callbacks=[LambdaCheckpoint(on_training_end=on_training_end)])

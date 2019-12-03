@@ -81,26 +81,26 @@ Distributions are typically used to calculate the probability of some sample. Th
 
 .. code-block:: python
 
-    a = NormalDistribution(5, 2)
-    a.log_probability(8)
+    >>> a = NormalDistribution(5, 2)
+    >>> a.log_probability(8)
     -2.737085713764219
-    a.probability(8)
+    >>> a.probability(8)
     0.064758797832971712
-    b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
-    b.log_probability(8)
+    >>> b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
+    >>> b.log_probability(8)
     -4.437779569430167
 
 These methods work for univariate distributions, kernel densities, and multivariate distributions all the same. For a multivariate distribution you'll have to pass in an array for the full sample.
 
 .. code-block:: python
     
-    d1 = NormalDistribution(5, 2)
-    d2 = LogNormalDistribution(1, 0.3)
-    d3 = ExponentialDistribution(4)
-    d = IndependentComponentsDistribution([d1, d2, d3])
+    >>> d1 = NormalDistribution(5, 2)
+    >>> d2 = LogNormalDistribution(1, 0.3)
+    >>> d3 = ExponentialDistribution(4)
+    >>> d = IndependentComponentsDistribution([d1, d2, d3])
     >>>
-    X = [6.2, 0.4, 0.9]
-    d.log_probability(X)
+    >>> X = [6.2, 0.4, 0.9]
+    >>> d.log_probability(X)
     -23.205411733352875
 
 Fitting
