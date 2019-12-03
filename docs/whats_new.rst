@@ -5,13 +5,15 @@
 Release History
 ===============
 
-Version 0.11.3
+Version 0.12.0
 ==============
 
 Highlights
 ----------
 
 	- MarkovNetwork models have been added in and include both inference and structure learning.
+	- Support for Python 2 has been depricated.
+	- Markov network, data generator, and callback tutorials have been added in
 
 MarkovNetwork
 -------------
@@ -35,7 +37,7 @@ io
 ---
 	
 	- New file added, io.py, that contains data generators that can be operated on
-	- Added DataGenerator, a base generator that 
+	- Added DataGenerator, DataFrameGenerator, and a BaseGenerator class to inherit from 
 
 HiddenMarkovModel
 -----------------
@@ -49,7 +51,25 @@ Misc
 	- Checking for missing values has been slightly refactored to be cleaner, courtesy of @mareksmid-lucid
 	- Include the LICENSE file in MANIFEST.in and simplify a bit, courtesy of @toddrme2178
 
+docs
+----
 
+	- Added io.rst to briefly describe data generators
+	- Added MarkovNetwork.rst to describe Markov networks
+	- Added links to tutorials that did not have tutorials linked to them.
+
+Tutorials
+---------
+	
+	- Added in a tutorial notebook for Markov networks
+	- Added in a tutorial notebook for data generators
+	- Added in a tutorial notebook for callbacks
+
+CI
+--
+
+	- Removed unit tests for Py2.7 from AppVeyor and Travis
+	- Added unit tests for Py3.8 to AppVeyor and Travis 
 
 Version 0.11.2
 ==============
