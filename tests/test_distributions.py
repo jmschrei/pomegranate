@@ -15,7 +15,8 @@ from pomegranate import (Distribution,
 						 IndependentComponentsDistribution,
 						 MultivariateGaussianDistribution,
 						 ConditionalProbabilityTable,
-						 BernoulliDistribution)
+						 BernoulliDistribution,
+						 from_json)
 
 from nose.tools import with_setup
 from nose.tools import assert_almost_equal
@@ -246,6 +247,13 @@ def test_distributions_uniform_json_serialization():
 	assert_array_equal(e.parameters, [0, 10])
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
+def test_distributions_uniform_robust_json_serialization():
+	d = UniformDistribution(0, 10)
+
+	e = from_json(d.to_json())
+	assert_equal(e.name, "UniformDistribution")
+	assert_array_equal(e.parameters, [0, 10])
+	assert_array_equal(d.summaries, [inf, -inf, 0])
 
 def test_distributions_uniform_random_sample():
 	d = UniformDistribution(0, 10)
@@ -443,6 +451,13 @@ def test_distributions_normal_json_serialization():
 	assert_array_equal(e.parameters, [5, 2])
 	assert_array_equal(e.summaries, [0, 0, 0])
 
+def test_distributions_normal_robust_json_serialization():
+	d = NormalDistribution(5, 2)
+
+	e = from_json(d.to_json())
+	assert_equal(e.name, "NormalDistribution")
+	assert_array_equal(e.parameters, [5, 2])
+	assert_array_equal(e.summaries, [0, 0, 0])
 
 def test_distributions_normal_random_sample():
 	d = NormalDistribution(0, 1)
@@ -521,6 +536,13 @@ def test_distributions_discrete():
 	assert_equal(f.name, "DiscreteDistribution")
 	assert_equal(f.parameters[0], {'A': 0.5625, 'B': 0.4375})
 
+
+def test_discrete_robust_json_serialization():
+	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'], pseudocount=6)
+
+	e = from_json(d.to_json())
+	assert_equal(e.name, "DiscreteDistribution")
+	assert_equal(e.parameters[0], {'A': 0.5625, 'B': 0.4375})
 
 @with_setup(setup, teardown)
 def test_lognormal():

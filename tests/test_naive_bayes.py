@@ -719,6 +719,16 @@ def test_json():
 	assert_true(isinstance(new_univ, NaiveBayes))
 	numpy.testing.assert_array_equal( model.weights, new_univ.weights)
 
+@with_setup(setup_univariate_mixed, teardown)
+def test_robust_from_json():
+	j_univ = model.to_json()
+
+	new_univ = from_json(j_univ)
+	assert_true(isinstance(new_univ.distributions[0], NormalDistribution))
+	assert_true(isinstance(new_univ.distributions[1], UniformDistribution))
+	assert_true(isinstance(new_univ, NaiveBayes))
+	numpy.testing.assert_array_equal( model.weights, new_univ.weights)
+
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_io_log_probability():
 	X2 = DataGenerator(X)

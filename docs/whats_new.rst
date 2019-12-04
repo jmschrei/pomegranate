@@ -14,6 +14,7 @@ Highlights
 	- MarkovNetwork models have been added in and include both inference and structure learning.
 	- Support for Python 2 has been depricated.
 	- Markov network, data generator, and callback tutorials have been added in
+	- A robust `from_json` method has been added in to __init__.py that can deserialize JSONs from any pomegranate model.
 
 MarkovNetwork
 -------------
@@ -31,7 +32,8 @@ BayesianNetwork
 Distributions
 -------------
 
-	- Added a warning to DiscreteDistribution when the user passes in an empty dictionary. 
+	- Added a warning to DiscreteDistribution when the user passes in an empty dictionary.
+	- Fixed the sampling procedure for JointProbabilityTables. 
 
 io
 ---
@@ -50,6 +52,7 @@ Misc
 	- Unneccessary calls to memset have been removed, courtesy of @alexhenrie
 	- Checking for missing values has been slightly refactored to be cleaner, courtesy of @mareksmid-lucid
 	- Include the LICENSE file in MANIFEST.in and simplify a bit, courtesy of @toddrme2178
+	- Added in a robust from_json method that can be used to deseralize a JSON for any pomegranate model.
 
 docs
 ----

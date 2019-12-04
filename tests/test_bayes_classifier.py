@@ -513,6 +513,26 @@ def test_bc_multivariate_mixed_to_json():
 	assert_array_almost_equal(model.weights, model2.weights)
 
 
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_robust_from_json():
+	model2 = from_json(model.to_json())
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], MultivariateGaussianDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_robust_from_json():
+	model2 = from_json(model.to_json())
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], IndependentComponentsDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
+
 @with_setup(setup_hmm, teardown)
 def test_model():
 	assert_almost_equal(hmm1.log_probability(list('H')), -0.2231435513142097 )

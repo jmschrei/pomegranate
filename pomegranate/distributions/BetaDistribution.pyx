@@ -16,9 +16,13 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 cdef class BetaDistribution(Distribution):
-	"""
-	This distribution represents a beta distribution, parameterized using
-	alpha/beta, which are both shape parameters. ML estimation is done
+	"""A beta-binomial distribution.
+
+	This object is a beta-binomial distribution. This means that it uses
+	a beta distribution to model the distribution of values that the rate
+	value can take rather than it being a single number.
+
+	This should not be confused with a Beta distribution by itself.
 	"""
 
 	property parameters:

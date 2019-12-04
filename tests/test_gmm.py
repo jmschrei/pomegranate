@@ -296,6 +296,57 @@ def test_gmm_multivariate_mixed_json():
 
 
 @with_setup(setup_multivariate_gaussian, teardown)
+def test_gmm_multivariate_gaussian_robust_from_json():
+	gmm_2 = from_json(gmm.to_json())
+
+	X = np.array([[1.1, 2.7, 3.0, 4.8, 6.2]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -9.8406, 4)
+
+	X = np.array([[1.8, 2.1, 3.1, 5.2, 6.5]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -9.6717, 4)
+
+	X = np.array([[0.9, 2.2, 3.2, 5.0, 5.8]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -9.7162, 4)
+
+	X = np.array([[1.0, 2.1, 3.5, 4.3, 5.2]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -9.894, 4)
+
+	X = np.array([[1.2, 2.9, 3.1, 4.2, 5.5]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -10.9381, 4)
+
+	X = np.array([[1.8, 1.9, 3.0, 4.9, 5.7]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -11.0661, 4)
+
+	X = np.array([[1.2, 3.1, 2.9, 4.2, 5.9]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -11.3147, 4)
+
+	X = np.array([[1.0, 2.9, 3.9, 4.1, 6.0]])
+	assert_almost_equal(gmm_2.log_probability(X).sum(), -10.7922, 4)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_gmm_multivariate_mixed_robust_from_json():
+	gmm2 = from_json(gmm.to_json())
+
+	X = numpy.array([[1.1, 2.7, 3.0, 4.8, 6.2],
+					[1.8, 2.1, 3.1, 5.2, 6.5],
+					[0.9, 2.2, 3.2, 5.0, 5.8],
+					[1.0, 2.1, 3.5, 4.3, 5.2],
+					[1.2, 2.9, 3.1, 4.2, 5.5],
+					[1.8, 1.9, 3.0, 4.9, 5.7],
+					[1.2, 3.1, 2.9, 4.2, 5.9],
+					[1.0, 2.9, 3.9, 4.1, 6.0]])
+
+	logp_t = [-33.75384631, -34.1714099,  -32.59702495, -27.39375394,
+	-30.66715208, -30.52489174, -31.71056782, -30.79589904]
+	logp1 = gmm.log_probability(X)
+	logp2 = gmm2.log_probability(X)
+
+	assert_array_almost_equal(logp2, logp_t)
+	assert_array_almost_equal(logp1, logp2)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
 def test_gmm_multivariate_gaussian_predict_log_proba():
 	posterior = np.array([[-2.10001234e+01, -1.23402948e-04, -9.00012340e+00, -4.80001234e+01, -1.17000123e+02],
                           [-2.30009115e+01, -9.11466556e-04, -7.00091147e+00, -4.40009115e+01, -1.11000911e+02]])

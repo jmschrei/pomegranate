@@ -95,7 +95,7 @@ cdef class GammaDistribution(Distribution):
 			return
 
 		# Make it be a numpy array
-		items = numpy.asarray(items)
+		items = numpy.array(items).reshape(len(items))
 
 		if weights is None:
 			# Weight everything 1 if no weights specified

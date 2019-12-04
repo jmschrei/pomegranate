@@ -347,8 +347,23 @@ def test_raise_errors():
 @with_setup( setup, teardown )
 def test_pickling():
 	chain1 = MarkovChain([ zeroth_dist, first_dist ])
-
 	chain2 = pickle.loads( pickle.dumps( chain1 ) )
+
+	assert_almost_equal( chain1.log_probability( list('BCCCACBDBDBABACD') ),
+	                     chain2.log_probability( list('BCCCACBDBDBABACD') ) )
+
+@with_setup( setup, teardown )
+def test_json():
+	chain1 = MarkovChain([ zeroth_dist, first_dist ])
+	chain2 = MarkovChain.from_json(chain1.to_json())
+
+	assert_almost_equal( chain1.log_probability( list('BCCCACBDBDBABACD') ),
+	                     chain2.log_probability( list('BCCCACBDBDBABACD') ) )
+
+@with_setup( setup, teardown )
+def test_robust_from_json():
+	chain1 = MarkovChain([ zeroth_dist, first_dist ])
+	chain2 = from_json(chain1.to_json())
 
 	assert_almost_equal( chain1.log_probability( list('BCCCACBDBDBABACD') ),
 	                     chain2.log_probability( list('BCCCACBDBDBABACD') ) )

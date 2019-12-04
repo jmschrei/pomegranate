@@ -90,9 +90,10 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 	def sample(self, n=None, random_state=None):
 		random_state = check_random_state(random_state)
 		a = random_state.uniform(0, 1)
+		values = numpy.cumsum(numpy.exp([self.values[i] for i in range(self.n)]))
 		for i in range(self.n):
-			if cexp(self.values[i]) > a:
-				return self.keymap.keys()[i][-1]
+			if values[i] > a:
+				return list(self.keymap.keys())[i]
 
 	def bake(self, keys):
 		"""Order the inputs according to some external global ordering."""

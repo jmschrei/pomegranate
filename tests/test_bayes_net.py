@@ -8,6 +8,7 @@ These are unit tests for the Bayesian network part of pomegranate.
 
 from __future__ import division
 
+from pomegranate import from_json
 from pomegranate import DiscreteDistribution
 from pomegranate import ConditionalProbabilityTable
 from pomegranate import State, Node
@@ -1054,9 +1055,41 @@ def test_from_structure():
     assert_equal(model2.structure, structure)
     assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
 
+def test_robust_from_structure():
+    X = datasets[1]
+    structure = ((1, 2), (4,), (), (), (3,))
+    model = BayesianNetwork.from_structure(X, structure=structure)
+
+    assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model2 = from_json(model.to_json())
+    assert_equal(model2.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
 @with_setup(setup_random_mixed)
 def test_from_json():
     model2 = BayesianNetwork.from_json(model.to_json())
+
+    logp1 = model.log_probability(X)
+    logp2 = model2.log_probability(X)
+    logp = [-2.304186, -1.898721, -1.898721, -2.224144, -1.898721, -1.978764, 
+        -1.898721, -1.898721, -1.898721, -1.898721, -1.818679, -2.384229, 
+        -2.304186, -1.978764, -2.304186, -2.384229, -2.304186, -2.384229, 
+        -2.304186, -1.978764, -2.224144, -1.818679, -1.898721, -2.304186, 
+        -2.304186, -1.898721, -1.818679, -1.898721, -1.818679, -2.304186, 
+        -1.978764, -2.224144, -1.898721, -2.304186, -1.898721, -1.818679, 
+        -2.304186, -1.898721, -1.898721, -2.384229, -2.224144, -1.818679, 
+        -2.384229, -1.978764, -1.818679, -1.978764, -1.898721, -1.818679, 
+        -2.224144, -1.898721]
+    
+    assert_array_almost_equal(logp1, logp2)
+    assert_array_almost_equal(logp1, logp)
+    assert_array_almost_equal(logp2, logp)
+
+@with_setup(setup_random_mixed)
+def test_robust_from_json():
+    model2 = from_json(model.to_json())
 
     logp1 = model.log_probability(X)
     logp2 = model2.log_probability(X)
