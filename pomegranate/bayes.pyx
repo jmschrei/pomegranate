@@ -658,12 +658,12 @@ cdef class BayesModel(Model):
                     self.from_summaries(inertia, pseudocount)
 
                     unsupervised.weights[:] = self.weights
-                    parallel(f(*batch) for batch in data_generator.labeled_data())
+                    parallel(f(*batch) for batch in data_generator.labeled_batches())
 
                     unsupervised.summaries[:] = self.summaries
 
                     log_probability_sum = sum(parallel(f2(*batch) for batch in 
-                        data_generator.unlabeled_data()))
+                        data_generator.unlabeled_batches()))
 
                     self.summaries[:] = unsupervised.summaries
 

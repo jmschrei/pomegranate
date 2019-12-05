@@ -16,9 +16,9 @@ DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
 cdef class BetaDistribution(Distribution):
-	"""A beta-binomial distribution.
+	"""A beta-bernoulli distribution.
 
-	This object is a beta-binomial distribution. This means that it uses
+	This object is a beta-bernoulli distribution. This means that it uses
 	a beta distribution to model the distribution of values that the rate
 	value can take rather than it being a single number.
 

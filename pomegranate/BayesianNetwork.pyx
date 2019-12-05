@@ -1286,20 +1286,26 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 							joint_count[xj*lk+xk] / (marg_j[xj] * marg_k[xk]))
 						mutual_info[k*d + j] = mutual_info[j*d + k]
 
+	cdef int x, y, min_x, min_y
+	cdef double min_score, score
 
 	structure = [[] for i in range(d)]
 	visited = [root]
 	unvisited = list(range(d))
 	unvisited.remove(root)
 
-	while len(unvisited) > 0:
-		min_score, min_x, min_y = INF, -1, -1
+	for i in range(d-1):
+		min_score = float("inf")
+		min_x = -1
+		min_y = -1
 
 		for x in visited:
 			for y in unvisited:
-				score = mutual_info_ndarray[x, y]
+				score = mutual_info[x*d + y]
 				if score < min_score:
-					min_score, min_x, min_y = score, x, y
+					min_score = score
+					min_x = x
+					min_y = y
 
 		structure[min_y].append(min_x)
 		visited.append(min_y)

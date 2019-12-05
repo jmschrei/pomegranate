@@ -27,13 +27,21 @@ BayesianNetwork
 ---------------
 
 	- Chow-Liu tree building has been sped up slightly, courtesy of @alexhenrie
+	- Chow-Liu tree building was further sped up by almost an order of magnitude
 	- Constraint Graphs no longer fail when passing in graphs with self loops, courtesy of @alexhenrie
+
+BayesClassifier
+---------------
+
+	- Updated the `from_samples` method to accept BayesianNetwork as an emission. This will build one Bayesian network for each class and use them as the emissions.
 
 Distributions
 -------------
 
 	- Added a warning to DiscreteDistribution when the user passes in an empty dictionary.
 	- Fixed the sampling procedure for JointProbabilityTables. 
+	- GammaDistributions should have their shape issue resolved
+	- The documentation for BetaDistributions has been updated to specify that it is a Beta-Bernoulli distribution. 
 
 io
 ---

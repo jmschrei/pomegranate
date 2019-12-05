@@ -118,7 +118,7 @@ cdef class BayesClassifier(BayesModel):
 	@classmethod
 	def from_samples(self, distributions, X, y=None, weights=None,
 		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
-		callbacks=[], return_history=False, verbose=False, n_jobs=1):
+		callbacks=[], return_history=False, verbose=False, n_jobs=1, **kwargs):
 		"""Create a Bayes classifier directly from the given dataset.
 
 		This will initialize the distributions using maximum likelihood estimates
@@ -190,10 +190,14 @@ cdef class BayesClassifier(BayesModel):
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
 
-		n_jobs : int
+		n_jobs : int, optional
 			The number of jobs to use to parallelize, either the number of threads
 			or the number of processes to use. -1 means use all available resources.
 			Default is 1.
+
+		**kwargs : dict, optional
+			Any arguments to pass into the `from_samples` methods of other objects
+			that are being created such as BayesianNetworks or HMMs.
 
 		Returns
 		-------
@@ -219,7 +223,19 @@ cdef class BayesClassifier(BayesModel):
 		n_components = len(data_generator.classes) - (-1 in data_generator.classes)
 
 		if callable(distributions):
-			if d > 1:
+			if distributions in (BayesianNetwork, HiddenMarkovModel):
+				batches = [batch for batch in data_generator.batches()]
+				X = numpy.concatenate([batch[0] for batch in batches])
+				y = numpy.concatenate([batch[1] for batch in batches])
+				weights = numpy.concatenate([batch[2] for batch in batches])
+				labels = numpy.unique(y)
+
+				distributions = [distributions.from_samples(X[y == label], 
+					weights=weights, pseudocount=pseudocount) for label in labels]
+
+				return BayesClassifier(distributions)
+
+			elif d > 1:
 				distributions = [distributions.blank(d) for i in range(n_components)]
 			else:
 				distributions = [distribution.blank() for i in range(n_components)]
