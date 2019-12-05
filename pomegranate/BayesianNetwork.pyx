@@ -1249,8 +1249,7 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 
-	cdef numpy.ndarray mutual_info_ndarray = numpy.zeros((d, d), dtype='float64')
-	cdef double* mutual_info = <double*> mutual_info_ndarray.data
+	cdef double* mutual_info = <double*> calloc(d * d, sizeof(double))
 
 	cdef double* marg_j = <double*> calloc(max_keys, sizeof(double))
 	cdef double* marg_k = <double*> calloc(max_keys, sizeof(double))
@@ -1311,6 +1310,7 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 		visited.append(min_y)
 		unvisited.remove(min_y)
 
+	free(mutual_info)
 	free(marg_j)
 	free(marg_k)
 	free(joint_count)
