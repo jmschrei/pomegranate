@@ -17,6 +17,7 @@ filenames = [
     "base",
     "bayes",
     "BayesianNetwork",
+    "MarkovNetwork",
     "FactorGraph",
     "hmm",
     "gmm",
@@ -70,7 +71,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.11.2',
+    version='0.12.0',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=[
