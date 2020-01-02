@@ -1040,7 +1040,7 @@ def test_exact_structure_learning():
     for X, logp in zip(datasets, logps):
         model = BayesianNetwork.from_samples(X, algorithm='exact')
         model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
-        assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
+        assert_almost_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
 def test_from_structure():
