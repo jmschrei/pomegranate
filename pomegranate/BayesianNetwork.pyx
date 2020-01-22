@@ -1621,9 +1621,9 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 	closed = {}
 
 	h = sum(parent_graphs[i][other_variables[i]][1] for i in range(d))
-	o.push(((), h, [() for i in range(d)]), 0)
+	o.push(((), [() for i in range(d)]), -h)
 	while not o.empty():
-		weight, (variables, g, structure) = o.pop()
+		weight, (variables, structure) = o.pop()
 
 		if variables in closed:
 			continue
@@ -1638,14 +1638,13 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 			pg = parent_graphs[i]
 			parents, c = pg[variables]
 
-			e = g - c
 			f = weight - c + pg[other_variables[i]][1]
 
 			local_structure = structure[:]
 			local_structure[i] = parents
 
 			new_variables = tuple(sorted(variables + (i,)))
-			entry = (new_variables, e, local_structure)
+			entry = (new_variables, local_structure)
 
 			prev_entry = o.get(new_variables)
 			if prev_entry is not None:
