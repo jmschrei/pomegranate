@@ -5,6 +5,7 @@ from nose.tools import with_setup
 from nose.tools import assert_equal
 from nose.tools import assert_not_equal
 from nose.tools import assert_raises
+from nose.tools import assert_almost_equal
 import random
 import numpy as np
 import json
@@ -237,7 +238,7 @@ def test_same_length_viterbi():
 	sequences = [ list(x) for x in [ 'ACT', 'GGC', 'GAT', 'ACC' ] ]
 
 	for seq, score in zip( sequences, scores ):
-		assert_equal( model.viterbi( seq )[0], score )
+		assert_almost_equal( model.viterbi( seq )[0], score )
 
 	assert_raises( ValueError, model.viterbi, list('XXX') )
 
@@ -251,7 +252,7 @@ def test_variable_length_viterbi():
 		'ACGTG', 'ATTT', 'TACCCTC', 'TGTCAACACT') ]
 
 	for seq, score in zip( sequences, scores ):
-		assert_equal( model.viterbi( seq )[0], score )
+		assert_almost_equal( model.viterbi( seq )[0], score )
 
 
 @with_setup( setup, teardown )

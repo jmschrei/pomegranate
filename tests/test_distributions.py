@@ -305,7 +305,7 @@ def test_distributions_normal_nan_log_probability():
 
 def test_distributions_normal_underflow_log_probability():
 	d = NormalDistribution(5, 1e-10)
-	assert_almost_equal(d.log_probability(1e100), -4.9999999999999987e+219)
+	assert_almost_equal(d.log_probability(1e100), -4.9999999999999987e+219, delta=6.270570637641398e+203)
 
 
 def test_distributions_normal_probability():
