@@ -14,5 +14,6 @@ cdef class DiscreteDistribution(Distribution):
 	cdef tuple encoded_keys
 	cdef double* encoded_counts
 	cdef double* encoded_log_probability
+	cdef double __probability(self, symbol)
 	cdef double __log_probability(self, symbol)
 
