@@ -169,6 +169,17 @@ cdef class DiscreteDistribution(Distribution):
 			self.encoded_counts[i] = 0
 			self.encoded_log_probability[i] = self.log_dist.get(key, NEGINF)
 
+	def probability(self, X):
+		"""Return the prob of the X under this distribution."""
+
+		return self.__probability(X)
+
+	cdef double __probability(self, X):
+		if _check_nan(X):
+			return 0.
+		else:
+			return self.dist.get(X, 0)
+
 	def log_probability(self, X):
 		"""Return the log prob of the X under this distribution."""
 
