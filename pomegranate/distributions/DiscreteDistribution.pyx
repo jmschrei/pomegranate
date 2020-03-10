@@ -176,7 +176,7 @@ cdef class DiscreteDistribution(Distribution):
 
 	cdef double __probability(self, X):
 		if _check_nan(X):
-			return 0.
+			return 1.
 		else:
 			return self.dist.get(X, 0)
 
