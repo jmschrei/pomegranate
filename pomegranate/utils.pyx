@@ -7,7 +7,6 @@ from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
 
-from libc.stdlib cimport calloc, free
 from scipy.linalg.cython_blas cimport dgemm
 
 cimport numpy
@@ -24,8 +23,8 @@ try:
 except ImportError:
 	pygraphviz = None
 
-cdef int* GPU = <int*> calloc(1, sizeof(int))
-cdef int* has_cupy = <int*> calloc(1, sizeof(int))
+cdef bint GPU = False
+cdef bint has_cupy = False
 
 try:
 	import cupy
@@ -33,12 +32,12 @@ try:
 	cuda.Device().cublas_handle
 
 	global has_cupy
-	has_cupy[0] = 1
+	has_cupy = True
 
 	enable_gpu()
 except:
 	global has_cupy
-	has_cupy[0] = 0
+	has_cupy = False
 
 numpy.import_array()
 
@@ -92,22 +91,22 @@ cdef class PriorityQueue(object):
 
 def is_gpu_enabled():
 	global GPU
-	return bool(GPU[0])
+	return GPU
 
-cdef int _is_gpu_enabled() nogil:
-	return GPU[0]
+cdef bint _is_gpu_enabled() nogil:
+	return GPU
 
 cpdef enable_gpu():
 	global GPU
 	
-	if has_cupy[0] == 0:
+	if not has_cupy:
 		raise Warning("Please install cupy before attempting to utilize a GPU.")
 	else:
-		GPU[0] = 1
+		GPU = True
 
 cpdef disable_gpu():
 	global GPU
-	GPU[0] = 0
+	GPU = False
 
 cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
 	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)
