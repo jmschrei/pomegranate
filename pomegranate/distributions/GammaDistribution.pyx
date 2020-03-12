@@ -196,7 +196,7 @@ cdef class GammaDistribution(Distribution):
 				scipy.special.polygamma(0, shape) -
 				statistic) / (1.0 / shape - scipy.special.polygamma(1, shape))
 
-			#print new_shape, scipy.special.polygamma(1, shape)
+			#print(new_shape, scipy.special.polygamma(1, shape))
 
 			# Don't let shape escape from valid values
 			if abs(new_shape) == float("inf") or new_shape == 0:

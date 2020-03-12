@@ -184,9 +184,9 @@ cdef class BayesianNetwork(GraphModel):
 	>>> model.add_nodes([s1, s2])
 	>>> model.add_edge(s1, s2)
 	>>> model.bake()
-	>>> print model.log_probability(['A', 'B'])
+	>>> print(model.log_probability(['A', 'B']))
 	-1.71479842809
-	>>> print model.predict_proba({'s2' : 'A'})
+	>>> print(model.predict_proba({'s2' : 'A'}))
 	array([ {
 		"frozen" :false,
 		"class" :"Distribution",
@@ -209,7 +209,7 @@ cdef class BayesianNetwork(GraphModel):
 		],
 		"name" :"DiscreteDistribution"
 	}], dtype=object)
-	>>> print model.impute([[None, 'A']])
+	>>> print(model.impute([[None, 'A']]))
 	[['B', 'A']]
 	"""
 

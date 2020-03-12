@@ -4,8 +4,6 @@
 # Authors: Jacob Schreiber <jmschreiber91@gmail.com>
 #          Adam Novak <anovak1@ucsc.edu>
 
-from __future__ import print_function
-
 from libc.math cimport exp as cexp
 from operator import attrgetter
 import math, random, itertools as it, sys, json
