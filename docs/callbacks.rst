@@ -63,6 +63,6 @@ The following callbacks are built in to pomegranate:
 	>>> from pomegranate import *
 	>>> 
 	>>> def on_training_end(logs):
-	>>> 	print "Total Improvement: {:4.4}".format(logs['total_improvement'])
+	>>> 	print("Total Improvement: {:4.4}".format(logs['total_improvement']))
 	>>> 
 	>>> HiddenMarkovModel.from_samples(X, callbacks=[LambdaCheckpoint(on_training_end=on_training_end)])

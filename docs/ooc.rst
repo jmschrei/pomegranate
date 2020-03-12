@@ -78,10 +78,10 @@ This is a simple example with a simple distribution, but all models and model st
 	>>> model2 = model.copy()
 	>>>
 	>>> X = numpy.random.randint(2, size=(10000, 4))
-	>>> print model.states[0].distribution.equals( model2.states[0].distribution )
+	>>> print(model.states[0].distribution.equals(model2.states[0].distribution))
 	True
 	>>> model.fit(X)
-	>>> print model.states[0].distribution.equals( model2.states[0].distribution )
+	>>> print(model.states[0].distribution.equals(model2.states[0].distribution))
 	False
 	>>> model2.summarize(X[:2500])
 	>>> model2.summarize(X[2500:5000])
@@ -89,7 +89,7 @@ This is a simple example with a simple distribution, but all models and model st
 	>>> model2.summarize(X[7500:])
 	>>> model2.from_summaries()
 	>>>
-	>>> print model.states[0].distribution.equals( model2.states[0].distribution )
+	>>> print(model.states[0].distribution.equals(model2.states[0].distribution))
 	True
 
 We can see that before fitting to any data, the distribution in one of the states is equal for both. After fitting the first distribution they become different as would be expected. After fitting the second one through summarize the distributions become equal again, showing that it is recovering an exact update.

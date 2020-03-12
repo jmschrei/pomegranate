@@ -5,7 +5,6 @@
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
 import numpy
-import sys
 import itertools as it
 import json
 import random
@@ -25,13 +24,6 @@ from libc.math cimport sqrt as csqrt
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 eps = numpy.finfo(numpy.float64).eps
-
-if sys.version_info[0] > 2:
-	# Set up for Python 3
-	xrange = range
-	izip = zip
-else:
-	izip = it.izip
 
 cdef class DiscreteDistribution(Distribution):
 	"""
@@ -236,7 +228,7 @@ cdef class DiscreteDistribution(Distribution):
 
 		self.summaries[1] += weights.sum()
 		characters = self.summaries[0]
-		for i in xrange(len(items)):
+		for i in range(len(items)):
 			characters[items[i]] += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
@@ -337,7 +329,7 @@ cdef class DiscreteDistribution(Distribution):
 		Xs = {}
 		total = 0
 
-		for X, weight in izip(items, weights):
+		for X, weight in zip(items, weights):
 			if _check_nan(X):
 				continue
 

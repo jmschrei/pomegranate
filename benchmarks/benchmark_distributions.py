@@ -17,7 +17,7 @@ random.seed(0)
 def print_benchmark( distribution, duration ):
 	"""Formatted print."""
 
-	print "{:25}: {:.4}s".format( distribution.__class__.__name__, duration )
+	print( "{:25}: {:.4}s".format( distribution.__class__.__name__, duration ) )
 
 def bench_log_probability( distribution, n=10000000, symbol=5 ):
 	"""Bench a log probability distribution."""
@@ -115,11 +115,11 @@ def benchmark_distribution_train():
 
 	print_benchmark( distribution, bench_from_sample( distribution, sample ) )
 
-print "DISTRIBUTION BENCHMARKS"
-print "-----------------------"
-print
-print "LOG PROBABILITY (N=10,000,000 iterations, N=100,000 FOR MVG)"
+print( "DISTRIBUTION BENCHMARKS" )
+print( "-----------------------" )
+print()
+print( "LOG PROBABILITY (N=10,000,000 iterations, N=100,000 FOR MVG)" )
 benchmark_distribution_log_probabilities()
-print
-print "TRAINING (N=1,000 ITERATIONS, BATCHES=10,000 ITEMS)"
+print()
+print( "TRAINING (N=1,000 ITERATIONS, BATCHES=10,000 ITEMS)" )
 benchmark_distribution_train()
