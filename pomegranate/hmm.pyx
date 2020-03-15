@@ -6,7 +6,8 @@
 
 from libc.math cimport exp as cexp
 from operator import attrgetter
-import math, random, itertools as it, sys, json
+import json
+import math
 import networkx
 import tempfile
 import warnings
