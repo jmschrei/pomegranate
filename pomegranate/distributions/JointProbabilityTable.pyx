@@ -39,6 +39,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.name = "JointProbabilityTable"
 		self.frozen = False
+		self.d = len(parents)
 		self.m = len(parents)
 		self.n = len(table)
 		self.k = len(set(row[-2] for row in table))
@@ -118,13 +119,20 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		ordering, like the training data.
 		"""
 
-		X = tuple(X)
+		X = numpy.array(X)
+		if len(X.shape) == 1:
+			X = numpy.array([X])
 
-		if 'nan' in X or numpy.nan in X or None in X:
-			return 0.
+		log_probabilities = numpy.zeros(len(X))
+		for i, x in enumerate(X):
+			x = tuple(x)
+			if 'nan' not in x and numpy.nan not in x and None not in x:
+				key = self.keymap[x]
+				log_probabilities[i] = self.values[key]
 
-		key = self.keymap[X]
-		return self.values[key]
+		if X.shape[0] == 1:
+			return log_probabilities[0]
+		return log_probabilities
 
 	cdef void _log_probability(self, double* X, double* log_probability, 
 		int n) nogil:

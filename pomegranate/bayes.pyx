@@ -17,6 +17,7 @@ cimport numpy
 from .base cimport Model
 from distributions.distributions cimport Distribution
 from distributions import DiscreteDistribution
+from distributions import JointProbabilityTable
 from distributions import IndependentComponentsDistribution
 from .hmm import HiddenMarkovModel
 from .gmm import GeneralMixtureModel
@@ -116,6 +117,9 @@ cdef class BayesModel(Model):
             self.keymap = [{key: i for i, key in enumerate(keys)}]
             for distribution in distributions:
                 distribution.bake(tuple(keys))
+
+        elif isinstance(dist, JointProbabilityTable):
+            self.cython = 0
 
         elif isinstance(dist, IndependentComponentsDistribution):
             self.keymap = [{} for i in range(self.d)]
