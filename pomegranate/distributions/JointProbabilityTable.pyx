@@ -12,6 +12,7 @@ from libc.math cimport exp as cexp
 from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils import check_random_state
+from ..utils import _check_nan
 
 import itertools as it
 import json
@@ -119,16 +120,18 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		ordering, like the training data.
 		"""
 
-		X = numpy.array(X)
+		X = numpy.array(X, dtype=object)
 		if len(X.shape) == 1:
 			X = numpy.array([X])
 
 		log_probabilities = numpy.zeros(len(X))
 		for i, x in enumerate(X):
 			x = tuple(x)
-			if 'nan' not in x and numpy.nan not in x and None not in x:
-				key = self.keymap[x]
-				log_probabilities[i] = self.values[key]
+			if _check_nan(x):
+				continue
+
+			key = self.keymap[x]
+			log_probabilities[i] = self.values[key]
 
 		if X.shape[0] == 1:
 			return log_probabilities[0]
@@ -215,7 +218,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		for i in range(n):
 			item = tuple(items[i])
 
-			if 'nan' in item or numpy.nan in item or None in item:
+			if _check_nan(item):
 				continue
 
 			key = self.keymap[item]

@@ -682,7 +682,7 @@ cdef class HiddenMarkovModel(GraphModel):
             warnings.warn("Install pygraphviz for nicer visualizations")
             networkx.draw(self.graph, **kwargs)
 
-    def bake(self, verbose=False, merge="All"):
+    def bake(self, verbose=False, merge="all"):
         """Finalize the topology of the model.
 
         Finalize the topology of the model and assign a numerical index to
@@ -800,7 +800,7 @@ cdef class HiddenMarkovModel(GraphModel):
             # Repeatedly go through the model until no merges take place.
             merge_count = 0
 
-            for a, b, e in self.graph.edges(data=True):
+            for a, b, e in list(self.graph.edges(data=True)):
                 # Since we may have removed a or b in a previous iteration,
                 # a simple fix is to just check to see if it's still there
                 if a not in list(self.graph.nodes()) or b not in list(self.graph.nodes()):
@@ -3241,7 +3241,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         # Get all the edges from the graph
         edges = []
-        for start, end, data in self.graph.edges(data=True):
+        for start, end, data in list(self.graph.edges(data=True)):
             # If this edge is part of a group of tied edges, annotate this group
             # it is a part of
             s, e = indices[start], indices[end]

@@ -474,18 +474,18 @@ def test_properties():
 
 @with_setup( setup, teardown )
 def test_to_json():
-	b = json.loads( model.to_json() )
+	b = json.loads(model.to_json())
 
-	assert_equal( b['name'], 'Global Alignment' )
-	assert_equal( len(b['edges']), 29 )
-	assert_equal( len(b['states']), 12 )
-	assert_equal( b['silent_index'], 7 )
+	assert_equal(b['name'], 'Global Alignment')
+	assert_equal(len(b['edges']), 29)
+	assert_equal(len(b['states']), 12)
+	assert_equal(b['silent_index'], 7)
 
 
 @with_setup( setup, teardown )
 def test_from_json():
 	hmm = HiddenMarkovModel.from_json( model.to_json() )
 
-	assert_equal( hmm.edge_count(), 29 )
-	assert_equal( hmm.state_count(), 12 )
-	assert_equal( hmm.name, "Global Alignment" )
+	assert_equal(hmm.edge_count(), 29)
+	assert_equal(hmm.state_count(), 12)
+	assert_equal(hmm.name, "Global Alignment")
