@@ -299,44 +299,6 @@ def test_check_input_dict():
 
 
 @with_setup(setup_monty, teardown)
-def test_check_input_list():
-    obs = ['A', None, None]
-    _check_input(obs, monty_network)
-
-    obs = ['A', numpy.nan, numpy.nan]
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['A', None, None])
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['A', numpy.nan, numpy.nan])
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['A', 'B', 'C'])
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['NaN', numpy.nan, numpy.nan])
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    obs = numpy.array(['A', 'B', 'D'])
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    obs = ['A']
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    obs = ['A', 'C', 'E', 'F']
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    d = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'C': 0.25})
-    obs = [d, None, None]
-    _check_input(obs, monty_network)
-
-    d = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'D': 0.25})
-    obs = [d, None, None]
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-
-@with_setup(setup_monty, teardown)
 def test_check_input_list_of_dicts():
     obs = {'guest' : 'A'}
     _check_input([obs], monty_network)
@@ -840,43 +802,6 @@ def test_numpy_predict_datagenerator():
                          ['A', None, 'C'],
                          ['A', 'B', 'C']
                        ])
-
-@with_setup(setup_monty, teardown)
-def test_single_list_predict_proba():
-    obs = ['A', None, 'B']
-    y = DiscreteDistribution({'A': 1./3, 'B': 0., 'C': 2./3})
-    y_hat = monty_network.predict_proba(obs)
-
-    assert_equal(y_hat[0], 'A')
-    assert_equal(y_hat[2], 'B')
-    assert_discrete_equal(y_hat[1], y)
-
-
-@with_setup(setup_large_monty, teardown)
-def test_single_list_large_predict_proba():
-    obs = [True,  'A', 'A', 'C', None, None]
-    y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
-    y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
-    y_hat = large_monty_network.predict_proba(obs)
-
-    assert_equal(y_hat[0], True)
-    assert_equal(y_hat[1], 'A')
-    assert_equal(y_hat[2], 'A')
-    assert_equal(y_hat[3], 'C')
-    assert_discrete_equal(y_hat[4], y1, 3)
-    assert_discrete_equal(y_hat[5], y2, 3)
-
-    obs = [True, None, 'A', 'C', 2, None]
-    y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
-    y2 = DiscreteDistribution({True: 0.75, False: 0.25})
-    y_hat = large_monty_network.predict_proba(obs)
-
-    assert_equal(y_hat[0], True)
-    assert_equal(y_hat[2], 'A')
-    assert_equal(y_hat[3], 'C')
-    assert_equal(y_hat[4], 2)
-    assert_discrete_equal(y_hat[1], y1)
-    assert_discrete_equal(y_hat[5], y2)
 
 
 @with_setup(setup_monty, teardown)

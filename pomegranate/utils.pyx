@@ -401,7 +401,7 @@ def plot_networkx(Q, edge_label=None, filename=None):
 	else:
 		G.draw(filename, format='pdf', prog='dot')
 
-def _check_input(X, keymap):
+def _check_input(X, keymap=None):
 	"""Check the input to make sure that it is a properly formatted array."""
 
 	cdef numpy.ndarray X_ndarray

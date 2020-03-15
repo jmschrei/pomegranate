@@ -299,7 +299,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		            'dtypes' : self.dtypes,
 		            'parents' : [dist if isinstance(dist, int) else json.loads(dist.to_json()) for dist in self.parameters[1]]
 		        }
-
+		
 		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
@@ -312,8 +312,8 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		if parents is None:
 			parents = list(range(X.shape[1]))
 
-		keys = [numpy.unique(X[:,i]) for i in range(d)]
-		m = numpy.prod([k.shape[0] for k in keys])
+		keys = [numpy.unique(X[:,i]).tolist() for i in range(d)]
+		m = numpy.prod([len(k) for k in keys])
 
 		table = []
 		for key in it.product(*keys):

@@ -111,7 +111,7 @@ def _check_input(X, model):
 	elif isinstance(X, (numpy.ndarray, list)) and isinstance(X[0], (numpy.ndarray, list)):
 		for x in X:
 			if len(x) != len(indices):
-				raise ValueError("Sample does not have the same number of dimensions" +
+				raise ValueError("Sample does not have the same number of dimensions" \
 					" as the model {} {}".format(x, len(indices)))
 
 			for i in range(len(x)):
@@ -128,26 +128,13 @@ def _check_input(X, model):
 					raise ValueError("State '{}' does not have key '{}'"
 						.format(model.states[i].name, x[i]))
 
+		X = numpy.array(X)
+
 	else:
-		if len(X) != len(indices):
-			raise ValueError("Sample does not have the same number of dimensions" +
-				" as the model")
+		raise ValueError("X must be a 2D array of shape (n_samples, n_variables) or " \
+				"a list of lists or a list of dictionaries.")
 
-		for i in range(len(X)):
-			if isinstance(X[i], Distribution):
-				if set(X[i].keys()) != set(model.states[i].distribution.keys()):
-					raise ValueError("State '{}' does not match with keys provided."
-						.format(model.states[i].name))
-				continue
-
-			if _check_nan(X[i]):
-				continue
-
-			if X[i] not in model.states[i].distribution.keys():
-				raise ValueError("State '{}' does not have key '{}'"
-					.format(model.states[i].name, X[i]))
-
-	return True
+	return X
 
 
 cdef class BayesianNetwork(GraphModel):
@@ -391,7 +378,7 @@ cdef class BayesianNetwork(GraphModel):
 			if i > 0:
 				self.parent_count[i+1] += self.parent_count[i]
 
-	def log_probability(self, X, n_jobs=1):
+	def log_probability(self, X, check_input=True, n_jobs=1):
 		"""Return the log probability of samples under the Bayesian network.
 
 		The log probability is just the sum of the log probabilities under each of
@@ -406,6 +393,10 @@ cdef class BayesianNetwork(GraphModel):
 			same variable as added to the graph originally. It doesn't matter what
 			the connections between these variables are, just that they are all
 			ordered the same.
+
+		check_input : bool, optional
+			Check to make sure that the observed symbol is a valid symbol for that
+			distribution to produce. Default is True.
 
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
@@ -442,6 +433,8 @@ cdef class BayesianNetwork(GraphModel):
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
+		elif check_input:
+			X = _check_input(X, self)
 
 		logp = numpy.zeros(n, dtype='float64')
 		for i in range(n):
@@ -607,10 +600,10 @@ cdef class BayesianNetwork(GraphModel):
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
+		
+		elif check_input and not isinstance(X, dict):
+			X = _check_input(X, self)
 
-
-		if check_input:
-			_check_input(X, self)
 
 		if isinstance(X, dict):
 			return self.graph.predict_proba(X, max_iterations)
