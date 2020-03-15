@@ -8,7 +8,8 @@ from __future__ import print_function
 
 from libc.math cimport exp as cexp
 from operator import attrgetter
-import math, random, itertools as it, sys, json
+import json
+import math
 import networkx
 import tempfile
 import warnings
@@ -3286,7 +3287,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
         # Make a new generic HMM
-        model = HiddenMarkovModel(str(d['name']))
+        model = cls(str(d['name']))
 
         # Load all the states from JSON formatted strings
         states = [State.from_json(json.dumps(j)) for j in d['states']]
@@ -3371,7 +3372,7 @@ cdef class HiddenMarkovModel(GraphModel):
         """
 
         # Build the initial model
-        model = HiddenMarkovModel(name=name)
+        model = cls(name=name)
         state_names = state_names or ["s{}".format(i) for i in range(len(distributions))]
 
         # Build state objects for every state with the appropriate distribution
@@ -3683,7 +3684,7 @@ cdef class HiddenMarkovModel(GraphModel):
         if end_state:
             end_probabilities = numpy.ones(k) / k
 
-        model = HiddenMarkovModel.from_matrix(transition_matrix, distributions, 
+        model = cls.from_matrix(transition_matrix, distributions, 
             start_probabilities, state_names=state_names, name=name, 
             ends=end_probabilities)
 
