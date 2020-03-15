@@ -2556,8 +2556,10 @@ cdef class HiddenMarkovModel(GraphModel):
 
         semisupervised = False
         if labels is not None:
-            if None in labels:
-                semisupervised = True
+            for l in labels:
+                if l is None:
+                    semisupervised = True
+                    break
 
         batches_per_epoch = batches_per_epoch 
         n_seen_batches = 0

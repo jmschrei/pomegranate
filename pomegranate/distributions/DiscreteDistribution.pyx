@@ -225,11 +225,12 @@ cdef class DiscreteDistribution(Distribution):
 			weights = numpy.ones(len(items))
 		else:
 			weights = numpy.asarray(weights)
-
-		self.summaries[1] += weights.sum()
-		characters = self.summaries[0]
+			
 		for i in range(len(items)):
-			characters[items[i]] += weights[i]
+			x = items[i]
+			if _check_nan(x) == False:
+				self.summaries[0][x] += weights[i]
+				self.summaries[1] += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
 		int column_idx, int d) nogil:

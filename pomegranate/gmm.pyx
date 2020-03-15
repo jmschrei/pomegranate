@@ -541,7 +541,7 @@ cdef class GeneralMixtureModel(BayesModel):
         else:
             data_generator = X
 
-        n, d = X.shape
+        n, d = data_generator.shape
 
         if not callable(distributions) and not isinstance(distributions, list):
             raise ValueError("must either give initial distributions "
@@ -565,6 +565,10 @@ cdef class GeneralMixtureModel(BayesModel):
         else:
             if d == len(distributions):
                 icd = True
+            elif d > 1:
+                raise ValueError("must pass in a list with one distribution "
+                    "per dimension in multivariate data or multiple distributions "
+                    "for univariate data.")
             else:
                 n_components = len(distributions)
 

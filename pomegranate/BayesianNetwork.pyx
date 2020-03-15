@@ -735,7 +735,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		for i in range(n):
 			for j in range(d):
-				if X[i][j] == 'nan' or X[i][j] == None or X[i][j] == nan:
+				if _check_nan(X[i][j]):
 					X_int[i, j] = nan
 				else:
 					X_int[i, j] = self.keymap[j][X[i][j]]
