@@ -128,7 +128,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 			for x_ in x:
 				if _check_nan(x_):
-					continue
+					break
 			else:
 				key = self.keymap[x]
 				log_probabilities[i] = self.values[key]

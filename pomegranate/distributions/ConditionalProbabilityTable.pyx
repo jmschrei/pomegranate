@@ -174,8 +174,8 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			x = tuple(x)
 
 			for x_ in x:
-				if _check_nan(x):
-					continue
+				if _check_nan(x_):
+					break
 			else:
 				idx = self.keymap[x]
 				log_probabilities[i] = self.values[idx] 
