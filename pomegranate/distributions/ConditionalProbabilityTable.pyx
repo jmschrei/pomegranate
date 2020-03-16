@@ -167,17 +167,22 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		ordering, like the training data.
 		"""
 
-		X = tuple(X)
+		X = numpy.array(X, ndmin=2, dtype=object)
 
-		for x in X:
-			if isinstance(x, str):
-				if x == 'nan':
-					return 0.0
-			elif x is None or numpy.isnan(x):
-				return 0.0
+		log_probabilities = numpy.zeros(X.shape[0])
+		for i, x in enumerate(X):
+			x = tuple(x)
 
-		idx = self.keymap[X]
-		return self.values[idx]
+			for x_ in x:
+				if _check_nan(x):
+					continue
+			else:
+				idx = self.keymap[x]
+				log_probabilities[i] = self.values[idx] 
+
+		if X.shape[0] == 1:
+			return log_probabilities[0]
+		return log_probabilities
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx

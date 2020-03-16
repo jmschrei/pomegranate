@@ -128,7 +128,7 @@ def _check_input(X, model):
 					raise ValueError("State '{}' does not have key '{}'"
 						.format(model.states[i].name, x[i]))
 
-		X = numpy.array(X)
+		X = numpy.array(X, ndmin=2, dtype=object)
 
 	else:
 		raise ValueError("X must be a 2D array of shape (n_samples, n_variables) or " \

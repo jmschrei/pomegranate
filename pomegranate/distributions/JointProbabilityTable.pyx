@@ -120,18 +120,18 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		ordering, like the training data.
 		"""
 
-		X = numpy.array(X, dtype=object)
-		if len(X.shape) == 1:
-			X = numpy.array([X])
+		X = numpy.array(X, ndmin=2, dtype=object)
 
-		log_probabilities = numpy.zeros(len(X))
+		log_probabilities = numpy.zeros(X.shape[0])
 		for i, x in enumerate(X):
 			x = tuple(x)
-			if _check_nan(x):
-				continue
 
-			key = self.keymap[x]
-			log_probabilities[i] = self.values[key]
+			for x_ in x:
+				if _check_nan(x_):
+					continue
+			else:
+				key = self.keymap[x]
+				log_probabilities[i] = self.values[key]
 
 		if X.shape[0] == 1:
 			return log_probabilities[0]

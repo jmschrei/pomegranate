@@ -5,6 +5,15 @@
 Release History
 ===============
 
+Version 0.12.1
+==============
+
+Highlights
+----------
+
+	- A variety of minor bug fixes.
+
+
 Version 0.12.0
 ==============
 
