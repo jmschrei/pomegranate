@@ -879,9 +879,9 @@ def test_exact_structure_learning_slap_constraints():
         # Learn constrained network
         model = BayesianNetwork.from_samples(ds, algorithm='exact', constraint_graph=cg)
         # Check structure constraints satisfied
-        mx = model.dense_transition_matrix()
+        s = model.structure
         for node in g1:
-            assert_equal(0, sum(mx[:, node]))
+            assert_equal(0, len(s[node]))
 
 def test_from_structure():
     X = datasets[1]
