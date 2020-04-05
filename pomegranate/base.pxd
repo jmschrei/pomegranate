@@ -22,6 +22,6 @@ cdef class GraphModel(Model):
 
 
 cdef class State(object):
-	cdef public Model distribution
+	cdef public object distribution
 	cdef public str name
 	cdef public double weight

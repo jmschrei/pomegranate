@@ -1,6 +1,8 @@
 from setuptools import setup
 from setuptools import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
+# https://stackoverflow.com/a/11181607/541202
+# import __builtin__ as __builtins__
 
 try:
     from Cython.Build import cythonize
@@ -11,24 +13,50 @@ else:
     use_cython = True
     ext = 'pyx'
 
-filenames = [ "base",
-              "BayesianNetwork",
-              "FactorGraph",
-              "distributions",
-              "hmm",
-              "gmm",
-              "NaiveBayes",
-              "MarkovChain"
-            ]
+filenames = [ 
+    "base",
+    "bayes",
+    "BayesianNetwork",
+    "MarkovNetwork",
+    "FactorGraph",
+    "hmm",
+    "gmm",
+    "kmeans",
+    "NaiveBayes",
+    "BayesClassifier",
+    "MarkovChain",
+    "utils",
+    "parallel"
+]
+
+distributions = [
+    'distributions',
+    'UniformDistribution',
+    'BernoulliDistribution',
+    'NormalDistribution',
+    'LogNormalDistribution',
+    'ExponentialDistribution',
+    'BetaDistribution',
+    'GammaDistribution',
+    'DiscreteDistribution',
+    'PoissonDistribution',
+    'KernelDensities',
+    'IndependentComponentsDistribution',
+    'MultivariateGaussianDistribution',
+    'DirichletDistribution',
+    'ConditionalProbabilityTable',
+    'JointProbabilityTable',
+    "NeuralNetworkWrapper"
+]
 
 if not use_cython:
     extensions = [
-        Extension( "pomegranate.{}".format( name ),
-                   [ "pomegranate/{}.{}".format( name, ext ) ]) for name in filenames
-    ]
+        Extension( "pomegranate.{}".format( name ), [ "pomegranate/{}.{}".format(name, ext) ]) for name in filenames
+    ] + [Extension("pomegranate.distributions.{}".format(dist), ["pomegranate/distributions/{}.{}".format(dist, ext)]) for dist in distributions]
 else:
     extensions = [
-            Extension("pomegranate.*", ["pomegranate/*.pyx"])
+            Extension("pomegranate.*", ["pomegranate/*.pyx"]),
+	        Extension("pomegranate.distributions.*", ["pomegranate/distributions/*.pyx"])
     ]
 
     extensions = cythonize( extensions )
@@ -43,10 +71,13 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.9.0',
+    version='0.12.2',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
-    packages=['pomegranate'],
+    packages=[
+        'pomegranate',
+        'pomegranate/distributions',
+    ],
     url='http://pypi.python.org/pypi/pomegranate/',
     license='LICENSE.txt',
     description='Pomegranate is a graphical models library for Python, implemented in Cython for speed.',
@@ -60,12 +91,15 @@ setup(
     install_requires=[
         "numpy >= 1.8.0",
         "joblib >= 0.9.0b4",
-        "networkx >= 1.8.1, < 2.0",
-        "scipy >= 0.17.0"
+        "networkx >= 2.0",
+        "scipy >= 0.17.0",
+        "pyyaml"
     ],
     test_suite = 'nose.collector',
     package_data={
-        'pomegranate': ['*.pyd']
+        'pomegranate': ['*.pyd', '*.pxd'],
+        'pomegranate/distributions': ['*.pyd', '*.pxd'],
     },
     include_package_data=True,
+    zip_safe=False,
 )

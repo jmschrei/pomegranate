@@ -14,38 +14,6 @@ environment:
     # a later point release.
     # See: http://www.appveyor.com/docs/installed-software#python
 
-    - PYTHON: "C:\\Python27"
-      PYTHON_VERSION: "2.7" # currently 2.7.9
-      PYTHON_ARCH: "32"
-      MINICONDA: C:\Miniconda
-
-    - PYTHON: "C:\\Python27-x64"
-      PYTHON_VERSION: "2.7" # currently 2.7.9
-      PYTHON_ARCH: "64"
-      MINICONDA: C:\Miniconda-x64
-
-    - PYTHON: "C:\\Python34"
-      PYTHON_VERSION: "3.4" # currently 3.4.3
-      PYTHON_ARCH: "32"
-      MINICONDA: C:\Miniconda3
-
-    - PYTHON: "C:\\Python34-x64"
-      PYTHON_VERSION: "3.4" # currently 3.4.3
-      PYTHON_ARCH: "64"
-      MINICONDA: C:\Miniconda3-x64
-
-    # Python versions not pre-installed
-
-    - PYTHON: "C:\\Python35"
-      PYTHON_VERSION: "3.5"
-      PYTHON_ARCH: "32"
-      MINICONDA: C:\Miniconda3
-
-    - PYTHON: "C:\\Python35-x64"
-      PYTHON_VERSION: "3.5"
-      PYTHON_ARCH: "64"
-      MINICONDA: C:\Miniconda3-x64
-
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6"
       PYTHON_ARCH: "32"
@@ -53,6 +21,21 @@ environment:
 
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6"
+      PYTHON_ARCH: "64"
+      MINICONDA: C:\Miniconda3-x64
+
+    - PYTHON: "C:\\Python37"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "32"
+      MINICONDA: C:\Miniconda3
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      MINICONDA: C:\Miniconda3-x64
+
+    - PYTHON: "C:\\Python38-x64"
+      PYTHON_VERSION: "3.8"
       PYTHON_ARCH: "64"
       MINICONDA: C:\Miniconda3-x64
 

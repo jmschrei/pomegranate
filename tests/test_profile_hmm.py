@@ -5,6 +5,7 @@ from nose.tools import with_setup
 from nose.tools import assert_equal
 from nose.tools import assert_not_equal
 from nose.tools import assert_raises
+from nose.tools import assert_almost_equal
 import random
 import numpy as np
 import json
@@ -76,7 +77,7 @@ def setup():
 	# Create transitions from delete states
 	model.add_transition( d1, d2, 0.15 )
 	model.add_transition( d1, i1, 0.15 )
-	model.add_transition( d1, m2, 0.70 ) 
+	model.add_transition( d1, m2, 0.70 )
 
 	model.add_transition( d2, d3, 0.15 )
 	model.add_transition( d2, i2, 0.15 )
@@ -137,11 +138,11 @@ def multitransition_setup():
 
 	# Create transitions from delete states
 	model.add_transitions( d1, [d2, i1, m2], [0.15, 0.15, 0.70] )
-	model.add_transitions( [d2, d2, d2, d3, d3], [d3, i2, m3, i3, model.end], 
+	model.add_transitions( [d2, d2, d2, d3, d3], [d3, i2, m3, i3, model.end],
 		[0.15, 0.15, 0.70, 0.30, 0.70 ] )
 
 	# Call bake to finalize the structure of the model.
-	model.bake()	
+	model.bake()
 
 
 def tied_edge_setup():
@@ -208,7 +209,7 @@ def tied_edge_setup():
 	# Create transitions from delete states
 	model.add_transition( d1, d2, 0.15, group="d_a" )
 	model.add_transition( d1, i1, 0.15, group="d_b" )
-	model.add_transition( d1, m2, 0.70, group="d_c" ) 
+	model.add_transition( d1, m2, 0.70, group="d_c" )
 
 	model.add_transition( d2, d3, 0.15, group="d_a" )
 	model.add_transition( d2, i2, 0.15, group="d_b" )
@@ -232,26 +233,26 @@ def teardown():
 
 @with_setup( setup, teardown )
 def test_same_length_viterbi():
-	scores = [ -0.5132449003570658, -11.048101241343396, -9.125519674022627, 
+	scores = [ -0.5132449003570658, -11.048101241343396, -9.125519674022627,
 		-5.0879558788604475 ]
 	sequences = [ list(x) for x in [ 'ACT', 'GGC', 'GAT', 'ACC' ] ]
-	
+
 	for seq, score in zip( sequences, scores ):
-		assert_equal( model.viterbi( seq )[0], score )
+		assert_almost_equal( model.viterbi( seq )[0], score )
 
 	assert_raises( ValueError, model.viterbi, list('XXX') )
 
 
 @with_setup( setup, teardown )
 def test_variable_length_viterbi():
-	scores = [ -5.406181012423981, -10.88681993576597, -3.6244718790494277, 
-	-3.644880750680635, -10.674332964640293, -10.393824835172445, 
+	scores = [ -5.406181012423981, -10.88681993576597, -3.6244718790494277,
+	-3.644880750680635, -10.674332964640293, -10.393824835172445,
 	-8.67126440174503, -16.903451796110275, -16.451699654050792 ]
-	sequences = [ list(x) for x in ('A', 'GA', 'AC', 'AT', 'ATCC', 
+	sequences = [ list(x) for x in ('A', 'GA', 'AC', 'AT', 'ATCC',
 		'ACGTG', 'ATTT', 'TACCCTC', 'TGTCAACACT') ]
 
 	for seq, score in zip( sequences, scores ):
-		assert_equal( model.viterbi( seq )[0], score )
+		assert_almost_equal( model.viterbi( seq )[0], score )
 
 
 @with_setup( setup, teardown )
@@ -346,7 +347,7 @@ def test_posterior_transitions_w_tied_training():
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
 	indices = { state.name: i for i, state in enumerate( model.states ) }
 
-	transitions = model.dense_transition_matrix() 
+	transitions = model.dense_transition_matrix()
 	i0, i1, i2, i3 = indices['I0'], indices['I1'], indices['I2'], indices['I3']
 	d1, d2, d3 = indices['D1'], indices['D2'], indices['D3']
 	m1, m2, m3 = indices['M1'], indices['M2'], indices['M3']
@@ -360,7 +361,7 @@ def test_posterior_transitions_w_tied_training():
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 	model.fit( sequences, verbose=False )
-	transitions = model.dense_transition_matrix() 
+	transitions = model.dense_transition_matrix()
 
 	assert_equal( transitions[i0, i0], transitions[i1, i1] )
 	assert_equal( transitions[d1, d2], transitions[d2, d3] )
@@ -373,7 +374,7 @@ def test_posterior_transitions_w_tied_vtraining():
 	sequences = [ list(x) for x in ( 'A', 'ACT', 'GGCA', 'TACCTGT' ) ]
 	indices = { state.name: i for i, state in enumerate( model.states ) }
 
-	transitions = model.dense_transition_matrix() 
+	transitions = model.dense_transition_matrix()
 	i0, i1, i2 = indices['I0'], indices['I1'], indices['I2']
 	d1, d2, d3 = indices['D1'], indices['D2'], indices['D3']
 	m1, m2, m3 = indices['M1'], indices['M2'], indices['M3']
@@ -387,7 +388,7 @@ def test_posterior_transitions_w_tied_vtraining():
 	assert_equal( transitions[i0, d1], transitions[i2, d3] )
 
 	model.fit( sequences, verbose=False, algorithm='viterbi' )
-	transitions = model.dense_transition_matrix() 
+	transitions = model.dense_transition_matrix()
 
 	assert_equal( transitions[d1, i1], transitions[d2, i2] )
 	assert_equal( transitions[i0, i0], transitions[i1, i1] )
@@ -473,18 +474,18 @@ def test_properties():
 
 @with_setup( setup, teardown )
 def test_to_json():
-	b = json.loads( model.to_json() )
+	b = json.loads(model.to_json())
 
-	assert_equal( b['name'], 'Global Alignment' )
-	assert_equal( len(b['edges']), 29 )
-	assert_equal( len(b['states']), 12 )
-	assert_equal( b['silent_index'], 7 )
+	assert_equal(b['name'], 'Global Alignment')
+	assert_equal(len(b['edges']), 29)
+	assert_equal(len(b['states']), 12)
+	assert_equal(b['silent_index'], 7)
 
 
 @with_setup( setup, teardown )
 def test_from_json():
 	hmm = HiddenMarkovModel.from_json( model.to_json() )
 
-	assert_equal( hmm.edge_count(), 29 )
-	assert_equal( hmm.state_count(), 12 )
-	assert_equal( hmm.name, "Global Alignment" )
+	assert_equal(hmm.edge_count(), 29)
+	assert_equal(hmm.state_count(), 12)
+	assert_equal(hmm.name, "Global Alignment")

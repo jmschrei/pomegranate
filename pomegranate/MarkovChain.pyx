@@ -7,9 +7,9 @@ import numpy
 import json
 import itertools as it
 
-from .distributions import Distribution
-from .distributions import DiscreteDistribution
-from .distributions import ConditionalProbabilityTable
+from distributions import Distribution
+from distributions import DiscreteDistribution
+from distributions import ConditionalProbabilityTable
 
 
 cdef class MarkovChain(object):

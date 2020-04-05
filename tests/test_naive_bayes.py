@@ -1,6 +1,9 @@
 from __future__ import (division)
 
 from pomegranate import *
+from pomegranate.io import DataGenerator
+from pomegranate.io import DataFrameGenerator
+
 from nose.tools import with_setup
 from nose.tools import assert_almost_equal
 from nose.tools import assert_equal
@@ -10,6 +13,8 @@ from nose.tools import assert_raises
 from nose.tools import assert_true
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
+
+import pandas
 import random
 import pickle
 import numpy as np
@@ -385,9 +390,9 @@ def test_nb_multivariate_mixed_predict_parallel():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_fit():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
 	model.fit(X, y)
@@ -476,9 +481,9 @@ def test_nb_multivariate_mixed_nan_fit():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_fit_parallel():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
 	model.fit(X, y, n_jobs=2)
@@ -529,12 +534,12 @@ def test_nb_multivariate_mixed_fit_parallel():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_from_samples():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
-	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution], 
+	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution],
 		X, y)
 
 	d1 = model.distributions[0]
@@ -596,7 +601,7 @@ def test_nb_multivariate_gaussian_nan_from_samples():
 	assert_array_almost_equal(d11.parameters, [0.85, 0.55])
 	assert_array_almost_equal(d12.parameters, [2.0, 0.6000000000000003])
 	assert_array_almost_equal(d13.parameters, [0.1, 0.0])
-	assert_array_almost_equal(d21.parameters, [0.0, 0.0])
+	assert_array_almost_equal(d21.parameters, [0.0, 1.0])
 	assert_array_almost_equal(d22.parameters, [3.6, 0.0])
 	assert_array_almost_equal(d23.parameters, [3.3, 0.0])
 
@@ -623,12 +628,12 @@ def test_nb_multivariate_mixed_nan_from_samples():
 
 @with_setup(setup_univariate_mixed, teardown)
 def test_nb_univariate_mixed_from_samples_parallel():
-	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0, 
+	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
-	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 
+	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
 		1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
-	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution], 
+	model = NaiveBayes.from_samples([NormalDistribution, UniformDistribution],
 		X, y, n_jobs=2)
 
 	d1 = model.distributions[0]
@@ -713,3 +718,96 @@ def test_json():
 	assert_true(isinstance(new_univ.distributions[1], UniformDistribution))
 	assert_true(isinstance(new_univ, NaiveBayes))
 	numpy.testing.assert_array_equal( model.weights, new_univ.weights)
+
+@with_setup(setup_univariate_mixed, teardown)
+def test_robust_from_json():
+	j_univ = model.to_json()
+
+	new_univ = from_json(j_univ)
+	assert_true(isinstance(new_univ.distributions[0], NormalDistribution))
+	assert_true(isinstance(new_univ.distributions[1], UniformDistribution))
+	assert_true(isinstance(new_univ, NaiveBayes))
+	numpy.testing.assert_array_equal( model.weights, new_univ.weights)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_log_probability():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+	logp1 = model.log_probability(X)
+	logp2 = model.log_probability(X2)
+	logp3 = model.log_probability(X3)
+	assert_array_almost_equal(logp1, logp2)
+	assert_array_almost_equal(logp1, logp3)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_predict():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+	y_hat1 = model.predict(X)
+	y_hat2 = model.predict(X2)
+	y_hat3 = model.predict(X3)
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_predict_proba():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+	y_hat1 = model.predict_proba(X)
+	y_hat2 = model.predict_proba(X2)
+	y_hat3 = model.predict_proba(X3)
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_predict_log_proba():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+	y_hat1 = model.predict_log_proba(X)
+	y_hat2 = model.predict_log_proba(X2)
+	y_hat3 = model.predict_log_proba(X3)
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+def test_io_fit():
+	X = numpy.random.randn(100, 5) + 0.5
+	weights = numpy.abs(numpy.random.randn(100))
+	y = numpy.random.randint(2, size=100)
+	data_generator = DataGenerator(X, weights, y)
+
+	d1 = IndependentComponentsDistribution([
+		NormalDistribution(0, 1) for i in range(5)])
+	d2 = IndependentComponentsDistribution([
+		NormalDistribution(1, 1) for i in range(5)])
+
+	nb1 = NaiveBayes([d1, d2])
+	nb1.fit(X, y, weights)
+
+	d1 = IndependentComponentsDistribution([
+		NormalDistribution(0, 1) for i in range(5)])
+	d2 = IndependentComponentsDistribution([
+		NormalDistribution(1, 1) for i in range(5)])
+
+	nb2 = NaiveBayes([d1, d2])
+	nb2.fit(data_generator)
+
+	logp1 = nb1.log_probability(X)
+	logp2 = nb2.log_probability(X)
+
+	assert_array_almost_equal(logp1, logp2)
+
+def test_io_from_samples():
+	X = numpy.random.randn(100, 5) + 0.5
+	weights = numpy.abs(numpy.random.randn(100))
+	y = numpy.random.randint(2, size=100)
+	data_generator = DataGenerator(X, weights, y)
+
+	d = NormalDistribution
+
+	nb1 = NaiveBayes.from_samples(d, X=X, weights=weights, y=y)
+	nb2 = NaiveBayes.from_samples(d, X=data_generator)
+
+	logp1 = nb1.log_probability(X)
+	logp2 = nb2.log_probability(X)
+
+	assert_array_almost_equal(logp1, logp2)

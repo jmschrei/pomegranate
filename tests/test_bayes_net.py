@@ -8,11 +8,14 @@ These are unit tests for the Bayesian network part of pomegranate.
 
 from __future__ import division
 
+from pomegranate import from_json
 from pomegranate import DiscreteDistribution
 from pomegranate import ConditionalProbabilityTable
-from pomegranate import State
+from pomegranate import State, Node
 from pomegranate import BayesianNetwork
 from pomegranate.BayesianNetwork import _check_input
+from pomegranate.io import DataGenerator
+from pomegranate.io import DataFrameGenerator
 
 from nose.tools import with_setup
 from nose.tools import assert_equal
@@ -21,8 +24,11 @@ from nose.tools import assert_almost_equal
 
 from networkx import DiGraph
 
-import random, numpy
 from numpy.testing import assert_array_equal
+from numpy.testing import assert_array_almost_equal
+
+import pandas
+import random, numpy
 import sys
 
 nan = numpy.nan
@@ -37,7 +43,7 @@ datasets_nan = []
 for dataset in datasets:
     X = dataset.copy().astype('float64')
     n, d = X.shape
-    
+
     idx = numpy.random.choice(n*d, replace=False, size=n*d//5)
     i, j = idx // d, idx % d
     X[i, j] = numpy.nan
@@ -164,7 +170,7 @@ def setup_large_monty():
          [False, 'C', 0.3]], [large_monty_friend])
 
     # Number of large_monty_remaining cars
-    large_monty_remaining = DiscreteDistribution({0: 0.1, 1: 0.7, 2: 0.2, })
+    large_monty_remaining = DiscreteDistribution({0: 0.1, 1: 0.7, 2: 0.2})
 
     # Whether they large_monty_randomize is dependent on the numnber of
     # large_monty_remaining cars
@@ -241,6 +247,23 @@ def setup_large_monty():
     large_monty_network.add_transition(s0, s2)
     large_monty_network.bake()
 
+def setup_random_mixed():
+    numpy.random.seed(0)
+    global X
+    X = numpy.array([
+        numpy.random.choice([True, False], size=50),
+        numpy.random.choice(['A', 'B'], size=50),
+        numpy.random.choice(2, size=50)
+    ], dtype=object).T.copy()
+
+    global weights
+    weights = numpy.abs(numpy.random.randn(50))
+
+    global data_generator
+    data_generator = DataGenerator(X, weights)
+
+    global model
+    model = BayesianNetwork.from_samples(X)
 
 def teardown():
     pass
@@ -269,49 +292,11 @@ def test_check_input_dict():
     obs = {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'}
     _check_input(obs, monty_network)
 
-    obs = {'guest' : DiscreteDistribution({'A' : 0.25, 
+    obs = {'guest' : DiscreteDistribution({'A' : 0.25,
         'B' : 0.25, 'C' : 0.50})}
     _check_input(obs, monty_network)
 
     obs = {'hello' : 'A', 'prize' : 'B'}
-    assert_raises(ValueError, _check_input, obs, monty_network) 
-
-
-@with_setup(setup_monty, teardown)
-def test_check_input_list():
-    obs = ['A', None, None]
-    _check_input(obs, monty_network)
-
-    obs = ['A', numpy.nan, numpy.nan]
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['A', None, None])
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['A', numpy.nan, numpy.nan])
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['A', 'B', 'C'])
-    _check_input(obs, monty_network)
-
-    obs = numpy.array(['NaN', numpy.nan, numpy.nan])
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    obs = numpy.array(['A', 'B', 'D'])
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    obs = ['A']
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    obs = ['A', 'C', 'E', 'F']
-    assert_raises(ValueError, _check_input, obs, monty_network)
-
-    d = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'C': 0.25})
-    obs = [d, None, None]
-    _check_input(obs, monty_network)
-
-    d = DiscreteDistribution({'A': 0.25, 'B': 0.25, 'D': 0.25})
-    obs = [d, None, None]
     assert_raises(ValueError, _check_input, obs, monty_network)
 
 
@@ -338,16 +323,16 @@ def test_check_input_list_of_dicts():
     obs = {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'}
     _check_input([obs], monty_network)
 
-    obs = {'guest' : DiscreteDistribution({'A' : 0.25, 
+    obs = {'guest' : DiscreteDistribution({'A' : 0.25,
         'B' : 0.25, 'C' : 0.50})}
     _check_input([obs], monty_network)
 
     obs = {'hello' : 'A', 'prize' : 'B'}
-    assert_raises(ValueError, _check_input, [obs], monty_network) 
+    assert_raises(ValueError, _check_input, [obs], monty_network)
 
-    obs = [{'guest' : 'A'}, {'guest' : 'A', 'prize' : 'C'}, 
+    obs = [{'guest' : 'A'}, {'guest' : 'A', 'prize' : 'C'},
         {'guest' : 'A', 'prize' : 'C', 'monty' : 'C'},
-        {'guest' : DiscreteDistribution({'A' : 0.25, 
+        {'guest' : DiscreteDistribution({'A' : 0.25,
             'B' : 0.25, 'C' : 0.50})}]
     _check_input(obs, monty_network)
 
@@ -495,9 +480,11 @@ def test_large_monty_friend():
 
 @with_setup(setup_large_monty, teardown)
 def test_large_monty_remaining():
-    assert_almost_equal(large_monty_remaining.log_probability(0), numpy.log(0.1))
-    assert_almost_equal(large_monty_remaining.log_probability(1), numpy.log(0.7))
-    assert_almost_equal(large_monty_remaining.log_probability(2), numpy.log(0.2))
+    model = large_monty_remaining
+
+    assert_almost_equal(model.log_probability(0), numpy.log(0.1))
+    assert_almost_equal(model.log_probability(1), numpy.log(0.7))
+    assert_almost_equal(model.log_probability(2), numpy.log(0.2))
 
     data = [[True,  'A', 'A', 'C', 1, True],
             [True,  'A', 'A', 'C', 0, True],
@@ -514,10 +501,75 @@ def test_large_monty_remaining():
 
     large_monty_network.fit(data)
 
-    assert_almost_equal(large_monty_remaining.log_probability(0), numpy.log(3. / 12))
-    assert_almost_equal(large_monty_remaining.log_probability(1), numpy.log(5. / 12))
-    assert_almost_equal(large_monty_remaining.log_probability(2), numpy.log(4. / 12))
+    assert_almost_equal(model.log_probability(0), numpy.log(3. / 12))
+    assert_almost_equal(model.log_probability(1), numpy.log(5. / 12))
+    assert_almost_equal(model.log_probability(2), numpy.log(4. / 12))
 
+@with_setup(setup_large_monty, teardown)
+def test_large_monty_network_log_probability():
+    model = large_monty_network
+
+    data = numpy.array([[True,  'A', 'A', 'C', 1, True],
+            [True,  'A', 'A', 'C', 0, True],
+            [False, 'A', 'A', 'B', 1, False],
+            [False, 'A', 'A', 'A', 2, False],
+            [False, 'A', 'A', 'C', 1, False],
+            [False, 'B', 'B', 'B', 2, False],
+            [False, 'B', 'B', 'C', 0, False],
+            [True,  'C', 'C', 'A', 2, True],
+            [True,  'C', 'C', 'C', 1, False],
+            [True,  'C', 'C', 'C', 0, False],
+            [True,  'C', 'C', 'C', 2, True],
+            [True,  'C', 'B', 'A', 1, False]],
+            dtype=object)
+
+    logp = [-3.863233, -8.581732, float("-inf"), float("-inf"), float("-inf"),
+        float("-inf"), -5.013138, -6.279147, float("-inf"), float("-inf"),
+        float("-inf"), -4.150915]
+    logp1 = model.log_probability(data)
+
+    assert_array_almost_equal(logp, logp1)
+
+    model.fit(data)
+
+    logp = [-5.480639, -5.480639, -4.60517 , -5.298317, -3.506558, -5.192957,
+       -5.192957, -4.74667 , -2.667228, -3.360375, -3.648057, -3.072693]
+    logp2 = model.log_probability(data)
+
+    assert_array_almost_equal(logp2, logp)
+
+@with_setup(setup_large_monty, teardown)
+def test_large_monty_network_log_probability_parallel():
+    model = large_monty_network
+
+    data = numpy.array([[True,  'A', 'A', 'C', 1, True],
+            [True,  'A', 'A', 'C', 0, True],
+            [False, 'A', 'A', 'B', 1, False],
+            [False, 'A', 'A', 'A', 2, False],
+            [False, 'A', 'A', 'C', 1, False],
+            [False, 'B', 'B', 'B', 2, False],
+            [False, 'B', 'B', 'C', 0, False],
+            [True,  'C', 'C', 'A', 2, True],
+            [True,  'C', 'C', 'C', 1, False],
+            [True,  'C', 'C', 'C', 0, False],
+            [True,  'C', 'C', 'C', 2, True],
+            [True,  'C', 'B', 'A', 1, False]], dtype=object)
+
+    logp = [-3.863233, -8.581732, float("-inf"), float("-inf"), float("-inf"),
+        float("-inf"), -5.013138, -6.279147, float("-inf"), float("-inf"),
+        float("-inf"), -4.150915]
+
+    logp1 = model.log_probability(data, n_jobs=2)
+
+    assert_array_almost_equal(logp, logp1)
+
+    model.fit(data)
+
+    logp = [-5.480639, -5.480639, -4.60517 , -5.298317, -3.506558, -5.192957,
+       -5.192957, -4.74667 , -2.667228, -3.360375, -3.648057, -3.072693]
+    logp2 = model.log_probability(data, n_jobs=2)
+
+    assert_array_almost_equal(logp2, logp)
 
 @with_setup(setup_large_monty, teardown)
 def test_large_monty_prize():
@@ -600,7 +652,7 @@ def test_guest_with_monty():
     assert_equal(b[monty_index], 'B')
     assert_discrete_equal(b[prize_index], DiscreteDistribution(
         {'A': 1. / 3, 'B': 0.0, 'C': 2. / 3}))
-    
+
     assert_equal(c[guest_index], 'A')
     assert_equal(c[monty_index], 'C')
     assert_discrete_equal(c[prize_index], DiscreteDistribution(
@@ -639,6 +691,51 @@ def test_predict():
                          ['A', 'B', 'C']
                        ])
 
+@with_setup(setup_monty, teardown)
+def test_predict_parallel():
+    obs = [['A', None, 'B'],
+           ['A', None, 'C'],
+           ['A', 'B', 'C']]
+
+    predictions = monty_network.predict(obs, n_jobs=2)
+
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', None, 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+@with_setup(setup_monty, teardown)
+def test_predict_datagenerator():
+    obs = [['A', None, 'B'],
+           ['A', None, 'C'],
+           ['A', 'B', 'C']]
+
+    X = DataGenerator(obs)
+
+    predictions = monty_network.predict(X)
+
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', None, 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
 @with_setup(setup_monty, teardown)
 def test_numpy_predict():
@@ -662,43 +759,51 @@ def test_numpy_predict():
                          ['A', 'B', 'C']
                        ])
 
+@with_setup(setup_monty, teardown)
+def test_numpy_predict_parallel():
+    obs = numpy.array([['A', None, 'B'],
+                    ['A', None, 'C'],
+                    ['A', 'B', 'C']])
+
+    predictions = monty_network.predict(obs, n_jobs=2)
+
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
+
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', None, 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
 @with_setup(setup_monty, teardown)
-def test_single_list_predict_proba():
-    obs = ['A', None, 'B']
-    y = DiscreteDistribution({'A': 1./3, 'B': 0., 'C': 2./3})
-    y_hat = monty_network.predict_proba(obs)
+def test_numpy_predict_datagenerator():
+    obs = numpy.array([['A', None, 'B'],
+                    ['A', None, 'C'],
+                    ['A', 'B', 'C']])
 
-    assert_equal(y_hat[0], 'A')
-    assert_equal(y_hat[2], 'B')
-    assert_discrete_equal(y_hat[1], y)
+    X = DataGenerator(obs)
 
+    predictions = monty_network.predict(X)
 
-@with_setup(setup_large_monty, teardown)
-def test_single_list_large_predict_proba():
-    obs = [True,  'A', 'A', 'C', None, None]
-    y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
-    y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
-    y_hat = large_monty_network.predict_proba(obs)
+    assert_array_equal(predictions,
+                       [
+                         ['A', 'C', 'B'],
+                         ['A', 'B', 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
-    assert_equal(y_hat[0], True)
-    assert_equal(y_hat[1], 'A')
-    assert_equal(y_hat[2], 'A')
-    assert_equal(y_hat[3], 'C')
-    assert_discrete_equal(y_hat[4], y1, 3)
-    assert_discrete_equal(y_hat[5], y2, 3)
-
-    obs = [True, None, 'A', 'C', 2, None]
-    y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
-    y2 = DiscreteDistribution({True: 0.75, False: 0.25})
-    y_hat = large_monty_network.predict_proba(obs)
-
-    assert_equal(y_hat[0], True)
-    assert_equal(y_hat[2], 'A')
-    assert_equal(y_hat[3], 'C')
-    assert_equal(y_hat[4], 2)
-    assert_discrete_equal(y_hat[1], y1)
-    assert_discrete_equal(y_hat[5], y2)
+    assert_array_equal(obs,
+                       [
+                         ['A', None, 'B'],
+                         ['A', None, 'C'],
+                         ['A', 'B', 'C']
+                       ])
 
 
 @with_setup(setup_monty, teardown)
@@ -714,7 +819,7 @@ def test_single_dict_predict_proba():
 
 @with_setup(setup_large_monty, teardown)
 def test_single_dict_large_predict_proba():
-    obs = {'large_monty_friend' : True,  'large_monty_guest': 'A', 
+    obs = {'large_monty_friend' : True,  'large_monty_guest': 'A',
         'large_monty_prize': 'A', 'large_monty': 'C'}
     y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
     y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
@@ -727,7 +832,7 @@ def test_single_dict_large_predict_proba():
     assert_discrete_equal(y_hat[4], y1, 3)
     assert_discrete_equal(y_hat[5], y2, 3)
 
-    obs = {'large_monty_friend' : True, 'large_monty_prize': 'A', 
+    obs = {'large_monty_friend' : True, 'large_monty_prize': 'A',
         'large_monty': 'C', 'large_monty_remaining' : 2}
     y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
     y2 = DiscreteDistribution({True: 0.75, False: 0.25})
@@ -792,7 +897,7 @@ def test_list_of_dicts_predict_proba():
 
 @with_setup(setup_large_monty, teardown)
 def test_list_of_dicts_large_predict_proba():
-    obs = [{'large_monty_friend' : True,  'large_monty_guest': 'A', 
+    obs = [{'large_monty_friend' : True,  'large_monty_guest': 'A',
         'large_monty_prize': 'A', 'large_monty': 'C'}]
     y1 = DiscreteDistribution({0: 0.0472, 1: 0.781, 2: 0.17167})
     y2 = DiscreteDistribution({True: 0.8562, False: 0.143776})
@@ -805,7 +910,7 @@ def test_list_of_dicts_large_predict_proba():
     assert_discrete_equal(y_hat[0][4], y1, 3)
     assert_discrete_equal(y_hat[0][5], y2, 3)
 
-    obs = [{'large_monty_friend' : True, 'large_monty_prize': 'A', 
+    obs = [{'large_monty_friend' : True, 'large_monty_prize': 'A',
         'large_monty': 'C', 'large_monty_remaining' : 2}]
     y1 = DiscreteDistribution({'A': 0.5, 'B': 0.5, 'C': 0.0})
     y2 = DiscreteDistribution({True: 0.75, False: 0.25})
@@ -862,7 +967,7 @@ def test_exact_structure_learning():
     for X, logp in zip(datasets, logps):
         model = BayesianNetwork.from_samples(X, algorithm='exact')
         model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
-        assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
+        assert_almost_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
 def test_exact_structure_learning_slap_constraints():
@@ -895,6 +1000,57 @@ def test_from_structure():
     assert_equal(model2.structure, structure)
     assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
 
+def test_robust_from_structure():
+    X = datasets[1]
+    structure = ((1, 2), (4,), (), (), (3,))
+    model = BayesianNetwork.from_structure(X, structure=structure)
+
+    assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model2 = from_json(model.to_json())
+    assert_equal(model2.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+@with_setup(setup_random_mixed)
+def test_from_json():
+    model2 = BayesianNetwork.from_json(model.to_json())
+
+    logp1 = model.log_probability(X)
+    logp2 = model2.log_probability(X)
+    logp = [-2.304186, -1.898721, -1.898721, -2.224144, -1.898721, -1.978764,
+        -1.898721, -1.898721, -1.898721, -1.898721, -1.818679, -2.384229,
+        -2.304186, -1.978764, -2.304186, -2.384229, -2.304186, -2.384229,
+        -2.304186, -1.978764, -2.224144, -1.818679, -1.898721, -2.304186,
+        -2.304186, -1.898721, -1.818679, -1.898721, -1.818679, -2.304186,
+        -1.978764, -2.224144, -1.898721, -2.304186, -1.898721, -1.818679,
+        -2.304186, -1.898721, -1.898721, -2.384229, -2.224144, -1.818679,
+        -2.384229, -1.978764, -1.818679, -1.978764, -1.898721, -1.818679,
+        -2.224144, -1.898721]
+
+    assert_array_almost_equal(logp1, logp2)
+    assert_array_almost_equal(logp1, logp)
+    assert_array_almost_equal(logp2, logp)
+
+@with_setup(setup_random_mixed)
+def test_robust_from_json():
+    model2 = from_json(model.to_json())
+
+    logp1 = model.log_probability(X)
+    logp2 = model2.log_probability(X)
+    logp = [-2.304186, -1.898721, -1.898721, -2.224144, -1.898721, -1.978764,
+        -1.898721, -1.898721, -1.898721, -1.898721, -1.818679, -2.384229,
+        -2.304186, -1.978764, -2.304186, -2.384229, -2.304186, -2.384229,
+        -2.304186, -1.978764, -2.224144, -1.818679, -1.898721, -2.304186,
+        -2.304186, -1.898721, -1.818679, -1.898721, -1.818679, -2.304186,
+        -1.978764, -2.224144, -1.898721, -2.304186, -1.898721, -1.818679,
+        -2.304186, -1.898721, -1.898721, -2.384229, -2.224144, -1.818679,
+        -2.384229, -1.978764, -1.818679, -1.978764, -1.898721, -1.818679,
+        -2.224144, -1.898721]
+
+    assert_array_almost_equal(logp1, logp2)
+    assert_array_almost_equal(logp1, logp)
+    assert_array_almost_equal(logp2, logp)
 
 def test_parallel_structure_learning():
     logps = -19.8282, -345.9527, -4847.59688, -604.0190
@@ -926,7 +1082,7 @@ def test_exact_nan_structure_learning():
         model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
 
         assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
-        assert_almost_equal(model.log_probability(X).sum(), logp, 4)  
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
 
 def test_greedy_nan_structure_learning():
@@ -935,3 +1091,103 @@ def test_greedy_nan_structure_learning():
         model = BayesianNetwork.from_samples(X, algorithm='greedy')
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
+@with_setup(setup_random_mixed, teardown)
+def test_io_log_probability():
+    X2 = DataGenerator(X)
+    X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+    logp1 = model.log_probability(X)
+    logp2 = model.log_probability(X2)
+    logp3 = model.log_probability(X3)
+
+    assert_array_almost_equal(logp1, logp2)
+    assert_array_almost_equal(logp1, logp3)
+
+@with_setup(setup_random_mixed, teardown)
+def test_io_predict():
+    X2 = DataGenerator(X)
+    X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+    y_hat1 = model.predict(X)
+    y_hat2 = model.predict(X2)
+    y_hat3 = model.predict(X3)
+
+    assert_array_equal(y_hat1, y_hat2)
+    assert_array_equal(y_hat1, y_hat3)
+
+@with_setup(setup_random_mixed, teardown)
+def test_io_fit():
+    d1 = DiscreteDistribution({True: 0.6, False: 0.4})
+    d2 = ConditionalProbabilityTable([
+        [True, 'A', 0.2],
+        [True, 'B', 0.8],
+        [False, 'A', 0.3],
+        [False, 'B', 0.7]], [d1])
+    d3 = ConditionalProbabilityTable([
+        ['A', 0, 0.3],
+        ['A', 1, 0.7],
+        ['B', 0, 0.8],
+        ['B', 1, 0.2]], [d2])
+
+    n1 = Node(d1)
+    n2 = Node(d2)
+    n3 = Node(d3)
+
+    model1 = BayesianNetwork()
+    model1.add_nodes(n1, n2, n3)
+    model1.add_edge(n1, n2)
+    model1.add_edge(n2, n3)
+    model1.bake()
+    model1.fit(X, weights=weights)
+
+    d1 = DiscreteDistribution({True: 0.2, False: 0.8})
+    d2 = ConditionalProbabilityTable([
+        [True, 'A', 0.7],
+        [True, 'B', 0.2],
+        [False, 'A', 0.4],
+        [False, 'B', 0.6]], [d1])
+    d3 = ConditionalProbabilityTable([
+        ['A', 0, 0.9],
+        ['A', 1, 0.1],
+        ['B', 0, 0.0],
+        ['B', 1, 1.0]], [d2])
+
+    n1 = Node(d1)
+    n2 = Node(d2)
+    n3 = Node(d3)
+
+    model2 = BayesianNetwork()
+    model2.add_nodes(n1, n2, n3)
+    model2.add_edge(n1, n2)
+    model2.add_edge(n2, n3)
+    model2.bake()
+    model2.fit(data_generator)
+
+    logp1 = model1.log_probability(X)
+    logp2 = model2.log_probability(X)
+
+    assert_array_almost_equal(logp1, logp2)
+
+@with_setup(setup_random_mixed, teardown)
+def test_io_from_samples():
+    model1 = BayesianNetwork.from_samples(X, weights=weights)
+    model2 = BayesianNetwork.from_samples(data_generator)
+
+    logp1 = model1.log_probability(X)
+    logp2 = model2.log_probability(X)
+
+    assert_array_almost_equal(logp1, logp2)
+
+@with_setup(setup_random_mixed, teardown)
+def test_io_from_structure():
+    structure = ((2,), (0, 2), ())
+
+    model1 = BayesianNetwork.from_structure(X=X, weights=weights,
+        structure=structure)
+    model2 = BayesianNetwork.from_structure(X=data_generator,
+        structure=structure)
+
+    logp1 = model1.log_probability(X)
+    logp2 = model2.log_probability(X)
+
+    assert_array_almost_equal(logp1, logp2)

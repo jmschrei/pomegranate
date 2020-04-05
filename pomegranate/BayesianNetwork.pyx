@@ -20,11 +20,13 @@ from libc.string cimport memset
 from .base cimport GraphModel
 from .base cimport Model
 from .base cimport State
-from .distributions import Distribution
-from .distributions cimport MultivariateDistribution
-from .distributions cimport DiscreteDistribution
-from .distributions cimport ConditionalProbabilityTable
-from .distributions cimport JointProbabilityTable
+
+from distributions import Distribution
+from distributions.distributions cimport MultivariateDistribution
+from distributions.DiscreteDistribution cimport DiscreteDistribution
+from distributions.ConditionalProbabilityTable cimport ConditionalProbabilityTable
+from distributions.JointProbabilityTable cimport JointProbabilityTable
+
 from .FactorGraph import FactorGraph
 from .utils cimport _log
 from .utils cimport lgamma
@@ -32,6 +34,10 @@ from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import plot_networkx
 from .utils import parallelize_function
+from .utils import _check_nan
+
+from .io import BaseGenerator
+from .io import DataGenerator
 
 
 try:
@@ -42,27 +48,10 @@ try:
 except ImportError:
 	pygraphviz = None
 
-if sys.version_info[0] > 2:
-	# Set up for Python 3
-	xrange = range
-	izip = zip
-else:
-	izip = it.izip
-
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
 nan = numpy.nan
-
-def _check_nan(X):
-	if isinstance(X, str):
-		if X == 'nan':
-			return True
-		return False
-
-	if X is None or numpy.isnan(X):
-		return True
-	return False
 
 def _check_input(X, model):
 	"""Ensure that the keys in the sample are valid keys.
@@ -73,7 +62,7 @@ def _check_input(X, model):
 
 	Parameters
 	----------
-	X : dict or array-like 
+	X : dict or array-like
 		The observed sample.
 
 	states : list
@@ -93,7 +82,7 @@ def _check_input(X, model):
 					raise ValueError("State '{}' does not match with keys provided."
 						.format(name))
 				continue
-			
+
 			if name not in indices:
 				raise ValueError("Model does not contain a state named '{}'"
 					.format(name))
@@ -110,7 +99,7 @@ def _check_input(X, model):
 						raise ValueError("State '{}' does not match with keys provided."
 							.format(name))
 					continue
-				
+
 				if name not in indices:
 					raise ValueError("Model does not contain a state named '{}'"
 						.format(name))
@@ -122,7 +111,7 @@ def _check_input(X, model):
 	elif isinstance(X, (numpy.ndarray, list)) and isinstance(X[0], (numpy.ndarray, list)):
 		for x in X:
 			if len(x) != len(indices):
-				raise ValueError("Sample does not have the same number of dimensions" +
+				raise ValueError("Sample does not have the same number of dimensions" \
 					" as the model {} {}".format(x, len(indices)))
 
 			for i in range(len(x)):
@@ -139,26 +128,13 @@ def _check_input(X, model):
 					raise ValueError("State '{}' does not have key '{}'"
 						.format(model.states[i].name, x[i]))
 
+		X = numpy.array(X, ndmin=2, dtype=object)
+
 	else:
-		if len(X) != len(indices):
-			raise ValueError("Sample does not have the same number of dimensions" +
-				" as the model")
+		raise ValueError("X must be a 2D array of shape (n_samples, n_variables) or " \
+				"a list of lists or a list of dictionaries.")
 
-		for i in range(len(X)):
-			if isinstance(X[i], Distribution):
-				if set(X[i].keys()) != set(model.states[i].distribution.keys()):
-					raise ValueError("State '{}' does not match with keys provided."
-						.format(model.states[i].name))
-				continue
-
-			if _check_nan(X[i]):
-				continue
-
-			if X[i] not in model.states[i].distribution.keys():
-				raise ValueError("State '{}' does not have key '{}'"
-					.format(model.states[i].name, X[i]))
-
-	return True
+	return X
 
 
 cdef class BayesianNetwork(GraphModel):
@@ -195,32 +171,32 @@ cdef class BayesianNetwork(GraphModel):
 	>>> model.add_nodes([s1, s2])
 	>>> model.add_edge(s1, s2)
 	>>> model.bake()
-	>>> print model.log_probability(['A', 'B'])
+	>>> print(model.log_probability(['A', 'B']))
 	-1.71479842809
-	>>> print model.predict_proba({'s2' : 'A'})
+	>>> print(model.predict_proba({'s2' : 'A'}))
 	array([ {
-	    "frozen" :false,
-	    "class" :"Distribution",
-	    "parameters" :[
-	        {
-	            "A" :0.05882352941176471,
-	            "B" :0.9411764705882353
-	        }
-	    ],
-	    "name" :"DiscreteDistribution"
+		"frozen" :false,
+		"class" :"Distribution",
+		"parameters" :[
+			{
+				"A" :0.05882352941176471,
+				"B" :0.9411764705882353
+			}
+		],
+		"name" :"DiscreteDistribution"
 	},
-	       {
-	    "frozen" :false,
-	    "class" :"Distribution",
-	    "parameters" :[
-	        {
-	            "A" :1.0,
-	            "B" :0.0
-	        }
-	    ],
-	    "name" :"DiscreteDistribution"
+		   {
+		"frozen" :false,
+		"class" :"Distribution",
+		"parameters" :[
+			{
+				"A" :1.0,
+				"B" :0.0
+			}
+		],
+		"name" :"DiscreteDistribution"
 	}], dtype=object)
-	>>> print model.impute([[None, 'A']])
+	>>> print(model.impute([[None, 'A']]))
 	[['B', 'A']]
 	"""
 
@@ -247,18 +223,8 @@ cdef class BayesianNetwork(GraphModel):
 		free(self.parent_count)
 		free(self.parent_idxs)
 
-	def plot(self, filename=None, **kwargs):
-		"""Draw this model's graph using NetworkX and matplotlib.
-
-		Note that this relies on networkx's built-in graphing capabilities (and
-		not Graphviz) and thus can't draw self-loops.
-
-		See networkx.draw_networkx() for the keywords you can pass in.
-
-		Parameters
-		----------
-		**kwargs : any
-			The arguments to pass into networkx.draw_networkx()
+	def plot(self, filename=None):
+		"""Draw this model's graph using pygraphviz.
 
 		Returns
 		-------
@@ -365,7 +331,8 @@ cdef class BayesianNetwork(GraphModel):
 		indices = {state.distribution : i for i, state in enumerate(self.states)}
 
 		n, self.idxs = 0, []
-		self.keymap = numpy.array([state.distribution.keys() for state in self.states])
+		self.keymap = numpy.array([state.distribution.keys() for state in self.states], dtype=object)
+
 		for i, state in enumerate(self.states):
 			d = state.distribution
 
@@ -411,7 +378,7 @@ cdef class BayesianNetwork(GraphModel):
 			if i > 0:
 				self.parent_count[i+1] += self.parent_count[i]
 
-	def log_probability(self, X, n_jobs=1):
+	def log_probability(self, X, check_input=True, n_jobs=1):
 		"""Return the log probability of samples under the Bayesian network.
 
 		The log probability is just the sum of the log probabilities under each of
@@ -427,6 +394,10 @@ cdef class BayesianNetwork(GraphModel):
 			the connections between these variables are, just that they are all
 			ordered the same.
 
+		check_input : bool, optional
+			Check to make sure that the observed symbol is a valid symbol for that
+			distribution to produce. Default is True.
+
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
 			or the number of processes to use. -1 means use all available resources.
@@ -441,24 +412,29 @@ cdef class BayesianNetwork(GraphModel):
 		if self.d == 0:
 			raise ValueError("must bake model before computing probability")
 
-		X = numpy.array(X, ndmin=2)
-		n, d = X.shape
+		n = len(X)
 
-		if n_jobs > 1:
-			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+		if n_jobs > 1 or isinstance(X, BaseGenerator):
+			batch_size = n // n_jobs + n % n_jobs
+
+			if not isinstance(X, BaseGenerator):
+				data_generator = DataGenerator(X, batch_size=batch_size)
+			else:
+				data_generator = X
 
 			fn = '.pomegranate.tmp'
 			with open(fn, 'w') as outfile:
 				outfile.write(self.to_json())
 
-			with Parallel(n_jobs=n_jobs) as parallel:
-				logp_arrays = parallel(delayed(parallelize_function)(
-					X[start:end], BayesianNetwork, 'log_probability', fn) 
-					for start, end in zip(starts, ends))
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				f = delayed(parallelize_function)
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'log_probability', 
+					fn) for batch in data_generator.batches())
 
 			os.remove(fn)
-			return numpy.concatenate(logp_arrays)
+			return numpy.concatenate(logp_array)
+		elif check_input:
+			X = _check_input(X, self)
 
 		logp = numpy.zeros(n, dtype='float64')
 		for i in range(n):
@@ -485,6 +461,7 @@ cdef class BayesianNetwork(GraphModel):
 
 				(<Model> self.distributions_ptr[j])._log_probability(sym, &logp, 1)
 				log_probability[i] += logp
+		free(sym)
 
 
 	def marginal(self):
@@ -602,15 +579,38 @@ cdef class BayesianNetwork(GraphModel):
 		if self.d == 0:
 			raise ValueError("must bake model before using forward-backward algorithm")
 
-		if check_input:
-			_check_input(X, self)
+		n = len(X)
+
+		if n_jobs > 1 or isinstance(X, BaseGenerator):
+			batch_size = n // n_jobs + n % n_jobs
+
+			if not isinstance(X, BaseGenerator):
+				data_generator = DataGenerator(X, batch_size=batch_size)
+			else:
+				data_generator = X
+
+			fn = '.pomegranate.tmp'
+			with open(fn, 'w') as outfile:
+				outfile.write(self.to_json())
+
+			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+				f = delayed(parallelize_function)
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'predict_proba', 
+					fn) for batch in data_generator.batches())
+
+			os.remove(fn)
+			return numpy.concatenate(logp_array)
+		
+		elif check_input and not isinstance(X, dict):
+			X = _check_input(X, self)
+
 
 		if isinstance(X, dict):
 			return self.graph.predict_proba(X, max_iterations)
 
-		elif isinstance(X, (list, numpy.ndarray)) and not isinstance(X[0], 
+		elif isinstance(X, (list, numpy.ndarray)) and not isinstance(X[0],
 			(list, numpy.ndarray, dict)):
-			
+
 			data = {}
 			for state, val in zip(self.states, X):
 				if not _check_nan(val):
@@ -619,34 +619,16 @@ cdef class BayesianNetwork(GraphModel):
 			return self.graph.predict_proba(data, max_iterations)
 
 		else:
-			if n_jobs > 1:
-				starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-				ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+			y_hat = []
+			for x in X:
+				y_ = self.predict_proba(x, max_iterations=max_iterations,
+					check_input=False, n_jobs=1)
+				y_hat.append(y_)
 
-				fn = '.pomegranate.tmp'
-				with open(fn, 'w') as outfile:
-					outfile.write(self.to_json())
-
-				with Parallel(n_jobs=n_jobs) as parallel:
-					y_hat = parallel(delayed(parallelize_function)(
-						X[start:end], BayesianNetwork, 'predict_proba', fn,
-						check_input=False) 
-						for start, end in zip(starts, ends))
-
-				os.remove(fn)
-				return numpy.concatenate(y_hat)
-
-			else:
-				y_hat = []
-				for x in X:
-					y_ = self.predict_proba(x, max_iterations=max_iterations, 
-						check_input=False, n_jobs=1)
-					y_hat.append(y_)
-
-				return y_hat
+			return y_hat
 
 
-	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, verbose=False, 
+	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, verbose=False,
 		n_jobs=1):
 		"""Fit the model to data using MLE estimates.
 
@@ -659,7 +641,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		Parameters
 		----------
-		X : array-like, shape (n_samples, n_nodes)
+		X : array-like or generator, shape (n_samples, n_nodes)
 			The data to train on, where each row is a sample and each column
 			corresponds to the associated variable.
 
@@ -680,7 +662,7 @@ cdef class BayesianNetwork(GraphModel):
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
 			Default is False.
-	
+
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
 			or the number of processes to use. -1 means use all available resources.
@@ -694,18 +676,17 @@ cdef class BayesianNetwork(GraphModel):
 
 		training_start_time = time.time()
 
-		if weights is None:
-			weights = numpy.ones(len(X), dtype='float64')
+		batch_size = len(X) // n_jobs + len(X) % n_jobs
+		if not isinstance(X, BaseGenerator):
+			data_generator = DataGenerator(numpy.array(X, dtype=object), 
+				weights, batch_size=batch_size)
 		else:
-			weights = numpy.array(weights, dtype='float64')
-
-		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
-		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
+			data_generator = X
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-			parallel( delayed(self.summarize, check_pickle=False)(
-				X[start:end], weights[start:end]) for start, end in zip(starts, ends))
-		
+			f = delayed(self.summarize, check_pickle=False)
+			parallel(f(*batch) for batch in data_generator.batches())
+
 		self.from_summaries(inertia, pseudocount)
 		self.bake()
 
@@ -754,7 +735,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		for i in range(n):
 			for j in range(d):
-				if X[i][j] == 'nan' or X[i][j] == None or X[i][j] == nan:
+				if _check_nan(X[i][j]):
 					X_int[i, j] = nan
 				else:
 					X_int[i, j] = self.keymap[j][X[i][j]]
@@ -850,20 +831,19 @@ cdef class BayesianNetwork(GraphModel):
 
 		# Load a dictionary from a JSON formatted string
 		try:
-			d = json.loads( s )
+			d = json.loads(s)
 		except:
 			try:
-				with open( s, 'r' ) as infile:
-					d = json.load( infile )
+				with open(s, 'r') as infile:
+					d = json.load(infile)
 			except:
 				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
 		# Make a new generic Bayesian Network
-		model = BayesianNetwork( str(d['name']) )
-
+		model = BayesianNetwork(str(d['name']))
 
 		# Load all the states from JSON formatted strings
-		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
+		states = [State.from_json(json.dumps(j)) for j in d['states']]
 		structure = d['structure']
 		for state, parents in zip(states, structure):
 			if len(parents) > 0:
@@ -880,8 +860,8 @@ cdef class BayesianNetwork(GraphModel):
 		return model
 
 	@classmethod
-	def from_structure(cls, X, structure, weights=None, pseudocount=0.0, 
-		name=None, state_names=None, n_jobs=1):
+	def from_structure(cls, X, structure, weights=None, pseudocount=0.0,
+		name=None, state_names=None):
 		"""Return a Bayesian network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -914,26 +894,25 @@ cdef class BayesianNetwork(GraphModel):
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
 
-		n_jobs : int
-			The number of jobs to use to parallelize, either the number of threads
-			or the number of processes to use. -1 means use all available resources.
-			Default is 1.
-
 		Returns
 		-------
 		model : BayesianNetwork
 			A Bayesian network with the specified structure.
 		"""
 
-		X = numpy.array(X)
-		d = len(structure)
-
-		nodes = [None for i in range(d)]
-
-		if weights is None:
-			weights = numpy.ones(X.shape[0], dtype='float64')
+		if isinstance(X, BaseGenerator):
+			batches = [batch for batch in X.batches()]
+			X = numpy.concatenate([batch[0] for batch in batches])
+			weights = numpy.concatenate([batch[1] for batch in batches])
 		else:
-			weights = numpy.array(weights, dtype='float64')
+			X = numpy.array(X)
+			if weights is None:
+				weights = numpy.ones(X.shape[0], dtype='float64')
+			else:
+				weights = numpy.array(weights, dtype='float64')
+
+		d = len(structure)
+		nodes = [None for i in range(d)]
 
 		for i, parents in enumerate(structure):
 			if len(parents) == 0:
@@ -955,7 +934,7 @@ cdef class BayesianNetwork(GraphModel):
 				break
 
 		if state_names is not None:
-			states = [State(node, name=node_name) for node, node_name in izip(nodes,state_names)]
+			states = [State(node, name=node_name) for node, node_name in zip(nodes,state_names)]
 		else:
 			states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
 
@@ -963,8 +942,6 @@ cdef class BayesianNetwork(GraphModel):
 		model.add_nodes(*states)
 
 		for i, parents in enumerate(structure):
-			d = states[i].distribution
-
 			for parent in parents:
 				model.add_edge(states[parent], states[i])
 
@@ -983,9 +960,15 @@ cdef class BayesianNetwork(GraphModel):
 		weights on the different samples as well. The score that is optimized
 		is the minimum description length (MDL).
 
+		If not all states for a variable appear in the supplied data, this
+		function can not gurantee that the returned Bayesian Network is optimal
+		when 'exact' or 'exact-dp' is used. This is because the number of
+		states for each node is derived only from the data provided, and the
+		scoring function depends on the number of states of a variable.
+
 		Parameters
 		----------
-		X : array-like, shape (n_samples, n_nodes)
+		X : array-like or generator, shape (n_samples, n_nodes)
 			The data to fit the structure too, where each row is a sample and
 			each column corresponds to the associated variable.
 
@@ -995,7 +978,7 @@ cdef class BayesianNetwork(GraphModel):
 		algorithm : str, one of 'chow-liu', 'greedy', 'exact', 'exact-dp' optional
 			The algorithm to use for learning the Bayesian network. Default is
 			'greedy' that greedily attempts to find the best structure, and
-			frequently can identify the optimal structure. 'exact' uses DP/A* 
+			frequently can identify the optimal structure. 'exact' uses DP/A*
 			to find the optimal Bayesian network, and 'exact-dp' tries to find
 			the shortest path on the entire order lattice, which is more memory
 			and computationally expensive. 'exact' and 'exact-dp' should give
@@ -1037,9 +1020,9 @@ cdef class BayesianNetwork(GraphModel):
 			will pass in a dataset that has many identical samples. It is time
 			consuming to go through these redundant samples and a far more
 			efficient use of time to simply calculate a new dataset comprised
-			of the subset of unique observed samples weighted by the number of 
+			of the subset of unique observed samples weighted by the number of
 			times they occur in the dataset. This typically will speed up all
-			algorithms, including when using a constraint graph. Default is 
+			algorithms, including when using a constraint graph. Default is
 			True.
 
 		n_jobs : int, optional
@@ -1055,49 +1038,45 @@ cdef class BayesianNetwork(GraphModel):
 			The learned BayesianNetwork.
 		"""
 
-		X = numpy.array(X)
+		if isinstance(X, BaseGenerator):
+			batches = [batch for batch in X.batches()]
+			X = numpy.concatenate([batch[0] for batch in batches])
+			weights = numpy.concatenate([batch[1] for batch in batches])
+		else:
+			X = numpy.array(X)
+			if weights is None:
+				weights = numpy.ones(X.shape[0], dtype='float64')
+			else:
+				weights = numpy.array(weights, dtype='float64')
+
 		n, d = X.shape
 
-		keys = [numpy.unique(X[:,i]) for i in range(d)]
-
-		for i in range(d):
-			keys_ = []
-			for key in keys[i]:
-				if isinstance(key, str) and key == 'nan':
-					continue
-				elif numpy.isnan(key):
-					continue
-				
-				keys_.append(key)
-
-			keys[i] = keys_
-
+		keys = [set([x for x in X[:,i] if not _check_nan(x)]) for i in range(d)]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(d)])
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
-
-		if weights is None:
-			weights = numpy.ones(X.shape[0], dtype='float64')
-		else:
-			weights = numpy.array(weights, dtype='float64')
 
 		if reduce_dataset:
 			X_count = {}
 
-			for x, weight in izip(X, weights):
-				x = tuple(x)
+			for x, weight in zip(X, weights):
+				# Convert NaN to None because two tuples containing
+				# (1.0, 2.0, 3.0, nan) are not considered equal, but two tuples
+				# containing (1.0, 2.0, 3.0, None) are considered equal
+				x = tuple(None if _check_nan(xn) else xn for xn in x)
 				if x in X_count:
 					X_count[x] += weight
 				else:
 					X_count[x] = weight
 
 			weights = numpy.array(list(X_count.values()), dtype='float64')
-			X = numpy.array(list(X_count.keys()))
+			X = numpy.array(list(X_count.keys()), dtype=X.dtype)
 			n, d = X.shape
+
 
 		X_int = numpy.zeros((n, d), dtype='float64')
 		for i in range(n):
 			for j in range(d):
-				if X[i, j] == 'nan' or isnan(X[i, j]):
+				if _check_nan(X[i, j]):
 					X_int[i, j] = nan
 				else:
 					X_int[i, j] = keymap[j][X[i, j]]
@@ -1128,7 +1107,7 @@ cdef class BayesianNetwork(GraphModel):
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		return BayesianNetwork.from_structure(X, structure, weights, pseudocount, name, 
+		return BayesianNetwork.from_structure(X, structure, weights, pseudocount, name,
 			state_names)
 
 
@@ -1141,7 +1120,7 @@ cdef class ParentGraph(object):
 	score for each combination of parent variables. For example, if we are
 	generating a parent graph for x1 over x2, x3, and x4, we may calculate that
 	having x2 as a parent is better than x2,x3 and so store the value
-	of x2 in the node for x2,x3. 
+	of x2 in the node for x2,x3.
 
 	Parameters
 	----------
@@ -1227,7 +1206,7 @@ cdef class ParentGraph(object):
 		m[l+2] = m[l] * (key_count[self.i] - 1)
 
 		with nogil:
-			score = discrete_score_node(X, weights, m, parents, self.n, 
+			score = discrete_score_node(X, weights, m, parents, self.n,
 				l+1, self.d, self.pseudocount)
 
 		return score
@@ -1240,9 +1219,9 @@ cdef class ParentGraph(object):
 			best_parents, best_score = (), NEGINF
 		else:
 			best_parents, best_score = value, self.calculate_value(value)
-		
-		for variable in value:
-			parent_subset = tuple(parent for parent in value if parent != variable)
+
+		for i in range(len(value)):
+			parent_subset = value[:i] + value[i+1:]
 			parents, score = self[parent_subset]
 
 			if score > best_score:
@@ -1263,8 +1242,7 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 
-	cdef numpy.ndarray mutual_info_ndarray = numpy.zeros((d, d), dtype='float64')
-	cdef double* mutual_info = <double*> mutual_info_ndarray.data
+	cdef double* mutual_info = <double*> calloc(d * d, sizeof(double))
 
 	cdef double* marg_j = <double*> calloc(max_keys, sizeof(double))
 	cdef double* marg_k = <double*> calloc(max_keys, sizeof(double))
@@ -1300,29 +1278,36 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 							joint_count[xj*lk+xk] / (marg_j[xj] * marg_k[xk]))
 						mutual_info[k*d + j] = mutual_info[j*d + k]
 
+	cdef int x, y, min_x, min_y
+	cdef double min_score, score
 
-	structure = [() for i in range(d)]
+	structure = [[] for i in range(d)]
 	visited = [root]
 	unvisited = list(range(d))
 	unvisited.remove(root)
 
-	while len(unvisited) > 0:
-		min_score, min_x, min_y = INF, -1, -1
+	for i in range(d-1):
+		min_score = float("inf")
+		min_x = -1
+		min_y = -1
 
 		for x in visited:
 			for y in unvisited:
-				score = mutual_info_ndarray[x, y]
+				score = mutual_info[x*d + y]
 				if score < min_score:
-					min_score, min_x, min_y = score, x, y
+					min_score = score
+					min_x = x
+					min_y = y
 
-		structure[min_y] += (min_x,)
+		structure[min_y].append(min_x)
 		visited.append(min_y)
 		unvisited.remove(min_y)
 
+	free(mutual_info)
 	free(marg_j)
 	free(marg_k)
 	free(joint_count)
-	return tuple(structure)
+	return tuple(tuple(x) for x in structure)
 
 
 def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
@@ -1406,7 +1391,7 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 
 	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 		local_structures = parallel( delayed(discrete_exact_with_constraints_task)(
-			X, weights, key_count, pseudocount, max_parents, task, n_jobs) 
+			X, weights, key_count, pseudocount, max_parents, task, n_jobs)
 			for task in tasks)
 
 	structure = [[] for i in range(d)]
@@ -1475,13 +1460,13 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 
 	if case == 0:
 		local_structure = discrete_exact_a_star(X[:,parents].copy(), weights,
-			key_count[list(parents)], pseudocount, max_parents, False, n_jobs)
+			key_count[list(parents)], pseudocount, max_parents, n_jobs)
 
 		for i, parent in enumerate(parents):
 			structure[parent] = tuple([parents[k] for k in local_structure[i]])
 
 	elif case == 1:
-		structure = discrete_exact_slap(X, weights, task, key_count, 
+		structure = discrete_exact_slap(X, weights, task, key_count,
 			pseudocount, max_parents, n_jobs)
 
 	elif case == 2:
@@ -1501,7 +1486,7 @@ def discrete_exact_dp(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
-	This is the naive dynamic programming structure learning task where the 
+	This is the naive dynamic programming structure learning task where the
 	optimal graph is identified from a set of variables using an order graph
 	and parent graphs. This can be used either when no constraint graph is
 	provided or for a SCC which is made up of a node containing a self-loop.
@@ -1542,8 +1527,8 @@ def discrete_exact_dp(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef list parent_graphs = []
 
-	parent_graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
-		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount, 
+	parent_graphs = Parallel(n_jobs=n_jobs, backend='threading')(
+		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount,
 			max_parents) for i in range(d) )
 
 	order_graph = nx.DiGraph()
@@ -1577,14 +1562,14 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
-	This is the naive dynamic programming structure learning task where the 
+	This is the naive dynamic programming structure learning task where the
 	optimal graph is identified from a set of variables using an order graph
 	and parent graphs. This can be used either when no constraint graph is
 	provided or for a SCC which is made up of a node containing a self-loop.
 	It uses DP/A* in order to find the optimal graph without considering all
-	possible topological sorts. A greedy version of the algorithm can be used 
-	that massively reduces both the computational and memory cost while frequently 
-	producing the optimal graph. 
+	possible topological sorts. A greedy version of the algorithm can be used
+	that massively reduces both the computational and memory cost while frequently
+	producing the optimal graph.
 
 	Parameters
 	----------
@@ -1628,7 +1613,7 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 	o = PriorityQueue()
 	closed = {}
 
-	h = sum(parent_graphs[i][other_variables[i]][1] for j in range(d))
+	h = sum(parent_graphs[i][other_variables[i]][1] for i in range(d))
 	o.push(((), h, [() for i in range(d)]), 0)
 	while not o.empty():
 		weight, (variables, g, structure) = o.pop()
@@ -1668,14 +1653,14 @@ def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
-	This is the naive dynamic programming structure learning task where the 
+	This is the naive dynamic programming structure learning task where the
 	optimal graph is identified from a set of variables using an order graph
 	and parent graphs. This can be used either when no constraint graph is
 	provided or for a SCC which is made up of a node containing a self-loop.
 	It uses DP/A* in order to find the optimal graph without considering all
-	possible topological sorts. A greedy version of the algorithm can be used 
-	that massively reduces both the computational and memory cost while frequently 
-	producing the optimal graph. 
+	possible topological sorts. A greedy version of the algorithm can be used
+	that massively reduces both the computational and memory cost while frequently
+	producing the optimal graph.
 
 	Parameters
 	----------
@@ -1737,7 +1722,7 @@ def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
 
 	return tuple(structure)
 
-def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents, 
+def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	n_jobs):
 	"""
 	Find the optimal graph in a node with a Self Loop And Parents (SLAP).
@@ -1786,8 +1771,8 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef list parent_graphs = [None for i in range(max(parents)+1)]
 
-	graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
-		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount, 
+	graphs = Parallel(n_jobs=n_jobs, backend='threading')(
+		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount,
 			max_parents) for i in children)
 
 	for i, child in enumerate(children):
@@ -1822,7 +1807,7 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	return tuple(structure)
 
 
-def discrete_exact_component(X, weights, task, key_count, pseudocount, 
+def discrete_exact_component(X, weights, task, key_count, pseudocount,
 	max_parents, n_jobs):
 	"""
 	Find the optimal graph over a multi-node component of the constaint graph.
@@ -1831,7 +1816,7 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 	all possible single children for that entry recursively until completion.
 	This will result in a far sparser order graph than before. In addition, one
 	can eliminate entries from the parent graphs that contain invalid parents
-	as they are a fast of computational time. 
+	as they are a fast of computational time.
 
 	Parameters
 	----------
@@ -1887,8 +1872,8 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 		for parent in parents:
 			child_sets[parent] += children
 
-	graphs = Parallel(n_jobs=n_jobs, backend='threading')( 
-		delayed(generate_parent_graph)(X, weights, key_count, child, pseudocount, 
+	graphs = Parallel(n_jobs=n_jobs, backend='threading')(
+		delayed(generate_parent_graph)(X, weights, key_count, child, pseudocount,
 			max_parents, parents) for child, parents in parent_sets.items())
 
 	parent_graphs = [None for i in range(d)]
@@ -1910,10 +1895,10 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 		last_layer.append((variable,))
 		last_layer_children.append(set(child_sets[variable]))
 
-	layer = [] 
+	layer = []
 	layer_children = []
 
-	seen_entries = {(variable,): 1 for variable in variable_set} 
+	seen_entries = {(variable,): 1 for variable in variable_set}
 
 	for i in range(len(variable_set)-1):
 		for parent_entry, child_set in zip(last_layer, last_layer_children):
@@ -1967,7 +1952,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 	score for each combination of parent variables. For example, if we are
 	generating a parent graph for x1 over x2, x3, and x4, we may calculate that
 	having x2 as a parent is better than x2,x3 and so store the value
-	of x2 in the node for x2,x3. 
+	of x2 in the node for x2,x3.
 
 	Parameters
 	----------
@@ -2019,6 +2004,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 	cdef int n_parents = len(parent_set)
 
+
 	m[0] = 1
 	for j in range(n_parents+1):
 		for subset in it.combinations(parent_set, j):
@@ -2036,6 +2022,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 				with nogil:
 					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
 						d, pseudocount)
+
 			else:
 				best_structure, best_score = (), NEGINF
 
@@ -2081,7 +2068,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 			m[k+2] = m[k] * (key_count[i] - 1)
 
 			with nogil:
-				score = discrete_score_node(X, weights, m, combs, n, k+1, l, 
+				score = discrete_score_node(X, weights, m, combs, n, k+1, l,
 					pseudocount)
 
 			if score > best_score:
@@ -2092,7 +2079,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	free(combs)
 	return best_score, best_parents
 
-cdef double discrete_score_node(double* X, double* weights, int* m, int* parents, 
+cdef double discrete_score_node(double* X, double* weights, int* m, int* parents,
 	int n, int d, int l, double pseudocount) nogil:
 	cdef int i, j, k, idx, is_na
 	cdef double w_sum = 0
@@ -2100,28 +2087,30 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
+	cdef double* row;
 
 	memset(counts, 0, m[d]*sizeof(double))
 	memset(marginal_counts, 0, m[d-1]*sizeof(double))
 
 	for i in range(n):
-		idx, is_na = 0, 0
+		idx = 0
+		row = X+i*l
+		
 		for j in range(d-1):
 			k = parents[j]
-			if isnan(X[i*l + k]):
-				is_na = 1
-			else:
-				idx += <int> X[i*l+k] * m[j]
+			if isnan(row[k]):
+				break
 
-		k = parents[d-1]
-		
-		if is_na == 1 or isnan(X[i*l+k]):
-			continue
+			idx += <int> row[k] * m[j]
 
+		else:
+			k = parents[d-1]
+			if isnan(row[k]):
+				continue
 
-		marginal_counts[idx] += weights[i]
-		idx += <int> X[i*l+k] * m[d-1]
-		counts[idx] += weights[i]
+			marginal_counts[idx] += weights[i]
+			idx += <int> row[k] * m[d-1]
+			counts[idx] += weights[i]
 
 	for i in range(m[d]):
 		w_sum += counts[i]
@@ -2131,7 +2120,10 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		if count > 0:
 			logp += count * _log(count / marginal_count)
 
-	logp -= _log(w_sum) / 2 * m[d+1]
+	if w_sum > 1:
+		logp -= _log(w_sum) / 2 * m[d+1]
+	else:
+		logp = NEGINF
 
 	free(counts)
 	free(marginal_counts)

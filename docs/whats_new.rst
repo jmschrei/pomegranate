@@ -5,6 +5,260 @@
 Release History
 ===============
 
+Version 0.12.1
+==============
+
+Highlights
+----------
+
+	- A variety of minor bug fixes.
+
+
+Version 0.12.0
+==============
+
+Highlights
+----------
+
+	- MarkovNetwork models have been added in and include both inference and structure learning.
+	- Support for Python 2 has been depricated.
+	- Markov network, data generator, and callback tutorials have been added in
+	- A robust `from_json` method has been added in to __init__.py that can deserialize JSONs from any pomegranate model.
+
+MarkovNetwork
+-------------
+	
+	- MarkovNetwork models have been added in as a new probabilistic model.
+	- Loopy belief propagation inference has been added in using the FactorGraph backend
+	- Structure learning has been added in using Chow-Liu trees
+
+BayesianNetwork
+---------------
+
+	- Chow-Liu tree building has been sped up slightly, courtesy of @alexhenrie
+	- Chow-Liu tree building was further sped up by almost an order of magnitude
+	- Constraint Graphs no longer fail when passing in graphs with self loops, courtesy of @alexhenrie
+
+BayesClassifier
+---------------
+
+	- Updated the `from_samples` method to accept BayesianNetwork as an emission. This will build one Bayesian network for each class and use them as the emissions.
+
+Distributions
+-------------
+
+	- Added a warning to DiscreteDistribution when the user passes in an empty dictionary.
+	- Fixed the sampling procedure for JointProbabilityTables. 
+	- GammaDistributions should have their shape issue resolved
+	- The documentation for BetaDistributions has been updated to specify that it is a Beta-Bernoulli distribution. 
+
+io
+---
+	
+	- New file added, io.py, that contains data generators that can be operated on
+	- Added DataGenerator, DataFrameGenerator, and a BaseGenerator class to inherit from 
+
+HiddenMarkovModel
+-----------------
+
+	- Added RandomState parameter to `from_samples` to account for randomness when building discrete models.
+
+Misc
+----
+
+	- Unneccessary calls to memset have been removed, courtesy of @alexhenrie
+	- Checking for missing values has been slightly refactored to be cleaner, courtesy of @mareksmid-lucid
+	- Include the LICENSE file in MANIFEST.in and simplify a bit, courtesy of @toddrme2178
+	- Added in a robust from_json method that can be used to deseralize a JSON for any pomegranate model.
+
+docs
+----
+
+	- Added io.rst to briefly describe data generators
+	- Added MarkovNetwork.rst to describe Markov networks
+	- Added links to tutorials that did not have tutorials linked to them.
+
+Tutorials
+---------
+	
+	- Added in a tutorial notebook for Markov networks
+	- Added in a tutorial notebook for data generators
+	- Added in a tutorial notebook for callbacks
+
+CI
+--
+
+	- Removed unit tests for Py2.7 from AppVeyor and Travis
+	- Added unit tests for Py3.8 to AppVeyor and Travis 
+
+Version 0.11.2
+==============
+
+Highlights
+----------
+
+	- Faster BSNL, particularly when there is missing data, courtesy of @alexhenrie
+	- GPU acceleration should be fixed
+
+BayesianNetwork
+---------------
+
+	- A speed improvement by making `isnan` an inline function, courtesy of @alexhenrie
+	- A speed improvement by changing the manner that parent sets are iterated, courtesy of @alexhenrie
+
+Utils
+-----
+
+	- The `enable_gpu` call has been moved to the bottom of the GPU checking code and so should not crash anymore.
+
+Version 0.11.1
+==============
+
+Highlights
+----------
+
+	- Added speed improvements to Bayesian network structure learning when missing data is present.
+
+BayesianNetwork
+---------------
+
+	- By default duplicates get merged in a data set so that there are fewer rows with larger weights, dramatically improving speed. However, because `np.nan != np.nan`, rows with missing values don't get merged. This fix changes `np.nan` to `None` so that the rows get merged appropriately.
+
+	- A few misc changes that sometimes improve speed.
+
+	- Changed the probability calculation when a node is being scored given a single row. Previously it would return 0, meaning that sometimes it will return the densest graph possible erroneously. This may change your networks in edge cases, but will reduce their complexity.
+
+Version 0.11.0
+==============
+
+Highlights
+----------
+
+	- Allowed for user specified custom distributions by implementing a Python fallback option if the distribution object doesn't inherit from the base distribution class.
+	- Fixed an issue with GammaDistribution update
+	- Removed deterministic seed being set in hmm.bake
+	- Made pomegranate compatible with NetworkX v2.0 and above
+	- NeuralHMMs and Neural Mixture Models are now possible through the custom distributions
+	- Many new tutorials
+
+
+Distributions
+-------------
+
+	- Fixed an error in GammaDistribution's cython level update step where sufficient statistics were incorrectly collected from a data set. This will only affect GammaDistributions that are used as part of a composition model rather than stand-alone ones.
+
+	- Added in support for custom distributions. This is done by checking whether a distribution is inherited from the base pomegranate distribution object. If not, it will use the python methods. 
+
+	- Added in examples of using custom distributions, including neural networks, with pomegranate models.
+
+	- Made NormalDistribution.blank and LogNormalDistribution.blank return distributions with a standard deviation of 1, to avoid DivisionByZero errors.
+
+	- Added in a NeuralNetworkWrapper distribution that should handle wrapping a neural network correctly for use in pomegranate. This assumes a keras-like API.
+
+HiddenMarkovModel
+-----------------
+
+	- Removed a deterministic seed being set in hmm.bake. These lines were set because it was thought that there was some randomness in either the internal state generation of the topological sort. However, it appears that this is not necessary, and so it has been removed.
+
+	- Fixed a bug where semi-supervised learning would not work because of an undefined variable.
+
+	- Added in support for networkx v2.0 and above using their new API.
+
+Tutorials
+---------
+	
+	- Revamped the tutorials in the tutorials folder, greatly expanding their scope
+
+	- Added in new tutorials about custom distributions and neural probabilistic models
+
+
+Version 0.10.0
+==============
+
+Highlights
+----------
+
+	- Broke distributions into their own files and placed them in their own folder
+	- Fixed Bayesian network failing in call to np.isnan when fitting to character data
+	- Added in callbacks to all models in the style of keras, with built-ins being History, ModelCheckpoint, and CVLogger. History is calculated for each model. Use `return_history=True` to gt the model and the history object that contains training.
+	- Added top-level Makefile for convenience in development to build/test/clean/install/uninstall with multiple conda environments.
+	- Added top-level rebuildconda for convenience in development to create or re-create a conda development environment for a given python version, defaulting to 2.7.
+
+Changelog
+---------
+
+Callbacks
+---------
+
+	- Added in a callbacks module, and the use of callbacks in all iterative training procedures. Callbacks are called at the beginning of training, at the end of each epoch, and at the end of the training procedure, using the respective functions. See the documentation page for more details.
+
+
+Distributions
+-------------
+	
+	- Broke the distributions.pyx into a folder where each distribution has its own file. This will speed up compilation when the code is modified.
+
+	- Added in a `dtype` attribute to DiscreteDistribution, ConditionalProbabilityTable, and JointProbabilityTable, to prevent automatic casting of keys as floats when converting to and from jsons
+
+	- For MultivariateGaussianDistributions, added in an epsilon when performing a ridge adjustment on a non-positive semidefinite matrix to hopefully completely fix this issue.
+
+	- NormalDistribution update should now check to see if the weights are below an epsilon, rather than equal to 0, resolving some stability issues.
+
+	- Fixed an issue with BernoulliDistribution where it would raise a ZeroDivisionError when `from_summaries` was called with no observations.
+
+	- Fixed an issue where an IndependentComponentsDistribution would print upon calls to `log_probability`
+
+
+HiddenMarkovModel
+-----------------
+
+    - Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model
+
+	- Resolved an issue in the `summary` method where default weights were assigned to the wrong variable when not passed in.
+
+	- Resolved an issue where printing an empty model resulted in an error.
+
+GeneralMixtureModel
+-------------------
+
+    - Changed the output to be the fit model, like in scikit-learn, instead of the total improvement, to allow for chaining
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model
+
+
+NaiveBayes
+----------
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods that will be used only in semi-supervised learning
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model that will be used only in semi-supervised learning
+
+
+BayesClassifier
+---------------
+
+	- Added in callback functionality to both the `fit` and `from_samples` methods that will be used only in semi-supervised learning
+
+	- Added in the `return_history` parameter to both the `fit` and `from_samples` methods, which will return the history callback as well as the fit model that will be used only in semi-supervised learning
+
+
+BayesianNetwork
+---------------
+
+	- Modified the built keymap to be a numpy array of objects to prevent casting of all keys as the type of the first column.
+
+Makefile
+---------------
+
+	- There is a new top-level "convenience" Makefile for development to make it easy to develop with two conda environments.  The default is for two conda environments, py2.7 and py3.6, but those could be overridden at run time with, for example, `make PY3_ENV=py3.6.2 biginstall`.  Targets exist for `install, test, bigclean, and nbtest` along with variations of each that first activate either one or both conda environments.  For example, `make biginstall` will install for both `py2.7` and `py3.6` environments.  When developing pomegranate, one frequently wants to do a fully clean build, wipe out all installed targets, and replace them.  This can be done with `make bigclean biguninstall biginstall`.  In addition, there is a target `nbtest` for testing all of the jupyter notebooks to ensure that the cells run.  See the Makefile for a list of additional conda packages to install for this to work.  The default is to stop on first error but you can run `make ALLOW_ERRORS=--allow-errors nbtest` to run all cells and then inspect the html output manually for errors.
+	- There is a new top-level "convenience" rebuildconda script which will remove and create a conda environment for development.  Be careful using it that the environment you want to rebuild is the right one.  You can list environments with `conda info --envs`.  The default is to rebuild the `2.7` environment with name `py2.7`.  With this, you can create an alternative environment, test it out, and remove it as in `./rebuildconda 2.7.9 ; make PY2_ENV=py2.7.9 bigclean py2build py2test py2install nbtest ; source deactivate ; conda env remove --name py2.7.9`.
+
 Version 0.9.0
 =============
 
@@ -99,6 +353,8 @@ Base
 ----
 	
 	- Parameters `column_idx` and `d` have been added to the `_summarize` method that all models expose. This is only useful for univariate distributions and models that fit univariate distributions and can be ignored by other models. The `column_idx` parameter specifies which column in a data matrix the distribution should be fit to, essentially serving as an offset. `d` refers to the number of dimensions that the data matrix has. This means that a univariate distribution will fit to all samples `i` such that `i*d + column_idx` in a pointer array. Multivariate distributions and models using those can ignore this.
+
+	- A convenience function `to_yaml` was added to `State` and `Model` classes.  `YAML` is a superset of `JSON` that can be 4 to 5 times more compact.  You need the `yaml` package installed to use it.
 
 
 Distributions

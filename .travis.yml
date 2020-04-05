@@ -3,28 +3,25 @@ matrix:
   include:
   - os: osx
     language: generic
-    env: PYTHON=2.7
-  - os: osx
-    language: generic
-    env: PYTHON=3.4
-  - os: osx
-    language: generic
     env: PYTHON=3.5
   - os: osx
     language: generic
     env: PYTHON=3.6
-  - os: linux
+  - os: osx
     language: generic
-    env: PYTHON=2.7
-  - os: linux
-    language: generic
-    env: PYTHON=3.4
+    env: PYTHON=3.7
   - os: linux
     language: generic
     env: PYTHON=3.5
   - os: linux
     language: generic
     env: PYTHON=3.6
+  - os: linux
+    language: generic
+    env: PYTHON=3.7
+  - os: linux
+    language: generic
+    env: PYTHON=3.8
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then if [[ "$PYTHON" == "2.7" ]]; then wget
   http://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh -O miniconda.sh;
@@ -45,10 +42,12 @@ install:
 script:
 - python setup.py test
 deploy:
+  edge:
+    branch: v1.8.45
   provider: pypi
-  user: "jmschreiber"
+  user: jmschreiber
   password:
-    secure: "f7Joonip7SHxPv0OpSKnGOpW8ubH2+2LFOT3F9ln0mLzeqaQyY3zccCDQf8ckCYHsbQKZqEXgR/ShwePbAY6ms+NXQWiy/q/Pe5Mabzh6nYzHp+BiSMNvv9xwR7J6vPZgZv++Flvsyx3kOI9jb4VdSJVALCGJT/dCwDtZqlsVl0="
-  distributions: "sdist bdist_wheel"
+    secure: LWOUsHlAVUqRgQ/6nF4e2Z/KnCHvF1kCj07yrjQvo/ETr3WStp7N9krAz4APHWLGlsb0vGUXtoUUOJgf8Q21PzLjgP6ib/xR9nv/PhvFYUMzK8sbWUHqErohPy2kTe8GTuuVku2211NABbL366z7CtRm9GqOrtvlWcrXLnRKYj0=
+  distributions: sdist bdist_wheel
   on:
     tags: true

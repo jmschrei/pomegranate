@@ -1,30 +1,48 @@
 <img src="https://github.com/jmschrei/pomegranate/blob/master/docs/logo/pomegranate-logo.png" width=300>
 
-[![Build Status](https://travis-ci.org/jmschrei/pomegranate.svg?branch=master)](https://travis-ci.org/jmschrei/pomegranate) ![Build Status](https://ci.appveyor.com/api/projects/status/github/jmschrei/pomegranate?svg=True) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/jmschrei/pomegranate.svg?branch=master)](https://travis-ci.org/jmschrei/pomegranate) ![Build Status](https://ci.appveyor.com/api/projects/status/github/jmschrei/pomegranate?svg=True) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jmschrei/pomegranate/master)
 
-*NOTE: pomegranate does not yet work with networkx 2.0. If you have problems, please downgrade networkx and try again.*
+Please consider citing the [**JMLR-MLOSS Manuscript**](http://jmlr.org/papers/volume18/17-636/17-636.pdf) if you've used pomegranate in your academic work!
 
-A preprint of the pomegranate paper can be [found here](https://arxiv.org/pdf/1711.00137.pdf). Please consider citing it if you used it in your academic work.
+pomegranate is a package for building probabilistic models in Python that is implemented in Cython for speed. A primary focus of pomegranate is to merge the easy-to-use API of scikit-learn with the modularity of probabilistic modeling to allow users to specify complicated models without needing to worry about implementation details. The models implemented here are built from the ground up with big data processing in mind and so natively support features like multi-threaded parallelism and out-of-core processing. Click on the binder badge above to interactively play with the tutorials!
 
-pomegranate is a package for probabilistic and graphical models for Python, implemented in cython for speed. It grew out of the [YAHMM](https://github.com/jmschrei/yahmm) package, where many of the components used could be rearranged to do other cool things. It currently supports:
+### Installation
 
-* Probability Distributions
-* General Mixture Models
-* Hidden Markov Models
-* Naive Bayes
-* Bayes Classifiers
-* Markov Chains
-* Discrete Bayesian Networks
+pomegranate is pip-installable using `pip install pomegranate` and conda-installable using `conda install pomegranate`. If neither work, more detailed installation instructions can be found [here](http://pomegranate.readthedocs.io/en/latest/install.html).
+
+### Models
+
+* [Probability Distributions](http://pomegranate.readthedocs.io/en/latest/Distributions.html)
+* [General Mixture Models](http://pomegranate.readthedocs.io/en/latest/GeneralMixtureModel.html)
+* [Hidden Markov Models](http://pomegranate.readthedocs.io/en/latest/HiddenMarkovModel.html)
+* [Naive Bayes and Bayes Classifiers](http://pomegranate.readthedocs.io/en/latest/NaiveBayes.html)
+* [Markov Chains](http://pomegranate.readthedocs.io/en/latest/MarkovChain.html)
+* [Discrete Bayesian Networks](http://pomegranate.readthedocs.io/en/latest/BayesianNetwork.html)
+* [Discrete Markov Networks](https://pomegranate.readthedocs.io/en/latest/MarkovNetwork.html)
+
+The discrete Bayesian networks also support novel work on structure learning in the presence of constraints through a constraint graph. These constraints can dramatically speed up structure learning through the use of loose general prior knowledge, and can frequently make the exact learning task take only polynomial time instead of exponential time. See the [PeerJ manuscript](https://peerj.com/articles/cs-122/) for the theory and the [pomegranate tutorial](https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_4b_Bayesian_Network_Structure_Learning.ipynb) for the practical usage! 
 
 To support the above algorithms, it has efficient implementations of the following:
 
-* Kmeans
+* Kmeans/Kmeans++/Kmeans||
 * Factor Graphs
 
-See the tutorial below, or the more in depth tutorials in the `tutorials` folder with examples in IPython notebooks. See [the website](http://pomegranate.readthedocs.org/en/latest/) for further information.
+### Features
+
+* [sklearn-like API](https://pomegranate.readthedocs.io/en/latest/api.html)
+* [Multi-threaded Training](http://pomegranate.readthedocs.io/en/latest/parallelism.html)
+* [BLAS/GPU Acceleration](http://pomegranate.readthedocs.io/en/latest/gpu.html)
+* [Out-of-Core Learning](http://pomegranate.readthedocs.io/en/latest/ooc.html)
+* [Data Generators and IO](https://pomegranate.readthedocs.io/en/latest/io.html)
+* [Semi-supervised Learning](http://pomegranate.readthedocs.io/en/latest/semisupervised.html)
+* [Missing Value Support](http://pomegranate.readthedocs.io/en/latest/nan.html)
+* [Customized Callbacks](http://pomegranate.readthedocs.io/en/latest/callbacks.html)
+
+Please take a look at the [tutorials folder](https://github.com/jmschrei/pomegranate/tree/master/tutorials), which includes several tutorials on how to effectively use pomegranate!
+
+See [the website](http://pomegranate.readthedocs.org/en/latest/) for extensive documentation, API references, and FAQs about each of the models and supported features.
 
 No good project is done alone, and so I'd like to thank all the previous contributors to YAHMM, and all the current contributors to pomegranate, including the graduate students who share my office I annoy on a regular basis by bouncing ideas off of.
-## Installation
 
 ### Dependencies
 
@@ -40,100 +58,13 @@ pomegranate requires:
 
 To run the tests, you also must have `nose` installed.
 
-### User Installation
-
-pomegranate is now pip installable! Install using 
-
-```
-pip install pomegranate
-```
-
-Pomegranate can also be installed with conda, using 
-
-```
-conda install pomegranate
-``` 
-
-Wheels have been built for Windows versions for quick installations without the need for a C++ compiler. 
-
-**NOTE: If you are on OSX and python 2.7 you may encounter an error using pip on versions above 0.7.3. Please install those versions from GitHub or use 0.7.3.**
-
-You can get the bleeding edge from GitHub using the following:
-
-```
-pip install git+https://github.com/jmschrei/pomegranate.git
-```
-
-Or:
-
-```
-git clone https://github.com/jmschrei/pomegranate.git
-cd pomegranate
-python setup.py install
-```
-
-Lastly, you can also download the zip and manually move the files into your site-packages folder (or your PYTHON_PATH, if you've changed it).
-
-To build from source on Windows machines, you may need to download a C++ compiler. For Python 2 this minimal version of Visual Studio 2008 works well: https://www.microsoft.com/en-us/download/details.aspx?id=44266. For Python 3 this version of the Visual Studio Build Tools has been reported to work: http://go.microsoft.com/fwlink/?LinkId=691126. 
-
-If those do no work, it has been suggested that https://wiki.python.org/moin/WindowsCompilers may provide more information. Note that your compiler version must fit your python version. Run python --version to tell which python version you use. Don't forget to select the appropriate Windows version API you'd like to use. If you get an error message "ValueError: Unknown MS Compiler version 1900" remove your Python's Lib/distutils/distutil.cfg and retry. See http://stackoverflow.com/questions/34135280/valueerror-unknown-ms-compiler-version-1900 for details.
-
-Some users with python 3.6 have reported getting the following error after download: `ModuleNotFoundError: No module named 'pomegranate.utils'`. A reported solution is to uninstall and reinstall without cached files using the following:
-
-```
-pip uninstall pomegranate
-pip install pomegranate --no-cache-dir
-```
-
-If that doesn't work for you, you may need to downgrade your version of numpy to 1.11.3 and try the above again. 
-
-Some users on Macs have seen the following error when downloading: `MarkovChain.so: unknown file type, first eight bytes: 0x7F 0x45 0x4C 0x46 0x02 0x01 0x01 0x00`. This can be fixed by removing the `.so` files from the pomegranate installation or by building pomegranate from source.
-
-If you have identified any other issues, please report them on the issue tracker.
-
-#### Installing on Fedora Release 25 onwards
-
-**Installing on root path for all users**
-
-Install dependencies and pomegranate via pip3:
-
-```
-$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
-$ sudo pip3 install --no-cache-dir pomegranate 
-```
-
-**Installing inside a virtualenv**
-
-Install dependencies, create a virtualenv and install pomegranate via pip3:
-
-```
-$ sudo dnf install -y python3-virtualenv python3-scipy python3-numpy python3-networkx python3-Cython
-$ virtualenv env3 --python=python3.5 --system-site-packages
-$ source env3/bin/activate
-(env3) $ pip3 install wheel nose cython numpy scipy networkx
-(env3) $ pip3 install --no-cache-dir pomegranate
-```
-
-### Verifying the installation
-
-Our setup is done, so now we can check that pomegranate is ready to use:
-
-```
-$ python -c 'from pomegranate import *; print(NormalDistribution(0, 1).probability(0))'
-0.398942280402
-```
-
-
-If you don't see the output above, or any other error is encountered, please feel free to file an [issue](https://github.com/jmschrei/pomegranate/issues).
-
 ## Contributing
 
 If you would like to contribute a feature then fork the master branch (fork the release if you are fixing a bug). Be sure to run the tests before changing any code. You'll need to have [nosetests](https://github.com/nose-devs/nose) installed. The following command will run all the tests:
+
 ```
 python setup.py test
 ```
+
 Let us know what you want to do just in case we're already working on an implementation of something similar. This way we can avoid any needless duplication of effort. Also, please don't forget to add tests for any new functions.
 
-## Tutorial
-
-Please take a look at the tutorials folder, which includes several tutorials on how to effectively use pomegranate!

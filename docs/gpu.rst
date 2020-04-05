@@ -9,20 +9,20 @@ By default, pomegranate will activate GPU acceleration if it can import cupy, ot
 
 .. code-block:: python
 	
-	import pomegranate
-	print(pomegranate.utils._is_gpu_enabled())
+	>>> import pomegranate
+	>>> print(pomegranate.utils.is_gpu_enabled())
 
 If you'd like to deactivate GPU acceleration you can use the following command:
 
 .. code-block:: python
 	
-	pomegranate.utils.disable_gpu()
+	>>> pomegranate.utils.disable_gpu()
 
 Likewise, if you'd like to activate GPU acceleration you can use the following command:
 
 .. code-block:: python
 
-	pomegranate.utils.enable_gpu()
+	>>> pomegranate.utils.enable_gpu()
 
 
 FAQ

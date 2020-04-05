@@ -3,7 +3,7 @@
 Bayes Classifiers and Naive Bayes
 =================================
 
-`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_5_Bayes_Classifiers.ipynb>`_
+`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_5_Bayes_Classifiers.ipynb>`_
 
 
 Bayes classifiers are simple probabilistic classification models based off of Bayes theorem. See the above tutorial for a full primer on how they work, and what the distinction between a naive Bayes classifier and a Bayes classifier is. Essentially, each class is modeled by a probability distribution and classifications are made according to what distribution fits the data the best. They are a supervised version of general mixture models, in that the ``predict``, ``predict_proba``, and ``predict_log_proba`` methods return the same values for the same underlying distributions, but that instead of using expectation-maximization to fit to new data they can use the provided labels directly.
@@ -47,7 +47,7 @@ This would create a naive Bayes model directly from the data with normal distrib
 
 .. code-block:: python
 
-	model = NaiveBayes.from_samples([NormalDistribution, ExponentialDistribution], X, y)
+	>>> model = NaiveBayes.from_samples([NormalDistribution, ExponentialDistribution], X, y)
 
 This assumes that your data is two dimensional and that you want to model the first distribution as a normal distribution and the second dimension as an exponential distribution.
 
@@ -55,21 +55,21 @@ We can do pretty much the same thing with Bayes classifiers, except passing in a
 
 .. code-block:: python
 	
-	model = BayesClassifier.from_samples(MultivariateGaussianDistribution, X, y)
+	>>> model = BayesClassifier.from_samples(MultivariateGaussianDistribution, X, y)
 
 One can use much more complex models than just a multivariate Gaussian with a full covariance matrix when using a Bayes classifier. Specifically, you can also have your distributions be general mixture models, hidden Markov models, and Bayesian networks. For example:
 
 .. code-block:: python
 	
-	model = BayesClassifier.from_samples(BayesianNetwork, X, y)
+	>>> model = BayesClassifier.from_samples(BayesianNetwork, X, y)
 
 That would require that the data is only discrete valued currently, and the structure learning task may be too long if not set appropriately. However, it is possible. Currently, one cannot simply put in GeneralMixtureModel or HiddenMarkovModel despite them having a ``from_samples`` method because there is a great deal of flexibility in terms of the structure or emission distributions. The easiest way to set up one of these more complex models is to build each of the components separately and then feed them into the Bayes classifier method using the first initialization method.
 
 .. code-block:: python
 
-	d1 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=5, X=X[y==0])
-	d2 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=5, X=X[y==1])
-	model = BayesClassifier([d1, d2]) 
+	>>> d1 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=5, X=X[y==0])
+	>>> d2 = GeneralMixtureModel.from_samples(MultivariateGaussianDistribution, n_components=5, X=X[y==1])
+	>>> model = BayesClassifier([d1, d2]) 
 
 Prediction
 ----------

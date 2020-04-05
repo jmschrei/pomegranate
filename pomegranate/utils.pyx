@@ -7,11 +7,11 @@ from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
 
-from libc.stdlib cimport calloc, free
 from scipy.linalg.cython_blas cimport dgemm
 
 cimport numpy
 import numpy
+import numbers
 
 import heapq, itertools
 
@@ -23,23 +23,26 @@ try:
 except ImportError:
 	pygraphviz = None
 
-cdef int* GPU = <int*> calloc(1, sizeof(int))
+cdef bint GPU = False
+cdef bint has_cupy = False
 
 try:
 	import cupy
 	from cupy import cuda
 	cuda.Device().cublas_handle
+
+	global has_cupy
+	has_cupy = True
+
 	enable_gpu()
 except:
-	pass
+	global has_cupy
+	has_cupy = False
 
 numpy.import_array()
 
 cdef extern from "numpy/ndarraytypes.h":
 	void PyArray_ENABLEFLAGS(numpy.ndarray X, int flags)
-
-cdef bint isnan(double x) nogil:
-	return npy_isnan(x)
 
 # Define some useful constants
 DEF NEGINF = float("-inf")
@@ -69,7 +72,7 @@ cdef class PriorityQueue(object):
 
 	def delete(self, variables):
 		entry = self.entries.pop(variables)
-		entry[-1] = None
+		entry[-1] = ((-1,),)
 		self.n -= 1
 
 	def empty(self):
@@ -78,7 +81,7 @@ cdef class PriorityQueue(object):
 	def pop(self):
 		while not self.empty():
 			weight, item = heapq.heappop(self.pq)
-			if item is not None:
+			if item[0] != (-1,):
 				del self.entries[item[0]]
 				self.n -= 1
 				return weight, item
@@ -88,23 +91,59 @@ cdef class PriorityQueue(object):
 
 def is_gpu_enabled():
 	global GPU
-	return bool(GPU[0])
+	return GPU
 
-cdef int _is_gpu_enabled() nogil:
-	return GPU[0]
+cdef bint _is_gpu_enabled() nogil:
+	return GPU
 
 cpdef enable_gpu():
 	global GPU
-	GPU[0] = 1
+	
+	if not has_cupy:
+		raise Warning("Please install cupy before attempting to utilize a GPU.")
+	else:
+		GPU = True
 
 cpdef disable_gpu():
 	global GPU
-	GPU[0] = 0
-
+	GPU = False
 
 cdef ndarray_wrap_cpointer(void* data, numpy.npy_intp n):
 	cdef numpy.ndarray[numpy.float64_t, ndim=1] X = numpy.PyArray_SimpleNewFromData(1, &n, numpy.NPY_FLOAT64, data)
 	return X
+
+cdef python_log_probability(model, double* X, double* log_probability, int n):
+	cdef int i
+	cdef numpy.npy_intp dim = n * model.d
+	cdef numpy.ndarray X_ndarray
+
+	X_ndarray = numpy.PyArray_SimpleNewFromData(1, &dim, numpy.NPY_FLOAT64, X)
+	X_ndarray = X_ndarray.reshape(n, model.d)
+
+	logp = model.log_probability(X_ndarray)
+	
+	if n == 1:
+		log_probability[0] = logp
+	else:
+		for i in range(n):
+			log_probability[i] = logp[i]
+
+cdef python_summarize(model, double* X, double* weights, int n):
+	cdef int i
+	cdef numpy.npy_intp dim = n * model.d
+	cdef numpy.npy_intp n_elements = n
+	cdef numpy.ndarray X_ndarray
+	cdef numpy.ndarray w_ndarray
+
+	X_ndarray = numpy.PyArray_SimpleNewFromData(1, &dim, numpy.NPY_FLOAT64, X)
+	if model.d > 1:
+		X_ndarray = X_ndarray.reshape(n, model.d)
+
+	w_ndarray = numpy.PyArray_SimpleNewFromData(1, &n_elements, 
+		numpy.NPY_FLOAT64, weights)
+	
+	model.summarize(X_ndarray, w_ndarray)
+	
 
 cdef void mdot(double* X, double* Y, double* A, int m, int n, int k) nogil:
 	cdef double alpha = 1
@@ -164,12 +203,65 @@ cdef double pair_lse(double x, double y) nogil:
 	if y == NEGINF:
 		return x
 	if x > y:
-		return x + clog( cexp( y-x ) + 1 )
-	return y + clog( cexp( x-y ) + 1 )
+		return x + clog(cexp(y-x) + 1)
+	return y + clog(cexp(x-y) + 1)
+
+def logsumexp(X):
+	"""Calculate the log-sum-exp of an array to add in log space."""
+
+	X = numpy.array(X, dtype='float64')
+	
+	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+	cdef double x
+	cdef int i, n = X.shape[0]
+	cdef double y = 0.
+	cdef double x_max = NEGINF
+
+	with nogil:
+		for i in range(n):
+			x = X_ptr[i]
+			if x > x_max:
+				x_max = x
+
+		for i in range(n):
+			x = X_ptr[i]
+			if x == NEGINF:
+				continue
+
+			y += cexp(x - x_max)
+
+	return x_max + clog(y)
+
+def logaddexp(X, Y):
+	"""Calculate the log-add-exp of a pair of arrays."""
+
+	X = numpy.array(X, dtype='float64')
+	Y = numpy.array(Y, dtype='float64')
+
+	if len(X.shape) != len(Y.shape):
+		raise ValueError("Both arrays must be of the same shape.")
+	if X.shape[0] != Y.shape[0]:
+		raise ValueError("Both arrays must be of the same shape.")
+	if len(X.shape) > 1:
+		raise ValueError("Both arrays must of one dimensional.")
+
+	Z = numpy.zeros_like(Y)
+
+	cdef int i, n = X.shape[0]
+	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
+	cdef double* Y_ptr = <double*> (<numpy.ndarray> Y).data
+	cdef double* Z_ptr = <double*> (<numpy.ndarray> Z).data
+
+	with nogil:
+		for i in range(n):
+			Z_ptr[i] = pair_lse(X_ptr[i], Y_ptr[i])
+
+	return Z
+
 
 cdef double gamma(double x) nogil:
 	"""Calculate the gamma function on a number."""
-    
+
 	# Split the function domain into three intervals:
 	# (0, 0.001), [0.001, 12), and (12, infinity).
 
@@ -190,7 +282,7 @@ cdef double gamma(double x) nogil:
 	p[6] = -3.61444134186911729807069E+4
 	p[7] =  6.64561438202405440627855E+4
 
-	cdef double q[8] 
+	cdef double q[8]
 	q[0] = -3.08402300119738975254353E+1
 	q[1] =  3.15350626979604161529144E+2
 	q[2] = -1.01515636749021914166146E+3
@@ -233,17 +325,17 @@ cdef double gamma(double x) nogil:
 		for i in range(8):
 			num = (num + p[i]) * z
 			den = den * z + q[i]
-		
+
 		result = num/den + 1.0
 
 		# Apply correction if argument was not initially in (1,2)
 		if arg_was_less_than_one:
-		    # Use identity gamma(z) = gamma(z+1)/z
-		    # The variable "result" now holds gamma of the original y + 1
-		    # Thus we use y-1 to get back the original y.
+			# Use identity gamma(z) = gamma(z+1)/z
+			# The variable "result" now holds gamma of the original y + 1
+			# Thus we use y-1 to get back the original y.
 			result /= (y-1.0)
 		else:
-		    # Use the identity gamma(z+n) = z*(z+1)* ... *(z+n-1)*gamma(z)
+			# Use the identity gamma(z+n) = z*(z+1)* ... *(z+n-1)*gamma(z)
 			for i in range(n):
 				result *= y+i
 
@@ -257,11 +349,11 @@ cdef double gamma(double x) nogil:
 	return cexp(lgamma(x));
 
 cdef double lgamma(double x) nogil:
-    # Abramowitz and Stegun 6.1.41
-    # Asymptotic series should be good to at least 11 or 12 figures
-    # For error analysis, see Whittiker and Watson
-    # A Course in Modern Analysis (1927), page 252
-	
+	# Abramowitz and Stegun 6.1.41
+	# Asymptotic series should be good to at least 11 or 12 figures
+	# For error analysis, see Whittiker and Watson
+	# A Course in Modern Analysis (1927), page 252
+
 	cdef double c[8]
 	c[0] =  1.0 / 12.0
 	c[1] = -1.0 / 360.0
@@ -270,7 +362,7 @@ cdef double lgamma(double x) nogil:
 	c[4] =  1.0 / 1188.0
 	c[5] = -691.0 / 360360.0
 	c[6] =  1.0 / 156.0
-	c[7] = -3617.0 / 122400.0 
+	c[7] = -3617.0 / 122400.0
 
 	cdef double z, sum
 	cdef int i
@@ -284,7 +376,7 @@ cdef double lgamma(double x) nogil:
 	for i in range(7):
 		sum *= z
 		sum += c[6-i]
-    
+
 	return (x - 0.5) * clog(x) - x + HALF_LOG2_PI + sum / x
 
 def plot_networkx(Q, edge_label=None, filename=None):
@@ -308,7 +400,7 @@ def plot_networkx(Q, edge_label=None, filename=None):
 	else:
 		G.draw(filename, format='pdf', prog='dot')
 
-def _check_input(X, keymap):
+def _check_input(X, keymap=None):
 	"""Check the input to make sure that it is a properly formatted array."""
 
 	cdef numpy.ndarray X_ndarray
@@ -339,3 +431,53 @@ def parallelize_function(X, cls, func, filename, **kwargs):
 
 	model = cls.from_json(filename)
 	return getattr(model, func)(X, **kwargs)
+
+def weight_set(items, weights):
+	"""Converts both items and weights to appropriate numpy arrays.
+
+	Convert the items into a numpy array with 64-bit floats, and the weight
+	array to the same. If no weights are passed in, then return a numpy array
+	with uniform weights.
+	"""
+
+	items = numpy.array(items, dtype=numpy.float64)
+	if weights is None: # Weight everything 1 if no weights specified
+		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
+	else: # Force whatever we have to be a Numpy array
+		weights = numpy.array(weights, dtype=numpy.float64)
+
+	return items, weights
+
+def _check_nan(X):
+	"""Checks to see if a value is nan, either as a float or a string."""
+	if isinstance(X, (str, unicode, numpy.string_)):
+		return X == 'nan'
+	if isinstance(X, (float, numpy.float, numpy.float32, numpy.float64)):
+		return numpy.isnan(X)
+	return X is None
+
+def check_random_state(seed):
+	"""Turn seed into a np.random.RandomState instance.
+
+	This function will check to see whether the input seed is a valid seed
+	for generating random numbers. This is a slightly modified version of
+	the code from sklearn.utils.validation.
+
+	Parameters
+	----------
+	seed : None | int | instance of RandomState
+		If seed is None, return the RandomState singleton used by np.random.
+		If seed is an int, return a new RandomState instance seeded with seed.
+		If seed is already a RandomState instance, return it.
+		Otherwise raise ValueError.
+	"""
+
+	if seed is None or seed is numpy.random:
+		return numpy.random.mtrand._rand
+	if isinstance(seed, (numbers.Integral, numpy.integer)):
+		return numpy.random.RandomState(seed)
+	if isinstance(seed, numpy.random.RandomState):
+		return seed
+	raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
+					 ' instance' % seed)
+	

@@ -3,7 +3,7 @@
 Probability Distributions
 =========================
 
-`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/Tutorial_1_Distributions.ipynb>`_
+`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_1_Distributions.ipynb>`_
 
 While probability distributions are frequently used as components of more complex models such as mixtures and hidden Markov models, they can also be used by themselves. Many data science tasks require fitting a distribution to data or generating samples under a distribution. pomegranate has a large library of both univariate and multivariate distributions which can be used with an intuitive interface.
 
@@ -41,7 +41,7 @@ While probability distributions are frequently used as components of more comple
     ConditionalProbabilityTable
     JointProbabilityTable
 
-While there is a large variety of univariate distributions, multivariate distributions can be made from univariate distributions by using ```IndependentComponentsDistribution``` with the assumption that each column of data is independent from the other columns (instead of being related by a covariance matrix, like in multivariate gaussians). Here is an example:
+While there are a large variety of univariate distributions, multivariate distributions can be made from univariate distributions by using ```IndependentComponentsDistribution``` with the assumption that each column of data is independent from the other columns (instead of being related by a covariance matrix, like in multivariate gaussians). Here is an example:
 
 .. code-block:: python
 
@@ -49,6 +49,8 @@ While there is a large variety of univariate distributions, multivariate distrib
     d2 = LogNormalDistribution(1, 0.3)
     d3 = ExponentialDistribution(4)
     d = IndependentComponentsDistribution([d1, d2, d3])
+
+Use MultivariateGaussianDistribution when you want the full correlation matrix within the feature vector. When you want a strict diagonal correlation (i.e no correlation or "independent"), this is achieved using IndependentComponentsDistribution with NormalDistribution for each feature. There is no implementation of spherical or other variations of correlation.
 
 Initialization
 --------------
@@ -79,26 +81,26 @@ Distributions are typically used to calculate the probability of some sample. Th
 
 .. code-block:: python
 
-    a = NormalDistribution(5, 2)
-    a.log_probability(8)
+    >>> a = NormalDistribution(5, 2)
+    >>> a.log_probability(8)
     -2.737085713764219
-    a.probability(8)
+    >>> a.probability(8)
     0.064758797832971712
-    b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
-    b.log_probability(8)
+    >>> b = NormalDistribution.from_samples([3, 4, 5, 6, 7], weights=[0.5, 1, 1.5, 1, 0.5])
+    >>> b.log_probability(8)
     -4.437779569430167
 
 These methods work for univariate distributions, kernel densities, and multivariate distributions all the same. For a multivariate distribution you'll have to pass in an array for the full sample.
 
 .. code-block:: python
     
-    d1 = NormalDistribution(5, 2)
-    d2 = LogNormalDistribution(1, 0.3)
-    d3 = ExponentialDistribution(4)
-    d = IndependentComponentsDistribution([d1, d2, d3])
+    >>> d1 = NormalDistribution(5, 2)
+    >>> d2 = LogNormalDistribution(1, 0.3)
+    >>> d3 = ExponentialDistribution(4)
+    >>> d = IndependentComponentsDistribution([d1, d2, d3])
     >>>
-    X = [6.2, 0.4, 0.9]
-    d.log_probability(X)
+    >>> X = [6.2, 0.4, 0.9]
+    >>> d.log_probability(X)
     -23.205411733352875
 
 Fitting
@@ -138,10 +140,10 @@ Training can be done on weighted samples by passing an array of weights in along
         "name" :"NormalDistribution"
     }
 
-Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `d.from_sample([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
+Training can also be done with inertia, where the new value will be some percentage the old value and some percentage the new value, used like `d.from_samples([5,7,8], inertia=0.5)` to indicate a 50-50 split between old and new values. 
 
 API Reference
 -------------
 
 .. automodule:: pomegranate.distributions
-   :members: Distribution
+   :members: BernoulliDistribution,BetaDistribution,ConditionalProbabilityTable,DirichletDistribution,DiscreteDistribution,ExponentialDistribution,GammaDistribution,IndependentComponentsDistribution,JointProbabilityTable,KernelDensities,LogNormalDistribution,MultivariateGaussianDistribution,NormalDistribution,PoissonDistribution,UniformDistribution

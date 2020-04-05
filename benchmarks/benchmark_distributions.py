@@ -6,7 +6,7 @@ Benchmark the distribution module, printing out the time it takes to do
 log probability and training calculations.
 """
 
-from pomegranate import * 
+from pomegranate import *
 import random
 import numpy
 import time
@@ -17,7 +17,7 @@ random.seed(0)
 def print_benchmark( distribution, duration ):
 	"""Formatted print."""
 
-	print "{:25}: {:.4}s".format( distribution.__class__.__name__, duration )
+	print( "{:25}: {:.4}s".format( distribution.__class__.__name__, duration ) )
 
 def bench_log_probability( distribution, n=10000000, symbol=5 ):
 	"""Bench a log probability distribution."""
@@ -37,7 +37,7 @@ def bench_from_sample( distribution, sample, n=1000 ):
 
 def benchmark_distribution_log_probabilities():
 	"""Run log probability benchmarks."""
-	
+
 	distributions = [ UniformDistribution( 0, 17 ),
 	                  NormalDistribution( 7, 1 ),
 	                  LogNormalDistribution( 7, 1 ),
@@ -48,7 +48,7 @@ def benchmark_distribution_log_probabilities():
 	                  TriangleKernelDensity([0, 1, 4, 3, 2, 0.5, 2, 1, 2]),
 	                  MixtureDistribution( [UniformDistribution( 5, 2 ),
 	                  	                    NormalDistribution( 7, 1 ),
-	                  	                    NormalDistribution( 3, 0.5 )] ) 
+	                  	                    NormalDistribution( 3, 0.5 )] )
 	                ]
 
 	for distribution in distributions:
@@ -64,12 +64,12 @@ def benchmark_distribution_log_probabilities():
 		                                               NormalDistribution( 0.5, 0.01) ])
 
 	print_benchmark( distribution, bench_log_probability( distribution, symbol=(5,4,3,2,1) ) )
-	
+
 	mu = np.random.randn(4)
 	cov = np.random.randn(4, 4) / 10
 	cov = np.abs( cov.dot( cov.T ) ) + np.eye( 4 )
 	distribution = MultivariateGaussianDistribution( mu, cov )
-	
+
 	print_benchmark( distribution, bench_log_probability( distribution, n=100000, symbol=(1,2,3,4) ) )
 
 def benchmark_distribution_train():
@@ -85,7 +85,7 @@ def benchmark_distribution_train():
 	                  TriangleKernelDensity([0, 1, 4, 3, 2, 0.5, 2, 1, 2]),
 	                  MixtureDistribution( [UniformDistribution( 5, 2 ),
 	                  	                    NormalDistribution( 7, 1 ),
-	                  	                    NormalDistribution( 3, 0.5 )] ) 
+	                  	                    NormalDistribution( 3, 0.5 )] )
 	                ]
 
 	sample = np.random.randn(10000)
@@ -115,11 +115,11 @@ def benchmark_distribution_train():
 
 	print_benchmark( distribution, bench_from_sample( distribution, sample ) )
 
-print "DISTRIBUTION BENCHMARKS"
-print "-----------------------"
-print
-print "LOG PROBABILITY (N=10,000,000 iterations, N=100,000 FOR MVG)"
+print( "DISTRIBUTION BENCHMARKS" )
+print( "-----------------------" )
+print()
+print( "LOG PROBABILITY (N=10,000,000 iterations, N=100,000 FOR MVG)" )
 benchmark_distribution_log_probabilities()
-print
-print "TRAINING (N=1,000 ITERATIONS, BATCHES=10,000 ITEMS)"
+print()
+print( "TRAINING (N=1,000 ITERATIONS, BATCHES=10,000 ITEMS)" )
 benchmark_distribution_train()

@@ -6,6 +6,7 @@ Installation
 The easiest way to get pomegranate is through pip using the command
 
 .. code-block:: bash
+
 	pip install pomegranate
 
 This should install all the dependencies in addition to the package.
@@ -13,6 +14,7 @@ This should install all the dependencies in addition to the package.
 You can also get pomegranate through conda using the command
 
 .. code-block:: bash
+
 	conda install pomegranate
 
 This version may not be as up to date as the pip version though.
@@ -27,7 +29,7 @@ Lastly, you can get the bleeding edge from GitHub using the following commands:
 
 On Windows machines you may need to download a C++ compiler if you wish to build from source yourself. For Python 2 this `minimal version of Visual Studio 2008 works well <https://www.microsoft.com/en-us/download/details.aspx?id=44266>`_. For Python 3 `this version of the Visual Studio build tools <http://go.microsoft.com/fwlink/?LinkId=691126>`_ has been reported to work.
 
-The requirements for pomegranate can be found in the requirements.txt file in the repository, and include numpy, scipy, networkx (below v2.0), joblib, cupy (if using a GPU), and cython (if building from source or on an Ubuntu machine). 
+The requirements for pomegranate can be found in the requirements.txt file in the repository, and include numpy, scipy, networkx (v2.0 and above), joblib, cupy (if using a GPU), and cython (if building from source or on an Ubuntu machine). 
 
 FAQ
 ---
@@ -42,6 +44,7 @@ Q. I've been getting the following error: ```ModuleNotFoundError: No module name
 A. A reported solution is to uninstall and reinstall without cached files using the following:
 
 .. code-block:: bash
+
 	pip uninstall pomegranate
 	pip install pomegranate --no-cache-dir
 
@@ -50,7 +53,7 @@ If that doesn't work for you, you may need to downgrade your version of numpy to
 
 Q. I've been getting the following error: ```MarkovChain.so: unknown file type, first eight bytes: 0x7F 0x45 0x4C 0x46 0x02 0x01 0x01 0x00.``` 
 
-A .This can be fixed by removing the .so files from the pomegranate installation or by building pomegranate from source.
+A. This can be fixed by removing the .so files from the pomegranate installation or by building pomegranate from source.
 
 
 Q. I'm encountering some other error when I try to install pomegranate.

@@ -10,13 +10,18 @@ cimport numpy
 
 from .base cimport Model
 from .bayes cimport BayesModel
-from .distributions cimport Distribution
-from .distributions import DiscreteDistribution
-from .distributions import IndependentComponentsDistribution
-from .distributions import MultivariateGaussianDistribution
-from .distributions import DirichletDistribution
+
+from distributions.distributions cimport Distribution
+from distributions import DiscreteDistribution
+from distributions import IndependentComponentsDistribution
+from distributions import MultivariateGaussianDistribution
+from distributions import DirichletDistribution
+
 from .gmm import GeneralMixtureModel
 from .utils import _convert
+from .callbacks import History
+from .io import BaseGenerator
+from .io import DataGenerator
 
 from joblib import Parallel
 from joblib import delayed
@@ -80,7 +85,7 @@ cdef class NaiveBayes(BayesModel):
 		nb = {
 			'class' : 'NaiveBayes',
 			'models' : [json.loads(model.to_json()) for model in self.distributions],
-			'weights' : self.weights.tolist()
+			'weights' : numpy.exp(self.weights).tolist()
 		}
 
 		return json.dumps(nb, separators=separators, indent=indent)
@@ -107,15 +112,15 @@ cdef class NaiveBayes(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y, weights=None,
+	def from_samples(self, distributions, X, y=None, weights=None,
 		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
-		verbose=False, n_jobs=1):
+		callbacks=[], return_history=False, verbose=False, n_jobs=1):
 		"""Create a naive Bayes classifier directly from the given dataset.
 
 		This will initialize the distributions using maximum likelihood estimates
 		derived by partitioning the dataset using the label vector. If any labels
 		are missing, the model will be trained using EM in a semi-supervised
-		setting. 
+		setting.
 
 		A homogeneous model can be defined by passing in a single distribution
 		callable as the first parameter and specifying the number of components,
@@ -124,8 +129,8 @@ cdef class NaiveBayes(BayesModel):
 
 		A naive Bayes classifier is a subrset of the Bayes classifier in that
 		the math is identical, but the distributions are independent for each
-		feature. Simply put, one can create a multivariate Gaussian Bayes 
-		classifier with a full covariance matrix, but a Gaussian naive Bayes 
+		feature. Simply put, one can create a multivariate Gaussian Bayes
+		classifier with a full covariance matrix, but a Gaussian naive Bayes
 		would require a diagonal covariance matrix.
 
 		Parameters
@@ -135,7 +140,7 @@ cdef class NaiveBayes(BayesModel):
 			if all components will be the same distribution, or an array of
 			callables, one for each feature.
 
-		X : array-like, shape (n_samples, n_dimensions)
+		X : array-like or generator, shape (n_samples, n_dimensions)
 			This is the data to train on. Each row is a sample, and each column
 			is a dimension to train on.
 
@@ -167,6 +172,13 @@ cdef class NaiveBayes(BayesModel):
 			model is improving per iteration. Only required if doing
 			semisupervised learning. Default is 1e8.
 
+        callbacks : list, optional
+            A list of callback objects that describe functionality that should
+            be undertaken over the course of training.
+
+        return_history : bool, optional
+            Whether to return the history during training as well as the model.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
@@ -192,12 +204,19 @@ cdef class NaiveBayes(BayesModel):
 				elif distribution in (MultivariateGaussianDistribution, DirichletDistribution):
 					raise ValueError("naive Bayes only supported independent features. Use BayesClassifier instead")
 
+		if not isinstance(X, BaseGenerator):
+			if y is None:
+				raise ValueError("Must pass in both X and y as arrays or a data generator for X.")
 
-		X = numpy.array(X)
-		y = numpy.array(y)
+			batch_size = len(X) // n_jobs + len(X) % n_jobs
+			data_generator = DataGenerator(X, weights, y, batch_size=batch_size)
+		else:
+			data_generator = X
 
-		n, d = X.shape
-		n_components = numpy.unique(y[y != -1]).shape[0]
+		n_components = data_generator.classes
+		n_components = len(n_components[n_components != -1])
+		n, d = data_generator.shape
+		
 		if callable(distributions):
 			if d > 1:
 				distributions = [ICD([distributions.blank() for j in range(d)]) for i in range(n_components)]
@@ -210,7 +229,10 @@ cdef class NaiveBayes(BayesModel):
 				distributions = [distribution.blank() for distribution in distributions]
 
 		model = NaiveBayes(distributions)
-		model.fit(X, y, weights=weights, pseudocount=pseudocount,
+		_, history = model.fit(data_generator, pseudocount=pseudocount,
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
-			verbose=verbose, n_jobs=n_jobs)
+			verbose=verbose, callbacks=callbacks, return_history=True, n_jobs=n_jobs)
+
+		if return_history:
+			return model, history
 		return model

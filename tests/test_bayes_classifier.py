@@ -1,6 +1,9 @@
 from __future__ import (division)
 
 from pomegranate import *
+from pomegranate.io import DataGenerator
+from pomegranate.io import DataFrameGenerator
+
 from nose.tools import with_setup
 from nose.tools import assert_almost_equal
 from nose.tools import assert_equal
@@ -9,6 +12,8 @@ from nose.tools import assert_less_equal
 from nose.tools import assert_raises
 from nose.tools import assert_true
 from numpy.testing import assert_array_almost_equal
+
+import pandas
 import random
 import pickle
 import numpy as np
@@ -404,15 +409,15 @@ def test_bc_multivariate_gaussian_fit_parallel():
 	mu1 = model.distributions[0].parameters[0]
 	cov1 = model.distributions[0].parameters[1]
 	mu1_t = [0.03333333, 0.28333333, 0.21666666]
-	cov1_t = [[1.3088888, 0.9272222, 0.6227777], 
-			  [0.9272222, 2.2513888, 1.3402777], 
+	cov1_t = [[1.3088888, 0.9272222, 0.6227777],
+			  [0.9272222, 2.2513888, 1.3402777],
 			  [0.6227777, 1.3402777, 0.9547222]]
 
 	mu2 = model.distributions[1].parameters[0]
 	cov2 = model.distributions[1].parameters[1]
 	mu2_t = [2.925, 2.825, 2.625]
-	cov2_t = [[0.75687499, 0.23687499, 0.4793750], 
-			  [0.23687499, 0.40187499, 0.5318749], 
+	cov2_t = [[0.75687499, 0.23687499, 0.4793750],
+			  [0.23687499, 0.40187499, 0.5318749],
 			  [0.47937500, 0.53187499, 0.7868750]]
 
 
@@ -429,8 +434,8 @@ def test_bc_multivariate_mixed_fit_parallel():
 	mu1 = model.distributions[0].parameters[0]
 	cov1 = model.distributions[0].parameters[1]
 	mu1_t = [1.033333, 1.3166667, 0.75]
-	cov1_t = [[0.242222, 0.0594444, 0.178333], 
-			  [0.059444, 0.5980555, 0.414166], 
+	cov1_t = [[0.242222, 0.0594444, 0.178333],
+			  [0.059444, 0.5980555, 0.414166],
 			  [0.178333, 0.4141666, 0.439166]]
 
 	d21 = model.distributions[1].distributions[0]
@@ -451,15 +456,15 @@ def test_bc_multivariate_gaussian_from_samples():
 	mu1 = model.distributions[0].parameters[0]
 	cov1 = model.distributions[0].parameters[1]
 	mu1_t = [0.03333333, 0.2833333, 0.21666666]
-	cov1_t = [[1.308888888, 0.9272222222, 0.6227777777], 
-			  [0.927222222, 2.251388888, 1.340277777], 
+	cov1_t = [[1.308888888, 0.9272222222, 0.6227777777],
+			  [0.927222222, 2.251388888, 1.340277777],
 			  [0.622777777, 1.340277777, 0.9547222222]]
 
 	mu2 = model.distributions[1].parameters[0]
 	cov2 = model.distributions[1].parameters[1]
 	mu2_t = [2.925, 2.825, 2.625]
-	cov2_t = [[0.75687500, 0.23687499, 0.47937500], 
-			  [0.23687499, 0.40187499, 0.53187499], 
+	cov2_t = [[0.75687500, 0.23687499, 0.47937500],
+			  [0.23687499, 0.40187499, 0.53187499],
 			  [0.47937500, 0.53187499, 0.78687500]]
 
 	assert_array_almost_equal(mu1, mu1_t)
@@ -501,6 +506,26 @@ def test_bc_multivariate_gaussian_to_json():
 @with_setup(setup_multivariate_mixed, teardown)
 def test_bc_multivariate_mixed_to_json():
 	model2 = BayesClassifier.from_json(model.to_json())
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], IndependentComponentsDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_bc_multivariate_gaussian_robust_from_json():
+	model2 = from_json(model.to_json())
+
+	assert_true(isinstance(model2, BayesClassifier))
+	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
+	assert_true(isinstance(model2.distributions[1], MultivariateGaussianDistribution))
+	assert_array_almost_equal(model.weights, model2.weights)
+
+
+@with_setup(setup_multivariate_mixed, teardown)
+def test_bc_multivariate_mixed_robust_from_json():
+	model2 = from_json(model.to_json())
 
 	assert_true(isinstance(model2, BayesClassifier))
 	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
@@ -592,3 +617,92 @@ def test_hmm_prediction():
 	assert_equal(predicts[2], 1)
 	assert_equal(predicts[3], 1)
 	assert_equal(predicts[4], 2)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_log_probability():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	logp1 = model.log_probability(X)
+	logp2 = model.log_probability(X2)
+	logp3 = model.log_probability(X3)
+
+	assert_array_almost_equal(logp1, logp2)
+	assert_array_almost_equal(logp1, logp3)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_predict():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	y_hat1 = model.predict(X)
+	y_hat2 = model.predict(X2)
+	y_hat3 = model.predict(X3)
+
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_predict_proba():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	y_hat1 = model.predict_proba(X)
+	y_hat2 = model.predict_proba(X2)
+	y_hat3 = model.predict_proba(X3)
+
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+@with_setup(setup_multivariate_gaussian, teardown)
+def test_io_predict_log_proba():
+	X2 = DataGenerator(X)
+	X3 = DataFrameGenerator(pandas.DataFrame(X))
+
+	y_hat1 = model.predict_log_proba(X)
+	y_hat2 = model.predict_log_proba(X2)
+	y_hat3 = model.predict_log_proba(X3)
+
+	assert_array_almost_equal(y_hat1, y_hat2)
+	assert_array_almost_equal(y_hat1, y_hat3)
+
+def test_io_fit():
+	X = numpy.random.randn(100, 5) + 0.5
+	weights = numpy.abs(numpy.random.randn(100))
+	y = numpy.random.randint(2, size=100)
+	data_generator = DataGenerator(X, weights, y)
+
+	mu1 = numpy.array([0, 0, 0, 0, 0])
+	mu2 = numpy.array([1, 1, 1, 1, 1])
+	cov = numpy.eye(5)
+
+	d1 = MultivariateGaussianDistribution(mu1, cov)
+	d2 = MultivariateGaussianDistribution(mu2, cov)
+	bc1 = BayesClassifier([d1, d2])
+	bc1.fit(X, y, weights)
+
+	d1 = MultivariateGaussianDistribution(mu1, cov)
+	d2 = MultivariateGaussianDistribution(mu2, cov)
+	bc2 = BayesClassifier([d1, d2])
+	bc2.fit(data_generator)
+
+	logp1 = bc1.log_probability(X)
+	logp2 = bc2.log_probability(X)
+
+	assert_array_almost_equal(logp1, logp2)
+
+def test_io_from_samples():
+	X = numpy.random.randn(100, 5) + 0.5
+	weights = numpy.abs(numpy.random.randn(100))
+	y = numpy.random.randint(2, size=100)
+	data_generator = DataGenerator(X, weights, y)
+
+	d = MultivariateGaussianDistribution
+
+	bc1 = BayesClassifier.from_samples(d, X=X, y=y, weights=weights)
+	bc2 = BayesClassifier.from_samples(d, X=data_generator)
+
+	logp1 = bc1.log_probability(X)
+	logp2 = bc2.log_probability(X)
+
+	assert_array_almost_equal(logp1, logp2)

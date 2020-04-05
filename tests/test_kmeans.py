@@ -30,12 +30,12 @@ def setup_three_dimensions():
 
 	idxs = numpy.array([29, 19, 26, 11,  8, 27, 21,  7, 14, 13])
 	i, j = idxs // 3, idxs % 3
-	
+
 	global X_nan
 	X_nan = X.copy()
 	X_nan[i, j] = numpy.nan
 
-    
+
 	global centroids
 	centroids = numpy.array([[0, 0, 0],
 							 [8, 8, 8]])
@@ -70,7 +70,7 @@ def setup_five_dimensions():
 	idxs = numpy.array([77, 26, 61, 46, 18, 30, 94, 96, 45, 67,  4, 20, 23, 73, 37, 21, 58,
        99, 51,  7, 69, 53, 81, 85, 95,  9, 98, 24, 28, 38])
 	i, j = idxs // 5, idxs % 5
-	
+
 	global X_nan
 	X_nan = X.copy()
 	X_nan[i, j] = numpy.nan
@@ -176,7 +176,7 @@ def test_kmeans_fit_parallel():
 def test_kmeans_multiple_init():
 	model1 = Kmeans.from_samples(4, X, init='kmeans++', n_init=1)
 	model2 = Kmeans.from_samples(4, X, init='kmeans++', n_init=25)
-	
+
 	dist1 = model1.distance(X).min(axis=1).sum()
 	dist2 = model2.distance(X).min(axis=1).sum()
 
@@ -184,7 +184,7 @@ def test_kmeans_multiple_init():
 
 	model1 = Kmeans.from_samples(4, X, init='first-k', n_init=1)
 	model2 = Kmeans.from_samples(4, X, init='first-k', n_init=5)
-	
+
 	dist1 = model1.distance(X).min(axis=1).sum()
 	dist2 = model2.distance(X).min(axis=1).sum()
 
@@ -343,17 +343,20 @@ def test_kmeans_nan_large_predict_parallel():
 
 @with_setup(setup_five_dimensions)
 def test_kmeans_nan_multiple_init():
+	numpy.random.seed(0)
 	model1 = Kmeans.from_samples(4, X_nan, init='kmeans++', n_init=1)
-	model2 = Kmeans.from_samples(4, X_nan, init='kmeans++', n_init=25)
 	
+	numpy.random.seed(0)
+	model2 = Kmeans.from_samples(4, X_nan, init='kmeans++', n_init=25)
+
 	dist1 = model1.distance(X).min(axis=1).sum()
 	dist2 = model2.distance(X).min(axis=1).sum()
 
-	assert_greater(dist1, dist2)
+	assert_greater_equal(dist1, dist2)
 
 	model1 = Kmeans.from_samples(4, X_nan, init='first-k', n_init=1)
 	model2 = Kmeans.from_samples(4, X_nan, init='first-k', n_init=5)
-	
+
 	dist1 = model1.distance(X).min(axis=1).sum()
 	dist2 = model2.distance(X).min(axis=1).sum()
 

@@ -1,3 +1,6 @@
 include *.txt
-include pomegranate/*.c
-include pomegranate/*.pxd
+include LICENSE
+
+graft tests
+
+recursive-include pomegranate *.py *.c *.pxd *.pyx
