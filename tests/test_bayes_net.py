@@ -19,6 +19,8 @@ from nose.tools import assert_equal
 from nose.tools import assert_raises
 from nose.tools import assert_almost_equal
 
+from networkx import DiGraph
+
 import random, numpy
 from numpy.testing import assert_array_equal
 import sys
@@ -862,6 +864,24 @@ def test_exact_structure_learning():
         model2 = BayesianNetwork.from_samples(X, algorithm='exact-dp')
         assert_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+
+def test_exact_structure_learning_slap_constraints():
+    for ds in datasets:
+        dims = numpy.shape(ds)[1]
+        half = int(numpy.ceil(dims / 2))
+        # Node groups
+        g1 = tuple(range(0, half))
+        g2 = tuple(range(half, dims))
+        # Constraint graph:
+        cg = DiGraph()
+        cg.add_edge(g1, g2)
+        cg.add_edge(g2, g2)
+        # Learn constrained network
+        model = BayesianNetwork.from_samples(ds, algorithm='exact', constraint_graph=cg)
+        # Check structure constraints satisfied
+        mx = model.dense_transition_matrix()
+        for node in g1:
+            assert_equal(0, sum(mx[:, node]))
 
 def test_from_structure():
     X = datasets[1]
