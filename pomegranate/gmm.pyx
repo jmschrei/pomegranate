@@ -5,6 +5,7 @@
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 
@@ -353,7 +354,7 @@ cdef class GeneralMixtureModel(BayesModel):
 
     cdef double _summarize(self, double* X, double* weights, int n,
         int column_idx, int d) nogil:
-        cdef double* r = <double*> calloc(self.n*n, sizeof(double))
+        cdef double* r = <double*> malloc(self.n*n*sizeof(double))
         cdef double* summaries = <double*> calloc(self.n, sizeof(double))
         cdef int i, j
         cdef double total, logp, log_probability_sum = 0.0

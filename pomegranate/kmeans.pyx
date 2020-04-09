@@ -5,6 +5,7 @@
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 from libc.string cimport memset
 from libc.string cimport memcpy
 from libc.math cimport log10 as clog10
@@ -568,7 +569,7 @@ cdef class Kmeans(Model):
 		cdef double* summary_sizes = <double*> calloc(k*d, sizeof(double))
 		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))
 		cdef double* dists = <double*> calloc(n*k, sizeof(double))
-		cdef double* X_ = <double*> calloc(n*d, sizeof(double))
+		cdef double* X_ = <double*> malloc(n*d*sizeof(double))
 		cdef double* bias = <double*> calloc(n*k, sizeof(double))
 
 		for i in range(n):

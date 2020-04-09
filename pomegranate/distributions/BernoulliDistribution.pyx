@@ -6,7 +6,7 @@
 
 import numpy
 
-from libc.stdlib cimport calloc
+from libc.stdlib cimport malloc
 from libc.stdlib cimport free
 
 from ..utils cimport _log
@@ -32,7 +32,7 @@ cdef class BernoulliDistribution(Distribution):
 		self.p = p
 		self.name = "BernoulliDistribution"
 		self.frozen = frozen
-		self.logp = <double*> calloc(2, sizeof(double))
+		self.logp = <double*> malloc(2*sizeof(double))
 		self.logp[0] = _log(1-p)
 		self.logp[1] = _log(p)
 		self.summaries = [0.0, 0.0]
