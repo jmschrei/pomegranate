@@ -2087,9 +2087,6 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
 	cdef double* row;
 
-	memset(counts, 0, m[d]*sizeof(double))
-	memset(marginal_counts, 0, m[d-1]*sizeof(double))
-
 	for i in range(n):
 		idx = 0
 		row = X+i*l

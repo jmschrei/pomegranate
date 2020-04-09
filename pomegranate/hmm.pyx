@@ -901,8 +901,6 @@ cdef class HiddenMarkovModel(GraphModel):
         # is done in the same way of the transition, by having a vector of
         # counts, and a vector of the IDs that the state is tied to.
         self.tied_state_count = <int*> calloc(self.silent_start+1, sizeof(int))
-        for i in range(self.silent_start+1):
-            self.tied_state_count[i] = 0
 
         for i in range(self.silent_start):
             for j in range(self.silent_start):
@@ -960,14 +958,7 @@ cdef class HiddenMarkovModel(GraphModel):
         self.expected_transitions =  <double*> calloc(self.n_edges, sizeof(double))
 
         memset(self.in_transitions, -1, m*sizeof(int))
-        memset(self.in_edge_count, 0, (n+1)*sizeof(int))
-        memset(self.in_transition_pseudocounts, 0, m*sizeof(double))
-        memset(self.in_transition_log_probabilities, 0, m*sizeof(double))
-
         memset(self.out_transitions, -1, m*sizeof(int))
-        memset(self.out_edge_count, 0, (n+1)*sizeof(int))
-        memset(self.out_transition_pseudocounts, 0, m*sizeof(double))
-        memset(self.out_transition_log_probabilities, 0, m*sizeof(double))
 
         # Now we need to find a way of storing in-edges for a state in a manner
         # that can be called in the cythonized methods below. This is basically
@@ -2965,7 +2956,6 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef void** distributions = self.distributions_ptr
 
         cdef double* transitions = <double*> calloc(m*m, sizeof(double))
-        memset(transitions, 0, (m*m)*sizeof(double))
 
         j = 0
         for i in range(1, n+m+1):

@@ -567,17 +567,9 @@ cdef class Kmeans(Model):
 		cdef double min_dist, dist, total_dist = 0.0, pdist
 		cdef double* summary_sizes = <double*> calloc(k*d, sizeof(double))
 		cdef double* summary_weights = <double*> calloc(k*d, sizeof(double))
-		memset(summary_sizes, 0, k*d*sizeof(double))
-		memset(summary_weights, 0, k*d*sizeof(double))
-
 		cdef double* dists = <double*> calloc(n*k, sizeof(double))
-		memset(dists, 0, n*k*sizeof(double))
-
 		cdef double* X_ = <double*> calloc(n*d, sizeof(double))
-		memset(X_, 0, n*d*sizeof(double))
-
 		cdef double* bias = <double*> calloc(n*k, sizeof(double))
-		memset(bias, 0, n*k*sizeof(double))
 
 		for i in range(n):
 			for j in range(d):

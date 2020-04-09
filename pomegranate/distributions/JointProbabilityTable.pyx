@@ -49,7 +49,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.values = <double*> calloc(self.n, sizeof(double))
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.count = 0
-		memset(self.counts, 0, self.n*sizeof(double))
 
 		self.n_columns = len(parents)
 		self.column_idxs = numpy.arange(len(parents)+1, dtype='int32')

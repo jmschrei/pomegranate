@@ -158,7 +158,6 @@ cdef class DiscreteDistribution(Distribution):
 
 		for i in range(n):
 			key = keys[i]
-			self.encoded_counts[i] = 0
 			self.encoded_log_probability[i] = self.log_dist.get(key, NEGINF)
 
 	def probability(self, X):
