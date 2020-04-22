@@ -27,8 +27,8 @@ Alternatively, if we want to model each dimension differently, then we can repla
 .. code-block:: python
 
 	>>> from pomegranate import *
-	>>> d1 = IndependentComponentsDistributions([NormalDistribution(5, 2), ExponentialDistribution(1), LogNormalDistribution(0.4, 0.1)])
-	>>> d2 = IndependentComponentsDistributions([NormalDistribution(3, 1), ExponentialDistribution(2), LogNormalDistribution(0.8, 0.2)])
+	>>> d1 = IndependentComponentsDistribution([NormalDistribution(5, 2), ExponentialDistribution(1), LogNormalDistribution(0.4, 0.1)])
+	>>> d2 = IndependentComponentsDistribution([NormalDistribution(3, 1), ExponentialDistribution(2), LogNormalDistribution(0.8, 0.2)])
 	>>> model = GeneralMixtureModel([d1, d2], weights=[0.66, 0.34])
 
 If we do not know the parameters of our distributions beforehand and want to learn them entirely from data, then we can use the ``from_samples`` class method. This method will run k-means to initialize the components, using the returned clusters to initialize all parameters of the distributions, i.e. both mean and covariances for multivariate Gaussian distributions. Afterwards, expectation-maximization is used to refine the parameters of the model, iterating until convergence.
