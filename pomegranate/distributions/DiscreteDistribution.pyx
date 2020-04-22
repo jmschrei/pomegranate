@@ -51,10 +51,14 @@ cdef class DiscreteDistribution(Distribution):
 			raise ValueError("Must pass in a dictionary with at least one value.")
 
 		self.name = "DiscreteDistribution"
-		self.frozen = frozen
 		self.dtype = str(type(list(characters.keys())[0])).split()[-1].strip('>').strip("'")
 
-		self.dist = characters.copy()
+		self.__init(characters.copy(), frozen)
+
+	cdef void __init(self, dict characters, bint frozen=False):
+		self.frozen = frozen
+
+		self.dist = characters
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
 		self.summaries =[{ key: 0 for key in characters.keys() }, 0]
 
@@ -78,6 +82,13 @@ cdef class DiscreteDistribution(Distribution):
 	def __mul__(self, other):
 		"""Multiply this by another distribution sharing the same keys."""
 
+		return DiscreteDistribution(self.__mul(other))
+
+	def __imul__(self, other):
+		self.__init(self.__mul(other))
+		return self
+
+	cdef dict __mul(self, other):
 		assert set(self.keys()) == set(other.keys())
 		distribution, total = {}, 0.0
 
@@ -94,7 +105,7 @@ cdef class DiscreteDistribution(Distribution):
 			elif distribution[key] >= 1 - eps / total:
 				distribution[key] = 1.0
 
-		return DiscreteDistribution(distribution)
+		return distribution
 
 
 	def equals(self, other):
