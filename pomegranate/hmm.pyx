@@ -41,6 +41,7 @@ from .io import SequenceGenerator
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 from libc.string cimport memcpy
 from libc.string cimport memset
 
@@ -901,8 +902,6 @@ cdef class HiddenMarkovModel(GraphModel):
         # is done in the same way of the transition, by having a vector of
         # counts, and a vector of the IDs that the state is tied to.
         self.tied_state_count = <int*> calloc(self.silent_start+1, sizeof(int))
-        for i in range(self.silent_start+1):
-            self.tied_state_count[i] = 0
 
         for i in range(self.silent_start):
             for j in range(self.silent_start):
@@ -914,7 +913,7 @@ cdef class HiddenMarkovModel(GraphModel):
         for i in range(1, self.silent_start+1):
             self.tied_state_count[i] += self.tied_state_count[i-1]
 
-        self.tied = <int*> calloc(self.tied_state_count[self.silent_start], sizeof(int))
+        self.tied = <int*> malloc(self.tied_state_count[self.silent_start]*sizeof(int))
         for i in range(self.tied_state_count[self.silent_start]):
             self.tied[i] = -1
 
@@ -943,14 +942,14 @@ cdef class HiddenMarkovModel(GraphModel):
         # This holds numpy array indexed [a, b] to transition log probabilities
         # from a to b, where a and b are state indices. It starts out saying all
         # transitions are impossible.
-        self.in_transitions = <int*> calloc(m, sizeof(int))
+        self.in_transitions = <int*> malloc(m*sizeof(int))
         self.in_edge_count = <int*> calloc(n+1, sizeof(int))
         self.in_transition_pseudocounts = <double*> calloc(m,
             sizeof(double))
         self.in_transition_log_probabilities = <double*> calloc(m,
             sizeof(double))
 
-        self.out_transitions = <int*> calloc(m, sizeof(int))
+        self.out_transitions = <int*> malloc(m*sizeof(int))
         self.out_edge_count = <int*> calloc(n+1, sizeof(int))
         self.out_transition_pseudocounts = <double*> calloc(m,
             sizeof(double))
@@ -960,14 +959,7 @@ cdef class HiddenMarkovModel(GraphModel):
         self.expected_transitions =  <double*> calloc(self.n_edges, sizeof(double))
 
         memset(self.in_transitions, -1, m*sizeof(int))
-        memset(self.in_edge_count, 0, (n+1)*sizeof(int))
-        memset(self.in_transition_pseudocounts, 0, m*sizeof(double))
-        memset(self.in_transition_log_probabilities, 0, m*sizeof(double))
-
         memset(self.out_transitions, -1, m*sizeof(int))
-        memset(self.out_edge_count, 0, (n+1)*sizeof(int))
-        memset(self.out_transition_pseudocounts, 0, m*sizeof(double))
-        memset(self.out_transition_log_probabilities, 0, m*sizeof(double))
 
         # Now we need to find a way of storing in-edges for a state in a manner
         # that can be called in the cythonized methods below. This is basically
@@ -1053,7 +1045,7 @@ cdef class HiddenMarkovModel(GraphModel):
         total_grouped_edges = sum(map(len, edge_groups.values()))
 
         self.n_tied_edge_groups = len(edge_groups.keys())+1
-        self.tied_edge_group_size = <int*> calloc(len(edge_groups.keys())+1,
+        self.tied_edge_group_size = <int*> malloc((len(edge_groups.keys())+1)*
             sizeof(int))
         self.tied_edge_group_size[0] = 0
 
@@ -2912,7 +2904,7 @@ cdef class HiddenMarkovModel(GraphModel):
         in the observations.
         """
 
-        cdef int* path = <int*> calloc(n+m+1, sizeof(int))
+        cdef int* path = <int*> malloc((n+m+1)*sizeof(int))
         memset(path, -1, (n+m+1)*sizeof(int))
 
         cdef double log_probability = self._viterbi(sequence, path, n, m)
@@ -2933,7 +2925,7 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef double log_sequence_probability
         cdef double* sequence = <double*> sequence_ndarray.data
         cdef int i, n = sequence_ndarray.shape[0], m = len(self.states)
-        cdef int* labels = <int*> calloc(n+m+1, sizeof(int))
+        cdef int* labels = <int*> malloc((n+m+1)*sizeof(int))
         memset(labels, -1, (n+m+1)*sizeof(int))
 
         for i in range(label_ndarray.shape[0]):
@@ -2965,7 +2957,6 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef void** distributions = self.distributions_ptr
 
         cdef double* transitions = <double*> calloc(m*m, sizeof(double))
-        memset(transitions, 0, (m*m)*sizeof(double))
 
         j = 0
         for i in range(1, n+m+1):

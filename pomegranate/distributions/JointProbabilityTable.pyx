@@ -6,6 +6,7 @@
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 
@@ -44,12 +45,11 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.m = len(parents)
 		self.n = len(table)
 		self.k = len(set(row[-2] for row in table))
-		self.idxs = <int*> calloc(self.m+1, sizeof(int))
+		self.idxs = <int*> malloc((self.m+1)*sizeof(int))
 
-		self.values = <double*> calloc(self.n, sizeof(double))
+		self.values = <double*> malloc(self.n*sizeof(double))
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.count = 0
-		memset(self.counts, 0, self.n*sizeof(double))
 
 		self.n_columns = len(parents)
 		self.column_idxs = numpy.arange(len(parents)+1, dtype='int32')
@@ -62,6 +62,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.idxs[0] = 1
 		for i in range(self.m-1):
 			self.idxs[i+1] = len(set(row[self.m-i-2] for row in table))
+		self.idxs[self.m] = 0
 
 		keys = []
 		for i, row in enumerate(table):

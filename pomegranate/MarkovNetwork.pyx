@@ -11,6 +11,7 @@ from joblib import delayed
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 from libc.string cimport memset
 
 from .base cimport Model
@@ -241,7 +242,7 @@ cdef class MarkovNetwork(Model):
 		int n) nogil:
 		cdef int i, j, l, li, k
 		cdef double logp
-		cdef double* sym = <double*> calloc(self.d, sizeof(double))
+		cdef double* sym = <double*> malloc(self.d*sizeof(double))
 		memset(log_probability, 0, n*sizeof(double))
 
 		for i in range(n):
@@ -826,9 +827,9 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 
 	cdef double* mutual_info = <double*> calloc(d * d, sizeof(double))
 
-	cdef double* marg_j = <double*> calloc(max_keys, sizeof(double))
-	cdef double* marg_k = <double*> calloc(max_keys, sizeof(double))
-	cdef double* joint_count = <double*> calloc(max_keys**2, sizeof(double))
+	cdef double* marg_j = <double*> malloc(max_keys*sizeof(double))
+	cdef double* marg_k = <double*> malloc(max_keys*sizeof(double))
+	cdef double* joint_count = <double*> malloc(max_keys**2*sizeof(double))
 
 	for j in range(d):
 		for k in range(j):

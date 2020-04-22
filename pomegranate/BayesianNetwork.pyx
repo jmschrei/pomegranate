@@ -15,6 +15,7 @@ from joblib import delayed
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 from libc.string cimport memset
 
 from .base cimport GraphModel
@@ -446,7 +447,7 @@ cdef class BayesianNetwork(GraphModel):
 	cdef void _log_probability( self, double* symbol, double* log_probability, int n ) nogil:
 		cdef int i, j, l, li, k
 		cdef double logp
-		cdef double* sym = <double*> calloc(self.d, sizeof(double))
+		cdef double* sym = <double*> malloc(self.d*sizeof(double))
 		memset(log_probability, 0, n*sizeof(double))
 
 		for i in range(n):
@@ -1175,8 +1176,8 @@ cdef class ParentGraph(object):
 		self.values = {}
 		self.n = X.shape[0]
 		self.d = X.shape[1]
-		self.m = <int*> calloc(self.d+2, sizeof(int))
-		self.parents = <int*> calloc(self.d, sizeof(int))
+		self.m = <int*> malloc((self.d+2)*sizeof(int))
+		self.parents = <int*> malloc(self.d*sizeof(int))
 
 	def __len__(self):
 		return len(self.values)
@@ -1244,9 +1245,9 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 
 	cdef double* mutual_info = <double*> calloc(d * d, sizeof(double))
 
-	cdef double* marg_j = <double*> calloc(max_keys, sizeof(double))
-	cdef double* marg_k = <double*> calloc(max_keys, sizeof(double))
-	cdef double* joint_count = <double*> calloc(max_keys**2, sizeof(double))
+	cdef double* marg_j = <double*> malloc(max_keys*sizeof(double))
+	cdef double* marg_k = <double*> malloc(max_keys*sizeof(double))
+	cdef double* joint_count = <double*> malloc(max_keys**2*sizeof(double))
 
 	for j in range(d):
 		for k in range(j):
@@ -1989,8 +1990,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 	cdef double* X = <double*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
-	cdef int* m = <int*> calloc(d+2, sizeof(int))
-	cdef int* parents = <int*> calloc(d, sizeof(int))
+	cdef int* m = <int*> malloc((d+2)*sizeof(int))
+	cdef int* parents = <int*> malloc(d*sizeof(int))
 
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef dict parent_graph = {}
@@ -2046,8 +2047,8 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 
 	cdef double* X = <double*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
-	cdef int* m = <int*> calloc(l+2, sizeof(int))
-	cdef int* combs = <int*> calloc(l, sizeof(int))
+	cdef int* m = <int*> malloc((l+2)*sizeof(int))
+	cdef int* combs = <int*> malloc(l*sizeof(int))
 
 	cdef double* weights = <double*> weights_ndarray.data
 
@@ -2086,9 +2087,6 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
 	cdef double* row;
-
-	memset(counts, 0, m[d]*sizeof(double))
-	memset(marginal_counts, 0, m[d-1]*sizeof(double))
 
 	for i in range(n):
 		idx = 0

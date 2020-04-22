@@ -6,6 +6,7 @@
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 from libc.string cimport memset
 from libc.math cimport exp as cexp
 
@@ -42,10 +43,10 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.m = len(parents)
 		self.n = len(table)
 		self.k = len(set(row[-2] for row in table))
-		self.idxs = <int*> calloc(self.m+1, sizeof(int))
-		self.marginal_idxs = <int*> calloc(self.m, sizeof(int))
+		self.idxs = <int*> malloc((self.m+1)*sizeof(int))
+		self.marginal_idxs = <int*> malloc(self.m*sizeof(int))
 
-		self.values = <double*> calloc(self.n, sizeof(double))
+		self.values = <double*> malloc(self.n*sizeof(double))
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
 
