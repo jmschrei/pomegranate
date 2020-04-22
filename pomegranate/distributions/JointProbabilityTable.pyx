@@ -56,7 +56,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.dtypes = []
 		for column in table[0]:
-			dtype = str(type(column)).split()[-1].strip('>').strip("'")
+			dtype = type(column).__name__
 			self.dtypes.append(dtype)
 
 		self.idxs[0] = 1

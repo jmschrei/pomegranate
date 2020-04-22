@@ -51,7 +51,7 @@ cdef class DiscreteDistribution(Distribution):
 			raise ValueError("Must pass in a dictionary with at least one value.")
 
 		self.name = "DiscreteDistribution"
-		self.dtype = str(type(list(characters.keys())[0])).split()[-1].strip('>').strip("'")
+		self.dtype = type(next(iter(characters.keys()))).__name__
 
 		self.__init(characters.copy(), frozen)
 
