@@ -2,7 +2,6 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 from libc.math cimport log as clog
-from libc.math cimport sqrt as csqrt
 from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
@@ -13,7 +12,7 @@ cimport numpy
 import numpy
 import numbers
 
-import heapq, itertools
+import heapq
 
 try:
 	import tempfile

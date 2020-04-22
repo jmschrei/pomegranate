@@ -6,7 +6,6 @@
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
-from libc.string cimport memset
 from libc.math cimport exp as cexp
 
 import json
@@ -20,11 +19,9 @@ from .kmeans import Kmeans
 
 from distributions.distributions cimport Distribution
 from distributions import DiscreteDistribution
-from distributions import MultivariateDistribution
 from distributions import IndependentComponentsDistribution
 
 from .bayes cimport BayesModel
-from .utils cimport _log
 from .utils cimport pair_lse
 from .utils cimport python_log_probability
 from .utils cimport python_summarize

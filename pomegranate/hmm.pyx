@@ -20,7 +20,6 @@ from .base cimport Model
 from .base cimport State
 
 from distributions.distributions cimport Distribution
-from distributions import MultivariateDistribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.IndependentComponentsDistribution cimport IndependentComponentsDistribution
 from distributions.NeuralNetworkWrapper import NeuralNetworkWrapper
@@ -42,7 +41,6 @@ from .io import SequenceGenerator
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
-from libc.string cimport memcpy
 from libc.string cimport memset
 
 import numpy

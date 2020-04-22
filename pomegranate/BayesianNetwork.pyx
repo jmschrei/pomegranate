@@ -7,7 +7,6 @@ import time
 import networkx as nx
 import numpy
 cimport numpy
-import sys
 import os
 
 from joblib import Parallel
@@ -26,14 +25,11 @@ from distributions import Distribution
 from distributions.distributions cimport MultivariateDistribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.ConditionalProbabilityTable cimport ConditionalProbabilityTable
-from distributions.JointProbabilityTable cimport JointProbabilityTable
 
 from .FactorGraph import FactorGraph
 from .utils cimport _log
-from .utils cimport lgamma
 from .utils cimport isnan
 from .utils import PriorityQueue
-from .utils import plot_networkx
 from .utils import parallelize_function
 from .utils import _check_nan
 

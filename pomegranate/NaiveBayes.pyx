@@ -3,28 +3,20 @@
 # NaiveBayes.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-import time
 import json
 import numpy
 cimport numpy
 
-from .base cimport Model
 from .bayes cimport BayesModel
 
 from distributions.distributions cimport Distribution
-from distributions import DiscreteDistribution
 from distributions import IndependentComponentsDistribution
 from distributions import MultivariateGaussianDistribution
 from distributions import DirichletDistribution
 
 from .gmm import GeneralMixtureModel
-from .utils import _convert
-from .callbacks import History
 from .io import BaseGenerator
 from .io import DataGenerator
-
-from joblib import Parallel
-from joblib import delayed
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
