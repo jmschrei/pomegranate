@@ -25,16 +25,7 @@ from .FactorGraph import FactorGraph
 from .utils cimport _log
 from .utils cimport isnan
 
-from .utils import plot_networkx
 from .utils import _check_nan
-
-try:
-	import tempfile
-	import pygraphviz
-	import matplotlib.pyplot as plt
-	import matplotlib.image
-except ImportError:
-	pygraphviz = None
 
 nan = numpy.nan
 

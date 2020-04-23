@@ -1,12 +1,9 @@
 # parallel.py
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
-import numpy, time
+import numpy
 cimport numpy
 
-import sys
-
-from .base cimport Model
 from .hmm import HiddenMarkovModel
 from .NaiveBayes import NaiveBayes
 from .distributions import Distribution

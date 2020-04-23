@@ -3,7 +3,6 @@
 # BayesClassifier.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-import time
 import json
 import numpy
 cimport numpy
@@ -14,12 +13,8 @@ from .gmm import GeneralMixtureModel
 from .hmm import HiddenMarkovModel
 from .BayesianNetwork import BayesianNetwork
 
-from .utils import _convert
 from .io import BaseGenerator
 from .io import DataGenerator
-
-from joblib import Parallel
-from joblib import delayed
 
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")

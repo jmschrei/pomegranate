@@ -4,7 +4,6 @@
 cimport numpy
 import json
 import numpy
-import sys
 
 try:
 	import pygraphviz
@@ -15,7 +14,6 @@ except:
 	pygraphviz = None
 
 from .base cimport GraphModel
-from .base cimport Model
 from .base cimport State
 
 from distributions.distributions cimport Distribution
