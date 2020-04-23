@@ -275,6 +275,7 @@ cdef class FactorGraph(GraphModel):
 		#   (2) send messages from the factors to the variables, containing
 		#   the factors belief about each marginal.
 		# This is the flooding message schedule for loopy belief propagation.
+		cdef bint done
 		iteration = 0
 		while iteration < max_iterations:
 			# UPDATE MESSAGES LEAVING THE MARGINAL NODES
@@ -345,7 +346,7 @@ cdef class FactorGraph(GraphModel):
 			# Calculate the current estimates on the marginals to compare to the
 			# last iteration, so that we can stop if we reach convergence.
 			done = 1
-			for i in range(len(self.states)):
+			for i in range(n):
 				if self.marginals[i] == 0:
 					continue
 
@@ -355,7 +356,7 @@ cdef class FactorGraph(GraphModel):
 				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					current_distributions[i] *= in_messages[k]
 
-				if not current_distributions[i].equals(prior_distributions[i]):
+				if done and not current_distributions[i].equals(prior_distributions[i]):
 					done = 0
 
 			# If we have converged, then we're done!
