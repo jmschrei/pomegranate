@@ -520,7 +520,7 @@ cdef class HiddenMarkovModel(GraphModel):
         """
 
         m = len(self.states)
-        transition_log_probabilities = numpy.zeros((m, m)) + NEGINF
+        transition_log_probabilities = numpy.full((m, m), NEGINF)
 
         for i in range(m):
             for n in range(self.out_edge_count[i], self.out_edge_count[i+1]):
@@ -935,7 +935,7 @@ cdef class HiddenMarkovModel(GraphModel):
                     self.tied[start] = j
 
         # Unpack the state weights
-        self.state_weights = numpy.zeros(self.silent_start)
+        self.state_weights = numpy.empty(self.silent_start)
         for i in range(self.silent_start):
             self.state_weights[i] = _log(self.states[i].weight)
 
@@ -1378,7 +1378,7 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef int n = len(sequence), m = len(self.states)
         cdef int mv = self.multivariate
         cdef void** distributions = <void**> self.distributions.data
-        cdef numpy.ndarray f_ndarray = numpy.zeros((n+1, m), dtype=numpy.float64)
+        cdef numpy.ndarray f_ndarray = numpy.empty((n+1, m), dtype=numpy.float64)
         cdef double* f
 
         sequence_ndarray = _check_input(sequence, self)
@@ -1550,7 +1550,7 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef double* b
         cdef int n = len(sequence), m = len(self.states)
         cdef int mv = self.multivariate
-        cdef numpy.ndarray b_ndarray = numpy.zeros((n+1, m), dtype=numpy.float64)
+        cdef numpy.ndarray b_ndarray = numpy.empty((n+1, m), dtype=numpy.float64)
 
         sequence_ndarray = _check_input(sequence, self)
         sequence_data = <double*> sequence_ndarray.data

@@ -731,7 +731,7 @@ cdef class BayesianNetwork(GraphModel):
 		indices = {state.distribution: i for i, state in enumerate(self.states)}
 
 		n, d = len(X), len(X[0])
-		cdef numpy.ndarray X_int = numpy.zeros((n, d), dtype='float64')
+		cdef numpy.ndarray X_int = numpy.empty((n, d), dtype='float64')
 		cdef double* X_int_ptr = <double*> X_int.data
 
 		for i in range(n):
@@ -1074,7 +1074,7 @@ cdef class BayesianNetwork(GraphModel):
 			n, d = X.shape
 
 
-		X_int = numpy.zeros((n, d), dtype='float64')
+		X_int = numpy.empty((n, d), dtype='float64')
 		for i in range(n):
 			for j in range(d):
 				if _check_nan(X[i, j]):

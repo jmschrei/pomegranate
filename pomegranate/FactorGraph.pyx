@@ -114,7 +114,7 @@ cdef class FactorGraph(GraphModel):
 		# edges involving this state. There is no direction, and so it will
 		# be a single array of twice the length of the number of edges,
 		# since each edge belongs to two nodes.
-		self.transitions = numpy.zeros(m*2, dtype=numpy.int32) - 1
+		self.transitions = numpy.full(m*2, -1, dtype=numpy.int32)
 		self.edge_count = numpy.zeros(n+1, dtype=numpy.int32)
 
 		# Go through each node and classify it as either a marginal node or a

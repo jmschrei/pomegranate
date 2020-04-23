@@ -120,7 +120,7 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 		centroids[0] = X[idx]
 		centroids[0][numpy.isnan(centroids[0])] = 0.0
 
-		min_distance = numpy.zeros(n, dtype='float64') + INF
+		min_distance = numpy.full(n, INF, dtype='float64')
 		min_distance_ptr = <double*> min_distance.data
 
 		for m in range(k-1):
@@ -332,7 +332,7 @@ cdef class Kmeans(Model):
 		X = numpy.array(X, dtype='float64')
 		X_ptr = <double*> (<numpy.ndarray> X).data
 
-		dist = numpy.zeros((X.shape[0], self.k))
+		dist = numpy.empty((X.shape[0], self.k))
 
 
 		for i in range(X.shape[0]):
