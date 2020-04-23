@@ -52,7 +52,7 @@ cdef class DiscreteDistribution(Distribution):
 
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
-		self.dtype = type(next(iter(characters.keys()))).__name__
+		self.dtype = str(type(list(characters.keys())[0])).split()[-1].strip('>').strip("'")
 
 		self.dist = characters.copy()
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
