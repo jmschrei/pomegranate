@@ -980,6 +980,10 @@ def test_from_structure():
     assert_equal(model2.structure, structure)
     assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
 
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
+
 def test_robust_from_structure():
     X = datasets[1]
     structure = ((1, 2), (4,), (), (), (3,))
@@ -991,6 +995,10 @@ def test_robust_from_structure():
     model2 = from_json(model.to_json())
     assert_equal(model2.structure, structure)
     assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
 
 @with_setup(setup_random_mixed)
 def test_from_json():
@@ -1012,6 +1020,10 @@ def test_from_json():
     assert_array_almost_equal(logp1, logp)
     assert_array_almost_equal(logp2, logp)
 
+    model_dtype = type(list(model.states[0].distribution.parameters[0].keys())[0])
+    model2_dtype = type(list(model2.states[0].distribution.parameters[0].keys())[0])
+    assert_equal(model_dtype, model2_dtype)
+
 @with_setup(setup_random_mixed)
 def test_robust_from_json():
     model2 = from_json(model.to_json())
@@ -1031,6 +1043,42 @@ def test_robust_from_json():
     assert_array_almost_equal(logp1, logp2)
     assert_array_almost_equal(logp1, logp)
     assert_array_almost_equal(logp2, logp)
+
+    model_dtype = type(list(model.states[0].distribution.parameters[0].keys())[0])
+    model2_dtype = type(list(model2.states[0].distribution.parameters[0].keys())[0])
+    assert_equal(model_dtype, model2_dtype)
+
+def test_float64_from_json():
+    X = datasets[1].astype('float64')
+    structure = ((1, 2), (4,), (), (), (3,))
+    model = BayesianNetwork.from_structure(X, structure=structure)
+
+    assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model2 = BayesianNetwork.from_json(model.to_json())
+    assert_equal(model2.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
+
+def test_robust_float64_from_json():
+    X = datasets[1].astype('float64')
+    structure = ((1, 2), (4,), (), (), (3,))
+    model = BayesianNetwork.from_structure(X, structure=structure)
+
+    assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model2 = from_json(model.to_json())
+    assert_equal(model2.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
 
 def test_parallel_structure_learning():
     logps = -19.8282, -345.9527, -4847.59688, -604.0190
