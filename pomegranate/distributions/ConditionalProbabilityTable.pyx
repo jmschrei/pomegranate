@@ -56,7 +56,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		self.dtypes = []
 		for column in table[0]:
-			dtype = type(column).__name__
+			dtype = str(type(column)).split()[-1].strip('>').strip("'")
 			self.dtypes.append(dtype)
 
 		self.idxs[0] = 1
