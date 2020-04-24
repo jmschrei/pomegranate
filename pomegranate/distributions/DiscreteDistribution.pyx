@@ -78,15 +78,30 @@ cdef class DiscreteDistribution(Distribution):
 	def __mul__(self, other):
 		"""Multiply this by another distribution sharing the same keys."""
 
-		assert set(self.keys()) == set(other.keys())
+		self_keys = self.keys()
+		other_keys = other.keys()
+		assert set(self_keys) == set(other_keys)
 		distribution, total = {}, 0.0
 
-		for key in self.keys():
-			x, y = self.probability(key), other.probability(key)
-			distribution[key] = (x + eps) * (y + eps)
-			total += distribution[key]
+		if isinstance(other, DiscreteDistribution) and self_keys == other_keys:
+			self_values = (<DiscreteDistribution>self).dist.values()
+			other_values = (<DiscreteDistribution>other).dist.values()
+			for key, x, y in zip(self_keys, self_values, other_values):
+				if _check_nan(key):
+					distribution[key] = (1 + eps) * (1 + eps)
+				else:
+					distribution[key] = (x + eps) * (y + eps)
+				total += distribution[key]
+		else:
+			self_items = (<DiscreteDistribution>self).dist.items()
+			for key, x in self_items:
+				if _check_nan(key):
+					x = 1.
+				y = other.probability(key)
+				distribution[key] = (x + eps) * (y + eps)
+				total += distribution[key]
 
-		for key in self.keys():
+		for key in self_keys:
 			distribution[key] /= total
 
 			if distribution[key] <= eps / total:
@@ -103,14 +118,31 @@ cdef class DiscreteDistribution(Distribution):
 		if not isinstance(other, DiscreteDistribution):
 			return False
 
-		if set(self.keys()) != set(other.keys()):
-			return False
+		self_keys = self.keys()
+		other_keys = other.keys()
 
-		for key in self.keys():
-			self_prob = round(self.log_probability(key), 12)
-			other_prob = round(other.log_probability(key), 12)
-			if self_prob != other_prob:
-				return False
+		if self_keys == other_keys:
+			self_values = (<DiscreteDistribution>self).log_dist.values()
+			other_values = (<DiscreteDistribution>other).log_dist.values()
+			for key, self_prob, other_prob in zip(self_keys, self_values, other_values):
+				if _check_nan(key):
+					continue
+				self_prob = round(self_prob, 12)
+				other_prob = round(other_prob, 12)
+				if self_prob != other_prob:
+					return False
+		elif set(self_keys) == set(other_keys):
+			self_items = (<DiscreteDistribution>self).log_dist.items()
+			for key, self_prob in self_items:
+				if _check_nan(key):
+					self_prob = 0.
+				else:
+					self_prob = round(self_prob, 12)
+				other_prob = round(other.log_probability(key), 12)
+				if self_prob != other_prob:
+					return False
+		else:
+			return False
 
 		return True
 
