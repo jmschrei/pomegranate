@@ -693,6 +693,38 @@ cdef class BayesianNetwork(GraphModel):
 
 		return self
 
+	def sample(self, n=1, evidence={}):
+		"""Sample the network, optionally given some evidence
+
+		Parameters
+		----------
+		n : int, optional
+		        The number of samples to generate. Defaults to 1.
+		evidence : dict, optional
+		        Evidence to set constant while samples are generated.
+
+		Returns
+		-------
+		a nested list of sampled states
+		"""
+
+		#col = {node.name:num for num,node in enumerate(self.states) if node.name not in evidence.keys()}
+		col = {node.name:num for num,node in enumerate(self.states) }
+		non_evidence_vars = (node for node in self.states if node.name not in evidence.keys())
+		samples = [ [ node.distribution.sample() for node in self.states] ]
+		for state,val in evidence.items():
+			samples[0][col[state]] = val
+		for num,node in it.islice(it.cycle([ x for x in enumerate(self.states) if x[1] in non_evidence_vars]),n-1):
+			samples.append(samples[-1].copy())
+			prev_state = {state.name:samples[-2][col[state.name]]
+				for state in self.states if state.name != node.name
+			}
+			samples[-1][num] = node.distribution.sample(
+				None if node.distribution.name == "DiscreteDistribution"
+				else prev_state
+			)
+		return samples
+
 	def summarize(self, X, weights=None):
 		"""Summarize a batch of data and store the sufficient statistics.
 
