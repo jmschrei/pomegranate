@@ -701,7 +701,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		return self
 
-	def sample(self, n=1, evidence={}):
+def sample(self, n=1, evidence={}):
 		"""Sample the network, optionally given some evidence
 		
 		Parameters
