@@ -7,6 +7,7 @@ import time
 import networkx as nx
 import numpy
 cimport numpy
+import sys
 import os
 
 from joblib import Parallel
@@ -14,7 +15,6 @@ from joblib import delayed
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
-from libc.stdlib cimport malloc
 from libc.string cimport memset
 
 from .base cimport GraphModel
@@ -25,16 +25,16 @@ from distributions import Distribution
 from distributions.distributions cimport MultivariateDistribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.ConditionalProbabilityTable cimport ConditionalProbabilityTable
+from distributions.JointProbabilityTable cimport JointProbabilityTable
 
 from .FactorGraph import FactorGraph
 from .utils cimport _log
+from .utils cimport lgamma
 from .utils cimport isnan
 from .utils import PriorityQueue
+from .utils import plot_networkx
 from .utils import parallelize_function
 from .utils import _check_nan
-
-from .io import BaseGenerator
-from .io import DataGenerator
 
 
 try:
@@ -45,10 +45,18 @@ try:
 except ImportError:
 	pygraphviz = None
 
+if sys.version_info[0] > 2:
+	# Set up for Python 3
+	xrange = range
+	izip = zip
+else:
+	izip = it.izip
+
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
 nan = numpy.nan
+
 
 def _check_input(X, model):
 	"""Ensure that the keys in the sample are valid keys.
@@ -108,7 +116,7 @@ def _check_input(X, model):
 	elif isinstance(X, (numpy.ndarray, list)) and isinstance(X[0], (numpy.ndarray, list)):
 		for x in X:
 			if len(x) != len(indices):
-				raise ValueError("Sample does not have the same number of dimensions" \
+				raise ValueError("Sample does not have the same number of dimensions" +
 					" as the model {} {}".format(x, len(indices)))
 
 			for i in range(len(x)):
@@ -125,13 +133,26 @@ def _check_input(X, model):
 					raise ValueError("State '{}' does not have key '{}'"
 						.format(model.states[i].name, x[i]))
 
-		X = numpy.array(X, ndmin=2, dtype=object)
-
 	else:
-		raise ValueError("X must be a 2D array of shape (n_samples, n_variables) or " \
-				"a list of lists or a list of dictionaries.")
+		if len(X) != len(indices):
+			raise ValueError("Sample does not have the same number of dimensions" +
+				" as the model")
 
-	return X
+		for i in range(len(X)):
+			if isinstance(X[i], Distribution):
+				if set(X[i].keys()) != set(model.states[i].distribution.keys()):
+					raise ValueError("State '{}' does not match with keys provided."
+						.format(model.states[i].name))
+				continue
+
+			if _check_nan(X[i]):
+				continue
+
+			if X[i] not in model.states[i].distribution.keys():
+				raise ValueError("State '{}' does not have key '{}'"
+					.format(model.states[i].name, X[i]))
+
+	return True
 
 
 cdef class BayesianNetwork(GraphModel):
@@ -168,32 +189,32 @@ cdef class BayesianNetwork(GraphModel):
 	>>> model.add_nodes([s1, s2])
 	>>> model.add_edge(s1, s2)
 	>>> model.bake()
-	>>> print(model.log_probability(['A', 'B']))
+	>>> print model.log_probability(['A', 'B'])
 	-1.71479842809
-	>>> print(model.predict_proba({'s2' : 'A'}))
+	>>> print model.predict_proba({'s2' : 'A'})
 	array([ {
-		"frozen" :false,
-		"class" :"Distribution",
-		"parameters" :[
-			{
-				"A" :0.05882352941176471,
-				"B" :0.9411764705882353
-			}
-		],
-		"name" :"DiscreteDistribution"
+	    "frozen" :false,
+	    "class" :"Distribution",
+	    "parameters" :[
+	        {
+	            "A" :0.05882352941176471,
+	            "B" :0.9411764705882353
+	        }
+	    ],
+	    "name" :"DiscreteDistribution"
 	},
-		   {
-		"frozen" :false,
-		"class" :"Distribution",
-		"parameters" :[
-			{
-				"A" :1.0,
-				"B" :0.0
-			}
-		],
-		"name" :"DiscreteDistribution"
+	       {
+	    "frozen" :false,
+	    "class" :"Distribution",
+	    "parameters" :[
+	        {
+	            "A" :1.0,
+	            "B" :0.0
+	        }
+	    ],
+	    "name" :"DiscreteDistribution"
 	}], dtype=object)
-	>>> print(model.impute([[None, 'A']]))
+	>>> print model.impute([[None, 'A']])
 	[['B', 'A']]
 	"""
 
@@ -375,7 +396,7 @@ cdef class BayesianNetwork(GraphModel):
 			if i > 0:
 				self.parent_count[i+1] += self.parent_count[i]
 
-	def log_probability(self, X, check_input=True, n_jobs=1):
+	def log_probability(self, X, n_jobs=1):
 		"""Return the log probability of samples under the Bayesian network.
 
 		The log probability is just the sum of the log probabilities under each of
@@ -391,10 +412,6 @@ cdef class BayesianNetwork(GraphModel):
 			the connections between these variables are, just that they are all
 			ordered the same.
 
-		check_input : bool, optional
-			Check to make sure that the observed symbol is a valid symbol for that
-			distribution to produce. Default is True.
-
 		n_jobs : int
 			The number of jobs to use to parallelize, either the number of threads
 			or the number of processes to use. -1 means use all available resources.
@@ -409,29 +426,24 @@ cdef class BayesianNetwork(GraphModel):
 		if self.d == 0:
 			raise ValueError("must bake model before computing probability")
 
-		n = len(X)
+		X = numpy.array(X, ndmin=2)
+		n, d = X.shape
 
-		if n_jobs > 1 or isinstance(X, BaseGenerator):
-			batch_size = n // n_jobs + n % n_jobs
-
-			if not isinstance(X, BaseGenerator):
-				data_generator = DataGenerator(X, batch_size=batch_size)
-			else:
-				data_generator = X
+		if n_jobs > 1:
+			starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+			ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
 			fn = '.pomegranate.tmp'
 			with open(fn, 'w') as outfile:
 				outfile.write(self.to_json())
 
-			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], BayesianNetwork, 'log_probability', 
-					fn) for batch in data_generator.batches())
+			with Parallel(n_jobs=n_jobs) as parallel:
+				logp_arrays = parallel(delayed(parallelize_function)(
+					X[start:end], BayesianNetwork, 'log_probability', fn)
+					for start, end in zip(starts, ends))
 
 			os.remove(fn)
-			return numpy.concatenate(logp_array)
-		elif check_input:
-			X = _check_input(X, self)
+			return numpy.concatenate(logp_arrays)
 
 		logp = numpy.zeros(n, dtype='float64')
 		for i in range(n):
@@ -443,7 +455,7 @@ cdef class BayesianNetwork(GraphModel):
 	cdef void _log_probability( self, double* symbol, double* log_probability, int n ) nogil:
 		cdef int i, j, l, li, k
 		cdef double logp
-		cdef double* sym = <double*> malloc(self.d*sizeof(double))
+		cdef double* sym = <double*> calloc(self.d, sizeof(double))
 		memset(log_probability, 0, n*sizeof(double))
 
 		for i in range(n):
@@ -576,31 +588,8 @@ cdef class BayesianNetwork(GraphModel):
 		if self.d == 0:
 			raise ValueError("must bake model before using forward-backward algorithm")
 
-		n = len(X)
-
-		if n_jobs > 1 or isinstance(X, BaseGenerator):
-			batch_size = n // n_jobs + n % n_jobs
-
-			if not isinstance(X, BaseGenerator):
-				data_generator = DataGenerator(X, batch_size=batch_size)
-			else:
-				data_generator = X
-
-			fn = '.pomegranate.tmp'
-			with open(fn, 'w') as outfile:
-				outfile.write(self.to_json())
-
-			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], BayesianNetwork, 'predict_proba', 
-					fn) for batch in data_generator.batches())
-
-			os.remove(fn)
-			return numpy.concatenate(logp_array)
-		
-		elif check_input and not isinstance(X, dict):
-			X = _check_input(X, self)
-
+		if check_input:
+			_check_input(X, self)
 
 		if isinstance(X, dict):
 			return self.graph.predict_proba(X, max_iterations)
@@ -616,13 +605,31 @@ cdef class BayesianNetwork(GraphModel):
 			return self.graph.predict_proba(data, max_iterations)
 
 		else:
-			y_hat = []
-			for x in X:
-				y_ = self.predict_proba(x, max_iterations=max_iterations,
-					check_input=False, n_jobs=1)
-				y_hat.append(y_)
+			if n_jobs > 1:
+				starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+				ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
-			return y_hat
+				fn = '.pomegranate.tmp'
+				with open(fn, 'w') as outfile:
+					outfile.write(self.to_json())
+
+				with Parallel(n_jobs=n_jobs) as parallel:
+					y_hat = parallel(delayed(parallelize_function)(
+						X[start:end], BayesianNetwork, 'predict_proba', fn,
+						check_input=False)
+						for start, end in zip(starts, ends))
+
+				os.remove(fn)
+				return numpy.concatenate(y_hat)
+
+			else:
+				y_hat = []
+				for x in X:
+					y_ = self.predict_proba(x, max_iterations=max_iterations,
+						check_input=False, n_jobs=1)
+					y_hat.append(y_)
+
+				return y_hat
 
 
 	def fit(self, X, weights=None, inertia=0.0, pseudocount=0.0, verbose=False,
@@ -638,7 +645,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		Parameters
 		----------
-		X : array-like or generator, shape (n_samples, n_nodes)
+		X : array-like, shape (n_samples, n_nodes)
 			The data to train on, where each row is a sample and each column
 			corresponds to the associated variable.
 
@@ -673,16 +680,17 @@ cdef class BayesianNetwork(GraphModel):
 
 		training_start_time = time.time()
 
-		batch_size = len(X) // n_jobs + len(X) % n_jobs
-		if not isinstance(X, BaseGenerator):
-			data_generator = DataGenerator(numpy.array(X, dtype=object), 
-				weights, batch_size=batch_size)
+		if weights is None:
+			weights = numpy.ones(len(X), dtype='float64')
 		else:
-			data_generator = X
+			weights = numpy.array(weights, dtype='float64')
+
+		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
+		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-			f = delayed(self.summarize, check_pickle=False)
-			parallel(f(*batch) for batch in data_generator.batches())
+			parallel( delayed(self.summarize, check_pickle=False)(
+				X[start:end], weights[start:end]) for start, end in zip(starts, ends))
 
 		self.from_summaries(inertia, pseudocount)
 		self.bake()
@@ -695,32 +703,33 @@ cdef class BayesianNetwork(GraphModel):
 
 	def sample(self, n=1, evidence={}):
 		"""Sample the network, optionally given some evidence
-
+		
 		Parameters
 		----------
 		n : int, optional
 		        The number of samples to generate. Defaults to 1.
 		evidence : dict, optional
 		        Evidence to set constant while samples are generated.
-
+		
 		Returns
 		-------
 		a nested list of sampled states
 		"""
 
-		#col = {node.name:num for num,node in enumerate(self.states) if node.name not in evidence.keys()}
-		col = {node.name:num for num,node in enumerate(self.states) }
+		col = {node.name:num for num,node in enumerate(self.states)}
+		# print(col)
 		non_evidence_vars = (node for node in self.states if node.name not in evidence.keys())
 		samples = [ [ node.distribution.sample() for node in self.states] ]
+		# print(samples)
 		for state,val in evidence.items():
 			samples[0][col[state]] = val
-		for num,node in it.islice(it.cycle([ x for x in enumerate(self.states) if x[1] in non_evidence_vars]),n-1):
+		for num,node in it.islice(it.cycle([ (i, state) for i, state in enumerate(self.states) if state in non_evidence_vars]),n-1):
 			samples.append(samples[-1].copy())
-			prev_state = {state.name:samples[-2][col[state.name]]
+			prev_state = {state.name:samples[-2][col[state.name]] 
 				for state in self.states if state.name != node.name
-			}
+			} 
 			samples[-1][num] = node.distribution.sample(
-				None if node.distribution.name == "DiscreteDistribution"
+				None if node.distribution.name == "DiscreteDistribution" 
 				else prev_state
 			)
 		return samples
@@ -759,12 +768,12 @@ cdef class BayesianNetwork(GraphModel):
 		indices = {state.distribution: i for i, state in enumerate(self.states)}
 
 		n, d = len(X), len(X[0])
-		cdef numpy.ndarray X_int = numpy.empty((n, d), dtype='float64')
+		cdef numpy.ndarray X_int = numpy.zeros((n, d), dtype='float64')
 		cdef double* X_int_ptr = <double*> X_int.data
 
 		for i in range(n):
 			for j in range(d):
-				if _check_nan(X[i][j]):
+				if X[i][j] == 'nan' or X[i][j] == None or X[i][j] == nan:
 					X_int[i, j] = nan
 				else:
 					X_int[i, j] = self.keymap[j][X[i][j]]
@@ -860,19 +869,20 @@ cdef class BayesianNetwork(GraphModel):
 
 		# Load a dictionary from a JSON formatted string
 		try:
-			d = json.loads(s)
+			d = json.loads( s )
 		except:
 			try:
-				with open(s, 'r') as infile:
-					d = json.load(infile)
+				with open( s, 'r' ) as infile:
+					d = json.load( infile )
 			except:
 				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
 		# Make a new generic Bayesian Network
-		model = BayesianNetwork(str(d['name']))
+		model = BayesianNetwork( str(d['name']) )
+
 
 		# Load all the states from JSON formatted strings
-		states = [State.from_json(json.dumps(j)) for j in d['states']]
+		states = [ State.from_json( json.dumps(j) ) for j in d['states'] ]
 		structure = d['structure']
 		for state, parents in zip(states, structure):
 			if len(parents) > 0:
@@ -890,7 +900,7 @@ cdef class BayesianNetwork(GraphModel):
 
 	@classmethod
 	def from_structure(cls, X, structure, weights=None, pseudocount=0.0,
-		name=None, state_names=None):
+		name=None, state_names=None, n_jobs=1):
 		"""Return a Bayesian network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -923,25 +933,26 @@ cdef class BayesianNetwork(GraphModel):
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
 
+		n_jobs : int
+			The number of jobs to use to parallelize, either the number of threads
+			or the number of processes to use. -1 means use all available resources.
+			Default is 1.
+
 		Returns
 		-------
 		model : BayesianNetwork
 			A Bayesian network with the specified structure.
 		"""
 
-		if isinstance(X, BaseGenerator):
-			batches = [batch for batch in X.batches()]
-			X = numpy.concatenate([batch[0] for batch in batches])
-			weights = numpy.concatenate([batch[1] for batch in batches])
-		else:
-			X = numpy.array(X)
-			if weights is None:
-				weights = numpy.ones(X.shape[0], dtype='float64')
-			else:
-				weights = numpy.array(weights, dtype='float64')
-
+		X = numpy.array(X)
 		d = len(structure)
+
 		nodes = [None for i in range(d)]
+
+		if weights is None:
+			weights = numpy.ones(X.shape[0], dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
 
 		for i, parents in enumerate(structure):
 			if len(parents) == 0:
@@ -963,7 +974,7 @@ cdef class BayesianNetwork(GraphModel):
 				break
 
 		if state_names is not None:
-			states = [State(node, name=node_name) for node, node_name in zip(nodes,state_names)]
+			states = [State(node, name=node_name) for node, node_name in izip(nodes,state_names)]
 		else:
 			states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
 
@@ -971,6 +982,8 @@ cdef class BayesianNetwork(GraphModel):
 		model.add_nodes(*states)
 
 		for i, parents in enumerate(structure):
+			d = states[i].distribution
+
 			for parent in parents:
 				model.add_edge(states[parent], states[i])
 
@@ -997,7 +1010,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		Parameters
 		----------
-		X : array-like or generator, shape (n_samples, n_nodes)
+		X : array-like, shape (n_samples, n_nodes)
 			The data to fit the structure too, where each row is a sample and
 			each column corresponds to the associated variable.
 
@@ -1067,31 +1080,26 @@ cdef class BayesianNetwork(GraphModel):
 			The learned BayesianNetwork.
 		"""
 
-		if isinstance(X, BaseGenerator):
-			batches = [batch for batch in X.batches()]
-			X = numpy.concatenate([batch[0] for batch in batches])
-			weights = numpy.concatenate([batch[1] for batch in batches])
-		else:
-			X = numpy.array(X)
-			if weights is None:
-				weights = numpy.ones(X.shape[0], dtype='float64')
-			else:
-				weights = numpy.array(weights, dtype='float64')
-
+		X = numpy.array(X)
 		n, d = X.shape
 
 		keys = [set([x for x in X[:,i] if not _check_nan(x)]) for i in range(d)]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(d)])
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
 
+		if weights is None:
+			weights = numpy.ones(X.shape[0], dtype='float64')
+		else:
+			weights = numpy.array(weights, dtype='float64')
+
 		if reduce_dataset:
 			X_count = {}
 
-			for x, weight in zip(X, weights):
+			for x, weight in izip(X, weights):
 				# Convert NaN to None because two tuples containing
 				# (1.0, 2.0, 3.0, nan) are not considered equal, but two tuples
 				# containing (1.0, 2.0, 3.0, None) are considered equal
-				x = tuple(None if _check_nan(xn) else xn for xn in x)
+				x = tuple(None if isnan(xn) else xn for xn in x)
 				if x in X_count:
 					X_count[x] += weight
 				else:
@@ -1102,7 +1110,7 @@ cdef class BayesianNetwork(GraphModel):
 			n, d = X.shape
 
 
-		X_int = numpy.empty((n, d), dtype='float64')
+		X_int = numpy.zeros((n, d), dtype='float64')
 		for i in range(n):
 			for j in range(d):
 				if _check_nan(X[i, j]):
@@ -1204,8 +1212,8 @@ cdef class ParentGraph(object):
 		self.values = {}
 		self.n = X.shape[0]
 		self.d = X.shape[1]
-		self.m = <int*> malloc((self.d+2)*sizeof(int))
-		self.parents = <int*> malloc(self.d*sizeof(int))
+		self.m = <int*> calloc(self.d+2, sizeof(int))
+		self.parents = <int*> calloc(self.d, sizeof(int))
 
 	def __len__(self):
 		return len(self.values)
@@ -1271,11 +1279,12 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 
-	cdef double* mutual_info = <double*> calloc(d * d, sizeof(double))
+	cdef numpy.ndarray mutual_info_ndarray = numpy.zeros((d, d), dtype='float64')
+	cdef double* mutual_info = <double*> mutual_info_ndarray.data
 
-	cdef double* marg_j = <double*> malloc(max_keys*sizeof(double))
-	cdef double* marg_k = <double*> malloc(max_keys*sizeof(double))
-	cdef double* joint_count = <double*> malloc(max_keys**2*sizeof(double))
+	cdef double* marg_j = <double*> calloc(max_keys, sizeof(double))
+	cdef double* marg_k = <double*> calloc(max_keys, sizeof(double))
+	cdef double* joint_count = <double*> calloc(max_keys**2, sizeof(double))
 
 	for j in range(d):
 		for k in range(j):
@@ -1307,36 +1316,29 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 							joint_count[xj*lk+xk] / (marg_j[xj] * marg_k[xk]))
 						mutual_info[k*d + j] = mutual_info[j*d + k]
 
-	cdef int x, y, min_x, min_y
-	cdef double min_score, score
 
-	structure = [[] for i in range(d)]
+	structure = [() for i in range(d)]
 	visited = [root]
 	unvisited = list(range(d))
 	unvisited.remove(root)
 
-	for i in range(d-1):
-		min_score = float("inf")
-		min_x = -1
-		min_y = -1
+	while len(unvisited) > 0:
+		min_score, min_x, min_y = INF, -1, -1
 
 		for x in visited:
 			for y in unvisited:
-				score = mutual_info[x*d + y]
+				score = mutual_info_ndarray[x, y]
 				if score < min_score:
-					min_score = score
-					min_x = x
-					min_y = y
+					min_score, min_x, min_y = score, x, y
 
-		structure[min_y].append(min_x)
+		structure[min_y] += (min_x,)
 		visited.append(min_y)
 		unvisited.remove(min_y)
 
-	free(mutual_info)
 	free(marg_j)
 	free(marg_k)
 	free(joint_count)
-	return tuple(tuple(x) for x in structure)
+	return tuple(structure)
 
 
 def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
@@ -1795,7 +1797,7 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 		The parents for each variable in this SCC
 	"""
 
-	cdef tuple parents = task[1], children = task[2]
+	cdef tuple parents = task[0], children = task[1]
 	cdef tuple outside_parents = tuple(i for i in parents if i not in children)
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef list parent_graphs = [None for i in range(max(parents)+1)]
@@ -1810,17 +1812,15 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	order_graph = nx.DiGraph()
 	for i in range(d+1):
 		for subset in it.combinations(children, i):
-			subset_and_outside = tuple(set(subset + outside_parents))
-			order_graph.add_node(subset_and_outside)
+			order_graph.add_node(subset + outside_parents)
 
 			for variable in subset:
 				parent = tuple(v for v in subset if v != variable)
 				parent += outside_parents
-				parent = tuple(set(parent))
 
 				structure, weight = parent_graphs[variable][parent]
 				weight = -weight if weight < 0 else 0
-				order_graph.add_edge(parent, subset_and_outside, weight=weight,
+				order_graph.add_edge(parent, subset + outside_parents, weight=weight,
 					structure=structure)
 
 	path = nx.shortest_path(order_graph, source=outside_parents, target=parents,
@@ -2020,8 +2020,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 	cdef double* X = <double*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
-	cdef int* m = <int*> malloc((d+2)*sizeof(int))
-	cdef int* parents = <int*> malloc(d*sizeof(int))
+	cdef int* m = <int*> calloc(d+2, sizeof(int))
+	cdef int* parents = <int*> calloc(d, sizeof(int))
 
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef dict parent_graph = {}
@@ -2077,8 +2077,8 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 
 	cdef double* X = <double*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
-	cdef int* m = <int*> malloc((l+2)*sizeof(int))
-	cdef int* combs = <int*> malloc(l*sizeof(int))
+	cdef int* m = <int*> calloc(l+2, sizeof(int))
+	cdef int* combs = <int*> calloc(l, sizeof(int))
 
 	cdef double* weights = <double*> weights_ndarray.data
 
@@ -2117,6 +2117,9 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
 	cdef double* row;
+
+	memset(counts, 0, m[d]*sizeof(double))
+	memset(marginal_counts, 0, m[d-1]*sizeof(double))
 
 	for i in range(n):
 		idx = 0
