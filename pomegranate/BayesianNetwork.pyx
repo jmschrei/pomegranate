@@ -197,7 +197,7 @@ cdef class BayesianNetwork(GraphModel):
 	[['B', 'A']]
 	"""
 
-	cdef list idxs
+	cdef public list idxs
 	cdef public numpy.ndarray keymap
 	cdef int* parent_count
 	cdef int* parent_idxs
@@ -693,36 +693,91 @@ cdef class BayesianNetwork(GraphModel):
 
 		return self
 
-	def sample(self, n=1, evidence={}):
-		"""Sample the network, optionally given some evidence
+	def sample(self, n=1, evidences=[{}],min_prob=0.01):
+		"""Sample the network, optionally given some evidences
+		Use rejection to condition on non marginal nodes
 
 		Parameters
 		----------
 		n : int, optional
-		        The number of samples to generate. Defaults to 1.
-		evidence : dict, optional
-		        Evidence to set constant while samples are generated.
-
+				The number of samples to generate. Defaults to 1.
+		evidences : list of dict, optional
+				Evidence to set constant while samples are generated.
+		min_prob : stop iterations when  Sum P(X|Evidence) < min_prob. generated samples for a given evidence will be
+				incomplete (<n)
 		Returns
 		-------
 		a nested list of sampled states
 		"""
 
-		col = {node.name:num for num,node in enumerate(self.states) if node.name }
-		non_evidence_vars = (node for node in self.states if node.name not in evidence.keys())
-		samples = [ [ node.distribution.sample() for node in self.states] ]
-		for state,val in evidence.items():
-			samples[0][col[state]] = val
-		for num,node in it.islice(it.cycle([ x for x in enumerate(self.states) if x[1] in non_evidence_vars]),n-1):
-			samples.append(samples[-1].copy())
-			prev_state = {state.name:samples[-2][col[state.name]]
-				for state in self.states if state.name != node.name
-			}
-			samples[-1][num] = node.distribution.sample(
-				None if node.distribution.name == "DiscreteDistribution"
-				else prev_state
-			)
+		self.bake()
+		#n = 100
+		samples = []
+		#evidences = [{'Z': 'False', 'X': 'A'}, {'Y': 'C', 'X': 'B'}]
+
+		G = nx.DiGraph()
+		for state in self.states:
+			G.add_node(state)
+
+		for parent, child in self.edges:
+			G.add_edge(parent, child)
+
+
+		iter_ = it.cycle(enumerate(nx.topological_sort(G)))
+
+		for evidence in evidences:
+			count = 0
+			sample = []
+			samples.append(sample)
+			safeguard = 0
+			state_dict = evidence.copy()
+			args = evidence.copy()
+			while count < n:
+				safeguard +=1
+				if safeguard > n/min_prob:
+					# raise if P(X|Evidence) < 1%
+					raise Exception('Maximum iteration limit. Make sure the state configuration hinted at by evidence is reachable for this network')
+
+				# Rejection sampling
+				# If the predicted value is not the one given in evidence, we start over until we reach the expected number of samploe by evidence
+				j, node = iter_.__next__()
+				name = node.name
+
+				if node.distribution.name == "DiscreteDistribution":
+					if name in evidence :
+						val = evidence[name]
+					else :
+						val = node.distribution.sample()
+				else :
+					#print(state_dict)
+					val = node.distribution.sample(args)
+
+				# rejection sampling
+				if node.distribution.name != "DiscreteDistribution" and (name in evidence):
+					if evidence[name] != val:
+						#print(evidence[name] ,val)
+						# make sure we start with the first node in the topoplogical order
+						[iter_.__next__() for i in range(self.d - j - 1)]
+						args = evidence.copy()
+						state_dict = evidence.copy()
+						continue
+
+				else:
+					state_dict[name] = val
+					args[name] = val
+
+				if (j + 1) == self.d:
+					#print('.',end='')
+					sample.append(state_dict)
+					args = evidence.copy()
+					state_dict = evidence.copy()
+					count += 1
+
+			# make sure we start with the first node in the topoplogical order
+			[iter_.__next__() for i in range(self.d - j - 1)]
+
 		return samples
+
 
 
 	def summarize(self, X, weights=None):
