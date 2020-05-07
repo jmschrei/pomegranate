@@ -714,6 +714,7 @@ cdef class BayesianNetwork(GraphModel):
 		#n = 100
 		samples = []
 		#evidences = [{'Z': 'False', 'X': 'A'}, {'Y': 'C', 'X': 'B'}]
+		node_dict = {node.name:node.distribution for node in self.states}
 
 		G = nx.DiGraph()
 		for state in self.states:
@@ -731,7 +732,8 @@ cdef class BayesianNetwork(GraphModel):
 			samples.append(sample)
 			safeguard = 0
 			state_dict = evidence.copy()
-			args = evidence.copy()
+			args = {node_dict[k]:v for k,v in evidence.items()}
+
 			while count < n:
 				safeguard +=1
 				if safeguard > n/min_prob:
@@ -750,6 +752,7 @@ cdef class BayesianNetwork(GraphModel):
 						val = node.distribution.sample()
 				else :
 					#print(state_dict)
+					#print(args)
 					val = node.distribution.sample(args)
 
 				# rejection sampling
@@ -758,18 +761,18 @@ cdef class BayesianNetwork(GraphModel):
 						#print(evidence[name] ,val)
 						# make sure we start with the first node in the topoplogical order
 						[iter_.__next__() for i in range(self.d - j - 1)]
-						args = evidence.copy()
+						args = {node_dict[k]:v for k,v in evidence.items()}
 						state_dict = evidence.copy()
 						continue
 
 				else:
 					state_dict[name] = val
-					args[name] = val
+					args[node_dict[name]] = val
 
 				if (j + 1) == self.d:
 					#print('.',end='')
 					sample.append(state_dict)
-					args = evidence.copy()
+					args = {node_dict[k]:v for k,v in evidence.items()}
 					state_dict = evidence.copy()
 					count += 1
 
@@ -777,6 +780,7 @@ cdef class BayesianNetwork(GraphModel):
 			[iter_.__next__() for i in range(self.d - j - 1)]
 
 		return samples
+
 
 
 
