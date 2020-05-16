@@ -8,6 +8,7 @@ from .distributions cimport MultivariateDistribution
 
 cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	cdef double* values
+	cdef double values_
 	cdef double* counts
 	cdef double* marginal_counts
 	cdef int n, k
@@ -21,4 +22,5 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	cdef public object marginal_keymap
 	cdef public int m
 	cdef void __summarize(self, items, double [:] weights)
+
 

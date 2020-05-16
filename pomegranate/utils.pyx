@@ -488,7 +488,8 @@ def check_random_state(seed):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
-def choose_one(numpy.ndarray[double, ndim=1] weights, Py_ssize_t length):
+cdef choose_one(double [:] weights, int length):
+
 	cdef Py_ssize_t idx, i
 	cdef double cs
 	cdef double random

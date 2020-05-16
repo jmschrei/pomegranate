@@ -14,7 +14,8 @@ from libc.stdint cimport uintptr_t
 
 from ..utils cimport _log
 from ..utils cimport isnan
-from ..utils import _check_nan, choose_one
+#from ..utils cimport  choose_one
+from ..utils import _check_nan
 from ..utils import check_random_state
 
 import itertools as it
@@ -164,8 +165,8 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			return sample_cands[sample_ind]
 
 		# Random choice if much faster larger value of n
-		elif n == 1:
-			return sample_cands[choose_one(sample_vals,len(sample_cands)-1)]
+		#elif n == 1:
+		#	return sample_cands[choose_one(sample_vals,len(sample_cands)-1)]
 
 
 		elif n > 5:

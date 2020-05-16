@@ -18,3 +18,4 @@ cdef double _log (double x) nogil
 cdef double pair_lse(double x, double y) nogil
 cdef double gamma(double x) nogil
 cdef double lgamma(double x) nogil
+cdef choose_one(double [:] weights, int length)
