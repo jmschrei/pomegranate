@@ -32,7 +32,9 @@ from .utils cimport _log2
 from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import parallelize_function
-from .utils import _check_nan, choose_one
+from .utils import _check_nan
+#from .utils cimport  choose_one
+from .utils import  choose_one
 from .utils import check_random_state
 
 
@@ -741,10 +743,6 @@ def sample(self, n=1, evidence={}):
 		return samples
 #-----------------------------------------------------------------------------------------------
 
-
-
-
-
 	def gibbs(self,dict initial_state, int burnin, int size, list evidences=[],random_state=None):
 		random_state = check_random_state(random_state)
 
@@ -755,34 +753,22 @@ def sample(self, n=1, evidence={}):
 		cdef list modalities, modalities_int, cardinalities, cols, col_idxs, probs, cpds_, node_idx
 		# node_idx : position of state i in cpd[i].column_idxs
 
-		cdef numpy.ndarray[double, ndim=1] current_state = numpy.empty([n_state],dtype=numpy.float)
-		cdef numpy.ndarray[double, ndim=2] all_states = numpy.empty([n_step,n_state],dtype=numpy.float)
-		cdef numpy.ndarray[double,ndim=1] prob, prob_tmp
+		n_step = burnin+size
+		n_state = len(self.states)
+
+		cdef numpy.ndarray[double, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float)
+		cdef numpy.ndarray[double, ndim=2,mode='c'] all_states = numpy.empty([n_step,n_state],dtype=numpy.float)
+		cdef numpy.ndarray[double,ndim=1,mode='c'] prob, prob_tmp, state_subset
 
 		cdef double [:] current_state_view = current_state
 		cdef double [:,:] all_states_view = all_states
 
-
-
-		evid = {i:evidences[0][state] for i,state in enumerate(self.states) if state in evidences[0]}
-
-		n_step = burnin+size
-		n_state = len(self.states)
-
-
-		#cdef numpy.ndarray[char[10],ndim=2]  all_states = numpy.empty([n_step,n_state],dtype=numpy.dtype('|S5'))
-		#all_states = numpy.empty([n_step,n_state],dtype=numpy.dtype('U5'))
-		#cdef numpy.ndarray[numpy.int_t,ndim=1]
-		#current_state =  numpy.empty([n_state],dtype=numpy.dtype('U5'))
-		#current_state =  numpy.empty([n_state],dtype=numpy.float)
 
 		col_dict   = {i:state.name for i,state in enumerate(self.states) }
 		col_dict_inv   = {state.name:i for i,state in enumerate(self.states) }
 
 		graph_dict = {state.name:state for i,state in enumerate(self.graph.states) }
 
-
-		# ->memoryview of array
 		modalities = []
 		modalities_int = []
 		modalities_dict = []
@@ -790,8 +776,6 @@ def sample(self, n=1, evidence={}):
 		cpds = defaultdict(list)
 		node_idx_dict =  defaultdict(list)
 		col_idxs = []
-
-		bla = defaultdict(list)
 
 		state_names = {i:state.name for i,state in enumerate(self.states)}
 
@@ -815,14 +799,17 @@ def sample(self, n=1, evidence={}):
 				cols = [state.name]
 				col_idxs.append([i])
 
-
+		evid = {i:modalities_dict[i][evidences[0][state]] for i,state in enumerate(self.states) if state in evidences[0]}
 
 		cardinalities = [len(m) for m in modalities]
 
 		prob = -15*numpy.ones(numpy.max(cardinalities))
-		prob_tmp = -15*numpy.ones(numpy.max(cardinalities))
+		prob_tmp = numpy.zeros(numpy.max(cardinalities))
+		state_subset = numpy.zeros(n_state)
+
 		cdef double [:] prob_view = prob
 		cdef double [:] prob_tmp_view = prob_tmp
+		cdef double [:] state_subset_view = state_subset
 
 		cpds_  = [cpds[state.name] for state in self.states ]
 
@@ -836,48 +823,56 @@ def sample(self, n=1, evidence={}):
 				all_states[0,i] = current_state[i] = modalities_dict[i][val]
 			pass
 
+		print("current_state",current_state)
 
-		for step in range(n_step):
-			#print(step)
-			for i in range(n_state):
-				if i in evid:
-					continue
+		for step in range(n_step-1):
 			for i,state in enumerate(self.states):
+				if i in evid:
+					all_states_view[step,i] = current_state_view[i] = evid[i]
+					continue
 
 				modality = modalities[i]
 				modality_int = modalities_int[i]
 
 				cardinality = cardinalities[i]
 
-				#print('cpd product')
 				for k,cpd in enumerate(cpds_[i]) :
 					node_pos =  node_idx[i][k]
-					#print('.',end='')
-					#p = prob[j]
-					state_subset = [current_state[idx] for idx in cpd.column_idxs] # make custom views
-					state_subset[node_pos] = numpy.nan
-					#cpd._log_probability(X=state_subset,log_prob=prob,n=cardinality)
-					#self.cpd_prod(cpd, &current_state[0], &prob[0],cardinality)
-					self.cpd_prod(cpd, current_state, prob,cardinality)
 
-					for j,mod in enumerate(modality) :
-						#print('.',end='')
-						#state_subset[node_pos] = mod
-						#cpd.
-						tuple(state_subset)
-						#log_prob = cpd.probability(tuple(state_subset))
+					for col_n,idx in enumerate(cpd.column_idxs):
+						state_subset_view[col_n] = current_state_view[idx]
 
-						log_prob = -5
-						if log_prob > -10:
-							prob[j] += 0.01
+					state_subset_view[node_pos] = numpy.nan
+					print("state_subset",state_subset[:col_n+1])
 
-				proba = numpy.exp(prob[:cardinality])
+					#state_subset = [current_state[idx] for idx in cpd.column_idxs]
+					#state_subset[node_pos] = numpy.nan
+					#state_subset =
+
+					self.cpd_prod(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality)
+					#self.cpd_prod(cpd, current_state, prob,prob_tmp,cardinality)
+					#print('last_prob_tmp',prob_tmp)
+
+				print('log_prob',prob)
+
+				proba = prob[:cardinality]
+				proba = numpy.exp(proba-proba.max())
 				proba /= proba.sum()
-	#             print(cardinality-1)
-	#             print(choose_one(numpy.exp(prob),cardinality-1))
-				#all_states[step,i] = current_state[i] = modality_int[choose_one(proba,cardinality-1)]
-				all_states_view[step,i] = current_state[i] = numpy.where(random_state.multinomial(1, proba))[0][0]
-				#all_states[step,i] = current_state[i] = numpy.random.choice(modality,p=numpy.exp(prob))#modality[choose_one(numpy.exp(prob),cardinality-1)]
+
+
+				prob_tmp_view[:cardinality] = proba
+				print('prob',prob_tmp,'cardinality',cardinality)
+				print(choose_one(prob_tmp_view,cardinality))
+				all_states_view[step+1,i] = current_state_view[i] = choose_one(prob_tmp_view[:cardinality],cardinality)
+
+				#prob_tmp[:cardinality] = prob[:cardinality]
+				#prob_tmp[:cardinality] = numpy.exp(prob_tmp[:cardinality]-prob_tmp[:cardinality].max())
+				#prob_tmp[:cardinality] /= prob_tmp[:cardinality].sum()
+				#print('prob',prob_tmp[:cardinality])
+                #
+				#all_states_view[step+1,i] = current_state_view[i] = choose_one(prob_tmp_view[:cardinality],cardinality)
+				prob_view[:] = 0.
+
 
 
 		return all_states
@@ -886,10 +881,19 @@ def sample(self, n=1, evidence={}):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	@cython.nonecheck(False)
-	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[double, ndim=1,mode='c'] current_state, numpy.ndarray[double, ndim=1,mode='c'] prob, int cardinality):
+	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[double, ndim=1,mode='c'] state_subset, numpy.ndarray[double, ndim=1,mode='c'] prob, numpy.ndarray[double, ndim=1,mode='c'] prob_tmp, int cardinality):
+	#cdef void cpd_prod(self,ConditionalProbabilityTable cpd, double [:] state_subset_view, numpy.ndarray[double, ndim=1,mode='c'] prob, numpy.ndarray[double, ndim=1,mode='c'] prob_tmp, int cardinality):
+		cdef int j
 
-		cpd._log_probability(&current_state[0],&prob[0],cardinality)
-		pass
+		cpd._log_probability(&state_subset[0],&prob_tmp[0],cardinality)
+		for j in range(cardinality):
+
+			if prob_tmp[j] != -numpy.inf:
+				prob[j] += prob_tmp[j]
+			else :
+				# default probability of unobserved event
+				prob[j] += -20
+
 
 
 
