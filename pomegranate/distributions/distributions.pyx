@@ -299,8 +299,8 @@ cdef class Distribution(Model):
 				dist = {int(key) : value for key, value in dp.items()}
 			elif d['dtype'] == 'float':
 				dist = {float(key) : value for key, value in dp.items()}
-			elif '.' in d['dtype']:
-				dtype = d['dtype'].split('.')[-1]
+			elif d['dtype'].startswith('numpy.'):
+				dtype = d['dtype'][6:]
 				dist = {numpy.array([key], dtype=dtype)[0]: value for key, value in dp.items()}
 			else:
 				dist = dp
@@ -322,8 +322,8 @@ cdef class Distribution(Model):
 						table[-1].append(int(item))
 					elif dtype == 'float':
 						table[-1].append(float(item))
-					elif '.' in dtype:
-						dtype = dtype.split('.')[-1]
+					elif dtype.startswith('numpy.'):
+						dtype = dtype[6:]
 						table[-1].append(numpy.array([item], dtype=dtype)[0])
 					else:
 						table[-1].append(item)
