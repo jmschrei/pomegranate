@@ -366,7 +366,7 @@ cdef class GraphModel(Model):
 		"""
 
 		m = len(self.states)
-		transition_log_probabilities = numpy.zeros((m, m)) + NEGINF
+		transition_log_probabilities = numpy.full((m, m), NEGINF)
 
 		for i in range(m):
 			for n in range( self.out_edge_count[i], self.out_edge_count[i+1] ):

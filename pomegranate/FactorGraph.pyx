@@ -100,7 +100,7 @@ cdef class FactorGraph(GraphModel):
 		n, m = len(self.states), len(self.edges)
 
 		# Initialize the arrays
-		self.marginals = numpy.zeros(n)
+		self.marginals = numpy.empty(n, dtype=numpy.bool_)
 
 		# We need a good way to get transition probabilities by state index that
 		# isn't N^2 to build or store. So we will need a reverse of the above
@@ -118,10 +118,10 @@ cdef class FactorGraph(GraphModel):
 		# Go through each node and classify it as either a marginal node or a
 		# factor node.
 		for i, node in enumerate(self.states):
-			if not isinstance(node.distribution, MultivariateDistribution):
-				self.marginals[i] = 1
-			if node.name.endswith('-joint'):
-				self.marginals[i] = 0
+			self.marginals[i] = (
+				not isinstance(node.distribution, MultivariateDistribution) and
+				not node.name.endswith('-joint')
+			)
 
 		# Now we need to find a way of storing edges for a state in a manner
 		# that can be called in the cythonized methods below. This is basically

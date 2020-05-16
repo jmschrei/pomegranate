@@ -11,7 +11,7 @@ import random
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
-from libc.string cimport memset
+from libc.stdlib cimport malloc
 
 from ..utils cimport _log
 from ..utils cimport isnan
@@ -153,7 +153,7 @@ cdef class DiscreteDistribution(Distribution):
 		free(self.encoded_log_probability)
 
 		self.encoded_counts = <double*> calloc(n, sizeof(double))
-		self.encoded_log_probability = <double*> calloc(n, sizeof(double))
+		self.encoded_log_probability = <double*> malloc(n * sizeof(double))
 		self.n = n
 
 		for i in range(n):
