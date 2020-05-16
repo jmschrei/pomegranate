@@ -5,8 +5,11 @@ from libc.math cimport log as clog
 from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
+from libc.stdlib cimport rand, RAND_MAX
 
 from scipy.linalg.cython_blas cimport dgemm
+
+import cython
 
 cimport numpy
 import numpy
@@ -480,4 +483,23 @@ def check_random_state(seed):
 		return seed
 	raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
 					 ' instance' % seed)
-	
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+def choose_one(numpy.ndarray[double, ndim=1] weights, Py_ssize_t length):
+	cdef Py_ssize_t idx, i
+	cdef double cs
+	cdef double random
+
+	random = rand()/RAND_MAX
+
+	cs = 0.0
+	i = 0
+	while cs < random and i < length:
+		#print(cs)
+		cs += weights[i]
+		i += 1
+	return i
+

@@ -31,11 +31,24 @@ from .utils cimport _log
 from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import parallelize_function
-from .utils import _check_nan
+from .utils import _check_nan, choose_one
+from .utils import check_random_state
+
 
 from .io import BaseGenerator
 from .io import DataGenerator
 
+#from libcpp.list cimport list as cpplist
+from libc.math cimport exp as cexp
+
+import cython
+cimport cython
+import numpy
+cimport numpy
+import random
+
+
+from collections import defaultdict
 
 try:
 	import tempfile
@@ -48,6 +61,7 @@ except ImportError:
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
+nan = numpy.nan
 nan = numpy.nan
 
 def _check_input(X, model):
@@ -780,7 +794,162 @@ cdef class BayesianNetwork(GraphModel):
 			[iter_.__next__() for i in range(self.d - j - 1)]
 
 		return samples
+#-----------------------------------------------------------------------------------------------
 
+
+
+
+
+	def gibbs(self,dict initial_state, int burnin, int size, list evidences=[],random_state=None):
+		random_state = check_random_state(random_state)
+
+		cdef int n_step, n_state, i,k, step, n_cpd, n_mod#, node_pos
+		cdef double p
+		cdef str val
+		cdef dict col_dict, col_dict_inv, graph_dict
+		cdef list modalities, modalities_int, cardinalities, cols, col_idxs, probs, cpds_, node_idx
+		# node_idx : position of state i in cpd[i].column_idxs
+
+		cdef numpy.ndarray[double, ndim=1] current_state = numpy.empty([n_state],dtype=numpy.float)
+		cdef numpy.ndarray[double, ndim=2] all_states = numpy.empty([n_step,n_state],dtype=numpy.float)
+		cdef numpy.ndarray[double,ndim=1] prob, prob_tmp
+
+		cdef double [:] current_state_view = current_state
+		cdef double [:,:] all_states_view = all_states
+
+
+
+		evid = {i:evidences[0][state] for i,state in enumerate(self.states) if state in evidences[0]}
+
+		n_step = burnin+size
+		n_state = len(self.states)
+
+
+		#cdef numpy.ndarray[char[10],ndim=2]  all_states = numpy.empty([n_step,n_state],dtype=numpy.dtype('|S5'))
+		#all_states = numpy.empty([n_step,n_state],dtype=numpy.dtype('U5'))
+		#cdef numpy.ndarray[numpy.int_t,ndim=1]
+		#current_state =  numpy.empty([n_state],dtype=numpy.dtype('U5'))
+		#current_state =  numpy.empty([n_state],dtype=numpy.float)
+
+		col_dict   = {i:state.name for i,state in enumerate(self.states) }
+		col_dict_inv   = {state.name:i for i,state in enumerate(self.states) }
+
+		graph_dict = {state.name:state for i,state in enumerate(self.graph.states) }
+
+
+		# ->memoryview of array
+		modalities = []
+		modalities_int = []
+		modalities_dict = []
+
+		cpds = defaultdict(list)
+		node_idx_dict =  defaultdict(list)
+		col_idxs = []
+
+		bla = defaultdict(list)
+
+		state_names = {i:state.name for i,state in enumerate(self.states)}
+
+		for i,state in enumerate(self.states):
+			modalities.append(graph_dict[col_dict[i]].distribution.keys())
+			key_dict = {mod:k for k,mod in enumerate(modalities[-1])}
+
+			modalities_int.append([key_dict[l] for l in graph_dict[col_dict[i]].distribution.keys()])
+			modalities_dict.append(key_dict)
+			d = state.distribution
+
+			if isinstance(state.distribution,MultivariateDistribution):
+				cols  = [col_dict[idx] for idx in d.column_idxs ]
+				col_idxs.append(d.column_idxs)
+
+				for col in cols :
+					cpds[col].append(d)
+					node_idx_dict[col].append(numpy.where(d.column_idxs==col_dict_inv[col])[0][0])
+					#bla[col].append(state.name)
+			else :
+				cols = [state.name]
+				col_idxs.append([i])
+
+
+
+		cardinalities = [len(m) for m in modalities]
+
+		prob = -15*numpy.ones(numpy.max(cardinalities))
+		prob_tmp = -15*numpy.ones(numpy.max(cardinalities))
+		cdef double [:] prob_view = prob
+		cdef double [:] prob_tmp_view = prob_tmp
+
+		cpds_  = [cpds[state.name] for state in self.states ]
+
+		node_idx = [node_idx_dict[state.name] for state in self.states ]
+
+
+		for i,(state,val) in enumerate(initial_state.items()):
+			if state in evidences[0]:
+				all_states[0,i] = current_state[i] = modalities_dict[i][evidences[0][state]]
+			else :
+				all_states[0,i] = current_state[i] = modalities_dict[i][val]
+			pass
+
+
+		for step in range(n_step):
+			#print(step)
+			for i in range(n_state):
+				if i in evid:
+					continue
+			for i,state in enumerate(self.states):
+
+				modality = modalities[i]
+				modality_int = modalities_int[i]
+
+				cardinality = cardinalities[i]
+
+				#print('cpd product')
+				for k,cpd in enumerate(cpds_[i]) :
+					node_pos =  node_idx[i][k]
+					#print('.',end='')
+					#p = prob[j]
+					state_subset = [current_state[idx] for idx in cpd.column_idxs] # make custom views
+					state_subset[node_pos] = numpy.nan
+					#cpd._log_probability(X=state_subset,log_prob=prob,n=cardinality)
+					#self.cpd_prod(cpd, &current_state[0], &prob[0],cardinality)
+					self.cpd_prod(cpd, current_state, prob,cardinality)
+
+					for j,mod in enumerate(modality) :
+						#print('.',end='')
+						#state_subset[node_pos] = mod
+						#cpd.
+						tuple(state_subset)
+						#log_prob = cpd.probability(tuple(state_subset))
+
+						log_prob = -5
+						if log_prob > -10:
+							prob[j] += 0.01
+
+				proba = numpy.exp(prob[:cardinality])
+				proba /= proba.sum()
+	#             print(cardinality-1)
+	#             print(choose_one(numpy.exp(prob),cardinality-1))
+				#all_states[step,i] = current_state[i] = modality_int[choose_one(proba,cardinality-1)]
+				all_states_view[step,i] = current_state[i] = numpy.where(random_state.multinomial(1, proba))[0][0]
+				#all_states[step,i] = current_state[i] = numpy.random.choice(modality,p=numpy.exp(prob))#modality[choose_one(numpy.exp(prob),cardinality-1)]
+
+
+		return all_states
+
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	@cython.nonecheck(False)
+	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[double, ndim=1,mode='c'] current_state, numpy.ndarray[double, ndim=1,mode='c'] prob, int cardinality):
+
+		cpd._log_probability(&current_state[0],&prob[0],cardinality)
+		pass
+
+
+
+
+#-----------------------------------------------------------------------------------------------
 
 
 
@@ -2213,3 +2382,12 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	free(counts)
 	free(marginal_counts)
 	return logp
+
+
+if __name__ == "__main__":
+	print("Hi, I'm embedded.")
+
+	with open('model_40k.json','r') as f :
+		m = BayesianNetwork.from_json(f.read())
+
+	print(m.sample(10))
