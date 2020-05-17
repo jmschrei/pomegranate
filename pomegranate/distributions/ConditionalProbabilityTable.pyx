@@ -212,9 +212,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 					break
 
 				idx += self.idxs[j] * <int> X[self.m-j]
-				#printf("idx = %d\n", idx)
 			else:
-				#printf("->%f\n", self.values[idx])
 				log_probability[i] = self.values[idx]
 
 	def joint(self, neighbor_values=None):
