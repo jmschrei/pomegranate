@@ -89,4 +89,4 @@ cdef class BernoulliDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return BernoulliDistribution(0)
+		return cls(0)

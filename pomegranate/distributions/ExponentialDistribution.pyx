@@ -91,4 +91,4 @@ cdef class ExponentialDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return ExponentialDistribution(1)
+		return cls(1)

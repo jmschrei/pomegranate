@@ -105,4 +105,4 @@ cdef class BetaDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return BetaDistribution(0, 0)
+		return cls(0, 0)

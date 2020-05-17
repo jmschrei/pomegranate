@@ -41,6 +41,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.name = "JointProbabilityTable"
 		self.frozen = False
+		self.cython = False
 		self.d = len(parents)
 		self.m = len(parents)
 		self.n = len(table)
@@ -331,6 +332,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		for key in it.product(*keys):
 			table.append(list(key) + [1./m,])
 
-		d = JointProbabilityTable(table, parents)
+		d = cls(table, parents)
 		d.fit(X, weights, pseudocount=pseudocount)
 		return d

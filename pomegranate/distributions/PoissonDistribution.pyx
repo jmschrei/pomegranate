@@ -104,4 +104,4 @@ cdef class PoissonDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return PoissonDistribution(0)
+		return cls(0)

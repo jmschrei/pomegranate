@@ -99,4 +99,4 @@ cdef class UniformDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return UniformDistribution(0, 0)
+		return cls(0, 0)

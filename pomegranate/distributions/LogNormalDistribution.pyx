@@ -109,5 +109,5 @@ cdef class LogNormalDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return LogNormalDistribution(0, 1)
+		return cls(0, 1)
 

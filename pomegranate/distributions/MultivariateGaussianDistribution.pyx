@@ -301,4 +301,4 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 	def blank(cls, d=2):
 		mu = numpy.zeros(d)
 		cov = numpy.eye(d)
-		return MultivariateGaussianDistribution(mu, cov)
+		return cls(mu, cov)

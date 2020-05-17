@@ -94,4 +94,4 @@ cdef class DirichletDistribution(MultivariateDistribution):
 
 	@classmethod
 	def blank(cls, d=2):
-		return DirichletDistribution(numpy.zeros(d))
+		return cls(numpy.zeros(d))

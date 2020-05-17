@@ -349,4 +349,4 @@ cdef class DiscreteDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return DiscreteDistribution({'None': 1.0})
+		return cls({'None': 1.0})

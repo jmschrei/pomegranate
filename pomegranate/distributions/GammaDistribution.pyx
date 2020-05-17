@@ -234,4 +234,4 @@ cdef class GammaDistribution(Distribution):
 
 	@classmethod
 	def blank(cls):
-		return GammaDistribution(0, 0)
+		return cls(0, 0)
