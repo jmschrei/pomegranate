@@ -33,7 +33,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 	by the marginals of each parent.
 	"""
 
-	def __cinit__(self, table, parents, frozen=False):
+	def __cinit__(self, table, parents=None, frozen=False):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -41,8 +41,8 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.name = "JointProbabilityTable"
 		self.frozen = False
-		self.d = len(parents)
-		self.m = len(parents)
+		self.d = len(parents) if parents is not None else len(table[0]) - 1
+		self.m = len(parents) if parents is not None else len(table[0]) - 1
 		self.n = len(table)
 		self.k = len(set(row[-2] for row in table))
 		self.idxs = <int*> malloc((self.m+1)*sizeof(int))
@@ -51,7 +51,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.count = 0
 
-		self.n_columns = len(parents)
+		self.n_columns = self.d
 
 		self.dtypes = []
 		for column in table[0]:
@@ -69,7 +69,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			self.values[i] = _log(row[-1])
 
 		self.keymap = OrderedDict(keys)
-		self.parents = list(parents)
+		self.parents = list(parents) if parents is not None else None
 		self.parameters = [[list(row) for row in table], self.parents, self.keymap]
 
 	def __dealloc__(self):
@@ -312,7 +312,8 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_samples(cls, X, parents=None, weights=None, pseudocount=0.0):
+	def from_samples(cls, X, parents=None, weights=None, pseudocount=0.0, 
+		keys=None):
 		"""Learn the table from data."""
 
 		X = numpy.array(X)
@@ -321,7 +322,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		if parents is None:
 			parents = list(range(X.shape[1]))
 
-		keys = [numpy.unique(X[:,i]).tolist() for i in range(d)]
+		keys = keys or [numpy.unique(X[:,i]).tolist() for i in range(d)]
 		m = numpy.prod([len(k) for k in keys])
 
 		table = []

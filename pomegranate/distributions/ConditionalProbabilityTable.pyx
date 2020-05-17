@@ -32,7 +32,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	encode for.
 	"""
 
-	def __init__(self, table, parents, frozen=False):
+	def __init__(self, table, parents=None, frozen=False):
 		"""
 		Take in the distribution represented as a list of lists, where each
 		inner list represents a row.
@@ -40,7 +40,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		self.name = "ConditionalProbabilityTable"
 		self.frozen = False
-		self.m = len(parents)
+		self.m = len(parents) if parents is not None else len(table[0])-2
 		self.n = len(table)
 		self.k = len(set(row[-2] for row in table))
 		self.idxs = <int*> malloc((self.m+1)*sizeof(int))
@@ -50,9 +50,9 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.counts = <double*> calloc(self.n, sizeof(double))
 		self.marginal_counts = <double*> calloc(self.n / self.k, sizeof(double))
 
-		self.column_idxs = numpy.arange(len(parents)+1, dtype='int32')
+		self.column_idxs = numpy.arange(self.m+1, dtype='int32')
 		self.column_idxs_ptr = <int*> self.column_idxs.data
-		self.n_columns = len(parents) + 1
+		self.n_columns = self.m + 1
 
 		self.dtypes = []
 		for column in table[0]:
@@ -62,11 +62,13 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		self.idxs[0] = 1
 		self.idxs[1] = self.k
 		for i in range(self.m-1):
-			self.idxs[i+2] = self.idxs[i+1] * len(parents[self.m-i-1])
+			k = len(numpy.unique([row[self.m-i-1] for row in table]))
+			self.idxs[i+2] = self.idxs[i+1] * k
 
 		self.marginal_idxs[0] = 1
 		for i in range(self.m-1):
-			self.marginal_idxs[i+1] = self.marginal_idxs[i] * len(parents[self.m-i-1])
+			k = len(numpy.unique([row[self.m-i-1] for row in table]))
+			self.marginal_idxs[i+1] = self.marginal_idxs[i] * k
 
 		keys = []
 		for i, row in enumerate(table):
@@ -382,13 +384,13 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_samples(cls, X, parents, weights=None, pseudocount=0.0):
+	def from_samples(cls, X, parents=None, weights=None, pseudocount=0.0, keys=None):
 		"""Learn the table from data."""
 
 		X = numpy.array(X)
 		n, d = X.shape
 
-		keys = [numpy.unique(X[:,i]) for i in range(d)]
+		keys = keys or [numpy.unique(X[:,i]) for i in range(d)]
 
 		for i in range(d):
 			keys_ = []

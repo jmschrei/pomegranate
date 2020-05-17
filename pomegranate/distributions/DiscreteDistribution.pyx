@@ -352,13 +352,14 @@ cdef class DiscreteDistribution(Distribution):
 						   }, separators=separators, indent=indent)
 
 	@classmethod
-	def from_samples(cls, items, weights=None, pseudocount=0):
+	def from_samples(cls, items, weights=None, pseudocount=0, keys=None):
 		"""Fit a distribution to some data without pre-specifying it."""
 
 		if weights is None:
 			weights = numpy.ones(len(items))
 
-		Xs = {}
+		keys = keys or numpy.unique(items)
+		counts = {key: 0 for key in keys if not _check_nan(key)}
 		total = 0
 
 		for X, weight in zip(items, weights):
@@ -366,18 +367,13 @@ cdef class DiscreteDistribution(Distribution):
 				continue
 
 			total += weight
-			if X in Xs:
-				Xs[X] += weight
-			else:
-				Xs[X] = weight
+			counts[X] += weight
 
-		n = len(Xs)
+		n = len(counts)
+		for X, weight in counts.items():
+			counts[X] = (weight + pseudocount) / (total + pseudocount * n)
 
-		for X, weight in Xs.items():
-			Xs[X] = (weight + pseudocount) / (total + pseudocount * n)
-
-		d = DiscreteDistribution(Xs)
-		return d
+		return cls(counts)
 
 	@classmethod
 	def blank(cls):

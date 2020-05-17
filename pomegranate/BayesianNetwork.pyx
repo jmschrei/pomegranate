@@ -858,7 +858,7 @@ cdef class BayesianNetwork(GraphModel):
 
 	@classmethod
 	def from_structure(cls, X, structure, weights=None, pseudocount=0.0,
-		name=None, state_names=None):
+		name=None, state_names=None, keys=None):
 		"""Return a Bayesian network from a predefined structure.
 
 		Pass in the structure of the network as a tuple of tuples and get a fit
@@ -891,6 +891,11 @@ cdef class BayesianNetwork(GraphModel):
 		state_names : array-like, shape (n_nodes), optional
 			A list of meaningful names to be applied to nodes
 
+		keys : list
+			A list of sets where each set is the keys present in that column.
+			If there are d columns in the data set then this list should have
+			d sets and each set should have at least two keys in it.
+
 		Returns
 		-------
 		model : BayesianNetwork
@@ -913,8 +918,9 @@ cdef class BayesianNetwork(GraphModel):
 
 		for i, parents in enumerate(structure):
 			if len(parents) == 0:
+				keys_ = None if keys is None else keys[i]
 				nodes[i] = DiscreteDistribution.from_samples(X[:,i], weights=weights,
-					pseudocount=pseudocount)
+					pseudocount=pseudocount, keys=keys_)
 
 		while True:
 			for i, parents in enumerate(structure):
@@ -923,9 +929,10 @@ cdef class BayesianNetwork(GraphModel):
 						if nodes[parent] is None:
 							break
 					else:
+						keys_ = None if keys is None else [keys[j] for j in parents] + [keys[i]]
 						nodes[i] = ConditionalProbabilityTable.from_samples(X[:,parents+(i,)],
 							parents=[nodes[parent] for parent in parents],
-							weights=weights, pseudocount=pseudocount)
+							weights=weights, pseudocount=pseudocount, keys=keys_)
 						break
 			else:
 				break
@@ -948,7 +955,7 @@ cdef class BayesianNetwork(GraphModel):
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
 		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None, name=None,
-		 reduce_dataset=True, n_jobs=1):
+		 reduce_dataset=True, keys=None, n_jobs=1):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -1022,6 +1029,11 @@ cdef class BayesianNetwork(GraphModel):
 			algorithms, including when using a constraint graph. Default is
 			True.
 
+		keys : list
+			A list of sets where each set is the keys present in that column.
+			If there are d columns in the data set then this list should have
+			d sets and each set should have at least two keys in it.
+
 		n_jobs : int, optional
 			The number of threads to use when learning the structure of the
 			network. If a constraint graph is provided, this will parallelize
@@ -1048,7 +1060,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		n, d = X.shape
 
-		keys = [set([x for x in X[:,i] if not _check_nan(x)]) for i in range(d)]
+		keys = keys or [set([x for x in X[:,i] if not _check_nan(x)]) for i in range(d)]
 		keymap = numpy.array([{key: i for i, key in enumerate(keys[j])} for j in range(d)])
 		key_count = numpy.array([len(keymap[i]) for i in range(d)], dtype='int32')
 
@@ -1104,8 +1116,9 @@ cdef class BayesianNetwork(GraphModel):
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		return cls.from_structure(X, structure, weights, pseudocount, name,
-			state_names)
+		return cls.from_structure(X, structure=structure, weights=weights, 
+			pseudocount=pseudocount, name=name, state_names=state_names, 
+			keys=keys)
 
 
 cdef class ParentGraph(object):
