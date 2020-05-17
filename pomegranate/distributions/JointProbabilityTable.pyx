@@ -41,7 +41,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.name = "JointProbabilityTable"
 		self.frozen = False
-		self.cython = False
 		self.d = len(parents)
 		self.m = len(parents)
 		self.n = len(table)

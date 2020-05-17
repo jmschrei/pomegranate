@@ -268,7 +268,7 @@ cdef class MarkovChain(object):
 		d = json.loads(s)
 		distributions = [ Distribution.from_json( json.dumps(j) )
 		                  for j in d['distributions'] ]
-		model = MarkovChain(distributions)
+		model = cls(distributions)
 		return model
 
 	@classmethod
@@ -317,6 +317,6 @@ cdef class MarkovChain(object):
 			d = ConditionalProbabilityTable(table, distributions[:])
 			distributions.append(d)
 
-		model = MarkovChain(distributions)
+		model = cls(distributions)
 		model.fit(X)
 		return model

@@ -425,8 +425,8 @@ cdef class BayesianNetwork(GraphModel):
 
 			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], BayesianNetwork, 'log_probability', 
-					fn) for batch in data_generator.batches())
+				logp_array = parallel(f(batch[0], self.__class__, 
+					'log_probability', fn) for batch in data_generator.batches())
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
@@ -592,8 +592,8 @@ cdef class BayesianNetwork(GraphModel):
 
 			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], BayesianNetwork, 'predict_proba', 
-					fn) for batch in data_generator.batches())
+				logp_array = parallel(f(batch[0], self.__class__, 
+					'predict_proba', fn) for batch in data_generator.batches())
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
@@ -837,7 +837,7 @@ cdef class BayesianNetwork(GraphModel):
 				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
 		# Make a new generic Bayesian Network
-		model = BayesianNetwork(str(d['name']))
+		model = cls(str(d['name']))
 
 		# Load all the states from JSON formatted strings
 		states = [State.from_json(json.dumps(j)) for j in d['states']]
@@ -935,7 +935,7 @@ cdef class BayesianNetwork(GraphModel):
 		else:
 			states = [State(node, name=str(i)) for i, node in enumerate(nodes)]
 
-		model = BayesianNetwork(name=name)
+		model = cls(name=name)
 		model.add_nodes(*states)
 
 		for i, parents in enumerate(structure):
@@ -1104,7 +1104,7 @@ cdef class BayesianNetwork(GraphModel):
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		return BayesianNetwork.from_structure(X, structure, weights, pseudocount, name,
+		return cls.from_structure(X, structure, weights, pseudocount, name,
 			state_names)
 
 

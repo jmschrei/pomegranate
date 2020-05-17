@@ -68,7 +68,7 @@ cdef class BayesClassifier(BayesModel):
 	"""
 
 	def __init__(self, distributions, weights=None):
-		super(BayesClassifier, self).__init__(distributions, weights)
+		super(self.__class__, self).__init__(distributions, weights)
 
 	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
@@ -86,32 +86,32 @@ cdef class BayesClassifier(BayesModel):
 		return json.dumps(model, separators=separators, indent=indent)
 
 	@classmethod
-	def from_json( cls, s ):
+	def from_json(cls, s):
 		try:
-			d = json.loads( s )
+			d = json.loads(s)
 		except:
 			try:
-				with open( s, 'r' ) as f:
-					d = json.load( f )
+				with open(s, 'r') as f:
+					d = json.load(f)
 			except:
 				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
 		models = list()
 		for j in d['models']:
 			if j['class'] == 'Distribution':
-				models.append( Distribution.from_json( json.dumps(j) ) )
+				models.append(Distribution.from_json(json.dumps(j)))
 			elif j['class'] == 'GeneralMixtureModel':
-				models.append( GeneralMixtureModel.from_json( json.dumps(j) ) )
+				models.append(GeneralMixtureModel.from_json(json.dumps(j)))
 			elif j['class'] == 'HiddenMarkovModel':
-				models.append( HiddenMarkovModel.from_json( json.dumps(j) ) )
+				models.append(HiddenMarkovModel.from_json(json.dumps(j)))
 			elif j['class'] == 'BayesianNetwork':
-				models.append( BayesianNetwork.from_json( json.dumps(j) ) )
+				models.append(BayesianNetwork.from_json(json.dumps(j)))
 
-		nb = BayesClassifier( models, numpy.array( d['weights'] ) )
+		nb = cls( models, numpy.array(d['weights']))
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y=None, weights=None,
+	def from_samples(cls, distributions, X, y=None, weights=None,
 		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
 		callbacks=[], return_history=False, verbose=False, n_jobs=1, **kwargs):
 		"""Create a Bayes classifier directly from the given dataset.
@@ -228,7 +228,7 @@ cdef class BayesClassifier(BayesModel):
 				distributions = [distributions.from_samples(X[y == label], 
 					weights=weights, pseudocount=pseudocount) for label in labels]
 
-				return BayesClassifier(distributions)
+				return cls(distributions)
 
 			elif d > 1:
 				distributions = [distributions.blank(d) for i in range(n_components)]
@@ -237,7 +237,7 @@ cdef class BayesClassifier(BayesModel):
 		else:
 			distributions = [distribution.blank() for distribution in distributions]
 
-		model = BayesClassifier(distributions)
+		model = cls(distributions)
 		_, history = model.fit(X=data_generator, weights=weights, inertia=inertia, 
 			pseudocount=pseudocount, stop_threshold=stop_threshold, 
 			max_iterations=max_iterations, callbacks=callbacks, 

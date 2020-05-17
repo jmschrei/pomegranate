@@ -247,7 +247,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 						   }, separators=separators, indent=indent)
 
 	@classmethod
-	def from_samples(self, X, weights=None, distribution_weights=None,
+	def from_samples(cls, X, weights=None, distribution_weights=None,
 		pseudocount=0.0, distributions=None):
 		"""Create a new independent components distribution from data."""
 

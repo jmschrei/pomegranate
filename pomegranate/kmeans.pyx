@@ -681,7 +681,7 @@ cdef class Kmeans(Model):
 	@classmethod
 	def from_json(cls, s):
 		d = json.loads(s)
-		model = Kmeans(d['k'], d['centroids'])
+		model = cls(d['k'], d['centroids'])
 		return model
 
 	@classmethod
@@ -767,7 +767,7 @@ cdef class Kmeans(Model):
 
 		n, d = X.shape
 
-		model = Kmeans(k=k, init=init, n_init=n_init)
+		model = cls(k=k, init=init, n_init=n_init)
 		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
 			max_iterations=max_iterations, batch_size=batch_size,
 			batches_per_epoch=batches_per_epoch, clear_summaries=clear_summaries,

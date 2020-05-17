@@ -65,7 +65,7 @@ cdef class NaiveBayes(BayesModel):
 	"""
 
 	def __init__(self, distributions, weights=None):
-		super(NaiveBayes, self).__init__(distributions, weights)
+		super(self.__class__, self).__init__(distributions, weights)
 
 	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
@@ -100,11 +100,11 @@ cdef class NaiveBayes(BayesModel):
 			elif j['class'] == 'GeneralMixtureModel':
 				models.append(GeneralMixtureModel.from_json(json.dumps(j)))
 
-		nb = NaiveBayes(models, numpy.array(d['weights']))
+		nb = cls(models, numpy.array(d['weights']))
 		return nb
 
 	@classmethod
-	def from_samples(self, distributions, X, y=None, weights=None,
+	def from_samples(cls, distributions, X, y=None, weights=None,
 		pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
 		callbacks=[], return_history=False, verbose=False, n_jobs=1):
 		"""Create a naive Bayes classifier directly from the given dataset.
@@ -220,7 +220,7 @@ cdef class NaiveBayes(BayesModel):
 			else:
 				distributions = [distribution.blank() for distribution in distributions]
 
-		model = NaiveBayes(distributions)
+		model = cls(distributions)
 		_, history = model.fit(data_generator, pseudocount=pseudocount,
 			stop_threshold=stop_threshold, max_iterations=max_iterations,
 			verbose=verbose, callbacks=callbacks, return_history=True, n_jobs=n_jobs)

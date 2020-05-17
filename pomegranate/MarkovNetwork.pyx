@@ -589,14 +589,12 @@ cdef class MarkovNetwork(Model):
 			except:
 				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
 
-		model = MarkovNetwork(str(d['name']))
-
 		distributions = []
 		for j in d['distributions']:
 			distribution = JointProbabilityTable.from_json(json.dumps(j))
 			distributions.append(distribution)
 
-		model = MarkovNetwork(distributions, str(d['name']))
+		model = cls(distributions, str(d['name']))
 		model.bake()
 		return model
 
@@ -649,7 +647,7 @@ cdef class MarkovNetwork(Model):
 				parents=parents, weights=weights, pseudocount=pseudocount)
 			distributions.append(distribution)
 
-		model = MarkovNetwork(distributions)
+		model = cls(distributions)
 		model.bake(calculate_partition=calculate_partition)
 		return model
 
@@ -792,7 +790,7 @@ cdef class MarkovNetwork(Model):
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		return MarkovNetwork.from_structure(X, structure=structure, 
+		return cls.from_structure(X, structure=structure, 
 			weights=weights, pseudocount=pseudocount, name=name,
 			calculate_partition=calculate_partition)
 

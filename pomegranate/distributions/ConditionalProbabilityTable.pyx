@@ -40,7 +40,6 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		self.name = "ConditionalProbabilityTable"
 		self.frozen = False
-		self.cython = False
 		self.m = len(parents)
 		self.n = len(table)
 		self.k = len(set(row[-2] for row in table))

@@ -540,7 +540,7 @@ cdef class HiddenMarkovModel(GraphModel):
             A deep copy of the model with entirely new objects.
         """
 
-        return HiddenMarkovModel.from_json(self.to_json())
+        return self.__class__.from_json(self.to_json())
 
     def freeze_distributions(self):
         """Freeze all the distributions in model.

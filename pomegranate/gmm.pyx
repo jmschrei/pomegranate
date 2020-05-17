@@ -104,7 +104,7 @@ cdef class GeneralMixtureModel(BayesModel):
     """
 
     def __init__(self, distributions, weights=None):
-        super(GeneralMixtureModel, self).__init__(distributions, weights)
+        super(self.__class__, self).__init__(distributions, weights)
 
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(), numpy.exp(self.weights))
@@ -415,11 +415,11 @@ cdef class GeneralMixtureModel(BayesModel):
         d = json.loads(s)
         distributions = [ Distribution.from_json(json.dumps(j))
                           for j in d['distributions'] ]
-        model = GeneralMixtureModel(distributions, numpy.array( d['weights'] ))
+        model = cls(distributions, numpy.array( d['weights'] ))
         return model
 
     @classmethod
-    def from_samples(self, distributions, n_components, X, weights=None,
+    def from_samples(cls, distributions, n_components, X, weights=None,
         n_init=1, init='kmeans++', max_kmeans_iterations=1, inertia=0.0,
         pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8, batch_size=None,
         batches_per_epoch=None, lr_decay=0.0, callbacks=[], return_history=False,
@@ -596,7 +596,7 @@ cdef class GeneralMixtureModel(BayesModel):
 
         class_weights = numpy.array([(weights_kmeans * (y == i)).mean() for i in range(n_components)])
 
-        model = GeneralMixtureModel(distributions, class_weights)
+        model = cls(distributions, class_weights)
         _, history = model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
             max_iterations=max_iterations, pseudocount=pseudocount,
             batch_size=batch_size, batches_per_epoch=batches_per_epoch,
