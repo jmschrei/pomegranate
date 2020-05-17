@@ -25,16 +25,7 @@ from .FactorGraph import FactorGraph
 from .utils cimport _log
 from .utils cimport isnan
 
-from .utils import plot_networkx
 from .utils import _check_nan
-
-try:
-	import tempfile
-	import pygraphviz
-	import matplotlib.pyplot as plt
-	import matplotlib.image
-except ImportError:
-	pygraphviz = None
 
 nan = numpy.nan
 
@@ -497,7 +488,7 @@ cdef class MarkovNetwork(Model):
 			raise ValueError("must bake model before summarizing data")
 
 		n, d = len(X), len(X[0])
-		X_int = numpy.zeros((n, d), dtype='float64')
+		X_int = numpy.empty((n, d), dtype='float64')
 
 		for i in range(n):
 			for j in range(d):

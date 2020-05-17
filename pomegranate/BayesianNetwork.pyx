@@ -7,7 +7,6 @@ import time
 import networkx as nx
 import numpy
 cimport numpy
-import sys
 import os
 
 from joblib import Parallel
@@ -26,14 +25,11 @@ from distributions import Distribution
 from distributions.distributions cimport MultivariateDistribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.ConditionalProbabilityTable cimport ConditionalProbabilityTable
-from distributions.JointProbabilityTable cimport JointProbabilityTable
 
 from .FactorGraph import FactorGraph
 from .utils cimport _log
-from .utils cimport lgamma
 from .utils cimport isnan
 from .utils import PriorityQueue
-from .utils import plot_networkx
 from .utils import parallelize_function
 from .utils import _check_nan
 
@@ -1767,7 +1763,7 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 		The parents for each variable in this SCC
 	"""
 
-	cdef tuple parents = task[0], children = task[1]
+	cdef tuple parents = task[1], children = task[2]
 	cdef tuple outside_parents = tuple(i for i in parents if i not in children)
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef list parent_graphs = [None for i in range(max(parents)+1)]
@@ -1782,15 +1778,17 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	order_graph = nx.DiGraph()
 	for i in range(d+1):
 		for subset in it.combinations(children, i):
-			order_graph.add_node(subset + outside_parents)
+			subset_and_outside = tuple(set(subset + outside_parents))
+			order_graph.add_node(subset_and_outside)
 
 			for variable in subset:
 				parent = tuple(v for v in subset if v != variable)
 				parent += outside_parents
+				parent = tuple(set(parent))
 
 				structure, weight = parent_graphs[variable][parent]
 				weight = -weight if weight < 0 else 0
-				order_graph.add_edge(parent, subset + outside_parents, weight=weight,
+				order_graph.add_edge(parent, subset_and_outside, weight=weight,
 					structure=structure)
 
 	path = nx.shortest_path(order_graph, source=outside_parents, target=parents,

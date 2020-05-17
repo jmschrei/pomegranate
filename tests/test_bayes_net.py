@@ -22,6 +22,8 @@ from nose.tools import assert_equal
 from nose.tools import assert_raises
 from nose.tools import assert_almost_equal
 
+from networkx import DiGraph
+
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 
@@ -521,8 +523,8 @@ def test_large_monty_network_log_probability():
             [True,  'C', 'B', 'A', 1, False]],
             dtype=object)
 
-    logp = [-3.863233, -8.581732, float("-inf"), float("-inf"), float("-inf"), 
-        float("-inf"), -5.013138, -6.279147, float("-inf"), float("-inf"), 
+    logp = [-3.863233, -8.581732, float("-inf"), float("-inf"), float("-inf"),
+        float("-inf"), -5.013138, -6.279147, float("-inf"), float("-inf"),
         float("-inf"), -4.150915]
     logp1 = model.log_probability(data)
 
@@ -553,8 +555,8 @@ def test_large_monty_network_log_probability_parallel():
             [True,  'C', 'C', 'C', 2, True],
             [True,  'C', 'B', 'A', 1, False]], dtype=object)
 
-    logp = [-3.863233, -8.581732, float("-inf"), float("-inf"), float("-inf"), 
-        float("-inf"), -5.013138, -6.279147, float("-inf"), float("-inf"), 
+    logp = [-3.863233, -8.581732, float("-inf"), float("-inf"), float("-inf"),
+        float("-inf"), -5.013138, -6.279147, float("-inf"), float("-inf"),
         float("-inf"), -4.150915]
 
     logp1 = model.log_probability(data, n_jobs=2)
@@ -968,6 +970,24 @@ def test_exact_structure_learning():
         assert_almost_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
+def test_exact_structure_learning_slap_constraints():
+    for ds in datasets:
+        dims = numpy.shape(ds)[1]
+        half = int(numpy.ceil(dims / 2))
+        # Node groups
+        g1 = tuple(range(0, half))
+        g2 = tuple(range(half, dims))
+        # Constraint graph:
+        cg = DiGraph()
+        cg.add_edge(g1, g2)
+        cg.add_edge(g2, g2)
+        # Learn constrained network
+        model = BayesianNetwork.from_samples(ds, algorithm='exact', constraint_graph=cg)
+        # Check structure constraints satisfied
+        s = model.structure
+        for node in g1:
+            assert_equal(0, len(s[node]))
+
 def test_from_structure():
     X = datasets[1]
     structure = ((1, 2), (4,), (), (), (3,))
@@ -979,6 +999,10 @@ def test_from_structure():
     model2 = BayesianNetwork.from_json(model.to_json())
     assert_equal(model2.structure, structure)
     assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
 
 def test_robust_from_structure():
     X = datasets[1]
@@ -992,25 +1016,33 @@ def test_robust_from_structure():
     assert_equal(model2.structure, structure)
     assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
 
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
+
 @with_setup(setup_random_mixed)
 def test_from_json():
     model2 = BayesianNetwork.from_json(model.to_json())
 
     logp1 = model.log_probability(X)
     logp2 = model2.log_probability(X)
-    logp = [-2.304186, -1.898721, -1.898721, -2.224144, -1.898721, -1.978764, 
-        -1.898721, -1.898721, -1.898721, -1.898721, -1.818679, -2.384229, 
-        -2.304186, -1.978764, -2.304186, -2.384229, -2.304186, -2.384229, 
-        -2.304186, -1.978764, -2.224144, -1.818679, -1.898721, -2.304186, 
-        -2.304186, -1.898721, -1.818679, -1.898721, -1.818679, -2.304186, 
-        -1.978764, -2.224144, -1.898721, -2.304186, -1.898721, -1.818679, 
-        -2.304186, -1.898721, -1.898721, -2.384229, -2.224144, -1.818679, 
-        -2.384229, -1.978764, -1.818679, -1.978764, -1.898721, -1.818679, 
+    logp = [-2.304186, -1.898721, -1.898721, -2.224144, -1.898721, -1.978764,
+        -1.898721, -1.898721, -1.898721, -1.898721, -1.818679, -2.384229,
+        -2.304186, -1.978764, -2.304186, -2.384229, -2.304186, -2.384229,
+        -2.304186, -1.978764, -2.224144, -1.818679, -1.898721, -2.304186,
+        -2.304186, -1.898721, -1.818679, -1.898721, -1.818679, -2.304186,
+        -1.978764, -2.224144, -1.898721, -2.304186, -1.898721, -1.818679,
+        -2.304186, -1.898721, -1.898721, -2.384229, -2.224144, -1.818679,
+        -2.384229, -1.978764, -1.818679, -1.978764, -1.898721, -1.818679,
         -2.224144, -1.898721]
-    
+
     assert_array_almost_equal(logp1, logp2)
     assert_array_almost_equal(logp1, logp)
     assert_array_almost_equal(logp2, logp)
+
+    model_dtype = type(list(model.states[0].distribution.parameters[0].keys())[0])
+    model2_dtype = type(list(model2.states[0].distribution.parameters[0].keys())[0])
+    assert_equal(model_dtype, model2_dtype)
 
 @with_setup(setup_random_mixed)
 def test_robust_from_json():
@@ -1018,19 +1050,55 @@ def test_robust_from_json():
 
     logp1 = model.log_probability(X)
     logp2 = model2.log_probability(X)
-    logp = [-2.304186, -1.898721, -1.898721, -2.224144, -1.898721, -1.978764, 
-        -1.898721, -1.898721, -1.898721, -1.898721, -1.818679, -2.384229, 
-        -2.304186, -1.978764, -2.304186, -2.384229, -2.304186, -2.384229, 
-        -2.304186, -1.978764, -2.224144, -1.818679, -1.898721, -2.304186, 
-        -2.304186, -1.898721, -1.818679, -1.898721, -1.818679, -2.304186, 
-        -1.978764, -2.224144, -1.898721, -2.304186, -1.898721, -1.818679, 
-        -2.304186, -1.898721, -1.898721, -2.384229, -2.224144, -1.818679, 
-        -2.384229, -1.978764, -1.818679, -1.978764, -1.898721, -1.818679, 
+    logp = [-2.304186, -1.898721, -1.898721, -2.224144, -1.898721, -1.978764,
+        -1.898721, -1.898721, -1.898721, -1.898721, -1.818679, -2.384229,
+        -2.304186, -1.978764, -2.304186, -2.384229, -2.304186, -2.384229,
+        -2.304186, -1.978764, -2.224144, -1.818679, -1.898721, -2.304186,
+        -2.304186, -1.898721, -1.818679, -1.898721, -1.818679, -2.304186,
+        -1.978764, -2.224144, -1.898721, -2.304186, -1.898721, -1.818679,
+        -2.304186, -1.898721, -1.898721, -2.384229, -2.224144, -1.818679,
+        -2.384229, -1.978764, -1.818679, -1.978764, -1.898721, -1.818679,
         -2.224144, -1.898721]
-    
+
     assert_array_almost_equal(logp1, logp2)
     assert_array_almost_equal(logp1, logp)
     assert_array_almost_equal(logp2, logp)
+
+    model_dtype = type(list(model.states[0].distribution.parameters[0].keys())[0])
+    model2_dtype = type(list(model2.states[0].distribution.parameters[0].keys())[0])
+    assert_equal(model_dtype, model2_dtype)
+
+def test_float64_from_json():
+    X = datasets[1].astype('float64')
+    structure = ((1, 2), (4,), (), (), (3,))
+    model = BayesianNetwork.from_structure(X, structure=structure)
+
+    assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model2 = BayesianNetwork.from_json(model.to_json())
+    assert_equal(model2.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
+
+def test_robust_float64_from_json():
+    X = datasets[1].astype('float64')
+    structure = ((1, 2), (4,), (), (), (3,))
+    model = BayesianNetwork.from_structure(X, structure=structure)
+
+    assert_equal(model.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model2 = from_json(model.to_json())
+    assert_equal(model2.structure, structure)
+    assert_almost_equal(model.log_probability(X).sum(), -344.38287, 4)
+
+    model_dtype = type(model.states[0].distribution.parameters[0][0][0])
+    model2_dtype = type(model2.states[0].distribution.parameters[0][0][0])
+    assert_equal(model_dtype, model2_dtype)
 
 def test_parallel_structure_learning():
     logps = -19.8282, -345.9527, -4847.59688, -604.0190

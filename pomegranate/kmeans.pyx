@@ -7,17 +7,13 @@ from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 from libc.string cimport memset
-from libc.string cimport memcpy
 from libc.math cimport log10 as clog10
-from libc.math cimport sqrt as csqrt
 
 from scipy.linalg.cython_blas cimport ddot
 
 from .base cimport Model
 
-from .utils cimport ndarray_wrap_cpointer
 from .utils cimport mdot
-from .utils cimport _is_gpu_enabled
 from .utils cimport isnan
 
 import time
@@ -236,7 +232,7 @@ cdef class Kmeans(Model):
 		self.centroid_norms = <double*> calloc(self.k, sizeof(double))
 
 		if isinstance(init, (list, numpy.ndarray)):
-			self.centroids = numpy.array(init, dtype='float64', ndmin=2)
+			self.centroids = numpy.array(init, dtype='float64', ndmin=2, order='C')
 			self.centroids_ptr = <double*> self.centroids.data
 			self.centroids_T = self.centroids.T.copy()
 			self.centroids_T_ptr = <double*> self.centroids_T.data
@@ -281,7 +277,7 @@ cdef class Kmeans(Model):
 
 				return numpy.concatenate(y_pred)
 
-		X = numpy.array(X, dtype='float64')
+		X = numpy.array(X, dtype='float64', order='C')
 		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 		cdef int n = len(X)
 
@@ -329,7 +325,7 @@ cdef class Kmeans(Model):
 		cdef double* X_ptr
 		cdef double* centroid
 
-		X = numpy.array(X, dtype='float64')
+		X = numpy.array(X, dtype='float64', order='C')
 		X_ptr = <double*> (<numpy.ndarray> X).data
 
 		dist = numpy.empty((X.shape[0], self.k))
@@ -408,8 +404,7 @@ cdef class Kmeans(Model):
 			This is the fit kmeans object.
 		"""
 
-		if not isinstance(X, numpy.ndarray):
-			X = numpy.array(X, dtype='float64')
+		X = numpy.array(X, dtype='float64', order='C')
 
 		n, d = X.shape
 
@@ -543,7 +538,7 @@ cdef class Kmeans(Model):
 			probabilities.
 		"""
 
-		cdef numpy.ndarray X_ndarray = numpy.array(X, dtype='float64')
+		cdef numpy.ndarray X_ndarray = numpy.array(X, dtype='float64', order='C')
 		cdef double* X_ptr = <double*> X_ndarray.data
 
 		cdef numpy.ndarray weights_ndarray
@@ -768,8 +763,7 @@ cdef class Kmeans(Model):
 			parallelism is used.
 		"""
 
-		if not isinstance(X, numpy.ndarray):
-			X = numpy.array(X, dtype='float64')
+		X = numpy.array(X, dtype='float64', order='C')
 
 		n, d = X.shape
 

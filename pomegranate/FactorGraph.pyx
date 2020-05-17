@@ -4,7 +4,6 @@
 cimport numpy
 import json
 import numpy
-import sys
 
 try:
 	import pygraphviz
@@ -15,7 +14,6 @@ except:
 	pygraphviz = None
 
 from .base cimport GraphModel
-from .base cimport Model
 from .base cimport State
 
 from distributions.distributions cimport Distribution
@@ -102,7 +100,7 @@ cdef class FactorGraph(GraphModel):
 		n, m = len(self.states), len(self.edges)
 
 		# Initialize the arrays
-		self.marginals = numpy.zeros(n)
+		self.marginals = numpy.empty(n, dtype=numpy.bool_)
 
 		# We need a good way to get transition probabilities by state index that
 		# isn't N^2 to build or store. So we will need a reverse of the above
@@ -120,10 +118,10 @@ cdef class FactorGraph(GraphModel):
 		# Go through each node and classify it as either a marginal node or a
 		# factor node.
 		for i, node in enumerate(self.states):
-			if not isinstance(node.distribution, MultivariateDistribution):
-				self.marginals[i] = 1
-			if node.name.endswith('-joint'):
-				self.marginals[i] = 0
+			self.marginals[i] = (
+				not isinstance(node.distribution, MultivariateDistribution) and
+				not node.name.endswith('-joint')
+			)
 
 		# Now we need to find a way of storing edges for a state in a manner
 		# that can be called in the cythonized methods below. This is basically
@@ -277,6 +275,7 @@ cdef class FactorGraph(GraphModel):
 		#   (2) send messages from the factors to the variables, containing
 		#   the factors belief about each marginal.
 		# This is the flooding message schedule for loopy belief propagation.
+		cdef bint done
 		iteration = 0
 		while iteration < max_iterations:
 			# UPDATE MESSAGES LEAVING THE MARGINAL NODES
@@ -347,7 +346,7 @@ cdef class FactorGraph(GraphModel):
 			# Calculate the current estimates on the marginals to compare to the
 			# last iteration, so that we can stop if we reach convergence.
 			done = 1
-			for i in range(len(self.states)):
+			for i in range(n):
 				if self.marginals[i] == 0:
 					continue
 
@@ -357,7 +356,7 @@ cdef class FactorGraph(GraphModel):
 				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					current_distributions[i] *= in_messages[k]
 
-				if not current_distributions[i].equals(prior_distributions[i]):
+				if done and not current_distributions[i].equals(prior_distributions[i]):
 					done = 0
 
 			# If we have converged, then we're done!

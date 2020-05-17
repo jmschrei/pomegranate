@@ -5,10 +5,7 @@
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
-from libc.string cimport memset
-from libc.math cimport exp as cexp
 
-import json
 import time
 
 import numpy

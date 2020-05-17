@@ -2,7 +2,6 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 from libc.math cimport log as clog
-from libc.math cimport sqrt as csqrt
 from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
@@ -13,7 +12,7 @@ cimport numpy
 import numpy
 import numbers
 
-import heapq, itertools
+import heapq
 
 try:
 	import tempfile
@@ -406,13 +405,14 @@ def _check_input(X, keymap=None):
 	cdef numpy.ndarray X_ndarray
 
 	try:
-		X_ndarray = numpy.array(X, dtype='float64', ndmin=2)
+		X_ndarray = numpy.array(X, dtype='float64', ndmin=2, order='C')
 	except:
 		if not isinstance(X, (numpy.ndarray, list, tuple)):
-			X_ndarray = numpy.array(keymap[0][X], dtype='float64', ndmin=2)
+			X_ndarray = numpy.array(keymap[0][X], dtype='float64',
+			                        ndmin=2, order='C')
 		else:
 			X = numpy.array(X)
-			X_ndarray = numpy.empty(X.shape, dtype='float64')
+			X_ndarray = numpy.empty(X.shape, dtype='float64', order='C')
 
 			if X.ndim == 1:
 				for i in range(X.shape[0]):

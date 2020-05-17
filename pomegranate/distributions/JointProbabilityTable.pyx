@@ -53,11 +53,10 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.count = 0
 
 		self.n_columns = len(parents)
-		self.column_idxs = numpy.arange(len(parents)+1, dtype='int32')
 
 		self.dtypes = []
 		for column in table[0]:
-			dtype = type(column).__name__
+			dtype = str(type(column)).split()[-1].strip('>').strip("'")
 			self.dtypes.append(dtype)
 
 		self.idxs[0] = 1
@@ -70,7 +69,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			keys.append((tuple(row[:-1]), i))
 			self.values[i] = _log(row[-1])
 
-		self.column_keys = [numpy.unique([row[i] for row in table]) for i in range(self.m)]
 		self.keymap = OrderedDict(keys)
 		self.parents = list(parents)
 		self.parameters = [[list(row) for row in table], self.parents, self.keymap]
@@ -175,7 +173,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			wrt = neighbor_values.index(None)
 
 		# Determine the keys for the respective parent distribution
-		#d = {k: 0 for k in self.column_keys[wrt]} #self.parents[wrt].keys()}
 		d = {k: 0 for k in self.parents[wrt].keys()}
 		total = 0.0
 
