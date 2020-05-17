@@ -4,14 +4,13 @@
 # ConditionalProbabilityTable.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+from libc.stdio cimport printf
+
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 from libc.string cimport memset
 from libc.math cimport exp as cexp
-
-from libc.stdint cimport uintptr_t
-
 from ..utils cimport _log
 from ..utils cimport isnan
 #from ..utils cimport  choose_one
@@ -206,13 +205,16 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 		for i in range(n):
 			idx = 0
+
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
 					log_probability[i] = 0.
 					break
 
 				idx += self.idxs[j] * <int> X[self.m-j]
+				#printf("idx = %d\n", idx)
 			else:
+				#printf("->%f\n", self.values[idx])
 				log_probability[i] = self.values[idx]
 
 	def joint(self, neighbor_values=None):

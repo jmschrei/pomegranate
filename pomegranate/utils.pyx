@@ -9,7 +9,6 @@ from libc.stdlib cimport rand, RAND_MAX
 
 from scipy.linalg.cython_blas cimport dgemm
 
-import cython
 
 cimport numpy
 import numpy
@@ -485,21 +484,21 @@ def check_random_state(seed):
 					 ' instance' % seed)
 
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.nonecheck(False)
+#@cython.boundscheck(False)
+#@cython.wraparound(False)
+#@cython.nonecheck(False)
+#@cython.cdivision(True)
 cdef choose_one(double [:] weights, int length):
 
-	cdef Py_ssize_t idx, i
+	cdef int  i
 	cdef double cs
 	cdef double random
 
-	random = rand()/RAND_MAX
+	random = rand()*1./(RAND_MAX)
 
 	cs = 0.0
 	i = 0
 	while cs < random and i < length:
-		#print(cs)
 		cs += weights[i]
 		i += 1
 	return i

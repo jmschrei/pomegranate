@@ -32,8 +32,8 @@ from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import parallelize_function
 from .utils import _check_nan
-#from .utils cimport  choose_one
-from .utils import  choose_one
+from .utils cimport  choose_one
+#from .utils import  choose_one
 from .utils import check_random_state
 
 
@@ -811,9 +811,9 @@ cdef class BayesianNetwork(GraphModel):
 		n_step = burnin+size
 		n_state = len(self.states)
 
-		cdef numpy.ndarray[double, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float)
-		cdef numpy.ndarray[double, ndim=2,mode='c'] all_states = numpy.empty([n_step,n_state],dtype=numpy.float)
-		cdef numpy.ndarray[double,ndim=1,mode='c'] prob, prob_tmp, state_subset
+		cdef numpy.ndarray[numpy.double_t, ndim=1] current_state = numpy.empty([n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t, ndim=2] all_states = numpy.empty([n_step,n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t,ndim=1] prob, prob_tmp, state_subset, proba
 
 		cdef double [:] current_state_view = current_state
 		cdef double [:,:] all_states_view = all_states
@@ -836,7 +836,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		for i,state in enumerate(self.states):
 			modalities.append(graph_dict[col_dict[i]].distribution.keys())
-			key_dict = {mod:k for k,mod in enumerate(modalities[-1])}
+			key_dict = {mod: <double> k for k,mod in enumerate(modalities[-1])}
 
 			modalities_int.append([key_dict[l] for l in graph_dict[col_dict[i]].distribution.keys()])
 			modalities_dict.append(key_dict)
@@ -863,7 +863,7 @@ cdef class BayesianNetwork(GraphModel):
 		state_subset = numpy.zeros(n_state)
 
 		cdef double [:] prob_view = prob
-		cdef double [:] prob_tmp_view = prob_tmp
+		#cdef double [:] prob_tmp_view = prob_tmp
 		cdef double [:] state_subset_view = state_subset
 
 		cpds_  = [cpds[state.name] for state in self.states ]
@@ -878,7 +878,7 @@ cdef class BayesianNetwork(GraphModel):
 				all_states[0,i] = current_state[i] = modalities_dict[i][val]
 			pass
 
-		print("current_state",current_state)
+		#print("current_state",current_state)
 
 		for step in range(n_step-1):
 			for i,state in enumerate(self.states):
@@ -896,36 +896,33 @@ cdef class BayesianNetwork(GraphModel):
 
 					for col_n,idx in enumerate(cpd.column_idxs):
 						state_subset_view[col_n] = current_state_view[idx]
+					#state_subset_view[node_pos] = numpy.nan
 
-					state_subset_view[node_pos] = numpy.nan
-					print("state_subset",state_subset[:col_n+1])
+					#print("state_subset",state_subset[:col_n+1])
 
 					#state_subset = [current_state[idx] for idx in cpd.column_idxs]
 					#state_subset[node_pos] = numpy.nan
 					#state_subset =
 
-					self.cpd_prod(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality)
+					self.cpd_prod(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality,node_pos)
+
+
 					#self.cpd_prod(cpd, current_state, prob,prob_tmp,cardinality)
 					#print('last_prob_tmp',prob_tmp)
 
-				print('log_prob',prob)
 
-				proba = prob[:cardinality]
-				proba = numpy.exp(proba-proba.max())
-				proba /= proba.sum()
+				#proba = numpy.array(prob,dtype=numpy.double)
+				#proba = numpy.exp(proba[:cardinality]-proba[:cardinality].max())
+				#proba /= proba[:cardinality].sum()
 
-
-				prob_tmp_view[:cardinality] = proba
-				print('prob',prob_tmp,'cardinality',cardinality)
-				print(choose_one(prob_tmp_view,cardinality))
-				all_states_view[step+1,i] = current_state_view[i] = choose_one(prob_tmp_view[:cardinality],cardinality)
-
-				#prob_tmp[:cardinality] = prob[:cardinality]
+				prob[:] = numpy.exp(prob[:])
+				prob[:]  = prob[:]/prob[:cardinality].sum()
 				#prob_tmp[:cardinality] = numpy.exp(prob_tmp[:cardinality]-prob_tmp[:cardinality].max())
-				#prob_tmp[:cardinality] /= prob_tmp[:cardinality].sum()
-				#print('prob',prob_tmp[:cardinality])
-                #
-				#all_states_view[step+1,i] = current_state_view[i] = choose_one(prob_tmp_view[:cardinality],cardinality)
+				#prob_tmp[:cardinality] = prob_tmp[:cardinality]/prob_tmp[:cardinality].sum()
+				#print('prob',prob,'cardinality',cardinality)
+				#print(choose_one(prob_tmp_view,cardinality))
+
+				all_states_view[step+1,i] = current_state_view[i] = <double> choose_one(prob_view[:cardinality],cardinality)
 				prob_view[:] = 0.
 
 
@@ -936,18 +933,19 @@ cdef class BayesianNetwork(GraphModel):
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	@cython.nonecheck(False)
-	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[double, ndim=1,mode='c'] state_subset, numpy.ndarray[double, ndim=1,mode='c'] prob, numpy.ndarray[double, ndim=1,mode='c'] prob_tmp, int cardinality):
-	#cdef void cpd_prod(self,ConditionalProbabilityTable cpd, double [:] state_subset_view, numpy.ndarray[double, ndim=1,mode='c'] prob, numpy.ndarray[double, ndim=1,mode='c'] prob_tmp, int cardinality):
+	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[numpy.double_t, ndim=1,mode="c"] state_subset, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob_tmp, int cardinality,int node_pos):
 		cdef int j
 
-		cpd._log_probability(&state_subset[0],&prob_tmp[0],cardinality)
 		for j in range(cardinality):
+			state_subset[node_pos] = j
+			cpd._log_probability(&state_subset[0],&prob_tmp[0],1)
+			#print('prob_tmp',prob_tmp)
 
-			if prob_tmp[j] != -numpy.inf:
-				prob[j] += prob_tmp[j]
+			if prob_tmp[j] >-40:
+				prob[j] += prob_tmp[0]
 			else :
 				# default probability of unobserved event
-				prob[j] += -20
+				prob[j] += -20.
 
 
 
