@@ -113,7 +113,7 @@ cdef class BayesClassifier(BayesModel):
 	@classmethod
 	def from_samples(cls, distributions, X, y=None, weights=None,
 		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
-		callbacks=[], return_history=False, verbose=False, n_jobs=1, **kwargs):
+		callbacks=[], return_history=False, keys=None, verbose=False, n_jobs=1, **kwargs):
 		"""Create a Bayes classifier directly from the given dataset.
 
 		This will initialize the distributions using maximum likelihood estimates
@@ -180,6 +180,11 @@ cdef class BayesClassifier(BayesModel):
         return_history : bool, optional
             Whether to return the history during training as well as the model.
 
+        keys : list
+            A list of sets where each set is the keys present in that column.
+            If there are d columns in the data set then this list should have
+            d sets and each set should have at least two keys in it.
+
 		verbose : bool, optional
 			Whether or not to print out improvement information over
 			iterations. Only required if doing semisupervised learning.
@@ -226,7 +231,7 @@ cdef class BayesClassifier(BayesModel):
 				labels = numpy.unique(y)
 
 				distributions = [distributions.from_samples(X[y == label], 
-					weights=weights, pseudocount=pseudocount) for label in labels]
+					weights=weights, keys=keys, pseudocount=pseudocount) for label in labels]
 
 				return cls(distributions)
 

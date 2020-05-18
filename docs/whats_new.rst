@@ -5,6 +5,33 @@
 Release History
 ===============
 
+Version 0.13.0
+==============
+
+Highlights
+----------
+
+	- A variety of minor bug fixes and speed improvements
+	- You can now pass in key sets to each model to define distributions over, even if that symbol doesn't occur in the training set
+	- The returns from `from_sample` uses class distributions instead of predefined ones, allowing for inheritence of distributions
+	- Checks added to ensure that input arrays are C ordered instead of transposed
+
+Distributions
+-------------
+
+	- JSON dtypes are checked to be numpy types instead of assumed to be
+	- __eq__ and __mul__ sped up for DiscreteDistributions
+
+
+BayesianNetwork
+---------------
+	- Fixed bug with constraint graphs when a node has both self loop and parent constraints
+
+MarkovChains
+------------
+
+	- Fixed an issue with sampling length.
+
 Version 0.12.1
 ==============
 
