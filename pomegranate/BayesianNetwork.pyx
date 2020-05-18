@@ -1385,7 +1385,7 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 
 		if len(component) == 1:
 			children = component[0]
-			parents = parent_sets[children]
+			parents = tuple(sorted(parent_sets[children]))
 
 			if children == parents:
 				tasks.append((0, parents, children))
@@ -1791,13 +1791,13 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	order_graph = nx.DiGraph()
 	for i in range(d+1):
 		for subset in it.combinations(children, i):
-			subset_and_outside = tuple(set(subset + outside_parents))
+			subset_and_outside = tuple(sorted(tuple(set(subset + outside_parents))))
 			order_graph.add_node(subset_and_outside)
 
 			for variable in subset:
 				parent = tuple(v for v in subset if v != variable)
 				parent += outside_parents
-				parent = tuple(set(parent))
+				parent = tuple(sorted(tuple(set(parent))))
 
 				structure, weight = parent_graphs[variable][parent]
 				weight = -weight if weight < 0 else 0
