@@ -71,7 +71,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.13.0',
+    version='0.13.1rc',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=[
