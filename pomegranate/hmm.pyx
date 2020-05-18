@@ -23,6 +23,7 @@ from distributions.distributions cimport Distribution
 from distributions.DiscreteDistribution cimport DiscreteDistribution
 from distributions.IndependentComponentsDistribution cimport IndependentComponentsDistribution
 from distributions.NeuralNetworkWrapper import NeuralNetworkWrapper
+
 from .kmeans import Kmeans
 
 from .callbacks import History
@@ -3402,7 +3403,7 @@ cdef class HiddenMarkovModel(GraphModel):
         use_pseudocount=False, stop_threshold=1e-9, min_iterations=0,
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1,
         initialization_batch_size=None, batches_per_epoch=None, lr_decay=0.0, 
-        end_state=False, state_names=None, name=None, random_state=None, 
+        end_state=False, state_names=None, name=None, keys=None, random_state=None, 
         callbacks=[], return_history=False, verbose=False, n_jobs=1):
         """Learn the transitions and emissions of a model directly from data.
 
@@ -3549,6 +3550,11 @@ cdef class HiddenMarkovModel(GraphModel):
         name : str, optional
             The name of the model. Default is None
 
+        keys : list
+            A list of sets where each set is the keys present in that column.
+            If there are d columns in the data set then this list should have
+            d sets and each set should have at least two keys in it.
+
         random_state : int, numpy.random.RandomState, or None
             The random state used for generating samples. If set to none, a
             random seed will be used. If set to either an integer or a
@@ -3626,15 +3632,25 @@ cdef class HiddenMarkovModel(GraphModel):
 
         elif distribution is DiscreteDistribution:
             X_concat = numpy.concatenate(X_)
-            keymap = numpy.unique(X_concat)
+
+            if keys is None:
+                if X_concat.ndim == 1:
+                    keys = numpy.unique(X_concat)
+                else:
+                    keys = [numpy.unique(X_concat[:,i] for i in range(X_concat.shape[1]))]
 
             distributions = []
             for i in range(n_components):
-                emissions = random_state.uniform(0, 1, len(keymap))
-                emissions /= emissions.sum()
+                weights = random_state.uniform(0, 1, size=len(X_concat))
+                weights /= weights.sum()
 
-                distribution = DiscreteDistribution({key: value for key, value in zip(keymap, emissions)})
-                distributions.append(distribution)
+                if X_concat.ndim == 1:
+                    distribution = DiscreteDistribution({key: weight for key, weight in zip(keys, weights)})
+                else:
+                    distribution = IndependentComponentsDistribution.from_samples(X_concat, 
+                         distributions=DiscreteDistribution)
+
+                distributions.append(distribution)           
 
         elif isinstance(distribution, list) and isinstance(distribution[0], NeuralNetworkWrapper):
             distributions = distribution
@@ -3688,6 +3704,7 @@ cdef class HiddenMarkovModel(GraphModel):
             distribution_inertia=distribution_inertia,
             batches_per_epoch=batches_per_epoch, lr_decay=lr_decay,
             callbacks=callbacks, return_history=True, n_jobs=n_jobs)
+
 
         if return_history:
             return model, history

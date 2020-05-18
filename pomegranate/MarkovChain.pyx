@@ -110,15 +110,18 @@ cdef class MarkovChain(object):
 		length = max(length, 1)
 
 		sequence = [ self.distributions[0].sample() ]
-		if length > self.k:
-			for j, distribution in enumerate(self.distributions[1:]):
-				parents = { self.distributions[l] : sequence[l]
-				            for l in range(j+1)}
-				sequence.append( distribution.sample(parents) )
-			for l in range(length - self.k - 1):
-				parents = { self.distributions[k] : sequence[l+k+1]
-				            for k in range(self.k)}
-				sequence.append( self.distributions[-1].sample(parents) )
+		if length == 1:
+			return sequence
+
+		for j, distribution in enumerate(self.distributions[1:]):
+			parents = {self.distributions[l] : sequence[l] for l in range(j+1)}
+			sequence.append(distribution.sample(parents))
+			if len(sequence) == length:
+				return sequence
+
+		for l in range(length - len(sequence)):
+			parents = {self.distributions[k] : sequence[l+k+1] for k in range(self.k)}
+			sequence.append(self.distributions[-1].sample(parents))
 
 		return sequence
 
