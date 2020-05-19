@@ -729,9 +729,7 @@ cdef class BayesianNetwork(GraphModel):
 		"""
 
 		self.bake()
-		#n = 100
 		samples = []
-		#evidences = [{'Z': 'False', 'X': 'A'}, {'Y': 'C', 'X': 'B'}]
 		node_dict = {node.name:node.distribution for node in self.states}
 
 		G = nx.DiGraph()
@@ -741,12 +739,11 @@ cdef class BayesianNetwork(GraphModel):
 		for parent, child in self.edges:
 			G.add_edge(parent, child)
 
-
 		iter_ = it.cycle(enumerate(nx.topological_sort(G)))
 
 		for evidence in evidences:
 			count = 0
-			sample = []
+			sample=[]
 			samples.append(sample)
 			safeguard = 0
 			state_dict = evidence.copy()
@@ -759,7 +756,7 @@ cdef class BayesianNetwork(GraphModel):
 					raise Exception('Maximum iteration limit. Make sure the state configuration hinted at by evidence is reachable for this network')
 
 				# Rejection sampling
-				# If the predicted value is not the one given in evidence, we start over until we reach the expected number of samploe by evidence
+				# If the predicted value is not the one given in evidence, we start over until we reach the expected number of samples by evidence
 				j, node = iter_.__next__()
 				name = node.name
 
@@ -776,7 +773,6 @@ cdef class BayesianNetwork(GraphModel):
 				# rejection sampling
 				if node.distribution.name != "DiscreteDistribution" and (name in evidence):
 					if evidence[name] != val:
-						#print(evidence[name] ,val)
 						# make sure we start with the first node in the topoplogical order
 						[iter_.__next__() for i in range(self.d - j - 1)]
 						args = {node_dict[k]:v for k,v in evidence.items()}
@@ -800,79 +796,101 @@ cdef class BayesianNetwork(GraphModel):
 		return samples
 #-----------------------------------------------------------------------------------------------
 
-	def gibbs(self,dict initial_state, int burnin, int size, list evidences=[],random_state=None):
+	def gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=0,random_state=None,double pseudocount=0):
+		"""
+		Draw samples from the baysesian network given evidences.
+		Evidences can be given for any nodes (root or not).
+
+		This will return sample of size <size> for each of the given evidence in <evidences>
+
+		Node sampling order is shuffled each iteration
+
+		Parameters
+		----------
+		size : int
+			The number of sample to draw for each evidence  each sample as a positive double. Default is None.
+
+		evidences : list [{<state_name>:<state_value>}]
+			The data to train on, where each row is a sample and each column
+			corresponds to the associated variable. Default [{}]
+
+		initial_state : dict, optional
+			initial state used by the sampler. Default is to use the first modality of each state for unknown nodes
+
+		burnin : int, optional
+			Number of sample to discard at the begining of the sampling. Default is 0.
+
+		random_state : seed or seeded numpy instance
+
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects hidden
+			Markov models defined over discrete distributions. Default is 0.
+
+		Returns
+		-------
+		array : samples (size*len(evidences),n_state)
+			sample drawn from the bayesian network
+		"""
 		random_state = check_random_state(random_state)
 
-		cdef int n_step, n_state, i,k, step, n_cpd, n_mod#, node_pos
+		cdef int n_step, n_state, i,j,k, step, n_cpd, n_mod, node_pos, idx, col_n, e
 		cdef double p, s
 		cdef str val
 		cdef dict col_dict, col_dict_inv, graph_dict
-		cdef list modalities, modalities_int, cardinalities, cols, col_idxs, probs, cpds_, node_idx
-		# node_idx : position of state i in cpd[i].column_idxs
+		cdef list modalities, cardinalities, cols, col_idxs, probs, cpds_, node_idx, samples
 
 		n_step = burnin+size
 		n_state = len(self.states)
 
 		cdef numpy.ndarray[numpy.double_t, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float)
-		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([n_step,n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([n_step*len(evidences),n_state],dtype=numpy.float)
 		cdef numpy.ndarray[numpy.double_t,ndim=1,mode='c'] prob, prob_tmp, state_subset, proba
 
 		cdef double [:] current_state_view = current_state
 		cdef double [:,:] all_states_view = all_states
 
-
 		col_dict   = {i:state.name for i,state in enumerate(self.states) }
 		col_dict_inv   = {state.name:i for i,state in enumerate(self.states) }
-
 		graph_dict = {state.name:state for i,state in enumerate(self.graph.states) }
 
 		modalities = []
 		modalities_int = []
 		modalities_dict = []
-		#modalities_dict_inv = []
-
 
 		cpds = defaultdict(list)
 		node_idx_dict =  defaultdict(list)
 		col_idxs = []
+		columns_idxs_dict = defaultdict(list)
+		columns_idxs = []
 
 		state_names = {i:state.name for i,state in enumerate(self.states)}
 
-
 		for i,state in enumerate(self.states):
-
 			d = state.distribution
-
 			modalities_dict.append({mod :<double> c for c,mod in enumerate(d.keys())} )
 
-			#modalities_dict.append({list(graph_dict[col_dict[i]].distribution.keymap.keys())[c][-1]: <double> c for c in range(len(graph_dict[col_dict[i]].distribution.keys()))} )
-			#modalities_dict.append({list(graph_dict[col_dict[i]].distribution.keymap.keys())[c][-1]: <double> c for c in range(len(graph_dict[col_dict[i]].distribution.keys()))} )
-
-
-
 			if isinstance(state.distribution,MultivariateDistribution):
-
-
-
 				cols  = [col_dict[idx] for idx in d.column_idxs ]
 				col_idxs.append(d.column_idxs)
+
 
 				for col in cols :
 					cpds[col].append(d)
 					node_idx_dict[col].append(numpy.where(d.column_idxs==col_dict_inv[col])[0][0])
+					columns_idxs_dict[col].append(d.column_idxs)
 
 			else :
-
-
-
 				cols = [state.name]
 				col_idxs.append([i])
 
 				for col in cols :
 					cpds[col].append(d)
 					node_idx_dict[col].append(i)
+					columns_idxs_dict[col].append([i])
 
-		evid = {i:modalities_dict[i][evidences[0][state]] for i,state in enumerate(self.states) if state in evidences[0]}
+
 
 		cardinalities = [len(m.keys()) for m in modalities_dict]
 
@@ -885,79 +903,91 @@ cdef class BayesianNetwork(GraphModel):
 		cdef double [:] state_subset_view = state_subset
 
 		cpds_  = [cpds[state.name] for state in self.states ]
-
 		node_idx = [node_idx_dict[state.name] for state in self.states ]
+		columns_idxs = [columns_idxs_dict[state.name] for state in self.states ]
 
+		samples = []
 
-		for i,(state,val) in enumerate(initial_state.items()):
-			if state in evidences[0]:
-				all_states[0,i]  = current_state[i] = modalities_dict[i][evidences[0][state]]
+		for e,evidence in enumerate(evidences) :
 
-				#all_states[0,i] = modalities_dict_inv[i][s]
-			else :
-				all_states[0,i] =  current_state[i] = modalities_dict[i][val]
+			for i,state in enumerate(self.states):
 
-				#all_states[0,i] = modalities_dict_inv[i][s]
-			pass
+				if state.name in evidence:
+					all_states[e*(n_step),i]  = current_state[i] = modalities_dict[i][evidence[state.name]]
+				else :
+					all_states[e*(n_step),i] =  current_state[i] = modalities_dict[i][initial_state[state.name]]
+				pass
 
-		#print("current_state",current_state)
+			for step in range(n_step-1):
+				state_order = list(range(n_state))
+				random.shuffle(state_order)
+				for i in state_order:
+					if col_dict[i] in evidence:
+						all_states_view[e*(n_step)+step+1,i] = current_state_view[i] = <double> modalities_dict[i][evidence[col_dict[i]]]
+						continue
 
-		for step in range(n_step-1):
-			state_order = list(range(n_state))
-			random.shuffle(state_order)
-			for i in state_order:
-				if i in evid:
-					all_states_view[step+1,i] = current_state_view[i] = <double> evid[i]
-					continue
+					cardinality = cardinalities[i]
+					column_idxs = columns_idxs[i]
+					#print(col_dict[i],column_idxs)
+					for k,cpd in enumerate(cpds_[i]) :
 
+						col_len = len(column_idxs[k])
 
-				cardinality = cardinalities[i]
+						node_pos =  node_idx[i][k]
 
-				for k,cpd in enumerate(cpds_[i]) :
-					node_pos =  node_idx[i][k]
+						for col_n,idx in enumerate(column_idxs[k]):
+							state_subset_view[col_n] = current_state_view[idx]
 
-					for col_n,idx in enumerate(cpd.column_idxs):
-						state_subset_view[col_n] = current_state_view[idx]
+						if col_len !=1 :
 
-					self.cpd_prod(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality,node_pos)
+							self.cpd_prod(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality,node_pos)
+						else :
+							self.cpd_prod_marginal(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality,node_pos)
 
-
-				#print(col_dict[i])
-				#print('log_prob',prob[:cardinality])
-				# normalizing log_prob to avoid probabilities smaller than double precision
-				prob[:] -= prob[:cardinality].max()
-				prob[:] = numpy.exp(prob[:])
-				#print('prob',prob[:cardinality])
-
-
-				prob[:]  = prob[:]/prob[:cardinality].sum()
-				all_states_view[step+1,i] = current_state_view[i] = <double> choose_one(prob_view[:cardinality],cardinality)
-				prob_view[:] = 0.
+					# normalizing log_prob to avoid probabilities smaller than double precision
+					prob[:] -= prob[:cardinality].max()
+					prob[:] = numpy.exp(prob[:])
+					prob[:]  = prob[:]/prob[:cardinality].sum()
+					# to do : check order of assignement
+					# check keys order (especially for marginal)
+					all_states_view[e*(n_step)+step+1,i] = current_state_view[i] = <double> choose_one(prob_view[:cardinality],cardinality)
+					prob_view[:] = 0.
 
 		return all_states
-
-
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
 	@cython.nonecheck(False)
-	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[numpy.double_t, ndim=1,mode="c"] state_subset, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob_tmp, int cardinality,int node_pos):
+	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[numpy.double_t, ndim=1,mode="c"] state_subset,
+		numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob_tmp,
+	 	int cardinality,int node_pos):
 		cdef int j
 
 		for j in range(cardinality):
 			state_subset[node_pos] = j
 			cpd._log_probability(&state_subset[0],&prob_tmp[0],1)
-			#print('prob_tmp',prob_tmp)
 			if prob_tmp[0] != -numpy.inf:
 				prob[j] += prob_tmp[0]
 			else :
 				# default probability of unobserved event
-				prob[j] += -20.
+				prob[j] += -40
 
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	@cython.nonecheck(False)
+	cdef void cpd_prod_marginal(self,DiscreteDistribution d, numpy.ndarray[numpy.double_t, ndim=1,mode="c"] state_subset,
+		numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob_tmp,
+	 	int cardinality,int node_pos):
+		cdef int j
 
-
-
-
+		for j in range(cardinality):
+			state_subset[node_pos] = j
+			d._log_probability(&state_subset[0],&prob_tmp[0],1)
+			if prob_tmp[0] != -numpy.inf:
+				prob[j] += prob_tmp[0]
+			else :
+				# default probability of unobserved event
+				prob[j] += -40
 #-----------------------------------------------------------------------------------------------
 
 
