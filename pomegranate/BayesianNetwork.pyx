@@ -795,7 +795,7 @@ def sample(self, n=1, evidence={}):
 		return samples
 #-----------------------------------------------------------------------------------------------
 
-	def gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=0,random_state=None, scan_order='random',
+	def gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=10,random_state=None, scan_order='random',
 	double pseudocount=0):
 		"""
 		Draw samples from the bayesian network given evidences.
@@ -849,7 +849,7 @@ def sample(self, n=1, evidence={}):
 		n_state = len(self.states)
 
 		cdef numpy.ndarray[numpy.double_t, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float)
-		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([n_step*len(evidences),n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([size*len(evidences),n_state],dtype=numpy.float)
 		cdef numpy.ndarray[numpy.double_t,ndim=1,mode='c'] prob, prob_tmp, state_subset, proba
 
 		cdef double [:] current_state_view = current_state
@@ -936,12 +936,16 @@ def sample(self, n=1, evidence={}):
 			for i,state in enumerate(self.states):
 
 				if state.name in evidence:
-					all_states[e*(n_step),i]  = current_state[i] = modalities_dict[i][evidence[state.name]]
+
+
+					#all_states[e*(size),i]  =
+					current_state[i] = modalities_dict[i][evidence[state.name]]
 				else :
-					all_states[e*(n_step),i] =  current_state[i] = modalities_dict[i][initial_state[state.name]]
+					#all_states[e*(size),i] =
+					current_state[i] = modalities_dict[i][initial_state[state.name]]
 				pass
 
-			for step in range(n_step-1):
+			for step in range(n_step):
 
 				if scan_order == 'random':
 					#print('shuffle')
@@ -949,7 +953,8 @@ def sample(self, n=1, evidence={}):
 
 				for i in state_order:
 					if col_dict[i] in evidence:
-						all_states_view[e*(n_step)+step+1,i] = current_state_view[i] = <double> modalities_dict[i][evidence[col_dict[i]]]
+						#all_states_view[e*(n_step)+step+1,i] =
+						current_state_view[i] = <double> modalities_dict[i][evidence[col_dict[i]]]
 						continue
 
 					cardinality = cardinalities[i]
@@ -974,10 +979,13 @@ def sample(self, n=1, evidence={}):
 					prob[:] -= prob[:cardinality].max()
 					prob[:] = numpy.exp(prob[:])
 					prob[:]  = prob[:]/prob[:cardinality].sum()
-					# to do : check order of assignement
-					# check keys order (especially for marginal)
-					all_states_view[e*(n_step)+step+1,i] = current_state_view[i] = <double> choose_one(prob_view[:cardinality],cardinality)
+
+
+					current_state_view[i] = <double> choose_one(prob_view[:cardinality],cardinality)
 					prob_view[:] = 0.
+				if step >= burnin:
+					all_states_view[e*(size)+step-burnin,:] =  current_state_view[:]
+
 
 		return all_states
 
