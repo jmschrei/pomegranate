@@ -795,9 +795,10 @@ def sample(self, n=1, evidence={}):
 		return samples
 #-----------------------------------------------------------------------------------------------
 
-	def gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=0,random_state=None,double pseudocount=0):
+	def gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=0,random_state=None, scan_order='random',
+	double pseudocount=0):
 		"""
-		Draw samples from the baysesian network given evidences.
+		Draw samples from the bayesian network given evidences.
 		Evidences can be given for any nodes (root or not).
 
 		This will return sample of size <size> for each of the given evidence in <evidences>
@@ -815,6 +816,10 @@ def sample(self, n=1, evidence={}):
 
 		initial_state : dict, optional
 			initial state used by the sampler. Default is to use the first modality of each state for unknown nodes
+
+		scan_order: str, optional ['topological','random',]
+			scan order or the gibbs sampler. Indicate in which order nodes are sampled. Default : 'topological'.
+
 
 		burnin : int, optional
 			Number of sample to discard at the begining of the sampling. Default is 0.
@@ -850,9 +855,21 @@ def sample(self, n=1, evidence={}):
 		cdef double [:] current_state_view = current_state
 		cdef double [:,:] all_states_view = all_states
 
+
 		col_dict   = {i:state.name for i,state in enumerate(self.states) }
 		col_dict_inv   = {state.name:i for i,state in enumerate(self.states) }
 		graph_dict = {state.name:state for i,state in enumerate(self.graph.states) }
+
+		# building graph of the model
+		G = nx.DiGraph()
+		for state in self.states:
+			G.add_node(state.name)
+
+		for parent, child in self.edges:
+			G.add_edge(parent.name, child.name)
+
+		topo_order = [col_dict_inv[node_name] for node_name in nx.topological_sort(G)]
+
 
 		modalities = []
 		modalities_int = []
@@ -886,7 +903,7 @@ def sample(self, n=1, evidence={}):
 
 				for col in cols :
 					cpds[col].append(d)
-					node_idx_dict[col].append(i)
+					node_idx_dict[col].append(0)
 					columns_idxs_dict[col].append([i])
 
 
@@ -906,6 +923,13 @@ def sample(self, n=1, evidence={}):
 		columns_idxs = [columns_idxs_dict[state.name] for state in self.states ]
 
 		samples = []
+		#print(node_idx_dict)
+		#print(columns_idxs_dict)
+
+		state_order = list(range(n_state))
+		if scan_order == 'topological':
+			state_order = topo_order
+
 
 		for e,evidence in enumerate(evidences) :
 
@@ -918,8 +942,11 @@ def sample(self, n=1, evidence={}):
 				pass
 
 			for step in range(n_step-1):
-				state_order = list(range(n_state))
-				random.shuffle(state_order)
+
+				if scan_order == 'random':
+					#print('shuffle')
+					random.shuffle(state_order)
+
 				for i in state_order:
 					if col_dict[i] in evidence:
 						all_states_view[e*(n_step)+step+1,i] = current_state_view[i] = <double> modalities_dict[i][evidence[col_dict[i]]]
@@ -969,7 +996,7 @@ def sample(self, n=1, evidence={}):
 				prob[j] += prob_tmp[0]
 			else :
 				# default probability of unobserved event
-				prob[j] += -40
+				prob[j] += -20
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -986,7 +1013,7 @@ def sample(self, n=1, evidence={}):
 				prob[j] += prob_tmp[0]
 			else :
 				# default probability of unobserved event
-				prob[j] += -40
+				prob[j] += -20
 #-----------------------------------------------------------------------------------------------
 
 
@@ -2636,6 +2663,8 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	free(counts)
 	free(marginal_counts)
 	return logp
+
+
 
 
 if __name__ == "__main__":
