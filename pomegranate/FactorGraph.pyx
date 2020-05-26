@@ -260,7 +260,7 @@ cdef class FactorGraph(GraphModel):
 			if self.marginals[i] == 1:
 				for k in range(self.edge_count[i], self.edge_count[i+1]):
 					out_messages[k] = distributions[i]
-					in_messages[i] = distributions[i]
+				in_messages[i] = distributions[i]
 			# Otherwise follow the edge, then set the message to be
 			# the marginal on the other side.
 			else:
