@@ -28,6 +28,7 @@ from distributions.ConditionalProbabilityTable cimport ConditionalProbabilityTab
 
 from .FactorGraph import FactorGraph
 from .utils cimport _log
+from .utils cimport _log2
 from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import parallelize_function
@@ -35,7 +36,6 @@ from .utils import _check_nan
 
 from .io import BaseGenerator
 from .io import DataGenerator
-
 
 try:
 	import tempfile
@@ -1101,8 +1101,8 @@ cdef class BayesianNetwork(GraphModel):
 
 		w_sum = weights.sum()
 
-		if max_parents == -1 or max_parents > _log(2*w_sum / _log(w_sum)):
-			max_parents = int(_log(2*w_sum / _log(w_sum)))
+		if max_parents == -1 or max_parents > _log2(2*w_sum / _log2(w_sum)):
+			max_parents = int(_log2(2*w_sum / _log2(w_sum)))
 
 		if algorithm == 'chow-liu':
 			if numpy.any(numpy.isnan(X_int)):
@@ -1251,7 +1251,7 @@ cdef class ParentGraph(object):
 
 		with nogil:
 			score = discrete_score_node(X, weights, m, parents, self.n,
-				l+1, self.d, self.pseudocount)
+				l+1, self.d, self.pseudocount, 1)
 
 		return score
 
@@ -2167,7 +2167,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 						with nogil:
 							best_score = discrete_score_node(X, weights, m, 
-								parents, n, j+1, d, pseudocount)
+								parents, n, j+1, d, pseudocount, 1)
 
 			else:
 				best_structure, best_score = (), NEGINF
@@ -2215,7 +2215,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 
 			with nogil:
 				score = discrete_score_node(X, weights, m, combs, n, k+1, l,
-					pseudocount)
+					pseudocount, 1)
 
 			if score > best_score:
 				best_score = score
@@ -2226,7 +2226,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	return best_score, best_parents
 
 cdef double discrete_score_node(double* X, double* weights, int* m, int* parents,
-	int n, int d, int l, double pseudocount) nogil:
+	int n, int d, int l, double pseudocount, double penalty) nogil:
 	cdef int i, j, k, idx, is_na
 	cdef double w_sum = 0
 	cdef double logp = 0
@@ -2261,10 +2261,10 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
 
 		if count > 0:
-			logp += count * _log(count / marginal_count)
+			logp += count * _log2(count / marginal_count)
 
 	if w_sum > 1:
-		logp -= _log(w_sum) / 2 * m[d+1]
+		logp -= penalty * _log2(w_sum) / 2 * m[d+1]
 	else:
 		logp = NEGINF
 

@@ -2,6 +2,7 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 from libc.math cimport log as clog
+from libc.math cimport log2 as clog2
 from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
@@ -182,8 +183,14 @@ cdef double _log(double x) nogil:
 	A wrapper for the c log function, by returning negative infinity if the
 	input is 0.
 	'''
+	return clog(x) if x > 0 else NEGINF
 
-	return clog( x ) if x > 0 else NEGINF
+cdef double _log2(double x) nogil:
+	'''
+	A wrapper for the c log function, by returning negative infinity if the
+	input is 0.
+	'''
+	return clog2(x) if x > 0 else NEGINF
 
 cdef double pair_lse(double x, double y) nogil:
 	'''
