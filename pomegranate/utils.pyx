@@ -5,6 +5,7 @@ from libc.math cimport log as clog
 from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
+from libc.math cimport isnan
 
 from scipy.linalg.cython_blas cimport dgemm
 
@@ -453,7 +454,7 @@ def _check_nan(X):
 	if isinstance(X, (str, unicode, numpy.string_)):
 		return X == 'nan'
 	if isinstance(X, (float, numpy.float, numpy.float32, numpy.float64)):
-		return numpy.isnan(X)
+		return isnan(X)
 	return X is None
 
 def check_random_state(seed):
