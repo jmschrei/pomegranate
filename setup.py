@@ -51,7 +51,7 @@ distributions = [
 
 if not use_cython:
     extensions = [
-        Extension( "pomegranate.{}".format( name ), [ "pomegranate/{}.{}".format(name, ext) ]) for name in filenames
+        Extension("pomegranate.{}".format( name ), [ "pomegranate/{}.{}".format(name, ext) ]) for name in filenames
     ] + [Extension("pomegranate.distributions.{}".format(dist), ["pomegranate/distributions/{}.{}".format(dist, ext)]) for dist in distributions]
 else:
     extensions = [
@@ -59,7 +59,7 @@ else:
 	        Extension("pomegranate.distributions.*", ["pomegranate/distributions/*.pyx"])
     ]
 
-    extensions = cythonize( extensions )
+    extensions = cythonize(extensions, compiler_directives={'language_level' : "2"})
 
 class build_ext(_build_ext):
     def finalize_options(self):

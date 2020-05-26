@@ -19,6 +19,7 @@ from pomegranate.io import DataFrameGenerator
 
 from nose.tools import with_setup
 from nose.tools import assert_equal
+from nose.tools import assert_not_equal
 from nose.tools import assert_raises
 from nose.tools import assert_almost_equal
 
@@ -970,23 +971,110 @@ def test_exact_structure_learning():
         assert_almost_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
-def test_exact_structure_learning_slap_constraints():
-    for ds in datasets:
-        dims = numpy.shape(ds)[1]
-        half = int(numpy.ceil(dims / 2))
+def test_exact_structure_learning_include_edges():
+    for X in datasets:
+        X = X.copy()
+        X[:,1] = X[:,-1]
+        X[:,-2] = X[:,-1]
+
+        d = X.shape[1]
+        d1 = int(numpy.ceil(d / 2))
+        
         # Node groups
-        g1 = tuple(range(0, half))
-        g2 = tuple(range(half, dims))
+        g1 = tuple(range(0, d1))
+        g2 = tuple(range(d1, d))
+        
+        # Constraint graph:
+        cg = DiGraph()
+        cg.add_edge(g1, g2)
+
+        # Learn constrained network
+        model = BayesianNetwork.from_samples(X, algorithm='exact', include_edges=[(1, 2)])
+        assert_equal(model.structure[2], (1,))
+        assert_equal(model.structure[-2], (1,))
+
+def test_exact_structure_learning_exclude_edges():
+    for X in datasets:
+        X = X.copy()
+        X[:,1] = X[:,-1]
+        X[:,-2] = X[:,-1]
+
+        d = X.shape[1]
+        d1 = int(numpy.ceil(d / 2))
+        
+        # Node groups
+        g1 = tuple(range(0, d1))
+        g2 = tuple(range(d1, d))
+        
+        # Constraint graph:
+        cg = DiGraph()
+        cg.add_edge(g1, g2)
+
+        # Learn constrained network
+        model = BayesianNetwork.from_samples(X, algorithm='exact', exclude_edges=[(1, d-1), (d-1, d-2)])    
+        assert_not_equal(model.structure[-1], (1,))
+        assert_not_equal(model.structure[-2], (d-1,))
+        assert_equal(model.structure[-2], (1,))
+
+def test_exact_structure_learning_parent_constraints():
+    logps1 = [-12.2173, -207.3633, -3462.7469, -480.0970]
+    logps2 = [-10.8890, -207.3633, -3462.7469, -480.0970]
+
+    for X, logp1, logp2 in zip(datasets, logps1, logps2):
+        X = X.copy()
+        X[:,1] = X[:,-1]
+        X[:,-2] = X[:,-1]
+
+        d = X.shape[1]
+        d1 = int(numpy.ceil(d / 2))
+        
+        # Node groups
+        g1 = tuple(range(0, d1))
+        g2 = tuple(range(d1, d))
+        
+        # Constraint graph:
+        cg = DiGraph()
+        cg.add_edge(g1, g2)
+
+        # Learn constrained network
+        model1 = BayesianNetwork.from_samples(X, algorithm='exact', constraint_graph=cg)
+        assert_almost_equal(model1.log_probability(X).sum(), logp1, 4)
+        
+        # Check structure constraints satisfied
+        for node in g1:
+            assert_equal(0, len(model1.structure[node]))
+        
+        assert_equal(model1.structure[-1], (1,))
+        assert_equal(model1.structure[-2], (1,))
+
+        model2 = BayesianNetwork.from_samples(X, algorithm='exact')
+        assert_almost_equal(model2.log_probability(X).sum(), logp2, 4)
+        assert_equal(model2.structure[-1], (d-2,))
+        assert_equal(model2.structure[-2], (1,))
+
+def test_exact_structure_learning_slap_constraints():
+    logps = [-21.7780, -345.9527, -4847.5969, -611.0356]
+
+    for X, logp in zip(datasets, logps):
+        d = X.shape[1]
+        d1 = int(numpy.ceil(d / 2))
+        
+        # Node groups
+        g1 = tuple(range(0, d1))
+        g2 = tuple(range(d1, d))
+        
         # Constraint graph:
         cg = DiGraph()
         cg.add_edge(g1, g2)
         cg.add_edge(g2, g2)
+
         # Learn constrained network
-        model = BayesianNetwork.from_samples(ds, algorithm='exact', constraint_graph=cg)
+        model = BayesianNetwork.from_samples(X, algorithm='exact', constraint_graph=cg)
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+        
         # Check structure constraints satisfied
-        s = model.structure
         for node in g1:
-            assert_equal(0, len(s[node]))
+            assert_equal(0, len(model.structure[node]))
 
 def test_from_structure():
     X = datasets[1]

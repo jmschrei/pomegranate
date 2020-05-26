@@ -954,8 +954,9 @@ cdef class BayesianNetwork(GraphModel):
 
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
-		 root=0, constraint_graph=None, pseudocount=0.0, state_names=None, name=None,
-		 reduce_dataset=True, keys=None, n_jobs=1):
+		 root=0, constraint_graph=None, include_edges=[], exclude_edges=[],
+		 pseudocount=0.0, state_names=None, name=None, reduce_dataset=True, 
+		 keys=None, n_jobs=1):
 		"""Learn the structure of the network from data.
 
 		Find the structure of the network from data using a Bayesian structure
@@ -1007,6 +1008,14 @@ cdef class BayesianNetwork(GraphModel):
 			be valid parents of those variables. The naive structure learning
 			task is just all variables in a single node with a self edge,
 			meaning that you know nothing about
+
+		include_edges : list or None, optional
+			A list of (parent, child) tuples that are edges which must be 
+			present in the found structure.
+
+		exclude_edges : list or None, optional
+			A list of (parent, child) tuples that are edges which cannot be
+			present in the found structure.
 
 		pseudocount : double, optional
 			A pseudocount to add to the emission of each distribution. This
@@ -1098,21 +1107,33 @@ cdef class BayesianNetwork(GraphModel):
 		if algorithm == 'chow-liu':
 			if numpy.any(numpy.isnan(X_int)):
 				raise ValueError("Chow-Liu tree learning does not current support missing values")
+			structure = discrete_chow_liu_tree(X_int, weights, 
+				key_count, pseudocount=pseudocount, root=root)
 
-			structure = discrete_chow_liu_tree(X_int, weights, key_count,
-				pseudocount, root)
 		elif algorithm == 'exact' and constraint_graph is not None:
-			structure = discrete_exact_with_constraints(X_int, weights,
-				key_count, pseudocount, max_parents, constraint_graph, n_jobs)
+			structure = discrete_exact_with_constraints(X=X_int, weights=weights,
+				key_count=key_count, include_edges=include_edges, 
+				exclude_edges=exclude_edges, pseudocount=pseudocount, 
+				max_parents=max_parents, constraint_graph=constraint_graph, 
+				n_jobs=n_jobs)
+		
 		elif algorithm == 'exact':
-			structure = discrete_exact_a_star(X_int, weights, key_count,
-				pseudocount, max_parents, n_jobs)
+			structure = discrete_exact_a_star(X=X_int, weights=weights, 
+				key_count=key_count, include_edges=include_edges, 
+				exclude_edges=exclude_edges, pseudocount=pseudocount, 
+				max_parents=max_parents, n_jobs=n_jobs)
+		
 		elif algorithm == 'greedy':
-			structure = discrete_greedy(X_int, weights, key_count,
-				pseudocount, max_parents, n_jobs)
+			structure = discrete_greedy(X=X_int, weights=weights, 
+				key_count=key_count, include_edges=include_edges,
+				exclude_edges=exclude_edges, pseudocount=pseudocount, 
+				max_parents=max_parents, n_jobs=n_jobs)
+
 		elif algorithm == 'exact-dp':
-			structure = discrete_exact_dp(X_int, weights, key_count,
-				pseudocount, max_parents, n_jobs)
+			structure = discrete_exact_dp(X=X_int, weights=weights, 
+				key_count=key_count, include_edges=include_edges, 
+				exclude_edges=exclude_edges, pseudocount=pseudocount, 
+				max_parents=max_parents, n_jobs=n_jobs)
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
@@ -1144,6 +1165,12 @@ cdef class ParentGraph(object):
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
 
+	include_parents : tuple
+		A set of parents that this node must have.
+
+	exclude_parents : tuple
+		A set of parents that this node cannot have.
+
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
@@ -1172,10 +1199,13 @@ cdef class ParentGraph(object):
 	cdef numpy.ndarray X
 	cdef numpy.ndarray weights
 	cdef numpy.ndarray key_count
+	cdef set include_parents
+	cdef set exclude_parents
 	cdef int* m
 	cdef int* parents
 
-	def __init__(self, X, weights, key_count, i, pseudocount, max_parents):
+	def __init__(self, X, weights, key_count, i, include_edges=[], 
+		exclude_edges=[], pseudocount=0.0, max_parents=2):
 		self.X = X
 		self.weights = weights
 		self.key_count = key_count
@@ -1185,6 +1215,10 @@ cdef class ParentGraph(object):
 		self.values = {}
 		self.n = X.shape[0]
 		self.d = X.shape[1]
+		self.include_parents = set([parent for parent, child in include_edges 
+			if child == i])
+		self.exclude_parents = set([parent for parent, child in exclude_edges
+			if child == i])
 		self.m = <int*> malloc((self.d+2)*sizeof(int))
 		self.parents = <int*> malloc(self.d*sizeof(int))
 
@@ -1225,10 +1259,18 @@ cdef class ParentGraph(object):
 		if value in self.values:
 			return self.values[value]
 
-		if len(value) > self.max_parents:
-			best_parents, best_score = (), NEGINF
-		else:
-			best_parents, best_score = value, self.calculate_value(value)
+		best_parents, best_score = (), NEGINF
+		if len(value) <= max(self.max_parents, len(self.include_parents)):
+			for parent in value:
+				if parent in self.exclude_parents:
+					break
+			else:
+				for parent in self.include_parents:
+					if parent not in value:
+						break
+				else:
+					best_parents, best_score = value, self.calculate_value(
+						value)
 
 		for i in range(len(value)):
 			parent_subset = value[:i] + value[i+1:]
@@ -1321,8 +1363,8 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 
 
 def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, double pseudocount, int max_parents,
-	object constraint_graph, int n_jobs):
+	numpy.ndarray key_count, list include_edges, list exclude_edges, 
+	double pseudocount, int max_parents, object constraint_graph, int n_jobs):
 	"""
 	This returns the optimal Bayesian network given a set of constraints.
 
@@ -1342,6 +1384,14 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
+
+	include_edges : list or None 
+		A set of (parent, child) tuples where each tuple is an edge that
+		must exist in the found structure.
+
+	exclude_edges : list or None
+		A set of (parent, child) tuples where each tuple is an edge that
+		cannot exist in the found structure.
 
 	pseudocount : double
 		A pseudocount to add to each possibility.
@@ -1400,9 +1450,9 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 			tasks.append((3, parents, component))
 
 	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-		local_structures = parallel( delayed(discrete_exact_with_constraints_task)(
-			X, weights, key_count, pseudocount, max_parents, task, n_jobs)
-			for task in tasks)
+		local_structures = parallel(delayed(discrete_exact_with_constraints_task)(
+			X, weights, key_count, include_edges, exclude_edges, pseudocount, 
+			max_parents, task, n_jobs) for task in tasks)
 
 	structure = [[] for i in range(d)]
 	for local_structure in local_structures:
@@ -1413,8 +1463,8 @@ def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
 
 
 def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, double pseudocount, int max_parents, tuple task,
-	int n_jobs):
+	numpy.ndarray key_count, list include_edges, list exclude_edges, 
+	double pseudocount, int max_parents, tuple task, int n_jobs):
 	"""
 	This is a wrapper for the function to be parallelized by joblib.
 
@@ -1433,6 +1483,14 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
+
+	include_edges : list or None 
+		A set of (parent, child) tuples where each tuple is an edge that
+		must exist in the found structure.
+
+	exclude_edges : list or None
+		A set of (parent, child) tuples where each tuple is an edge that
+		cannot exist in the found structure.
 
 	pseudocount : double
 		A pseudocount to add to each possibility.
@@ -1469,15 +1527,18 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 	case, parents, children = task
 
 	if case == 0:
-		local_structure = discrete_exact_a_star(X[:,parents].copy(), weights,
-			key_count[list(parents)], pseudocount, max_parents, n_jobs)
+		local_structure = discrete_exact_a_star(X[:,parents].copy(), 
+			weights, key_count[list(parents)], include_edges=include_edges, 
+			exclude_edges=exclude_edges, pseudocount=pseudocount, 
+			max_parents=max_parents, n_jobs=n_jobs)
 
 		for i, parent in enumerate(parents):
 			structure[parent] = tuple([parents[k] for k in local_structure[i]])
 
 	elif case == 1:
-		structure = discrete_exact_slap(X, weights, task, key_count,
-			pseudocount, max_parents, n_jobs)
+		structure = discrete_exact_slap(X, weights, task, 
+			key_count, include_edges=include_edges, exclude_edges=exclude_edges, 
+			pseudocount=pseudocount, max_parents=max_parents, n_jobs=n_jobs)
 
 	elif case == 2:
 		logp, local_structure = discrete_find_best_parents(X, weights,
@@ -1487,12 +1548,15 @@ def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
 
 	elif case == 3:
 		structure = discrete_exact_component(X, weights,
-			task, key_count, pseudocount, max_parents, n_jobs)
+			task, key_count, include_edges=include_edges,
+			exclude_edges=exclude_edges, pseudocount=pseudocount, 
+			max_parents=max_parents, n_jobs=n_jobs)
 
 	return tuple(structure)
 
 
-def discrete_exact_dp(X, weights, key_count, pseudocount, max_parents, n_jobs):
+def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
+	pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
@@ -1516,6 +1580,14 @@ def discrete_exact_dp(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
 
+	include_edges : list or None 
+		A set of (parent, child) tuples where each tuple is an edge that
+		must exist in the found structure.
+
+	exclude_edges : list or None
+		A set of (parent, child) tuples where each tuple is an edge that
+		cannot exist in the found structure.
+
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
@@ -1538,8 +1610,8 @@ def discrete_exact_dp(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	cdef list parent_graphs = []
 
 	parent_graphs = Parallel(n_jobs=n_jobs, backend='threading')(
-		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount,
-			max_parents) for i in range(d) )
+		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges, 
+			exclude_edges, pseudocount, max_parents) for i in range(d))
 
 	order_graph = nx.DiGraph()
 
@@ -1568,7 +1640,8 @@ def discrete_exact_dp(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	return tuple(structure)
 
 
-def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_jobs):
+def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges, 
+	pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
@@ -1593,6 +1666,14 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
 
+	include_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that must exist in the found structure.
+
+	exclude_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that cannot exist in the found structure.
+
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
@@ -1612,16 +1693,17 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 	"""
 
 	cdef int i, n = X.shape[0], d = X.shape[1]
-	cdef list parent_graphs = []
 
-	parent_graphs = [ParentGraph(X, weights, key_count, i, pseudocount, max_parents) for i in range(d)]
+	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count, 
+		include_edges=include_edges, exclude_edges=exclude_edges, i=i, 
+		pseudocount=pseudocount, max_parents=max_parents) for i in range(d)]
 
 	other_variables = {}
 	for i in range(d):
 		other_variables[i] = tuple(j for j in range(d) if j != i)
 
 	o = PriorityQueue()
-	closed = {}
+	closed = set()
 
 	h = sum(parent_graphs[i][other_variables[i]][1] for i in range(d))
 	o.push(((), h, [() for i in range(d)]), 0)
@@ -1631,7 +1713,7 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 		if variables in closed:
 			continue
 		else:
-			closed[variables] = 1
+			closed.add(variables)
 
 		if len(variables) == d:
 			return tuple(structure)
@@ -1659,7 +1741,8 @@ def discrete_exact_a_star(X, weights, key_count, pseudocount, max_parents, n_job
 				o.push(entry, f)
 
 
-def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
+def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
+	pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
@@ -1683,6 +1766,14 @@ def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
 
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
+
+	include_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that must exist in the found structure.
+
+	exclude_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that cannot exist in the found structure.
 
 	pseudocount : double
 		A pseudocount to add to each possibility.
@@ -1710,7 +1801,10 @@ def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef list parent_graphs = []
 
-	parent_graphs = [ParentGraph(X, weights, key_count, i, pseudocount, max_parents) for i in range(d)]
+	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count, 
+		include_edges=include_edges, exclude_edges=exclude_edges, i=i, 
+		pseudocount=pseudocount, max_parents=max_parents) for i in range(d)]
+
 	structure, seen_variables, unseen_variables = [() for i in range(d)], (), set(range(d))
 
 	for i in range(d):
@@ -1721,7 +1815,7 @@ def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
 		for j in unseen_variables:
 			parents, score = parent_graphs[j][seen_variables]
 
-			if score > best_score:
+			if score > best_score or (score == NEGINF and best_score == NEGINF):
 				best_score = score
 				best_variable = j
 				best_parents = parents
@@ -1730,10 +1824,11 @@ def discrete_greedy(X, weights, key_count, pseudocount, max_parents, n_jobs):
 		seen_variables = tuple(sorted(seen_variables + (best_variable,)))
 		unseen_variables = unseen_variables - set([best_variable])
 
+	#print(structure)
 	return tuple(structure)
 
-def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
-	n_jobs):
+def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edges,
+	pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph in a node with a Self Loop And Parents (SLAP).
 
@@ -1757,6 +1852,14 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
+
+	include_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that must exist in the found structure.
+
+	exclude_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that cannot exist in the found structure.
 
 	pseudocount : double
 		A pseudocount to add to each possibility.
@@ -1782,8 +1885,8 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	cdef list parent_graphs = [None for i in range(max(parents)+1)]
 
 	graphs = Parallel(n_jobs=n_jobs, backend='threading')(
-		delayed(generate_parent_graph)(X, weights, key_count, i, pseudocount,
-			max_parents) for i in children)
+		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges, 
+			exclude_edges, pseudocount, max_parents) for i in children)
 
 	for i, child in enumerate(children):
 		parent_graphs[child] = graphs[i]
@@ -1817,8 +1920,8 @@ def discrete_exact_slap(X, weights, task, key_count, pseudocount, max_parents,
 	return tuple(structure)
 
 
-def discrete_exact_component(X, weights, task, key_count, pseudocount,
-	max_parents, n_jobs):
+def discrete_exact_component(X, weights, task, key_count, include_edges, 
+	exclude_edges, pseudocount, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a multi-node component of the constaint graph.
 
@@ -1836,6 +1939,14 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 
 	weights : numpy.ndarray, shape=(n,)
 		The weight of each sample as a positive double. Default is None.
+
+	include_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that must exist in the found structure.
+
+	exclude_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that cannot exist in the found structure.
 
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
@@ -1953,7 +2064,8 @@ def discrete_exact_component(X, weights, task, key_count, pseudocount,
 
 def generate_parent_graph(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
-	int i, double pseudocount, int max_parents, tuple parent_set=()):
+	int i, list include_edges, list exclude_edges, double pseudocount, 
+	int max_parents, tuple parent_set=()):
 	"""
 	Generate a parent graph for a single variable over its parents.
 
@@ -1975,6 +2087,17 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
+
+	i : int
+		The column index to build the parent graph for.
+
+	include_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that must exist in the found structure.
+
+	exclude_edges : list or None
+		A list of (parent, child) tuples where each tuple corresponds to an
+		edge that cannot exist in the found structure.
 
 	pseudocount : double
 		A pseudocount to add to each possibility.
@@ -2007,31 +2130,44 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef dict parent_graph = {}
 	cdef double best_score, score
-	cdef tuple subset, parent_subset, best_structure, structure
+
+	include_parents = set([parent for parent, child in include_edges if child == i])
+	exclude_parents = set([parent for parent, child in exclude_edges if child == i])
 
 	if parent_set == ():
 		parent_set = tuple(set(range(d)) - set([i]))
 
 	cdef int n_parents = len(parent_set)
 
-
 	m[0] = 1
 	for j in range(n_parents+1):
 		for subset in it.combinations(parent_set, j):
-			if j <= max_parents:
-				for k, variable in enumerate(subset):
-					m[k+1] = m[k] * key_count_ndarray[variable]
-					parents[k] = variable
+			subset_ = set(subset)
+			best_structure = ()
+			best_score = NEGINF
 
-				parents[j] = i
-				m[j+1] = m[j] * key_count[i]
-				m[j+2] = m[j] * (key_count[i] - 1)
+			if j <= max(max_parents, len(include_parents)):
+				for parent in include_parents:
+					if parent not in subset_:
+						break
+				else:
+					for k, variable in enumerate(subset):
+						if variable in exclude_parents:
+							break
 
-				best_structure = subset
+						m[k+1] = m[k] * key_count_ndarray[variable]
+						parents[k] = variable
 
-				with nogil:
-					best_score = discrete_score_node(X, weights, m, parents, n, j+1,
-						d, pseudocount)
+					else:
+						best_structure = subset
+						
+						parents[j] = i
+						m[j+1] = m[j] * key_count[i]
+						m[j+2] = m[j] * (key_count[i] - 1)
+
+						with nogil:
+							best_score = discrete_score_node(X, weights, m, 
+								parents, n, j+1, d, pseudocount)
 
 			else:
 				best_structure, best_score = (), NEGINF
