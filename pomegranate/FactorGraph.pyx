@@ -371,16 +371,20 @@ cdef class FactorGraph(GraphModel):
 			iteration += 1
 
 
-		marginals = numpy.where(self.marginals == 1)
+		y_hat = numpy.empty(n, dtype=Distribution)
 
-		# We've already computed the current belief about the marginals, so
-		# we can just return that.
-		y_hat = current_distributions[marginals]
+		j = 0
+		for i, state in enumerate(self.states):
+			if self.marginals[i]:
+				if state.name in data:
+					y_hat[j] = data[state.name]
+				else:
+					# We've already computed the current belief about the
+					# marginals, so we can just return that.
+					y_hat[j] = current_distributions[i]
+				j += 1
 
-		for i, state in enumerate(numpy.array(self.states)[marginals]):
-			if state.name in data:
-				y_hat[i] = data[state.name]
-
+		y_hat.resize(j)
 		return y_hat
 
 
