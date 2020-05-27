@@ -21,8 +21,6 @@ import numpy
 import random
 import scipy
 
-from collections import OrderedDict
-
 from .JointProbabilityTable import JointProbabilityTable
 
 cdef class ConditionalProbabilityTable(MultivariateDistribution):
@@ -70,18 +68,15 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			k = len(numpy.unique([row[self.m-i-1] for row in table]))
 			self.marginal_idxs[i+1] = self.marginal_idxs[i] * k
 
-		keys = []
+		self.keymap = {}
 		for i, row in enumerate(table):
-			keys.append((tuple(row[:-1]), i))
+			self.keymap[tuple(row[:-1])] = i
 			self.values[i] = _log(row[-1])
 
-		self.keymap = OrderedDict(keys)
-
-		marginal_keys = []
+		self.marginal_keymap = {}
 		for i, row in enumerate(table[::self.k]):
-			marginal_keys.append((tuple(row[:-2]), i))
+			self.marginal_keymap[tuple(row[:-2])] = i
 
-		self.marginal_keymap = OrderedDict(marginal_keys)
 		self.parents = parents
 		self.parameters = [table, self.parents]
 
@@ -115,22 +110,20 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	def bake(self, keys):
 		"""Order the inputs according to some external global ordering."""
 
-		keymap, marginal_keymap, values = [], set([]), []
+		keymap, values = [], []
 		for i, key in enumerate(keys):
 			keymap.append((key, i))
 			idx = self.keymap[key]
 			values.append(self.values[idx])
 
-		marginal_keys = []
+		self.marginal_keymap = {}
 		for i, row in enumerate(keys[::self.k]):
-			marginal_keys.append((tuple(row[:-1]), i))
-
-		self.marginal_keymap = OrderedDict(marginal_keys)
+			self.marginal_keymap[tuple(row[:-1])] = i
 
 		for i in range(len(keys)):
 			self.values[i] = values[i]
 
-		self.keymap = OrderedDict(keymap)
+		self.keymap = dict(keymap)
 
 	def sample(self, parent_values=None, n=None, random_state=None):
 		"""Return a random sample from the conditional probability table."""

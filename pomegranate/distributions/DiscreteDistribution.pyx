@@ -80,7 +80,6 @@ cdef class DiscreteDistribution(Distribution):
 
 		self_keys = self.keys()
 		other_keys = other.keys()
-		assert set(self_keys) == set(other_keys)
 		distribution, total = {}, 0.0
 
 		if isinstance(other, DiscreteDistribution) and self_keys == other_keys:
@@ -93,6 +92,7 @@ cdef class DiscreteDistribution(Distribution):
 					distribution[key] = (x + eps) * (y + eps)
 				total += distribution[key]
 		else:
+			assert set(self_keys) == set(other_keys)
 			self_items = (<DiscreteDistribution>self).dist.items()
 			for key, x in self_items:
 				if _check_nan(key):

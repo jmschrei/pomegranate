@@ -21,8 +21,6 @@ import numpy
 import random
 import scipy
 
-from collections import OrderedDict
-
 from .DiscreteDistribution import DiscreteDistribution
 
 cdef class JointProbabilityTable(MultivariateDistribution):
@@ -63,12 +61,11 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 			self.idxs[i+1] = len(set(row[self.m-i-2] for row in table))
 		self.idxs[self.m] = 0
 
-		keys = []
+		self.keymap = {}
 		for i, row in enumerate(table):
-			keys.append((tuple(row[:-1]), i))
+			self.keymap[tuple(row[:-1])] = i
 			self.values[i] = _log(row[-1])
 
-		self.keymap = OrderedDict(keys)
 		self.parents = list(parents) if parents is not None else None
 		self.parameters = [[list(row) for row in table], self.parents, self.keymap]
 
@@ -108,7 +105,7 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		for i in range(len(keys)):
 			self.values[i] = values[i]
 
-		self.keymap = OrderedDict(keymap)
+		self.keymap = dict(keymap)
 
 	def keys(self):
 		return tuple(row for row in self.parameters[2].keys())
