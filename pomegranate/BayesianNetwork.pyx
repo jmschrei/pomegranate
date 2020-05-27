@@ -954,22 +954,33 @@ cdef class BayesianNetwork(GraphModel):
 
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
-		 root=0, constraint_graph=None, include_edges=[], exclude_edges=[],
-		 pseudocount=0.0, state_names=None, name=None, reduce_dataset=True, 
-		 keys=None, n_jobs=1):
+		 penalty=None, root=0, constraint_graph=None, include_edges=[], 
+		 exclude_edges=[], pseudocount=0.0, state_names=None, name=None, 
+		 reduce_dataset=True, keys=None, n_jobs=1):
 		"""Learn the structure of the network from data.
 
-		Find the structure of the network from data using a Bayesian structure
-		learning score. This currently enumerates all the exponential number of
-		structures and finds the best according to the score. This allows
-		weights on the different samples as well. The score that is optimized
-		is the minimum description length (MDL).
+		There are currently two types of approaches implemented. The first,
+		the Chow-Liu algorithm, finds a tree-like structure from symmetric
+		mutual-information scores given a root node (the `root` parameter).
+		The second type searches through structures and returns the structure
+		that maximizes the following objective function:
 
-		If not all states for a variable appear in the supplied data, this
-		function can not gurantee that the returned Bayesian Network is optimal
-		when 'exact' or 'exact-dp' is used. This is because the number of
-		states for each node is derived only from the data provided, and the
-		scoring function depends on the number of states of a variable.
+			P(D|M) + penalty * |M|
+
+		where P(D|M) is the probability of the data given the found model,
+		penalty is a user-specified parameters, and |M| is the number of 
+		parameters in the model. When this penalty is log2(|D|) / 2 
+		(the default) where |D| is the weight sum of the examples, this is 
+		equivalent to the minimum description length (MDL). 
+
+		There are currently three ways that the learned structure can be 
+		controlled. The first is to increase the penalty term to increase 
+		sparsity. The second is to pass in a specified list of edges that
+		must exist (`include_edges`) or cannot exist (`exclude_edges`). Lastly,
+		a constraint graph can be specified where each node in the graph is a
+		set of variables being modeled and the edges in the graph indicate
+		which sets of variables can be parents to which other sets of
+		variables (and where a self-loop is the normal structure learning step).
 
 		Parameters
 		----------
@@ -996,6 +1007,12 @@ cdef class BayesianNetwork(GraphModel):
 			The maximum number of parents a node can have. If used, this means
 			using the k-learn procedure. Can drastically speed up algorithms.
 			If -1, no max on parents. Default is -1.
+
+		penalty : float or None, optional
+			The weighting of the model complexity term in the objective function.
+			Increasing this value will encourage sparsity whereas setting the value
+			to 0 will result in an unregularized structure. Default is 
+			log2(|D|) / 2 where |D| is the sum of the weights of the data. 
 
 		root : int, optional
 			For algorithms which require a single root ('chow-liu'), this is the
@@ -1056,6 +1073,11 @@ cdef class BayesianNetwork(GraphModel):
 			The learned BayesianNetwork.
 		"""
 
+		if constraint_graph is not None:
+			if len(include_edges) > 0:
+				raise ValueError("Cannot use both a constraint graph and " /
+					"forced edge inclusions.")
+
 		if isinstance(X, BaseGenerator):
 			batches = [batch for batch in X.batches()]
 			X = numpy.concatenate([batch[0] for batch in batches])
@@ -1104,6 +1126,9 @@ cdef class BayesianNetwork(GraphModel):
 		if max_parents == -1 or max_parents > _log2(2*w_sum / _log2(w_sum)):
 			max_parents = int(_log2(2*w_sum / _log2(w_sum)))
 
+		if penalty is None:
+			penalty = -1
+
 		if algorithm == 'chow-liu':
 			if numpy.any(numpy.isnan(X_int)):
 				raise ValueError("Chow-Liu tree learning does not current support missing values")
@@ -1114,26 +1139,26 @@ cdef class BayesianNetwork(GraphModel):
 			structure = discrete_exact_with_constraints(X=X_int, weights=weights,
 				key_count=key_count, include_edges=include_edges, 
 				exclude_edges=exclude_edges, pseudocount=pseudocount, 
-				max_parents=max_parents, constraint_graph=constraint_graph, 
-				n_jobs=n_jobs)
+				penalty=penalty, max_parents=max_parents, 
+				constraint_graph=constraint_graph, n_jobs=n_jobs)
 		
 		elif algorithm == 'exact':
 			structure = discrete_exact_a_star(X=X_int, weights=weights, 
 				key_count=key_count, include_edges=include_edges, 
 				exclude_edges=exclude_edges, pseudocount=pseudocount, 
-				max_parents=max_parents, n_jobs=n_jobs)
+				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
 		
 		elif algorithm == 'greedy':
 			structure = discrete_greedy(X=X_int, weights=weights, 
 				key_count=key_count, include_edges=include_edges,
 				exclude_edges=exclude_edges, pseudocount=pseudocount, 
-				max_parents=max_parents, n_jobs=n_jobs)
+				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
 
 		elif algorithm == 'exact-dp':
 			structure = discrete_exact_dp(X=X_int, weights=weights, 
 				key_count=key_count, include_edges=include_edges, 
 				exclude_edges=exclude_edges, pseudocount=pseudocount, 
-				max_parents=max_parents, n_jobs=n_jobs)
+				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
@@ -1174,6 +1199,12 @@ cdef class ParentGraph(object):
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
 		using the k-learn procedure. Can drastically speed up algorithms.
@@ -1203,9 +1234,10 @@ cdef class ParentGraph(object):
 	cdef set exclude_parents
 	cdef int* m
 	cdef int* parents
+	cdef double penalty
 
 	def __init__(self, X, weights, key_count, i, include_edges=[], 
-		exclude_edges=[], pseudocount=0.0, max_parents=2):
+		exclude_edges=[], pseudocount=0.0, penalty=-1, max_parents=-1):
 		self.X = X
 		self.weights = weights
 		self.key_count = key_count
@@ -1221,6 +1253,7 @@ cdef class ParentGraph(object):
 			if child == i])
 		self.m = <int*> malloc((self.d+2)*sizeof(int))
 		self.parents = <int*> malloc(self.d*sizeof(int))
+		self.penalty = penalty
 
 	def __len__(self):
 		return len(self.values)
@@ -1251,7 +1284,7 @@ cdef class ParentGraph(object):
 
 		with nogil:
 			score = discrete_score_node(X, weights, m, parents, self.n,
-				l+1, self.d, self.pseudocount, 1)
+				l+1, self.d, self.pseudocount, self.penalty)
 
 		return score
 
@@ -1361,202 +1394,8 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 	free(joint_count)
 	return tuple(tuple(x) for x in structure)
 
-
-def discrete_exact_with_constraints(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, list include_edges, list exclude_edges, 
-	double pseudocount, int max_parents, object constraint_graph, int n_jobs):
-	"""
-	This returns the optimal Bayesian network given a set of constraints.
-
-	This function controls the process of learning the Bayesian network by
-	taking in a constraint graph, identifying the strongly connected
-	components (SCCs) and solving each one using the appropriate algorithm.
-	This is mostly an internal function.
-
-	Parameters
-	----------
-	X : numpy.ndarray, shape=(n, d)
-		The data to fit the structure too, where each row is a sample and
-		each column corresponds to the associated variable.
-
-	weights : numpy.ndarray, shape=(n,)
-		The weight of each sample as a positive double. Default is None.
-
-	key_count : numpy.ndarray, shape=(d,)
-		The number of unique keys in each column.
-
-	include_edges : list or None 
-		A set of (parent, child) tuples where each tuple is an edge that
-		must exist in the found structure.
-
-	exclude_edges : list or None
-		A set of (parent, child) tuples where each tuple is an edge that
-		cannot exist in the found structure.
-
-	pseudocount : double
-		A pseudocount to add to each possibility.
-
-	max_parents : int
-		The maximum number of parents a node can have. If used, this means
-		using the k-learn procedure. Can drastically speed up algorithms.
-		If -1, no max on parents. Default is -1.
-
-	constraint_graph : networkx.DiGraph
-		A directed graph showing valid parent sets for each variable. Each
-		node is a set of variables, and edges represent which variables can
-		be valid parents of those variables. The naive structure learning
-		task is just all variables in a single node with a self edge,
-		meaning that you know nothing about
-
-	n_jobs : int
-		The number of threads to use when learning the structure of the
-		network. This parallelized both the creation of the parent
-		graphs for each variable and the solving of the SCCs. -1 means
-		use all available resources. Default is 1, meaning no parallelism.
-
-	Returns
-	-------
-	structure : tuple, shape=(d,)
-		The parents for each variable in the network.
-	"""
-
-	n, d = X.shape[0], X.shape[1]
-	l = len(constraint_graph.nodes())
-	parent_sets = { node : tuple() for node in constraint_graph.nodes() }
-	structure = [None for i in range(d)]
-
-	for parents, children in constraint_graph.edges():
-		parent_sets[children] += parents
-
-	tasks = []
-	components = nx.strongly_connected_components(constraint_graph)
-	for component in components:
-		component = list(component)
-
-		if len(component) == 1:
-			children = component[0]
-			parents = tuple(sorted(parent_sets[children]))
-
-			if children == parents:
-				tasks.append((0, parents, children))
-			elif set(children).issubset(set(parents)):
-				tasks.append((1, parents, children))
-			else:
-				if len(parents) > 0:
-					for child in children:
-						tasks.append((2, parents, child))
-		else:
-			parents = [parent_sets[children] for children in component]
-			tasks.append((3, parents, component))
-
-	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-		local_structures = parallel(delayed(discrete_exact_with_constraints_task)(
-			X, weights, key_count, include_edges, exclude_edges, pseudocount, 
-			max_parents, task, n_jobs) for task in tasks)
-
-	structure = [[] for i in range(d)]
-	for local_structure in local_structures:
-		for i in range(d):
-			structure[i] += list(local_structure[i])
-
-	return tuple(tuple(node) for node in structure)
-
-
-def discrete_exact_with_constraints_task(numpy.ndarray X, numpy.ndarray weights,
-	numpy.ndarray key_count, list include_edges, list exclude_edges, 
-	double pseudocount, int max_parents, tuple task, int n_jobs):
-	"""
-	This is a wrapper for the function to be parallelized by joblib.
-
-	This function takes in a single task as an id and a set of parents and
-	children and calls the appropriate function. This is mostly a wrapper for
-	joblib to parallelize.
-
-	Parameters
-	----------
-	X : numpy.ndarray, shape=(n, d)
-		The data to fit the structure too, where each row is a sample and
-		each column corresponds to the associated variable.
-
-	weights : numpy.ndarray, shape=(n,)
-		The weight of each sample as a positive double. Default is None.
-
-	key_count : numpy.ndarray, shape=(d,)
-		The number of unique keys in each column.
-
-	include_edges : list or None 
-		A set of (parent, child) tuples where each tuple is an edge that
-		must exist in the found structure.
-
-	exclude_edges : list or None
-		A set of (parent, child) tuples where each tuple is an edge that
-		cannot exist in the found structure.
-
-	pseudocount : double
-		A pseudocount to add to each possibility.
-
-	max_parents : int
-		The maximum number of parents a node can have. If used, this means
-		using the k-learn procedure. Can drastically speed up algorithms.
-		If -1, no max on parents. Default is -1.
-
-	task : tuple
-		A 3-tuple containing the id, the set of parents and the set of children
-		to learn a component of the Bayesian network over. The cases represent
-		a SCC of the following:
-
-			0 - Self loop and no parents
-			1 - Self loop and parents
-			2 - Parents and no self loop
-			3 - Multiple nodes
-
-	n_jobs : int
-		The number of threads to use when learning the structure of the
-		network. This parallelizes the creation of the parent graphs
-		for each task or the finding of best parents in case 2.
-
-	Returns
-	-------
-	structure : tuple, shape=(d,)
-		The parents for each variable in this SCC
-	"""
-
-
-	d = X.shape[1]
-	structure = [() for i in range(d)]
-	case, parents, children = task
-
-	if case == 0:
-		local_structure = discrete_exact_a_star(X[:,parents].copy(), 
-			weights, key_count[list(parents)], include_edges=include_edges, 
-			exclude_edges=exclude_edges, pseudocount=pseudocount, 
-			max_parents=max_parents, n_jobs=n_jobs)
-
-		for i, parent in enumerate(parents):
-			structure[parent] = tuple([parents[k] for k in local_structure[i]])
-
-	elif case == 1:
-		structure = discrete_exact_slap(X, weights, task, 
-			key_count, include_edges=include_edges, exclude_edges=exclude_edges, 
-			pseudocount=pseudocount, max_parents=max_parents, n_jobs=n_jobs)
-
-	elif case == 2:
-		logp, local_structure = discrete_find_best_parents(X, weights,
-			key_count, pseudocount, max_parents, parents, children)
-
-		structure[children] = local_structure
-
-	elif case == 3:
-		structure = discrete_exact_component(X, weights,
-			task, key_count, include_edges=include_edges,
-			exclude_edges=exclude_edges, pseudocount=pseudocount, 
-			max_parents=max_parents, n_jobs=n_jobs)
-
-	return tuple(structure)
-
-
 def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
-	pseudocount, max_parents, n_jobs):
+	pseudocount, penalty, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
@@ -1588,8 +1427,11 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 		A set of (parent, child) tuples where each tuple is an edge that
 		cannot exist in the found structure.
 
-	pseudocount : double
-		A pseudocount to add to each possibility.
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1611,7 +1453,7 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 
 	parent_graphs = Parallel(n_jobs=n_jobs, backend='threading')(
 		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges, 
-			exclude_edges, pseudocount, max_parents) for i in range(d))
+			exclude_edges, pseudocount, penalty, max_parents) for i in range(d))
 
 	order_graph = nx.DiGraph()
 
@@ -1641,7 +1483,7 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 
 
 def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges, 
-	pseudocount, max_parents, n_jobs):
+	pseudocount, penalty, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
@@ -1677,6 +1519,12 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
 		using the k-learn procedure. Can drastically speed up algorithms.
@@ -1696,7 +1544,8 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 
 	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count, 
 		include_edges=include_edges, exclude_edges=exclude_edges, i=i, 
-		pseudocount=pseudocount, max_parents=max_parents) for i in range(d)]
+		pseudocount=pseudocount, penalty=penalty, 
+		max_parents=max_parents) for i in range(d)]
 
 	other_variables = {}
 	for i in range(d):
@@ -1742,18 +1591,8 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 
 
 def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
-	pseudocount, max_parents, n_jobs):
-	"""
-	Find the optimal graph over a set of variables with no other knowledge.
-
-	This is the naive dynamic programming structure learning task where the
-	optimal graph is identified from a set of variables using an order graph
-	and parent graphs. This can be used either when no constraint graph is
-	provided or for a SCC which is made up of a node containing a self-loop.
-	It uses DP/A* in order to find the optimal graph without considering all
-	possible topological sorts. A greedy version of the algorithm can be used
-	that massively reduces both the computational and memory cost while frequently
-	producing the optimal graph.
+	pseudocount, penalty, max_parents, n_jobs):
+	"""Find the optimal graph over a set of variables with no other knowledge.
 
 	Parameters
 	----------
@@ -1778,15 +1617,16 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
 		using the k-learn procedure. Can drastically speed up algorithms.
 		If -1, no max on parents. Default is -1.
-
-	greedy : bool, default is True
-		Whether the use a heuristic in order to massive reduce computation
-		and memory time, but without the guarantee of finding the best
-		network.
 
 	n_jobs : int
 		The number of threads to use when learning the structure of the
@@ -1803,7 +1643,8 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 
 	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count, 
 		include_edges=include_edges, exclude_edges=exclude_edges, i=i, 
-		pseudocount=pseudocount, max_parents=max_parents) for i in range(d)]
+		pseudocount=pseudocount, penalty=penalty, 
+		max_parents=max_parents) for i in range(d)]
 
 	structure, seen_variables, unseen_variables = [() for i in range(d)], (), set(range(d))
 
@@ -1824,11 +1665,223 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 		seen_variables = tuple(sorted(seen_variables + (best_variable,)))
 		unseen_variables = unseen_variables - set([best_variable])
 
-	#print(structure)
+	return tuple(structure)
+
+def discrete_exact_with_constraints(X, weights, key_count, include_edges, 
+	exclude_edges, pseudocount, penalty, max_parents, constraint_graph, n_jobs):
+	"""This returns the optimal Bayesian network given a set of constraints.
+
+	This function controls the process of learning the Bayesian network by
+	taking in a constraint graph, identifying the strongly connected
+	components (SCCs) and solving each one using the appropriate algorithm.
+	This is mostly an internal function.
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	include_edges : list or None 
+		A set of (parent, child) tuples where each tuple is an edge that
+		must exist in the found structure.
+
+	exclude_edges : list or None
+		A set of (parent, child) tuples where each tuple is an edge that
+		cannot exist in the found structure.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	constraint_graph : networkx.DiGraph
+		A directed graph showing valid parent sets for each variable. Each
+		node is a set of variables, and edges represent which variables can
+		be valid parents of those variables. The naive structure learning
+		task is just all variables in a single node with a self edge,
+		meaning that you know nothing about
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelized both the creation of the parent
+		graphs for each variable and the solving of the SCCs. -1 means
+		use all available resources. Default is 1, meaning no parallelism.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in the network.
+	"""
+
+
+	parent_sets = {node : tuple() for node in constraint_graph.nodes()}
+	for parents, children in constraint_graph.edges():
+		parent_sets[children] += parents
+
+	tasks = []
+	for component in nx.strongly_connected_components(constraint_graph):
+		component = list(component)
+
+		if len(component) == 1:
+			children = component[0]
+			parents = tuple(sorted(parent_sets[children]))
+
+			if children == parents:
+				task = (0, parents, children)
+				tasks.append(task)
+			elif set(children).issubset(set(parents)):
+				task = (1, parents, children)
+				tasks.append(task)
+			else:
+				if len(parents) > 0:
+					for child in children:
+						task = (2, parents, child)
+						tasks.append(task)
+		else:
+			parents = [parent_sets[children] for children in component]
+			task = (3, parents, component)
+			tasks.append(task)		
+
+	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+		local_structures = parallel(delayed(discrete_exact_with_constraints_task)(
+			X, weights, key_count, include_edges, exclude_edges, pseudocount, 
+			penalty, max_parents, task, n_jobs) for task in tasks)
+
+	structure = [[] for i in range(X.shape[1])]
+	for local_structure in local_structures:
+		for i in range(X.shape[1]):
+			structure[i] += list(local_structure[i])
+
+	return tuple(tuple(node) for node in structure)
+
+
+def discrete_exact_with_constraints_task(X, weights, key_count, include_edges,
+	exclude_edges, pseudocount, penalty, max_parents, task, n_jobs):
+	"""This is a wrapper for the function to be parallelized by joblib.
+
+	This function takes in a single task as an id and a set of parents and
+	children and calls the appropriate function. This is mostly a wrapper for
+	joblib to parallelize.
+
+	Parameters
+	----------
+	X : numpy.ndarray, shape=(n, d)
+		The data to fit the structure too, where each row is a sample and
+		each column corresponds to the associated variable.
+
+	weights : numpy.ndarray, shape=(n,)
+		The weight of each sample as a positive double. Default is None.
+
+	key_count : numpy.ndarray, shape=(d,)
+		The number of unique keys in each column.
+
+	include_edges : list or None 
+		A set of (parent, child) tuples where each tuple is an edge that
+		must exist in the found structure.
+
+	exclude_edges : list or None
+		A set of (parent, child) tuples where each tuple is an edge that
+		cannot exist in the found structure.
+
+	pseudocount : double
+		A pseudocount to add to each possibility.
+
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+
+	max_parents : int
+		The maximum number of parents a node can have. If used, this means
+		using the k-learn procedure. Can drastically speed up algorithms.
+		If -1, no max on parents. Default is -1.
+
+	task : tuple
+		A 3-tuple containing the id, the set of parents and the set of children
+		to learn a component of the Bayesian network over. The cases represent
+		a SCC of the following:
+
+			0 - Self loop and no parents
+			1 - Self loop and parents
+			2 - Parents and no self loop
+			3 - Multiple nodes
+
+	n_jobs : int
+		The number of threads to use when learning the structure of the
+		network. This parallelizes the creation of the parent graphs
+		for each task or the finding of best parents in case 2.
+
+	Returns
+	-------
+	structure : tuple, shape=(d,)
+		The parents for each variable in this SCC
+	"""
+
+
+	d = X.shape[1]
+	structure = [() for i in range(d)]
+	case, parents, children = task
+
+	if case == 0:
+		parents = list(parents)
+		include_edges = [(parents.index(parent), parents.index(child)) for
+			parent, child in include_edges if parent in parents and 
+			child in parents]
+
+		exclude_edges = [(parents.index(parent), parents.index(child)) for
+			parent, child in exclude_edges if parent in parents and 
+			child in parents]
+
+		local_structure = discrete_exact_a_star(X[:,parents].copy(), 
+			weights, key_count[list(parents)], include_edges=include_edges, 
+			exclude_edges=exclude_edges, pseudocount=pseudocount, 
+			penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
+
+		for i, parent in enumerate(parents):
+			structure[parent] = tuple([parents[k] for k in local_structure[i]])
+
+	elif case == 1:
+		structure = discrete_exact_slap(X, weights, task, 
+			key_count, include_edges=include_edges, exclude_edges=exclude_edges, 
+			pseudocount=pseudocount, penalty=penalty, max_parents=max_parents, 
+			n_jobs=n_jobs)
+
+	elif case == 2:
+		exclude_parents = set([parent for parent, child in exclude_edges if child == children])
+		parents = tuple(parent for parent in parents if parent not in exclude_parents)
+
+		logp, local_structure = discrete_find_best_parents(X, weights,
+			key_count, pseudocount, penalty, max_parents, parents, children)
+
+		structure[children] = local_structure
+
+	elif case == 3:
+		structure = discrete_exact_component(X, weights,
+			task, key_count, include_edges=include_edges,
+			exclude_edges=exclude_edges, pseudocount=pseudocount, 
+			max_parents=max_parents, penalty=penalty, n_jobs=n_jobs)
+
 	return tuple(structure)
 
 def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edges,
-	pseudocount, max_parents, n_jobs):
+	pseudocount, penalty, max_parents, n_jobs):
 	"""
 	Find the optimal graph in a node with a Self Loop And Parents (SLAP).
 
@@ -1864,6 +1917,12 @@ def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edge
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
 		using the k-learn procedure. Can drastically speed up algorithms.
@@ -1886,7 +1945,7 @@ def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edge
 
 	graphs = Parallel(n_jobs=n_jobs, backend='threading')(
 		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges, 
-			exclude_edges, pseudocount, max_parents) for i in children)
+			exclude_edges, pseudocount, penalty, max_parents) for i in children)
 
 	for i, child in enumerate(children):
 		parent_graphs[child] = graphs[i]
@@ -1921,9 +1980,8 @@ def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edge
 
 
 def discrete_exact_component(X, weights, task, key_count, include_edges, 
-	exclude_edges, pseudocount, max_parents, n_jobs):
-	"""
-	Find the optimal graph over a multi-node component of the constaint graph.
+	exclude_edges, pseudocount, penalty, max_parents, n_jobs):
+	"""Find the optimal graph over a multi-node component of the constaint graph.
 
 	The general algorithm in this case is to begin with each variable and add
 	all possible single children for that entry recursively until completion.
@@ -1954,6 +2012,12 @@ def discrete_exact_component(X, weights, task, key_count, include_edges,
 	pseudocount : double
 		A pseudocount to add to each possibility.
 
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
 		using the k-learn procedure. Can drastically speed up algorithms.
@@ -1970,32 +2034,25 @@ def discrete_exact_component(X, weights, task, key_count, include_edges,
 	"""
 
 	cdef int i, n = X.shape[0], d = X.shape[1]
-	cdef double weight
 
-	cdef int variable, child, parent
-	cdef tuple parent_set
-	cdef tuple entry, parent_entry, filtered_entry
-	cdef list last_layer, last_layer_child_sets, layer, layer_child_sets
-	cdef set child_set
-
-	_, parent_vars, children_vars = task
-	variable_set = set([])
-	for parents in parent_vars:
+	variable_set = set()
+	for parents in task[1]:
 		variable_set = variable_set.union(parents)
-	for children in children_vars:
+	for children in task[2]:
 		variable_set = variable_set.union(children)
 
 	parent_sets = {variable: () for variable in variable_set}
 	child_sets = {variable: () for variable in variable_set}
-	for parents, children in zip(parent_vars, children_vars):
+	for parents, children in zip(task[1], task[2]):
 		for child in children:
 			parent_sets[child] += parents
 		for parent in parents:
 			child_sets[parent] += children
 
 	graphs = Parallel(n_jobs=n_jobs, backend='threading')(
-		delayed(generate_parent_graph)(X, weights, key_count, child, pseudocount,
-			max_parents, parents) for child, parents in parent_sets.items())
+		delayed(generate_parent_graph)(X, weights, key_count, child, 
+			include_edges, exclude_edges, pseudocount, penalty, max_parents, 
+			parents) for child, parents in parent_sets.items())
 
 	parent_graphs = [None for i in range(d)]
 	for (child, _), graph in zip(parent_sets.items(), graphs):
@@ -2065,7 +2122,7 @@ def discrete_exact_component(X, weights, task, key_count, include_edges,
 def generate_parent_graph(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
 	int i, list include_edges, list exclude_edges, double pseudocount, 
-	int max_parents, tuple parent_set=()):
+	double penalty, int max_parents, tuple parent_set=()):
 	"""
 	Generate a parent graph for a single variable over its parents.
 
@@ -2101,6 +2158,12 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 	pseudocount : double
 		A pseudocount to add to each possibility.
+
+	penalty : float or None, optional
+		The weighting of the model complexity term in the objective function.
+		Increasing this value will encourage sparsity whereas setting the value
+		to 0 will result in an unregularized structure. Default is 
+		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -2167,7 +2230,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 						with nogil:
 							best_score = discrete_score_node(X, weights, m, 
-								parents, n, j+1, d, pseudocount, 1)
+								parents, n, j+1, d, pseudocount, penalty)
 
 			else:
 				best_structure, best_score = (), NEGINF
@@ -2188,7 +2251,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
-	double pseudocount, int max_parents, tuple parent_set, int i):
+	double pseudocount, double penalty, int max_parents, tuple parent_set, 
+	int i):
 	cdef int j, k
 	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
 
@@ -2215,7 +2279,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 
 			with nogil:
 				score = discrete_score_node(X, weights, m, combs, n, k+1, l,
-					pseudocount, 1)
+					pseudocount, penalty)
 
 			if score > best_score:
 				best_score = score
@@ -2264,7 +2328,10 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 			logp += count * _log2(count / marginal_count)
 
 	if w_sum > 1:
-		logp -= penalty * _log2(w_sum) / 2 * m[d+1]
+		if penalty == -1:
+			logp -= _log2(w_sum) / 2 * m[d+1]
+		else:
+			logp -= penalty * m[d+1]
 	else:
 		logp = NEGINF
 
