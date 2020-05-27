@@ -1,3 +1,5 @@
+from pomegranate import __version__
+
 from setuptools import setup
 from setuptools import Extension
 from setuptools.command.build_ext import build_ext as _build_ext
@@ -71,7 +73,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.13.1rc',
+    version=__version__,
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=[
