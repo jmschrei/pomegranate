@@ -1123,8 +1123,8 @@ cdef class BayesianNetwork(GraphModel):
 
 		w_sum = weights.sum()
 
-		if max_parents == -1 or max_parents > _log2(2*w_sum / _log2(w_sum)):
-			max_parents = int(_log2(2*w_sum / _log2(w_sum)))
+		if max_parents == -1 or max_parents > _log(2*w_sum / _log(w_sum)):
+			max_parents = int(_log(2*w_sum / _log(w_sum)))
 
 		if penalty is None:
 			penalty = -1
