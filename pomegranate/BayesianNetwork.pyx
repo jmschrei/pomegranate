@@ -2291,7 +2291,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 
 cdef double discrete_score_node(double* X, double* weights, int* m, int* parents,
 	int n, int d, int l, double pseudocount, double penalty) nogil:
-	cdef int i, j, k, idx, is_na
+	cdef int i, j, k, idx
 	cdef double w_sum = 0
 	cdef double logp = 0
 	cdef double count, marginal_count
