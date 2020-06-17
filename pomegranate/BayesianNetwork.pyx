@@ -712,8 +712,66 @@ cdef class BayesianNetwork(GraphModel):
 
 		return self
 
-def sample(self, n=1, evidence={}):
-		"""Sample the network, optionally given some evidence
+	def sample(self, n=1, evidences=[{}], algorithm='rejection',**kwargs):
+		"""Sample the network, optionally given some evidences
+		Use rejection to condition on non marginal nodes
+
+		Parameters
+		----------
+		n : int, optional
+				The number of samples to generate. Defaults to 1.
+		evidences : list of dict, optional
+				Evidence to set constant while samples are generated.
+
+		algorithm: : str, one of 'gibbs', 'rejection' optional. default 'rejection'
+			Rejection sampling successively sample each node given its parents evidence. When evidences are given on
+			non-root nodes, only draws compatible with evidence nodes are not rejected. Rejection sampling is a good
+			option when evidences nodes are not far from the root nodes or when given evidence is likely. Rare evidences
+			lead to a high rate of rejected samples, thus to significant slow down of the sampling.
+			Gibbs sampling scheme is a Markov Chain Monte Carlo (MCMC) technique designed to speed up the sampling. It
+			builds conditional probability of state transition of each nodes given its neighbours in its markov blanket.
+			Works well with a lot of evidences in the network, even when they are far from the root nodes. Drawback :
+			convergence is only guaranteed when there is a non null probability path between states. If the posterior
+			consists of isolated islands of high probability, Gibbs sampling will stay stuck in one the island
+			and will never transition to the others. Successive samples will have high correlation.
+
+		min_prob : float <1 optional. If algorithm == "rejection"
+			stop iterations when  Sum P(X|Evidence) < min_prob. generated samples for a given evidence will be
+			incomplete (<n)
+
+		initial_state : dict, optional
+			initial state used by the Gibbs sampler. Default is to use the first modality of each state for unknown nodes
+
+		scan_order: str, one 'topological','random' optional. If algorithm == "gibbs"
+			Scan order or the gibbs sampler. Indicate in which order nodes are sampled. Topological order is good for
+			chain like networks (lots of successive nodes). Random order yield better results with more connected
+			 networks. Default : 'random'.
+
+
+		burnin : int, optional. If algorithm == "Gibbs"
+			Number of sample to discard at the begining of the sampling. Default is 0.
+
+		random_state : seed or seeded numpy instance
+
+		Returns
+		-------
+		a nested list of sampled states
+
+		Examples
+		--------
+		>>> network.sample(evidence = [{'HLML': '2'},{'HLML': '2','TYPL':'1'},{'NBPI': '02','TYPL':'1'}])
+
+		"""
+		if algorithm == "rejection":
+			return self._rejection(n=n,evidences=evidences,**kwargs)
+
+		if algorithm == "gibbs":
+			return self._gibbs( size=n, evidences=evidences, **kwargs)
+
+
+	def _rejection(self, n=1, evidences=[{}],min_prob=0.01):
+		"""Sample the network, optionally given some evidences
+		Use rejection to condition on non marginal nodes
 
 		Parameters
 		----------
@@ -725,6 +783,7 @@ def sample(self, n=1, evidence={}):
 		Returns
 		-------
 		a nested list of sampled states
+
 		"""
 
 		self.bake()
@@ -752,7 +811,7 @@ def sample(self, n=1, evidence={}):
 				safeguard +=1
 				if safeguard > n/min_prob:
 					# raise if P(X|Evidence) < 1%
-					raise Exception('Maximum iteration limit. Make sure the state configuration hinted at by evidence is reachable for this network')
+					raise Exception('Maximum iteration limit. Make sure the state configuration hinted at by evidence is reasonably reachable for this network or lower min_prob')
 
 				# Rejection sampling
 				# If the predicted value is not the one given in evidence, we start over until we reach the expected number of samples by evidence
@@ -765,8 +824,6 @@ def sample(self, n=1, evidence={}):
 					else :
 						val = node.distribution.sample()
 				else :
-					#print(state_dict)
-					#print(args)
 					val = node.distribution.sample(args)
 
 				# rejection sampling
@@ -783,7 +840,6 @@ def sample(self, n=1, evidence={}):
 					args[node_dict[name]] = val
 
 				if (j + 1) == self.d:
-					#print('.',end='')
 					sample.append(state_dict)
 					args = {node_dict[k]:v for k,v in evidence.items()}
 					state_dict = evidence.copy()
@@ -795,7 +851,7 @@ def sample(self, n=1, evidence={}):
 		return samples
 #-----------------------------------------------------------------------------------------------
 
-	def gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=10,random_state=None, scan_order='random',
+	def _gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=10,random_state=None, scan_order='random',
 	double pseudocount=0):
 		"""
 		Draw samples from the bayesian network given evidences.
@@ -855,6 +911,7 @@ def sample(self, n=1, evidence={}):
 		cdef double [:] current_state_view = current_state
 		cdef double [:,:] all_states_view = all_states
 
+		evidence_type = type(list(evidences[0].values())[0])
 
 		col_dict   = {i:state.name for i,state in enumerate(self.states) }
 		col_dict_inv   = {state.name:i for i,state in enumerate(self.states) }
@@ -869,7 +926,6 @@ def sample(self, n=1, evidence={}):
 			G.add_edge(parent.name, child.name)
 
 		topo_order = [col_dict_inv[node_name] for node_name in nx.topological_sort(G)]
-
 
 		modalities = []
 		modalities_int = []
@@ -906,8 +962,6 @@ def sample(self, n=1, evidence={}):
 					node_idx_dict[col].append(0)
 					columns_idxs_dict[col].append([i])
 
-
-
 		cardinalities = [len(m.keys()) for m in modalities_dict]
 
 		prob = numpy.zeros(numpy.max(cardinalities))
@@ -923,8 +977,6 @@ def sample(self, n=1, evidence={}):
 		columns_idxs = [columns_idxs_dict[state.name] for state in self.states ]
 
 		samples = []
-		#print(node_idx_dict)
-		#print(columns_idxs_dict)
 
 		state_order = list(range(n_state))
 		if scan_order == 'topological':
@@ -948,7 +1000,6 @@ def sample(self, n=1, evidence={}):
 			for step in range(n_step):
 
 				if scan_order == 'random':
-					#print('shuffle')
 					random.shuffle(state_order)
 
 				for i in state_order:
@@ -959,7 +1010,6 @@ def sample(self, n=1, evidence={}):
 
 					cardinality = cardinalities[i]
 					column_idxs = columns_idxs[i]
-					#print(col_dict[i],column_idxs)
 					for k,cpd in enumerate(cpds_[i]) :
 
 						col_len = len(column_idxs[k])
@@ -986,8 +1036,16 @@ def sample(self, n=1, evidence={}):
 				if step >= burnin:
 					all_states_view[e*(size)+step-burnin,:] =  current_state_view[:]
 
+		# convert back int to code
+		decoded_states = numpy.empty_like(all_states,dtype=evidence_type)
+		for i,modality_dict in enumerate(modalities_dict):
 
-		return all_states
+			to_values,from_values = list(zip(*modality_dict.items()))
+			sort_idx = numpy.argsort(from_values)
+			idx_ = numpy.searchsorted(from_values,all_states[:,i],sorter = sort_idx)
+			decoded_states[:,i]= numpy.array(to_values)[sort_idx][idx_]
+
+		return decoded_states
 
 	@cython.boundscheck(False)
 	@cython.wraparound(False)
@@ -2672,13 +2730,3 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	free(marginal_counts)
 	return logp
 
-
-
-
-if __name__ == "__main__":
-	print("Hi, I'm embedded.")
-
-	with open('model_40k.json','r') as f :
-		m = BayesianNetwork.from_json(f.read())
-
-	print(m.sample(10))
