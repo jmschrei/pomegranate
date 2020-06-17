@@ -216,7 +216,7 @@ cdef class BayesianNetwork(GraphModel):
 	[['B', 'A']]
 	"""
 
-	cdef list idxs
+	cdef public list idxs
 	cdef public numpy.ndarray keymap
 	cdef int* parent_count
 	cdef int* parent_idxs
@@ -444,8 +444,8 @@ cdef class BayesianNetwork(GraphModel):
 
 			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], self.__class__,
-					'log_probability', fn) for batch in data_generator.batches())
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'log_probability',
+					fn) for batch in data_generator.batches())
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
@@ -611,8 +611,8 @@ cdef class BayesianNetwork(GraphModel):
 
 			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], self.__class__,
-					'predict_proba', fn) for batch in data_generator.batches())
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'predict_proba',
+					fn) for batch in data_generator.batches())
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
@@ -776,10 +776,11 @@ cdef class BayesianNetwork(GraphModel):
 		Parameters
 		----------
 		n : int, optional
-		        The number of samples to generate. Defaults to 1.
-		evidence : dict, optional
-		        Evidence to set constant while samples are generated.
-
+				The number of samples to generate. Defaults to 1.
+		evidences : list of dict, optional
+				Evidence to set constant while samples are generated.
+		min_prob : stop iterations when  Sum P(X|Evidence) < min_prob. generated samples for a given evidence will be
+				incomplete (<n)
 		Returns
 		-------
 		a nested list of sampled states
