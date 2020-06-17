@@ -712,7 +712,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		return self
 
-	def sample(self, n=1, evidences=[{}], algorithm='rejection',**kwargs):
+	def sample(self, n=1, evidences=[{}], algorithm='rejection',random_state=None,**kwargs):
 		"""Sample the network, optionally given some evidences
 		Use rejection to condition on non marginal nodes
 
@@ -725,7 +725,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		algorithm: : str, one of 'gibbs', 'rejection' optional. default 'rejection'
 			Rejection sampling successively sample each node given its parents evidence. When evidences are given on
-			non-root nodes, only draws compatible with evidence nodes are not rejected. Rejection sampling is a good
+			non-root nodes, only draws that are compatible with evidence nodes are not rejected. Rejection sampling is a good
 			option when evidences nodes are not far from the root nodes or when given evidence is likely. Rare evidences
 			lead to a high rate of rejected samples, thus to significant slow down of the sampling.
 			Gibbs sampling scheme is a Markov Chain Monte Carlo (MCMC) technique designed to speed up the sampling. It
@@ -755,7 +755,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		Returns
 		-------
-		a nested list of sampled states
+		a nested list of sampled states of shape [n*len(evidences),len(nodes)]
 
 		Examples
 		--------
@@ -763,13 +763,13 @@ cdef class BayesianNetwork(GraphModel):
 
 		"""
 		if algorithm == "rejection":
-			return self._rejection(n=n,evidences=evidences,**kwargs)
+			return self._rejection(n=n,evidences=evidences,random_state=random_state,**kwargs)
 
 		if algorithm == "gibbs":
-			return self._gibbs( size=n, evidences=evidences, **kwargs)
+			return self._gibbs( n=n, evidences=evidences,random_state=random_state, **kwargs)
 
 
-	def _rejection(self, n=1, evidences=[{}],min_prob=0.01):
+	def _rejection(self, n=1, evidences=[{}],min_prob=0.01,random_state=None):
 		"""Sample the network, optionally given some evidences
 		Use rejection to condition on non marginal nodes
 
@@ -785,7 +785,7 @@ cdef class BayesianNetwork(GraphModel):
 		a nested list of sampled states
 
 		"""
-
+		random_state = check_random_state(random_state)
 		self.bake()
 		samples = []
 		node_dict = {node.name:node.distribution for node in self.states}
@@ -801,8 +801,8 @@ cdef class BayesianNetwork(GraphModel):
 
 		for evidence in evidences:
 			count = 0
-			sample=[]
-			samples.append(sample)
+			#sample=[]
+			#samples.append(sample)
 			safeguard = 0
 			state_dict = evidence.copy()
 			args = {node_dict[k]:v for k,v in evidence.items()}
@@ -822,9 +822,9 @@ cdef class BayesianNetwork(GraphModel):
 					if name in evidence :
 						val = evidence[name]
 					else :
-						val = node.distribution.sample()
+						val = node.distribution.sample(random_state=random_state)
 				else :
-					val = node.distribution.sample(args)
+					val = node.distribution.sample(args,random_state=random_state)
 
 				# rejection sampling
 				if node.distribution.name != "DiscreteDistribution" and (name in evidence):
@@ -840,7 +840,7 @@ cdef class BayesianNetwork(GraphModel):
 					args[node_dict[name]] = val
 
 				if (j + 1) == self.d:
-					sample.append(state_dict)
+					samples.append(state_dict)
 					args = {node_dict[k]:v for k,v in evidence.items()}
 					state_dict = evidence.copy()
 					count += 1
@@ -848,22 +848,23 @@ cdef class BayesianNetwork(GraphModel):
 			# make sure we start with the first node in the topoplogical order
 			[iter_.__next__() for i in range(self.d - j - 1)]
 
-		return samples
-#-----------------------------------------------------------------------------------------------
+		keys = node_dict.keys()
+		return  numpy.array([[r[k] for k in keys ] for i,r in enumerate(samples)])
 
-	def _gibbs(self, int size,  list evidences=[], dict initial_state ={}, int burnin=10,random_state=None, scan_order='random',
+
+	def _gibbs(self, int n,  list evidences=[], dict initial_state ={}, int burnin=10,random_state=None, scan_order='random',
 	double pseudocount=0):
 		"""
 		Draw samples from the bayesian network given evidences.
 		Evidences can be given for any nodes (root or not).
 
-		This will return sample of size <size> for each of the given evidence in <evidences>
+		This will return sample of size <n> for each of the given evidence in <evidences>
 
 		Node sampling order is shuffled each iteration
 
 		Parameters
 		----------
-		size : int
+		n : int
 			The number of sample to draw for each evidence  each sample as a positive double. Default is None.
 
 		evidences : list [{<state_name>:<state_value>}]
@@ -890,7 +891,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		Returns
 		-------
-		array : samples (size*len(evidences),n_state)
+		array : samples (n*len(evidences),n_state)
 			sample drawn from the bayesian network
 		"""
 		random_state = check_random_state(random_state)
@@ -901,17 +902,15 @@ cdef class BayesianNetwork(GraphModel):
 		cdef dict col_dict, col_dict_inv, graph_dict
 		cdef list modalities, cardinalities, cols, col_idxs, probs, cpds_, node_idx, samples
 
-		n_step = burnin+size
+		n_step = burnin+n
 		n_state = len(self.states)
 
 		cdef numpy.ndarray[numpy.double_t, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float)
-		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([size*len(evidences),n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([n*len(evidences),n_state],dtype=numpy.float)
 		cdef numpy.ndarray[numpy.double_t,ndim=1,mode='c'] prob, prob_tmp, state_subset, proba
 
 		cdef double [:] current_state_view = current_state
 		cdef double [:,:] all_states_view = all_states
-
-		evidence_type = type(list(evidences[0].values())[0])
 
 		col_dict   = {i:state.name for i,state in enumerate(self.states) }
 		col_dict_inv   = {state.name:i for i,state in enumerate(self.states) }
@@ -926,6 +925,10 @@ cdef class BayesianNetwork(GraphModel):
 			G.add_edge(parent.name, child.name)
 
 		topo_order = [col_dict_inv[node_name] for node_name in nx.topological_sort(G)]
+
+
+		if initial_state == {} :
+			initial_state = {state.name: state.distribution.keys()[0] for state in self.states}
 
 		modalities = []
 		modalities_int = []
@@ -988,12 +991,8 @@ cdef class BayesianNetwork(GraphModel):
 			for i,state in enumerate(self.states):
 
 				if state.name in evidence:
-
-
-					#all_states[e*(size),i]  =
 					current_state[i] = modalities_dict[i][evidence[state.name]]
 				else :
-					#all_states[e*(size),i] =
 					current_state[i] = modalities_dict[i][initial_state[state.name]]
 				pass
 
@@ -1034,10 +1033,11 @@ cdef class BayesianNetwork(GraphModel):
 					current_state_view[i] = <double> choose_one(prob_view[:cardinality],cardinality)
 					prob_view[:] = 0.
 				if step >= burnin:
-					all_states_view[e*(size)+step-burnin,:] =  current_state_view[:]
+					all_states_view[e*(n)+step-burnin,:] =  current_state_view[:]
 
 		# convert back int to code
-		decoded_states = numpy.empty_like(all_states,dtype=evidence_type)
+		modalities_type = type(list(modalities_dict[0].keys())[0])
+		decoded_states = numpy.empty_like(all_states,dtype=modalities_type)
 		for i,modality_dict in enumerate(modalities_dict):
 
 			to_values,from_values = list(zip(*modality_dict.items()))
