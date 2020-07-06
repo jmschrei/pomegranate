@@ -992,7 +992,12 @@ cdef class BayesianNetwork(GraphModel):
 			for i,state in enumerate(self.states):
 
 				if state.name in evidence:
-					current_state[i] = modalities_dict[i][evidence[state.name]]
+					mod_i = modalities_dict[i]
+					ev_for_name = evidence[state.name]
+					if isinstance(list(mod_i.keys())[0], str):
+						current_state[i] = mod_i[ev_for_name]
+					else:
+						current_state[i] = mod_i[int(ev_for_name)]
 				else :
 					current_state[i] = modalities_dict[i][initial_state[state.name]]
 				pass
@@ -1005,7 +1010,11 @@ cdef class BayesianNetwork(GraphModel):
 				for i in state_order:
 					if col_dict[i] in evidence:
 						#all_states_view[e*(n_step)+step+1,i] =
-						current_state_view[i] = <double> modalities_dict[i][evidence[col_dict[i]]]
+						mod_i = modalities_dict[i]
+						if isinstance(list(mod_i.keys())[0], str):
+							current_state_view[i] = <double> mod_i[evidence[col_dict[i]]]
+						else:
+							current_state_view[i] = <double> mod_i[int(evidence[col_dict[i]])]
 						continue
 
 					cardinality = cardinalities[i]
