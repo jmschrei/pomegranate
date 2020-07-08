@@ -740,7 +740,9 @@ cdef class BayesianNetwork(GraphModel):
 			incomplete (<n)
 
 		initial_state : dict, optional
-			initial state used by the Gibbs sampler. Default is to use the first modality of each state for unknown nodes
+			initial state used by the Gibbs sampler.
+			Default is to use the maximum joint-probability values, calculated with self.predict().
+			The default should be optimal.
 
 		scan_order: str, one 'topological','random' optional. If algorithm == "gibbs"
 			Scan order or the gibbs sampler. Indicate in which order nodes are sampled. Topological order is good for
@@ -873,8 +875,10 @@ cdef class BayesianNetwork(GraphModel):
 			corresponds to the associated variable. Default [{}]
 
 		initial_state : dict, optional
-			initial state used by the sampler. Default is to use the first modality of each state for unknown nodes
-
+			Initial state used by the sampler.
+			Default is to use the maximum joint-probability values, calculated with self.predict().
+			The default should be optimal.
+			
 		scan_order: str, optional ['topological','random',]
 			scan order or the gibbs sampler. Indicate in which order nodes are sampled. Default : 'topological'.
 
