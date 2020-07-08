@@ -929,7 +929,12 @@ cdef class BayesianNetwork(GraphModel):
 
 
 		if initial_state == {} :
-			initial_state = {state.name: state.distribution.keys()[0] for state in self.states}
+			# initial_state = {state.name: state.distribution.keys()[0] for state in self.states}
+			# Optimal initial state
+			in_st_nan = np.empty( (1, len(self.states)) )
+			in_st_nan[:] = np. nan
+			in_st_pred = self.predict(in_st_nan)
+			initial_state = {state.name: in_st_pred[0][i] for i, state in enumerate(self.states)}
 
 		modalities = []
 		modalities_int = []
