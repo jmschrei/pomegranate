@@ -277,40 +277,7 @@ cdef class FactorGraph(GraphModel):
 		# This is the flooding message schedule for loopy belief propagation.
 		cdef bint done
 		iteration = 0
-		while iteration < max_iterations:
-			# UPDATE MESSAGES LEAVING THE MARGINAL NODES
-			for i, state in enumerate(self.states):
-				# Ignore factor nodes for now
-				if self.marginals[i] == 0 or iteration == 0:
-					continue
-
-				# We are trying to calculate a new message for each edge leaving
-				# this marginal node. So we start by looping over each edge, and
-				# for each edge loop over all other edges and multiply the factors
-				# together.
-				for k in range(self.edge_count[i], self.edge_count[i+1]):
-					ki = self.transitions[k]
-					# Start off by weighting by the distribution at this factor--
-					# keep in mind that this is a uniform distribution unless evidence
-					# is provided by the user, at which point it is clamped to a
-					# specific value, acting as a filter.
-					message = distributions[i]
-
-					for l in range(self.edge_count[i], self.edge_count[i+1]):
-						# Don't include the previous message received from here
-						if k == l:
-							continue
-
-						# Update the out message by multiplying the factors
-						# together.
-						message *= in_messages[l]
-
-					for l in range(self.edge_count[ki], self.edge_count[ki+1]):
-						li = self.transitions[l]
-
-						if li == i:
-							out_messages[l] = message
-
+		while True:
 			# We have now updated all of the messages leaving the marginal node,
 			# now we have to update all the messages going to the marginal node.
 			for i, state in enumerate(self.states):
@@ -342,6 +309,7 @@ cdef class FactorGraph(GraphModel):
 
 						if li == i:
 							in_messages[l] = state.distribution.marginal(neighbor_values=d)
+							break
 
 			# Calculate the current estimates on the marginals to compare to the
 			# last iteration, so that we can stop if we reach convergence.
@@ -363,12 +331,48 @@ cdef class FactorGraph(GraphModel):
 			if done == 1:
 				break
 
+			# Increment our iteration calculator
+			iteration += 1
+			if iteration >= max_iterations:
+				break
+
 			# Set this list of distributions to the prior observations of the
 			# marginals
 			prior_distributions = current_distributions.copy()
 
-			# Increment our iteration calculator
-			iteration += 1
+			# UPDATE MESSAGES LEAVING THE MARGINAL NODES
+			for i, state in enumerate(self.states):
+				# Ignore factor nodes for now
+				if self.marginals[i] == 0:
+					continue
+
+				# We are trying to calculate a new message for each edge leaving
+				# this marginal node. So we start by looping over each edge, and
+				# for each edge loop over all other edges and multiply the factors
+				# together.
+				for k in range(self.edge_count[i], self.edge_count[i+1]):
+					ki = self.transitions[k]
+					# Start off by weighting by the distribution at this factor--
+					# keep in mind that this is a uniform distribution unless evidence
+					# is provided by the user, at which point it is clamped to a
+					# specific value, acting as a filter.
+					message = distributions[i]
+
+					for l in range(self.edge_count[i], self.edge_count[i+1]):
+						# Don't include the previous message received from here
+						if k == l:
+							continue
+
+						# Update the out message by multiplying the factors
+						# together.
+						message *= in_messages[l]
+
+					for l in range(self.edge_count[ki], self.edge_count[ki+1]):
+						li = self.transitions[l]
+
+						if li == i:
+							out_messages[l] = message
+							break
 
 
 		y_hat = numpy.empty(n, dtype=Distribution)
