@@ -2232,9 +2232,6 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 							best_score = discrete_score_node(X, weights, m, 
 								parents, n, j+1, d, pseudocount, penalty)
 
-			else:
-				best_structure, best_score = (), NEGINF
-
 			for k, variable in enumerate(subset):
 				parent_subset = tuple(l for l in subset if l != variable)
 				structure, score = parent_graph[parent_subset]
