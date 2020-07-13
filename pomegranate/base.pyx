@@ -36,6 +36,10 @@ cdef class Model(object):
 	def set_params(self, state):
 		self.__setstate__(state)
 
+	def to_dict(self):
+		"""Serialize this object to a dictionary of parameters."""
+		raise NotImplementedError
+
 	def to_json(self, separators=(',', ' : '), indent=4):
 		"""Serialize the model to JSON.
 
@@ -56,21 +60,48 @@ cdef class Model(object):
 			A properly formatted JSON object.
 		"""
 
-		raise NotImplementedError
+		return json.dumps( self.to_dict(), separators=separators, indent=indent )
 
 	def to_yaml(self):
 		"""Serialize the model to YAML for compactness."""
 		return yaml.safe_dump(json.loads(self.to_json()))
 
 	@classmethod
-	def from_json( cls, json ):
-		"""Deserialize this object from its JSON representation."""
+	def from_dict( cls, dictionary ):
+		"""Deserialize this object from a dictionary of parameters."""
 		raise NotImplementedError
+
+	@classmethod
+	def from_json( cls, s ):
+		"""Deserialize this object from its JSON representation.
+
+		Parameters
+		----------
+		s : str
+			A JSON formatted string containing the file.
+
+		Returns
+		-------
+		model : object
+			A properly initialized and baked model.
+		"""
+
+		# Load a dictionary from a JSON formatted string
+		try:
+			d = json.loads(s)
+		except:
+			try:
+				with open(s, 'r') as infile:
+					d = json.load(infile)
+			except:
+				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
+
+		return cls.from_dict(d)
 
 	@classmethod
 	def from_yaml( cls, yml ):
 		"""Deserialize this object from its YAML representation."""
-		return cls.from_json(json.dumps(yaml.load(yml, Loader=yaml.SafeLoader)))
+		return cls.from_dict(yaml.load(yml, Loader=yaml.SafeLoader))
 
 	def copy(self):
 		"""Return a deep copy of this distribution object.
@@ -439,27 +470,26 @@ cdef class State(object):
 		"""Return a hard copy of this state."""
 		return State( distribution=self.distribution.copy(), name=self.name )
 
-	def to_json( self, separators=(',', ' : '), indent=4 ):
-		"""Convert this state to JSON format."""
+	def to_dict(self):
+		"""Convert this state to a dictionary of parameters."""
+		return {
+			'class' : 'State',
+			'distribution' : None if self.is_silent() else self.distribution.to_dict(),
+			'name' : self.name,
+			'weight' : self.weight
+		}
 
-		return json.dumps( {
-				'class' : 'State',
-				'distribution' : None if self.is_silent()
-					else json.loads( self.distribution.to_json() ),
-				'name' : self.name,
-				'weight' : self.weight
-			}, separators=separators, indent=indent )
+	def to_json(self, separators=(',', ' : '), indent=4):
+		"""Convert this state to JSON format."""
+		return json.dumps(self.to_dict(), separators=separators, indent=indent)
 
 	def to_yaml(self):
 		"""Convert this state to YAML format."""
 		return yaml.safe_dump(json.loads(self.to_json()))
 
 	@classmethod
-	def from_json( cls, s ):
-		"""Read a State from a given string formatted in JSON."""
-
-		# Load a dictionary from a JSON formatted string
-		d = json.loads(s)
+	def from_dict( cls, d ):
+		"""Read a State from a given dictionary of parameters."""
 
 		# If we're not decoding a state, we're decoding the wrong thing
 		if d['class'] != 'State':
@@ -476,9 +506,20 @@ cdef class State(object):
 		from .gmm import GeneralMixtureModel
 
 		c = d['distribution']['class']
-		dist = eval(c).from_json( json.dumps( d['distribution'] ) )
+		dist = eval(c).from_dict( d['distribution'] )
 		return cls( dist, name, weight )
 
+	@classmethod
+	def from_json( cls, s ):
+		"""Read a State from a given string formatted in JSON."""
+
+		# Load a dictionary from a JSON formatted string
+		return cls.from_dict(json.loads(s))
+
+	@classmethod
+	def from_yaml( cls, yml ):
+		"""Read a State from a given string formatted in YAML."""
+		return cls.from_dict(yaml.load(yml, Loader=yaml.SafeLoader))
 
 # Create a convenient alias
 Node = State

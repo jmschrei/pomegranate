@@ -17,7 +17,6 @@ from .utils cimport mdot
 from .utils cimport isnan
 
 import time
-import json
 import numpy
 cimport numpy
 
@@ -669,18 +668,15 @@ cdef class Kmeans(Model):
 		memset(self.summary_sizes, 0, self.k*self.d*sizeof(double))
 		memset(self.summary_weights, 0, self.k*self.d*sizeof(double))
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		model = {
-					'class' : 'Kmeans',
-					'k' : self.k,
-					'centroids'  : self.centroids.tolist()
-				}
-
-		return json.dumps(model, separators=separators, indent=indent)
+	def to_dict(self):
+		return {
+			'class' : 'Kmeans',
+			'k' : self.k,
+			'centroids'  : self.centroids.tolist()
+		}
 
 	@classmethod
-	def from_json(cls, s):
-		d = json.loads(s)
+	def from_dict(cls, d):
 		model = cls(d['k'], d['centroids'])
 		return model
 

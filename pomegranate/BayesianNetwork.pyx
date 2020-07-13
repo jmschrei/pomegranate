@@ -2,7 +2,6 @@
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
 import itertools as it
-import json
 import time
 import networkx as nx
 import numpy
@@ -782,65 +781,22 @@ cdef class BayesianNetwork(GraphModel):
 
 		self.bake()
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-			The two separators to pass to the json.dumps function for formatting.
-
-		indent : int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting.
-
-		Returns
-		-------
-		json : str
-			A properly formatted JSON object.
-		"""
-
+	def to_dict(self):
 		states = [ state.copy() for state in self.states ]
 
-		model = {
-					'class' : 'BayesianNetwork',
-					'name'  : self.name,
-					'structure' : self.structure,
-					'states' : [ json.loads( state.to_json() ) for state in states ]
-				}
-
-		return json.dumps( model, separators=separators, indent=indent )
+		return {
+			'class' : 'BayesianNetwork',
+			'name'  : self.name,
+			'structure' : self.structure,
+			'states' : [ state.to_dict() for state in states ]
+		}
 
 	@classmethod
-	def from_json(cls, s):
-		"""Read in a serialized Bayesian Network and return the appropriate object.
-
-		Parameters
-		----------
-		s : str
-			A JSON formatted string containing the file.
-
-		Returns
-		-------
-		model : object
-			A properly initialized and baked model.
-		"""
-
-		# Load a dictionary from a JSON formatted string
-		try:
-			d = json.loads(s)
-		except:
-			try:
-				with open(s, 'r') as infile:
-					d = json.load(infile)
-			except:
-				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+	def from_dict(cls, d):
 		# Make a new generic Bayesian Network
 		model = cls(str(d['name']))
 
-		# Load all the states from JSON formatted strings
-		states = [State.from_json(json.dumps(j)) for j in d['states']]
+		states = [State.from_dict(j) for j in d['states']]
 		structure = d['structure']
 		for state, parents in zip(states, structure):
 			if len(parents) > 0:

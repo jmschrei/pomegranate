@@ -16,7 +16,6 @@ from ..utils import check_random_state
 from ..utils import _check_nan
 
 import itertools as it
-import json
 import numpy
 import random
 import scipy
@@ -277,36 +276,16 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		self.summarize(items, weights)
 		self.from_summaries(inertia, pseudocount)
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-		    The two separators to pass to the json.dumps function for formatting.
-		    Default is (',', ' : ').
-
-		indent : int, optional
-		    The indentation to use at each level. Passed to json.dumps for
-		    formatting. Default is 4.
-
-		Returns
-		-------
-		json : str
-		    A properly formatted JSON object.
-		"""
-
+	def to_dict(self):
 		table = [list(key + tuple([cexp(self.values[i])])) for key, i in self.keymap.items()]
 
-		model = {
-					'class' : 'Distribution',
-		            'name' : 'JointProbabilityTable',
-		            'table' : table,
-		            'dtypes' : self.dtypes,
-		            'parents' : [dist if isinstance(dist, int) else json.loads(dist.to_json()) for dist in self.parameters[1]]
-		        }
-		
-		return json.dumps(model, separators=separators, indent=indent)
+		return {
+			'class' : 'Distribution',
+			'name' : 'JointProbabilityTable',
+			'table' : table,
+			'dtypes' : self.dtypes,
+			'parents' : [dist if isinstance(dist, int) else dist.to_dict() for dist in self.parameters[1]]
+		}
 
 	@classmethod
 	def from_samples(cls, X, parents=None, weights=None, pseudocount=0.0, 

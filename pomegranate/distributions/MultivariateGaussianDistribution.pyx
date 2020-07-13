@@ -6,7 +6,6 @@
 
 import numpy
 import scipy
-import json
 
 try:
 	import cupy
