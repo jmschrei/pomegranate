@@ -159,9 +159,9 @@ cdef class BayesianNetwork(GraphModel):
 	>>> from pomegranate import *
 	>>> d1 = DiscreteDistribution({'A': 0.2, 'B': 0.8})
 	>>> d2 = ConditionalProbabilityTable([['A', 'A', 0.1],
-												 ['A', 'B', 0.9],
-												 ['B', 'A', 0.4],
-												 ['B', 'B', 0.6]], [d1])
+										 ['A', 'B', 0.9],
+										 ['B', 'A', 0.4],
+										 ['B', 'B', 0.6]], [d1])
 	>>> s1 = Node( d1, name="s1" )
 	>>> s2 = Node( d2, name="s2" )
 	>>> model = BayesianNetwork()
@@ -171,7 +171,6 @@ cdef class BayesianNetwork(GraphModel):
 	>>> print(model.log_probability([['A', 'B']]))
 	-1.71479842809
 	>>> print(model.predict_proba({'s2' : 'A'}))
-	>>> print(model.predict([[None, 'A']]))
     [{
         "class" :"Distribution",
         "dtype" :"str",
@@ -185,7 +184,7 @@ cdef class BayesianNetwork(GraphModel):
         "frozen" :false
     }
     'A']
-    >>> print(model.predict([[None, 'A]]))
+    >>> print(model.predict([[None, 'A']]))
 	[array(['B', 'A'], dtype=object)]
 	"""
 
