@@ -2536,13 +2536,27 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef str alg = algorithm.lower()
         cdef bint check_input = alg == 'viterbi'
         cdef list X = []
+        cdef list checked_sequences=[]
+        cdef list Z = []
 
         training_start_time = time.time()
 
         if not isinstance(sequences, BaseGenerator):
+            #check_input:
+            #sequences have elements which are ndarrays. For each dimension in
+            #our HMM model we have one row in this array, so we have to
+            #iterate over all sequences for all dimensions
+            for sequence in sequences:
+                sequence_ndarray = _check_input(sequence, self)
+                checked_sequences.append(sequence_ndarray)
+
+            if labels is not None:
+                labels = numpy.array(labels)
+            sequences=checked_sequences
             data_generator = SequenceGenerator(sequences, weights, labels)
         else:
             data_generator = sequences
+
 
         n = data_generator.shape[0]
 
@@ -2577,10 +2591,10 @@ cdef class HiddenMarkovModel(GraphModel):
 
                 if semisupervised:
                     log_probability_sum = sum(parallel(f(*batch, algorithm='labeled', 
-                        check_input=True) for batch in data_generator.labeled_batches()))
+                        check_input=False) for batch in data_generator.labeled_batches()))
 
                     log_probability_sum += sum(parallel(f(*batch, algorithm=algorithm, 
-                        check_input=True) for batch in data_generator.unlabeled_batches()))
+                        check_input=False) for batch in data_generator.unlabeled_batches()))
 
                 elif labels is not None:
                     log_probability_sum = sum(parallel(f(*batch, 
@@ -2588,7 +2602,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
                 else:
                     log_probability_sum = sum(parallel(f(*batch, algorithm=algorithm,
-                        check_input=True) for batch in data_generator.batches()))
+                        check_input=False) for batch in data_generator.batches()))
 
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
