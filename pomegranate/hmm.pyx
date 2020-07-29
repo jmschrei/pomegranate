@@ -2561,10 +2561,10 @@ cdef class HiddenMarkovModel(GraphModel):
                 checked_sequences.append(sequence_ndarray)
                 W.append(batch[1])
                 if len(batch)==3:
-                    L.append(batch[2])
+                    L.append(batch[2][0])
             weights=W
             if len(L)>0:
-                lables=L
+                labels=L
 
             data_generator = SequenceGenerator(checked_sequences, weights, labels)
 
@@ -2609,7 +2609,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
                 elif labels is not None:
                     log_probability_sum = sum(parallel(f(*batch, 
-                        algorithm=algorithm) for batch in data_generator.batches()))
+                        algorithm=algorithm, check_input=False) for batch in data_generator.batches()))
 
                 else:
                     log_probability_sum = sum(parallel(f(*batch, algorithm=algorithm,
