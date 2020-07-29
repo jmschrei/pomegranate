@@ -2537,7 +2537,8 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef bint check_input = alg == 'viterbi'
         cdef list X = []
         cdef list checked_sequences=[]
-        cdef list Z = []
+        cdef list W=[]
+        cdef list L=[]
 
         training_start_time = time.time()
 
@@ -2555,7 +2556,17 @@ cdef class HiddenMarkovModel(GraphModel):
             sequences=checked_sequences
             data_generator = SequenceGenerator(sequences, weights, labels)
         else:
-            data_generator = sequences
+            for batch in sequences.batches():
+                sequence_ndarray= _check_input(batch[0][0],self)
+                checked_sequences.append(sequence_ndarray)
+                W.append(batch[1])
+                if len(batch)==3:
+                    L.append(batch[2])
+            weights=W
+            if len(L)>0:
+                lables=L
+
+            data_generator = SequenceGenerator(checked_sequences, weights, labels)
 
 
         n = data_generator.shape[0]
