@@ -159,42 +159,33 @@ cdef class BayesianNetwork(GraphModel):
 	>>> from pomegranate import *
 	>>> d1 = DiscreteDistribution({'A': 0.2, 'B': 0.8})
 	>>> d2 = ConditionalProbabilityTable([['A', 'A', 0.1],
-												 ['A', 'B', 0.9],
-												 ['B', 'A', 0.4],
-												 ['B', 'B', 0.6]], [d1])
+										 ['A', 'B', 0.9],
+										 ['B', 'A', 0.4],
+										 ['B', 'B', 0.6]], [d1])
 	>>> s1 = Node( d1, name="s1" )
 	>>> s2 = Node( d2, name="s2" )
 	>>> model = BayesianNetwork()
-	>>> model.add_nodes([s1, s2])
+	>>> model.add_nodes(s1, s2)
 	>>> model.add_edge(s1, s2)
 	>>> model.bake()
-	>>> print(model.log_probability(['A', 'B']))
+	>>> print(model.log_probability([['A', 'B']]))
 	-1.71479842809
 	>>> print(model.predict_proba({'s2' : 'A'}))
-	array([ {
-		"frozen" :false,
-		"class" :"Distribution",
-		"parameters" :[
-			{
-				"A" :0.05882352941176471,
-				"B" :0.9411764705882353
-			}
-		],
-		"name" :"DiscreteDistribution"
-	},
-		   {
-		"frozen" :false,
-		"class" :"Distribution",
-		"parameters" :[
-			{
-				"A" :1.0,
-				"B" :0.0
-			}
-		],
-		"name" :"DiscreteDistribution"
-	}], dtype=object)
-	>>> print(model.impute([[None, 'A']]))
-	[['B', 'A']]
+    [{
+        "class" :"Distribution",
+        "dtype" :"str",
+        "name" :"DiscreteDistribution",
+        "parameters" :[
+            {
+                "A" :0.05882352941176483,
+                "B" :0.9411764705882352
+            }
+        ],
+        "frozen" :false
+    }
+    'A']
+    >>> print(model.predict([[None, 'A']]))
+	[array(['B', 'A'], dtype=object)]
 	"""
 
 	cdef list idxs
