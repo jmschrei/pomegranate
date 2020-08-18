@@ -2396,7 +2396,8 @@ cdef class HiddenMarkovModel(GraphModel):
         pseudocount=None, transition_pseudocount=0, emission_pseudocount=0.0,
         use_pseudocount=False, inertia=None, edge_inertia=0.0,
         distribution_inertia=0.0, batches_per_epoch=None, lr_decay=0.0, 
-        callbacks=[], return_history=False, verbose=False, n_jobs=1):
+        callbacks=[], return_history=False, verbose=False, n_jobs=1,
+        multiple_check_input=True):
         """Fit the model to data using either Baum-Welch, Viterbi, or supervised training.
 
         Given a list of sequences, performs re-estimation on the model
@@ -2517,6 +2518,13 @@ cdef class HiddenMarkovModel(GraphModel):
             The number of threads to use when performing training. This
             leads to exact updates. Default is 1.
 
+        multiple_check_input : bool, optional
+            Whether to check and transcode input at each iteration. This
+            leads to copying whole input data in each iteration. Which 
+            can introduce significant overhead (up to 2 times slower) so 
+            should be turned off when you know that data won't be changed 
+            between fitting iteration. Default is True.
+
         Returns
         -------
         improvement : double
@@ -2542,31 +2550,40 @@ cdef class HiddenMarkovModel(GraphModel):
 
         training_start_time = time.time()
 
-        if not isinstance(sequences, BaseGenerator):
-            #check_input:
-            #sequences have elements which are ndarrays. For each dimension in
-            #our HMM model we have one row in this array, so we have to
-            #iterate over all sequences for all dimensions
-            for sequence in sequences:
-                sequence_ndarray = _check_input(sequence, self)
-                checked_sequences.append(sequence_ndarray)
-
-            if labels is not None:
-                labels = numpy.array(labels)
-            sequences=checked_sequences
-            data_generator = SequenceGenerator(sequences, weights, labels)
+        if multiple_check_input:
+            # if we should check input multiple times
+            # use old code, where we only change class of input
+            # checking input will be in `summarize` function
+            if not isinstance(sequences, BaseGenerator):
+                data_generator = SequenceGenerator(sequences, weights, labels)
+            else:
+                data_generator = sequences
         else:
-            for batch in sequences.batches():
-                sequence_ndarray= _check_input(batch[0][0],self)
-                checked_sequences.append(sequence_ndarray)
-                W.append(batch[1])
-                if len(batch)==3:
-                    L.append(batch[2][0])
-            weights=W
-            if len(L)>0:
-                labels=L
+            if not isinstance(sequences, BaseGenerator):
+                #check_input:
+                #sequences have elements which are ndarrays. For each dimension in
+                #our HMM model we have one row in this array, so we have to
+                #iterate over all sequences for all dimensions
+                for sequence in sequences:
+                    sequence_ndarray = _check_input(sequence, self)
+                    checked_sequences.append(sequence_ndarray)
 
-            data_generator = SequenceGenerator(checked_sequences, weights, labels)
+                if labels is not None:
+                    labels = numpy.array(labels)
+                sequences=checked_sequences
+                data_generator = SequenceGenerator(sequences, weights, labels)
+            else:
+                for batch in sequences.batches():
+                    sequence_ndarray= _check_input(batch[0][0],self)
+                    checked_sequences.append(sequence_ndarray)
+                    W.append(batch[1])
+                    if len(batch)==3:
+                        L.append(batch[2][0])
+                weights=W
+                if len(L)>0:
+                    labels=L
+
+                data_generator = SequenceGenerator(checked_sequences, weights, labels)
 
 
         n = data_generator.shape[0]
@@ -2602,18 +2619,18 @@ cdef class HiddenMarkovModel(GraphModel):
 
                 if semisupervised:
                     log_probability_sum = sum(parallel(f(*batch, algorithm='labeled', 
-                        check_input=False) for batch in data_generator.labeled_batches()))
+                        check_input=multiple_check_input) for batch in data_generator.labeled_batches()))
 
                     log_probability_sum += sum(parallel(f(*batch, algorithm=algorithm, 
-                        check_input=False) for batch in data_generator.unlabeled_batches()))
+                        check_input=multiple_check_input) for batch in data_generator.unlabeled_batches()))
 
                 elif labels is not None:
                     log_probability_sum = sum(parallel(f(*batch, 
-                        algorithm=algorithm, check_input=False) for batch in data_generator.batches()))
+                        algorithm=algorithm, check_input=multiple_check_input) for batch in data_generator.batches()))
 
                 else:
                     log_probability_sum = sum(parallel(f(*batch, algorithm=algorithm,
-                        check_input=False) for batch in data_generator.batches()))
+                        check_input=multiple_check_input) for batch in data_generator.batches()))
 
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
@@ -3429,7 +3446,8 @@ cdef class HiddenMarkovModel(GraphModel):
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1,
         initialization_batch_size=None, batches_per_epoch=None, lr_decay=0.0, 
         end_state=False, state_names=None, name=None, keys=None, random_state=None, 
-        callbacks=[], return_history=False, verbose=False, n_jobs=1):
+        callbacks=[], return_history=False, verbose=False, n_jobs=1,
+        multiple_check_input=True):
         """Learn the transitions and emissions of a model directly from data.
 
         This method will learn both the transition matrix, emission distributions,
@@ -3600,6 +3618,13 @@ cdef class HiddenMarkovModel(GraphModel):
             The number of threads to use when performing training. This
             leads to exact updates. Default is 1.
 
+        multiple_check_input : bool, optional
+            Whether to check and transcode input at each iteration. This
+            leads to copying whole input data in each iteration. Which 
+            can introduce significant overhead (up to 2 times slower) so 
+            should be turned off when you know that data won't be changed 
+            between fitting iteration. Default is True.
+
         Returns
         -------
         model : HiddenMarkovModel
@@ -3728,7 +3753,8 @@ cdef class HiddenMarkovModel(GraphModel):
             inertia=inertia, edge_inertia=edge_inertia,
             distribution_inertia=distribution_inertia,
             batches_per_epoch=batches_per_epoch, lr_decay=lr_decay,
-            callbacks=callbacks, return_history=True, n_jobs=n_jobs)
+            callbacks=callbacks, return_history=True, n_jobs=n_jobs,
+            multiple_check_input=multiple_check_input)
 
 
         if return_history:
