@@ -2325,10 +2325,13 @@ cdef class HiddenMarkovModel(GraphModel):
 
         if self.d == 0:
             raise ValueError("must bake model before prediction")
-
+        
         if algorithm == 'map':
             return [state_id for state_id, state in self.maximum_a_posteriori(sequence)[1]]
-        return [state_id for state_id, state in self.viterbi(sequence)[1]]
+        elif algorithm == 'viterbi':
+            return [state_id for state_id, state in self.viterbi(sequence)[1]]
+        else:
+            raise ValueError("algorithm must be map or viterbi")
 
     def maximum_a_posteriori(self, sequence):
         """Run posterior decoding on the sequence.
