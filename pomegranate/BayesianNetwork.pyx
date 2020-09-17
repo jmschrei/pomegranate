@@ -1288,9 +1288,10 @@ cdef class ParentGraph(object):
 
 		return score
 
-	def __getitem__(self, value):
-		if value in self.values:
-			return self.values[value]
+	def get(self, value, frozen=0):
+		key = (value, frozen)
+		if key in self.values:
+			return self.values[key]
 
 		best_parents, best_score = (), NEGINF
 		if len(value) <= max(self.max_parents, len(self.include_parents)):
@@ -1305,16 +1306,19 @@ cdef class ParentGraph(object):
 					best_parents, best_score = value, self.calculate_value(
 						value)
 
-		for i in range(len(value)):
-			parent_subset = value[:i] + value[i+1:]
-			parents, score = self[parent_subset]
+		for i in range(frozen, len(value)):
+			parent_subset = value[frozen:i] + value[i+1:]
+			parents, score = self.get(parent_subset, i)
 
 			if score > best_score:
 				best_score = score
 				best_parents = parents
 
-		self.values[value] = (best_parents, best_score)
-		return self.values[value]
+		self.values[key] = (best_parents, best_score)
+		return self.values[key]
+
+	def __getitem__(self, value):
+		return self.get(value)
 
 
 def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray,
