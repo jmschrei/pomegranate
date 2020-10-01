@@ -1,6 +1,8 @@
 # BayesianNetwork.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
+from libc.stdlib cimport srand
+
 import itertools as it
 import json
 import time
@@ -753,7 +755,7 @@ cdef class BayesianNetwork(GraphModel):
 		burnin : int, optional. If algorithm == "Gibbs"
 			Number of sample to discard at the begining of the sampling. Default is 0.
 
-		random_state : seed or seeded numpy instance
+		random_state : seed or seeded numpy instance (for gibbs, only seed)
 
 		Returns
 		-------
@@ -768,7 +770,7 @@ cdef class BayesianNetwork(GraphModel):
 			return self._rejection(n=n,evidences=evidences,random_state=random_state,**kwargs)
 
 		if algorithm == "gibbs":
-			return self._gibbs( n=n, evidences=evidences,random_state=random_state, **kwargs)
+			return self._gibbs( n=n, evidences=evidences,seed=random_state, **kwargs)
 
 
 	def _rejection(self, n=1, evidences=[{}],min_prob=0.01,random_state=None):
@@ -855,7 +857,7 @@ cdef class BayesianNetwork(GraphModel):
 		return  numpy.array([[r[k] for k in keys ] for i,r in enumerate(samples)])
 
 
-	def _gibbs(self, int n,  list evidences=[], dict initial_state ={}, int burnin=10,random_state=None, scan_order='random',
+	def _gibbs(self, int n,  list evidences=[], dict initial_state ={}, int burnin=10,seed=1, scan_order='random',
 	double pseudocount=0):
 		"""
 		Draw samples from the bayesian network given evidences.
@@ -886,7 +888,7 @@ cdef class BayesianNetwork(GraphModel):
 		burnin : int, optional
 			Number of sample to discard at the begining of the sampling. Default is 0.
 
-		random_state : seed or seeded numpy instance
+		seed : seed to be applied to srand
 
 		pseudocount : double, optional
 			A pseudocount to add to the emission of each distribution. This
@@ -899,7 +901,10 @@ cdef class BayesianNetwork(GraphModel):
 		array : samples (n*len(evidences),n_state)
 			sample drawn from the bayesian network
 		"""
-		random_state = check_random_state(random_state)
+
+		if seed is None:
+			seed = round(time.time())
+		srand(seed)
 
 		cdef int n_step, n_state, i,j,k, step, n_cpd, n_mod, node_pos, idx, col_n, e
 		cdef double p, s
@@ -995,6 +1000,9 @@ cdef class BayesianNetwork(GraphModel):
 		if scan_order == 'topological':
 			state_order = topo_order
 
+		scan_order_is_random = scan_order == 'random'
+		if scan_order_is_random:
+			random.seed(seed)
 
 		for e,evidence in enumerate(evidences) :
 
@@ -1013,7 +1021,7 @@ cdef class BayesianNetwork(GraphModel):
 
 			for step in range(n_step):
 
-				if scan_order == 'random':
+				if scan_order_is_random:
 					random.shuffle(state_order)
 
 				for i in state_order:
@@ -1049,10 +1057,10 @@ cdef class BayesianNetwork(GraphModel):
 					prob[:]  = prob[:]/prob[:cardinality].sum()
 
 
-					current_state_view[i] = <double> choose_one(prob_view[:cardinality],cardinality)
+					current_state_view[i] = <double> choose_one(prob_view[:cardinality], cardinality)
 					prob_view[:] = 0.
 				if step >= burnin:
-					all_states_view[e*(n)+step-burnin,:] =  current_state_view[:]
+					all_states_view[e*(n)+step-burnin,:] = current_state_view[:]
 
 		# convert back int to code
 		modalities_type = type(list(modalities_dict[0].keys())[0])
