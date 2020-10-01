@@ -20,7 +20,6 @@ from ..utils import check_random_state
 import itertools as it
 import json
 import numpy
-import random
 import scipy
 
 from .JointProbabilityTable import JointProbabilityTable
@@ -164,7 +163,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 
 
 		elif n > 5:
-			return numpy.random.choice(a=sample_cands,p=sample_vals,size=n)
+			return random_state.choice(a=sample_cands,p=sample_vals,size=n)
 
 		else:
 			states = random_state.randint(1000000, size=n)
