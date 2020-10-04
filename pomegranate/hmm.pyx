@@ -1409,7 +1409,7 @@ cdef class HiddenMarkovModel(GraphModel):
         # Either fill in a new emissions matrix, or use the one which has
         # been provided from a previous call.
         if emissions is NULL:
-            e = <double*> calloc(n*self.silent_start, sizeof(double))
+            e = <double*> malloc(n*self.silent_start*sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
                     if self.cython == 1:
@@ -1580,7 +1580,7 @@ cdef class HiddenMarkovModel(GraphModel):
         # Either fill in a new emissions matrix, or use the one which has
         # been provided from a previous call.
         if emissions is NULL:
-            e = <double*> calloc(n*self.silent_start, sizeof(double))
+            e = <double*> malloc(n*self.silent_start*sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
                     if self.cython == 1:
@@ -1805,7 +1805,7 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef int i, k, j, l, ki, li
         cdef int m=len(self.states)
         cdef int dim = self.d
-        cdef double* e = <double*> calloc(n*self.silent_start, sizeof(double))
+        cdef double* e = <double*> malloc(n*self.silent_start*sizeof(double))
         cdef double* f
         cdef double* b
 
@@ -2004,7 +2004,7 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef int* tracebackx = <int*> calloc((n+1)*m, sizeof(int))
         cdef int* tracebacky = <int*> calloc((n+1)*m, sizeof(int))
         cdef double* v = <double*> calloc((n+1)*m, sizeof(double))
-        cdef double* e = <double*> calloc((n*self.silent_start), sizeof(double))
+        cdef double* e = <double*> malloc((n*self.silent_start)*sizeof(double))
 
         cdef double state_log_probability
         cdef int end_index
@@ -2249,7 +2249,7 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef void** distributions = self.distributions_ptr
 
         if emissions is NULL:
-            e = <double*> calloc(n*self.silent_start, sizeof(double))
+            e = <double*> malloc(n*self.silent_start*sizeof(double))
             for l in range(self.silent_start):
                 for i in range(n):
                     if self.cython == 1:
@@ -2758,7 +2758,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
         cdef double* weights = <double*> calloc(n, sizeof(double))
 
-        e = <double*> calloc(n*self.silent_start, sizeof(double))
+        e = <double*> malloc(n*self.silent_start*sizeof(double))
         for l in range(self.silent_start):
             for i in range(n):
                 if self.cython == 1:

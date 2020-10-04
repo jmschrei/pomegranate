@@ -5,6 +5,7 @@
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
+from libc.stdlib cimport malloc
 
 import time
 
@@ -238,7 +239,7 @@ cdef class BayesModel(Model):
 
             return numpy.concatenate(logp_array)
 
-        cdef numpy.ndarray logp_ndarray = numpy.zeros(n)
+        cdef numpy.ndarray logp_ndarray = numpy.empty(n)
         cdef double* logp = <double*> logp_ndarray.data
 
         cdef numpy.ndarray X_ndarray
@@ -264,7 +265,7 @@ cdef class BayesModel(Model):
 
     cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
         cdef int i, j, d = self.d
-        cdef double* logp = <double*> calloc(n, sizeof(double))
+        cdef double* logp = <double*> malloc(n * sizeof(double))
 
         if self.cython == 1:
             (<Model> self.distributions_ptr[0])._log_probability(X, log_probability, n)

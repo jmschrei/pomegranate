@@ -180,42 +180,33 @@ cdef class BayesianNetwork(GraphModel):
 	>>> from pomegranate import *
 	>>> d1 = DiscreteDistribution({'A': 0.2, 'B': 0.8})
 	>>> d2 = ConditionalProbabilityTable([['A', 'A', 0.1],
-												 ['A', 'B', 0.9],
-												 ['B', 'A', 0.4],
-												 ['B', 'B', 0.6]], [d1])
+										 ['A', 'B', 0.9],
+										 ['B', 'A', 0.4],
+										 ['B', 'B', 0.6]], [d1])
 	>>> s1 = Node( d1, name="s1" )
 	>>> s2 = Node( d2, name="s2" )
 	>>> model = BayesianNetwork()
-	>>> model.add_nodes([s1, s2])
+	>>> model.add_nodes(s1, s2)
 	>>> model.add_edge(s1, s2)
 	>>> model.bake()
-	>>> print(model.log_probability(['A', 'B']))
+	>>> print(model.log_probability([['A', 'B']]))
 	-1.71479842809
 	>>> print(model.predict_proba({'s2' : 'A'}))
-	array([ {
-		"frozen" :false,
-		"class" :"Distribution",
-		"parameters" :[
-			{
-				"A" :0.05882352941176471,
-				"B" :0.9411764705882353
-			}
-		],
-		"name" :"DiscreteDistribution"
-	},
-		   {
-		"frozen" :false,
-		"class" :"Distribution",
-		"parameters" :[
-			{
-				"A" :1.0,
-				"B" :0.0
-			}
-		],
-		"name" :"DiscreteDistribution"
-	}], dtype=object)
-	>>> print(model.impute([[None, 'A']]))
-	[['B', 'A']]
+    [{
+        "class" :"Distribution",
+        "dtype" :"str",
+        "name" :"DiscreteDistribution",
+        "parameters" :[
+            {
+                "A" :0.05882352941176483,
+                "B" :0.9411764705882352
+            }
+        ],
+        "frozen" :false
+    }
+    'A']
+    >>> print(model.predict([[None, 'A']]))
+	[array(['B', 'A'], dtype=object)]
 	"""
 
 	cdef public list idxs
@@ -2650,9 +2641,6 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 							best_score = discrete_score_node(X, weights, m,
 								parents, n, j+1, d, pseudocount, penalty)
 
-			else:
-				best_structure, best_score = (), NEGINF
-
 			for k, variable in enumerate(subset):
 				parent_subset = tuple(l for l in subset if l != variable)
 				structure, score = parent_graph[parent_subset]
@@ -2709,7 +2697,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 
 cdef double discrete_score_node(double* X, double* weights, int* m, int* parents,
 	int n, int d, int l, double pseudocount, double penalty) nogil:
-	cdef int i, j, k, idx, is_na
+	cdef int i, j, k, idx
 	cdef double w_sum = 0
 	cdef double logp = 0
 	cdef double count, marginal_count
