@@ -277,7 +277,7 @@ cdef class Kmeans(Model):
 
 				return numpy.concatenate(y_pred)
 
-		X = numpy.array(X, dtype='float64', order='C')
+		X = numpy.asarray(X, dtype='float64', order='C')
 		cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 		cdef int n = len(X)
 
@@ -325,7 +325,7 @@ cdef class Kmeans(Model):
 		cdef double* X_ptr
 		cdef double* centroid
 
-		X = numpy.array(X, dtype='float64', order='C')
+		X = numpy.asarray(X, dtype='float64', order='C')
 		X_ptr = <double*> (<numpy.ndarray> X).data
 
 		dist = numpy.empty((X.shape[0], self.k))
@@ -404,7 +404,7 @@ cdef class Kmeans(Model):
 			This is the fit kmeans object.
 		"""
 
-		X = numpy.array(X, dtype='float64', order='C')
+		X = numpy.asarray(X, dtype='float64', order='C')
 
 		n, d = X.shape
 
@@ -538,7 +538,7 @@ cdef class Kmeans(Model):
 			probabilities.
 		"""
 
-		cdef numpy.ndarray X_ndarray = numpy.array(X, dtype='float64', order='C')
+		cdef numpy.ndarray X_ndarray = numpy.asarray(X, dtype='float64', order='C')
 		cdef double* X_ptr = <double*> X_ndarray.data
 
 		cdef numpy.ndarray weights_ndarray
@@ -548,7 +548,7 @@ cdef class Kmeans(Model):
 		if weights is None:
 			weights_ndarray = numpy.ones(n, dtype='float64')
 		else:
-			weights_ndarray = numpy.array(weights, dtype='float64')
+			weights_ndarray = numpy.asarray(weights, dtype='float64')
 
 		cdef double* weights_ptr = <double*> weights_ndarray.data
 
@@ -763,7 +763,7 @@ cdef class Kmeans(Model):
 			parallelism is used.
 		"""
 
-		X = numpy.array(X, dtype='float64', order='C')
+		X = numpy.asarray(X, dtype='float64', order='C')
 
 		n, d = X.shape
 

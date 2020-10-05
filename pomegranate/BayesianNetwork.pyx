@@ -675,7 +675,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		batch_size = len(X) // n_jobs + len(X) % n_jobs
 		if not isinstance(X, BaseGenerator):
-			data_generator = DataGenerator(numpy.array(X, dtype=object), 
+			data_generator = DataGenerator(numpy.asarray(X, dtype=object),
 				weights, batch_size=batch_size)
 		else:
 			data_generator = X
@@ -740,7 +740,7 @@ cdef class BayesianNetwork(GraphModel):
 		if weights is None:
 			weights_ndarray = numpy.ones(n, dtype='float64')
 		else:
-			weights_ndarray = numpy.array(weights, dtype='float64')
+			weights_ndarray = numpy.asarray(weights, dtype='float64')
 
 		weights_ptr = <double*> weights_ndarray.data
 
@@ -907,11 +907,11 @@ cdef class BayesianNetwork(GraphModel):
 			X = numpy.concatenate([batch[0] for batch in batches])
 			weights = numpy.concatenate([batch[1] for batch in batches])
 		else:
-			X = numpy.array(X)
+			X = numpy.asarray(X)
 			if weights is None:
 				weights = numpy.ones(X.shape[0], dtype='float64')
 			else:
-				weights = numpy.array(weights, dtype='float64')
+				weights = numpy.asarray(weights, dtype='float64')
 
 		d = len(structure)
 		nodes = [None for i in range(d)]
@@ -1083,11 +1083,11 @@ cdef class BayesianNetwork(GraphModel):
 			X = numpy.concatenate([batch[0] for batch in batches])
 			weights = numpy.concatenate([batch[1] for batch in batches])
 		else:
-			X = numpy.array(X)
+			X = numpy.asarray(X)
 			if weights is None:
 				weights = numpy.ones(X.shape[0], dtype='float64')
 			else:
-				weights = numpy.array(weights, dtype='float64')
+				weights = numpy.asarray(weights, dtype='float64')
 
 		n, d = X.shape
 
