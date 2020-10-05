@@ -1113,7 +1113,7 @@ cdef class BayesianNetwork(GraphModel):
 			n, d = X.shape
 
 
-		X_int = numpy.empty((n, d), dtype='float64')
+		X_int = numpy.empty((n, d), dtype='float32')
 		for i in range(n):
 			for j in range(d):
 				if _check_nan(X[i, j]):
@@ -1265,7 +1265,7 @@ cdef class ParentGraph(object):
 	def calculate_value(self, value):
 		cdef int k, parent, l = len(value)
 
-		cdef double* X = <double*> self.X.data
+		cdef float* X = <float*> self.X.data
 		cdef int* key_count = <int*> self.key_count.data
 		cdef int* m = self.m
 		cdef int* parents = self.parents
@@ -1323,7 +1323,7 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 	cdef int max_keys = key_count_ndarray.max()
 
-	cdef double* X = <double*> X_ndarray.data
+	cdef float* X = <float*> X_ndarray.data
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 
@@ -2185,7 +2185,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 	cdef int j, k, variable, l
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 
-	cdef double* X = <double*> X_ndarray.data
+	cdef float* X = <float*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 	cdef int* m = <int*> malloc((d+2)*sizeof(int))
 	cdef int* parents = <int*> malloc(d*sizeof(int))
@@ -2253,7 +2253,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	cdef int j, k
 	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
 
-	cdef double* X = <double*> X_ndarray.data
+	cdef float* X = <float*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 	cdef int* m = <int*> malloc((l+2)*sizeof(int))
 	cdef int* combs = <int*> malloc(l*sizeof(int))
@@ -2286,7 +2286,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	free(combs)
 	return best_score, best_parents
 
-cdef double discrete_score_node(double* X, double* weights, int* m, int* parents,
+cdef double discrete_score_node(float* X, double* weights, int* m, int* parents,
 	int n, int d, int l, double pseudocount, double penalty) nogil:
 	cdef int i, j, k, idx
 	cdef double w_sum = 0
@@ -2294,7 +2294,7 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
-	cdef double* row;
+	cdef float* row;
 
 	for i in range(n):
 		idx = 0
