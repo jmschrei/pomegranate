@@ -18,7 +18,7 @@ cdef class CustomDistribution(Distribution):
 		self.frozen = frozen
 		self.summaries = None
 		self.weightsIn = numpy.ones(N, dtype='float64')
-		self.logWeights = numpy.log(self.weights)
+		self.logWeights = numpy.log(self.weightsIn)
 		self.weightsIn_ptr = <double*> self.weightsIn.data
 		self.logWeights_ptr = <double*> self.logWeights.data
 
