@@ -6,6 +6,7 @@
 build
 *.so
 .idea/
+.vscode/
 dist/
 .eggs/
 *.egg-info/

@@ -4,20 +4,21 @@
 # ConditionalProbabilityTable.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+from libc.stdio cimport printf
+
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 from libc.string cimport memset
 from libc.math cimport exp as cexp
-
 from ..utils cimport _log
 from ..utils cimport isnan
+#from ..utils cimport  choose_one
 from ..utils import _check_nan
 from ..utils import check_random_state
 
 import itertools as it
 import numpy
-import random
 import scipy
 
 from .JointProbabilityTable import JointProbabilityTable
@@ -131,6 +132,8 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		if parent_values is None:
 			parent_values = {}
 
+
+
 		for parent in self.parents:
 			if parent not in parent_values:
 				parent_values[parent] = parent.sample(
@@ -147,10 +150,20 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 				sample_vals.append(cexp(self.values[ind]))
 
 		sample_vals /= numpy.sum(sample_vals)
-		sample_ind = numpy.where(random_state.multinomial(1, sample_vals))[0][0]
+
 
 		if n is None:
+			sample_ind = numpy.where(random_state.multinomial(1, sample_vals))[0][0]
 			return sample_cands[sample_ind]
+
+		# Random choice if much faster larger value of n
+		#elif n == 1:
+		#	return sample_cands[choose_one(sample_vals,len(sample_cands)-1)]
+
+
+		elif n > 5:
+			return random_state.choice(a=sample_cands,p=sample_vals,size=n)
+
 		else:
 			states = random_state.randint(1000000, size=n)
 			return [self.sample(parent_values, n=None, random_state=state)
@@ -179,11 +192,13 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			return log_probabilities[0]
 		return log_probabilities
 
+
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
 			idx = 0
+
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
 					log_probability[i] = 0.
