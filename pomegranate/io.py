@@ -190,7 +190,7 @@ class SequenceGenerator(BaseGenerator):
 
 	@property
 	def shape(self):
-		x_ = numpy.array(self.X[0])
+		x_ = numpy.asarray(self.X[0])
 
 		if x_.ndim == 1:
 			return len(self.X), 1

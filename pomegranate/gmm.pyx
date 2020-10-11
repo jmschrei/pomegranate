@@ -324,7 +324,7 @@ cdef class GeneralMixtureModel(BayesModel):
         if weights is None:
             weights_ndarray = numpy.ones(n, dtype='float64')
         else:
-            weights_ndarray = numpy.array(weights, dtype='float64')
+            weights_ndarray = numpy.asarray(weights, dtype='float64')
 
         cdef double* X_ptr
         cdef double* weights_ptr = <double*> weights_ndarray.data
