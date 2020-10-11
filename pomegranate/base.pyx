@@ -452,7 +452,6 @@ cdef class State(object):
 
 	def to_yaml(self):
 		"""Convert this state to YAML format."""
-		import yaml
 		return yaml.safe_dump(json.loads(self.to_json()))
 
 	@classmethod
