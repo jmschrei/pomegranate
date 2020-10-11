@@ -6,12 +6,17 @@ from libc.math cimport log2 as clog2
 from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
+from libc.stdlib cimport rand, RAND_MAX
 from libc.math cimport isnan
 
 from scipy.linalg.cython_blas cimport dgemm
 
-cimport numpy
+
+import cython
+cimport cython
 import numpy
+cimport numpy
+
 import numbers
 
 import heapq
@@ -488,4 +493,24 @@ def check_random_state(seed):
 		return seed
 	raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
 					 ' instance' % seed)
-	
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
+cdef choose_one(double [:] weights, int length):
+
+	cdef int  i
+	cdef double cs
+	cdef double random
+
+	random = rand()*1./(RAND_MAX)
+
+	cs = 0.0
+	i = 0
+	while cs <= random and i < length:
+		cs += weights[i]
+		i += 1
+	return i-1
+
