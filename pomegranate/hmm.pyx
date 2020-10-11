@@ -8,7 +8,6 @@ from __future__ import print_function
 
 from libc.math cimport exp as cexp
 from operator import attrgetter
-import json
 import math
 import networkx
 import tempfile
@@ -323,7 +322,6 @@ cdef class HiddenMarkovModel(GraphModel):
 
         self.name = state['name']
 
-        # Load all the states from JSON formatted strings
         states = state['states']
         for i, j in state['distribution ties']:
             # Tie appropriate states together
@@ -541,7 +539,7 @@ cdef class HiddenMarkovModel(GraphModel):
             A deep copy of the model with entirely new objects.
         """
 
-        return self.__class__.from_json(self.to_json())
+        return self.__class__.from_dict(self.to_dict())
 
     def freeze_distributions(self):
         """Freeze all the distributions in model.
@@ -3224,34 +3222,17 @@ cdef class HiddenMarkovModel(GraphModel):
         for state in self.states[:self.silent_start]:
             state.distribution.clear_summaries()
 
-    def to_json(self, separators=(',', ' : '), indent=4):
-        """Serialize the model to a JSON.
-
-        Parameters
-        ----------
-        separators : tuple, optional
-            The two separators to pass to the json.dumps function for formatting.
-
-        indent : int, optional
-            The indentation to use at each level. Passed to json.dumps for
-            formatting.
-
-        Returns
-        -------
-        json : str
-            A properly formatted JSON object.
-        """
-
+    def to_dict(self):
         model = {
-                    'class' : 'HiddenMarkovModel',
-                    'name'  : self.name,
-                    'start' : json.loads(self.start.to_json()),
-                    'end'   : json.loads(self.end.to_json()),
-                    'states' : [json.loads(state.to_json()) for state in self.states],
-                    'end_index' : self.end_index,
-                    'start_index' : self.start_index,
-                    'silent_index' : self.silent_start
-                }
+            'class' : 'HiddenMarkovModel',
+            'name'  : self.name,
+            'start' : self.start.to_dict(),
+            'end'   : self.end.to_dict(),
+            'states' : [state.to_dict() for state in self.states],
+            'end_index' : self.end_index,
+            'start_index' : self.start_index,
+            'silent_index' : self.silent_start
+        }
 
         indices = { state: i for i, state in enumerate(self.states)}
 
@@ -3296,37 +3277,14 @@ cdef class HiddenMarkovModel(GraphModel):
                 ties.append((i, self.tied[j]))
 
         model['distribution ties'] = ties
-        return json.dumps(model, separators=separators, indent=indent)
+        return model
 
     @classmethod
-    def from_json(cls, s, verbose=False):
-        """Read in a serialized model and return the appropriate classifier.
-
-        Parameters
-        ----------
-        s : str
-            A JSON formatted string containing the file.
-        Returns
-        -------
-        model : object
-            A properly initialized and baked model.
-        """
-
-        # Load a dictionary from a JSON formatted string
-        try:
-            d = json.loads(s)
-        except:
-            try:
-                with open(s, 'r') as infile:
-                    d = json.load(infile)
-            except:
-                raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+    def from_dict(cls, d, verbose=False):
         # Make a new generic HMM
         model = cls(str(d['name']))
 
-        # Load all the states from JSON formatted strings
-        states = [State.from_json(json.dumps(j)) for j in d['states']]
+        states = [State.from_dict(j) for j in d['states']]
         for i, j in d['distribution ties']:
             # Tie appropriate states together
             states[i].tie(states[j])

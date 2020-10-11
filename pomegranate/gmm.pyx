@@ -8,7 +8,6 @@ from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 from libc.math cimport exp as cexp
 
-import json
 import time
 
 import numpy
@@ -397,23 +396,16 @@ cdef class GeneralMixtureModel(BayesModel):
         free(summaries)
         return log_probability_sum
 
-    def to_json(self):
-        separators=(',', ' : ')
-        indent=4
-
-        model = {
-                    'class' : 'GeneralMixtureModel',
-                    'distributions'  : [ json.loads(dist.to_json())
-                                         for dist in self.distributions ],
-                    'weights' : numpy.exp(self.weights).tolist()
-                }
-
-        return json.dumps(model, separators=separators, indent=indent)
+    def to_dict(self):
+        return {
+            'class' : 'GeneralMixtureModel',
+            'distributions' : [ dist.to_dict() for dist in self.distributions ],
+            'weights' : numpy.exp(self.weights).tolist()
+        }
 
     @classmethod
-    def from_json(cls, s):
-        d = json.loads(s)
-        distributions = [ Distribution.from_json(json.dumps(j))
+    def from_dict(cls, d):
+        distributions = [ Distribution.from_dict(j)
                           for j in d['distributions'] ]
         model = cls(distributions, numpy.array( d['weights'] ))
         return model

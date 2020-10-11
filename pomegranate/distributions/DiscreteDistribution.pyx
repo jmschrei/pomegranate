@@ -6,7 +6,6 @@
 
 import numpy
 import itertools as it
-import json
 import random
 
 from libc.stdlib cimport calloc
@@ -324,32 +323,14 @@ cdef class DiscreteDistribution(Distribution):
 			for i in range(len(self.encoded_keys)):
 				self.encoded_counts[i] = 0
 
-	def to_json(self, separators=(',', ' :'), indent=4):
-		"""Serialize the distribution to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-			The two separators to pass to the json.dumps function for formatting.
-			Default is (',', ' : ').
-
-		indent : int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting. Default is 4.
-
-		Returns
-		-------
-		json : str
-			A properly formatted JSON object.
-		"""
-
-		return json.dumps({
-								'class' : 'Distribution',
-								'dtype' : self.dtype,
-								'name'  : self.name,
-								'parameters' : [{str(key): value for key, value in self.dist.items()}],
-								'frozen' : self.frozen
-						   }, separators=separators, indent=indent)
+	def to_dict(self):
+		return {
+			'class' : 'Distribution',
+			'dtype' : self.dtype,
+			'name'  : self.name,
+			'parameters' : [{str(key): value for key, value in self.dist.items()}],
+			'frozen' : self.frozen
+		}
 
 	@classmethod
 	def from_samples(cls, items, weights=None, pseudocount=0, keys=None):
