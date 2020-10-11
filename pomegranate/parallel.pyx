@@ -307,7 +307,7 @@ def summarize(model, X, weights=None, y=None, n_jobs=1, backend='threading', par
 	if weights is None:
 		weights = numpy.ones(len(X), dtype='float64')
 	else:
-		weights = numpy.array(weights, dtype='float64')
+		weights = numpy.asarray(weights, dtype='float64')
 
 	starts = [n/n_jobs*i for i in range(n_jobs)]
 	ends = starts[1:] + [n]
@@ -401,7 +401,7 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 	if weights is None:
 		weights = numpy.ones(len(X), dtype='float64')
 	else:
-		weights = numpy.array(weights, dtype='float64')
+		weights = numpy.asarray(weights, dtype='float64')
 
 	if isinstance(model, HiddenMarkovModel):
 		return model.fit(X, weights=weights, n_jobs=n_jobs, stop_threshold=stop_threshold,

@@ -124,7 +124,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 			else:
 				n = len(X)
 
-			X_ndarray = numpy.array(X, dtype='float64')
+			X_ndarray = numpy.asarray(X, dtype='float64')
 			X_ptr = <double*> X_ndarray.data
 
 			logp_array = numpy.empty(n, dtype='float64')

@@ -380,7 +380,7 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	def from_samples(cls, X, parents=None, weights=None, pseudocount=0.0, keys=None):
 		"""Learn the table from data."""
 
-		X = numpy.array(X)
+		X = numpy.asarray(X)
 		n, d = X.shape
 
 		keys = keys or [numpy.unique(X[:,i]) for i in range(d)]

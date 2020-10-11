@@ -216,7 +216,7 @@ cdef double pair_lse(double x, double y) nogil:
 def logsumexp(X):
 	"""Calculate the log-sum-exp of an array to add in log space."""
 
-	X = numpy.array(X, dtype='float64')
+	X = numpy.asarray(X, dtype='float64')
 	
 	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 	cdef double x
@@ -242,8 +242,8 @@ def logsumexp(X):
 def logaddexp(X, Y):
 	"""Calculate the log-add-exp of a pair of arrays."""
 
-	X = numpy.array(X, dtype='float64')
-	Y = numpy.array(Y, dtype='float64')
+	X = numpy.asarray(X, dtype='float64')
+	Y = numpy.asarray(Y, dtype='float64')
 
 	if len(X.shape) != len(Y.shape):
 		raise ValueError("Both arrays must be of the same shape.")
@@ -452,7 +452,7 @@ def weight_set(items, weights):
 	if weights is None: # Weight everything 1 if no weights specified
 		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
 	else: # Force whatever we have to be a Numpy array
-		weights = numpy.array(weights, dtype=numpy.float64)
+		weights = numpy.asarray(weights, dtype=numpy.float64)
 
 	return items, weights
 
