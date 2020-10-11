@@ -238,7 +238,7 @@ cdef class BayesianNetwork(GraphModel):
 				G.draw(filename, format='pdf', prog='dot')
 
 		else:
-			raise ValueError("must have pygraphviz installed for visualization")
+			raise ValueError("must have matplotlib and pygraphviz installed for visualization")
 
 	def bake(self):
 		"""Finalize the topology of the model.
@@ -1063,6 +1063,12 @@ cdef class BayesianNetwork(GraphModel):
 		model : BayesianNetwork
 			The learned BayesianNetwork.
 		"""
+
+		if algorithm == 'chow-liu' and include_edges is not None:
+			raise ValueError("Cannot use the Chow-Liu algorithm with inclusion constraints.")
+
+		if algorithm == 'chow-liu' and exclude_edges is not None:
+			raise ValueError("Cannot use the Chow-Liu algorithm with exclusion constraints.")
 
 		if constraint_graph is not None:
 			if len(include_edges) > 0:
