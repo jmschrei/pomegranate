@@ -2546,10 +2546,6 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef double last_log_probability_sum
         cdef str alg = algorithm.lower()
         cdef bint check_input = alg == 'viterbi'
-        cdef list X = []
-        cdef list checked_sequences=[]
-        cdef list W=[]
-        cdef list L=[]
 
         training_start_time = time.time()
 
@@ -2567,26 +2563,31 @@ cdef class HiddenMarkovModel(GraphModel):
                 #sequences have elements which are ndarrays. For each dimension in
                 #our HMM model we have one row in this array, so we have to
                 #iterate over all sequences for all dimensions
+                checked_sequences = []
                 for sequence in sequences:
                     sequence_ndarray = _check_input(sequence, self)
                     checked_sequences.append(sequence_ndarray)
 
                 if labels is not None:
                     labels = numpy.array(labels)
-                sequences=checked_sequences
-                data_generator = SequenceGenerator(sequences, weights, labels)
+
+                data_generator = SequenceGenerator(checked_sequences, weights, 
+                    labels)
             else:
+                checked_sequences, checked_weights, checked_labels = [], [], []
+
                 for batch in sequences.batches():
                     sequence_ndarray= _check_input(batch[0][0],self)
                     checked_sequences.append(sequence_ndarray)
-                    W.append(batch[1])
-                    if len(batch)==3:
-                        L.append(batch[2][0])
-                weights=W
-                if len(L)>0:
-                    labels=L
+                    checked_weights.append(batch[1])
 
-                data_generator = SequenceGenerator(checked_sequences, weights, labels)
+                    if len(batch) == 3:
+                        checked_labels.append(batch[2][0])
+                    else:
+                        checked_labels = None
+
+                data_generator = SequenceGenerator(checked_sequences, checked_weights,
+                    checked_labels)
 
 
         n = data_generator.shape[0]

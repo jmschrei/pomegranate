@@ -488,14 +488,6 @@ cdef class MarkovNetwork(Model):
 			raise ValueError("must bake model before summarizing data")
 
 		n, d = len(X), len(X[0])
-		X_int = numpy.empty((n, d), dtype='float64')
-
-		for i in range(n):
-			for j in range(d):
-				if X[i][j] == 'nan' or X[i][j] == None or X[i][j] == nan:
-					X_int[i, j] = nan
-				else:
-					X_int[i, j] = self.keymap[j][X[i][j]]
 
 		if weights is None:
 			weights = numpy.ones(n, dtype='float64')

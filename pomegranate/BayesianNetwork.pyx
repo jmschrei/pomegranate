@@ -945,8 +945,8 @@ cdef class BayesianNetwork(GraphModel):
 
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
-		 penalty=None, root=0, constraint_graph=None, include_edges=[], 
-		 exclude_edges=[], pseudocount=0.0, state_names=None, name=None, 
+		 penalty=None, root=0, constraint_graph=None, include_edges=None, 
+		 exclude_edges=None, pseudocount=0.0, state_names=None, name=None, 
 		 reduce_dataset=True, keys=None, n_jobs=1):
 		"""Learn the structure of the network from data.
 
@@ -1019,11 +1019,11 @@ cdef class BayesianNetwork(GraphModel):
 
 		include_edges : list or None, optional
 			A list of (parent, child) tuples that are edges which must be 
-			present in the found structure.
+			present in the found structure. Default is None.
 
 		exclude_edges : list or None, optional
 			A list of (parent, child) tuples that are edges which cannot be
-			present in the found structure.
+			present in the found structure. Default is None.
 
 		pseudocount : double, optional
 			A pseudocount to add to the emission of each distribution. This
@@ -1069,6 +1069,9 @@ cdef class BayesianNetwork(GraphModel):
 
 		if algorithm == 'chow-liu' and exclude_edges is not None:
 			raise ValueError("Cannot use the Chow-Liu algorithm with exclusion constraints.")
+
+		include_edges = include_edges or []
+		exclude_edges = exclude_edges or []
 
 		if constraint_graph is not None:
 			if len(include_edges) > 0:
