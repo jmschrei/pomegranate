@@ -45,8 +45,7 @@ distributions = [
     'MultivariateGaussianDistribution',
     'DirichletDistribution',
     'ConditionalProbabilityTable',
-    'JointProbabilityTable',
-    "NeuralNetworkWrapper"
+    'JointProbabilityTable'
 ]
 
 if not use_cython:

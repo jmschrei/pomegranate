@@ -2,8 +2,6 @@ language: python
 
 matrix:
   include:
-  - services: docker
-
   - os: osx
     osx_image: xcode10.2
     language: shell
@@ -22,14 +20,17 @@ matrix:
   - os: linux
     language: generic
     env: PYTHON=3.6
+    services: docker
   
   - os: linux
     language: generic
     env: PYTHON=3.7
+    services: docker
   
   - os: linux
     language: generic
     env: PYTHON=3.8
+    services: docker
 
   - os: windows
     language: shell
