@@ -979,7 +979,7 @@ cdef class BayesianNetwork(GraphModel):
 			The data to fit the structure too, where each row is a sample and
 			each column corresponds to the associated variable.
 
-		weights : array-like, shape (n_nodes), optional
+		weights : array-like, shape (n_samples), optional
 			The weight of each sample as a positive double. Default is None.
 
 		algorithm : str, one of 'chow-liu', 'greedy', 'exact', 'exact-dp' optional
