@@ -1115,6 +1115,21 @@ def test_hmm_viterbi_fit_w_pseudocount_inertia():
     total_improvement = history.total_improvement[-1]
     assert_equal(round(total_improvement, 4), 83.2834)
 
+@with_setup(setup, teardown)
+def test_hmm_viterbi_fit_one_check_input():
+    seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+    'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
+    'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
+
+    _, history = model.fit(seqs,
+                               return_history=True,
+                               algorithm='viterbi',
+                               verbose=False,
+                               use_pseudocount=True,
+                               multiple_check_input=False)
+
+    total_improvement = history.total_improvement[-1]
+    assert_equal(round(total_improvement, 4), 83.2834)
 
 @with_setup(setup, teardown)
 def test_hmm_bw_fit():
@@ -1641,6 +1656,22 @@ def test_hmm_bw_fit_w_edge_a_distribution_inertia():
     total_improvement = history.total_improvement[-1]
     assert_equal(round(total_improvement, 4), 81.5447)
 
+@with_setup(setup, teardown)
+def test_hmm_bw_fit_one_check_input():
+    seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
+        'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
+        'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
+
+    _, history = model.fit(seqs,
+                               return_history=True,
+                                     algorithm='baum-welch',
+                                     verbose=False,
+                                     use_pseudocount=True,
+                                     max_iterations=5,
+                                     multiple_check_input=False)
+
+    total_improvement = history.total_improvement[-1]
+    assert_equal(round(total_improvement, 4), 83.1132)
 
 def test_hmm_initialization():
     hmmd1 = HiddenMarkovModel()
@@ -1805,6 +1836,17 @@ def test_hmm_univariate_discrete_from_samples_with_labels():
 
     assert_greater(logp2, logp1)
 
+@with_setup(setup_univariate_discrete_dense, teardown)
+def test_hmm_univariate_discrete_from_samples_one_check_input():
+    X = [model.sample(random_state=0) for i in range(25)]
+    model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, 
+                                            max_iterations=25,
+                                            multiple_check_input=False)
+
+    logp1 = sum(map(model.log_probability, X))
+    logp2 = sum(map(model2.log_probability, X))
+
+    assert_greater(logp2, logp1)
 
 @with_setup(setup_univariate_gaussian_dense, teardown)
 def test_hmm_univariate_gaussian_from_samples():
