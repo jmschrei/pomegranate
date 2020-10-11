@@ -1,5 +1,4 @@
 import itertools
-import json
 import time
 import numpy
 cimport numpy
@@ -535,63 +534,11 @@ cdef class MarkovNetwork(Model):
 
 		self.bake(calculate_partition=calculate_partition)
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-			The two separators to pass to the json.dumps function for formatting.
-
-		indent : int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting.
-
-		Returns
-		-------
-		json : str
-			A properly formatted JSON object.
-		"""
-
-		states = [distribution.copy() for distribution in self.distributions]
-
-		model = {
-					'class' : 'MarkovNetwork',
-					'name'  : self.name,
-					'distributions' : [json.loads(d.to_json()) 
-						for d in self.distributions]
-		}
-
-		return json.dumps(model, separators=separators, indent=indent)
-
 	@classmethod
-	def from_json(cls, s):
-		"""Read in a serialized Markov Network and return the appropriate object.
-
-		Parameters
-		----------
-		s : str
-			A JSON formatted string containing the file.
-
-		Returns
-		-------
-		model : object
-			A properly initialized and baked model.
-		"""
-
-		# Load a dictionary from a JSON formatted string
-		try:
-			d = json.loads(s)
-		except:
-			try:
-				with open(s, 'r') as infile:
-					d = json.load(infile)
-			except:
-				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+	def from_dict(cls, d):
 		distributions = []
 		for j in d['distributions']:
-			distribution = JointProbabilityTable.from_json(json.dumps(j))
+			distribution = JointProbabilityTable.from_dict(j)
 			distributions.append(distribution)
 
 		model = cls(distributions, str(d['name']))

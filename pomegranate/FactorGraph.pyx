@@ -2,7 +2,6 @@
 # Contact: Jacob Schreiber (jmschreiber91@gmail.com)
 
 cimport numpy
-import json
 import numpy
 
 try:
@@ -392,51 +391,18 @@ cdef class FactorGraph(GraphModel):
 		return y_hat
 
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to JSON
-
-		Parameters
-		----------
-		separators: tuple, optional
-			The two separators to pass to the json.dumps function for formatting.
-
-		indent: int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting.
-		"""
-		model = {
+	def to_dict(self):
+		return {
 			"class": "FactorGraph",
 			"name": self.name,
-			"states": [json.loads(state.to_json()) for state in self.states],
+			"states": [state.to_dict() for state in self.states],
 			"edges": self.edges
 		}
-		return json.dumps(model, separators=separators, indent=indent, sort_keys=True)
 
 	@classmethod
-	def from_json(cls, s):
-		"""Read in a serialized FactorGraph and return the appropriate instance.
-
-		Parameters
-		----------
-		s: str
-			A JSON formatted string containing the file.
-
-		Returns
-		-------
-		model: object
-			A properly instantiated and baked model.
-		"""
-		try:
-			d = json.loads(s)
-		except:
-			try:
-				with open(s, 'r') as infile:
-					d = json.load(infile)
-			except:
-				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+	def from_dict(cls, d):
 		model = cls(str(d["name"]))
-		states = [State.from_json(json.dumps(j)) for j in d['states']]
+		states = [State.from_dict(j) for j in d['states']]
 		model.add_states(*states)
 		for node1, node2 in d["edges"]:
 			model.add_edge(states[node1], states[node2])

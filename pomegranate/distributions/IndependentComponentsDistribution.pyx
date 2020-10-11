@@ -5,7 +5,6 @@
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
 import numpy
-import json
 
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
@@ -235,16 +234,13 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		for d in self.parameters[0]:
 			d.clear_summaries()
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Convert the distribution to JSON format."""
-
-		return json.dumps({
-								'class' : 'Distribution',
-								'name'  : self.name,
-								'parameters' : [[json.loads(dist.to_json()) for dist in self.parameters[0]],
-								                 self.parameters[1]],
-								'frozen' : self.frozen
-						   }, separators=separators, indent=indent)
+	def to_dict(self):
+		return {
+			'class' : 'Distribution',
+			'name'  : self.name,
+			'parameters' : [[dist.to_dict() for dist in self.parameters[0]], self.parameters[1]],
+			'frozen' : self.frozen
+		}
 
 	@classmethod
 	def from_samples(cls, X, weights=None, distribution_weights=None,
