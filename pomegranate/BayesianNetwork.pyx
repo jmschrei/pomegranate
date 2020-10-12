@@ -1597,9 +1597,7 @@ cdef class ParentGraph(object):
 	"""
 
 	cdef int i, n, d, max_parents
-	cdef tuple parent_set
 	cdef double pseudocount
-	cdef public double all_parents_score
 	cdef dict values
 	cdef numpy.ndarray X
 	cdef numpy.ndarray weights
