@@ -14,6 +14,15 @@ from libc.math cimport sqrt as csqrt
 cdef class CustomDistribution(Distribution):
 	""" The generic distribution class. """
 
+	property parameters:
+		def __get__(self):
+			return [self.logWeights.tolist()]
+		def __set__(self, logWeights):
+			self.logWeights = numpy.array(logWeights, dtype='float64')
+			self.logWeights_ptr = <double*> self.logWeights.data
+			self.weightsIn = numpy.exp(self.logWeights)
+			self.weightsIn_ptr = <double*> self.weightsIn.data
+
 	def __init__(self, N, frozen=False):
 		self.frozen = frozen
 		self.summaries = None
