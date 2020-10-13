@@ -14,22 +14,22 @@ from libc.math cimport sqrt as csqrt
 cdef class CustomDistribution(Distribution):
 	""" The generic distribution class. """
 
-	property parameters:
-		def __get__(self):
-			return [self.logWeights.tolist()]
-		def __set__(self, logWeights):
-			self.logWeights = numpy.array(logWeights, dtype='float64')
-			self.logWeights_ptr = <double*> self.logWeights.data
-			self.weightsIn = numpy.exp(self.logWeights)
-			self.weightsIn_ptr = <double*> self.weightsIn.data
-
-	def __init__(self, N, frozen=False):
+	def __init__(self, N, weightsIn=None, frozen=False):
 		self.frozen = frozen
 		self.summaries = None
-		self.weightsIn = numpy.ones(N, dtype='float64')
+
+		if weightsIn is None:
+			self.weightsIn = numpy.ones(N, dtype='float64')
+		else:
+			self.weightsIn = numpy.array(weightsIn, dtype='float64')
+
 		self.logWeights = numpy.log(self.weightsIn)
 		self.weightsIn_ptr = <double*> self.weightsIn.data
 		self.logWeights_ptr = <double*> self.logWeights.data
+
+	def __reduce__(self):
+		"""Serialize the distribution for pickle."""
+		return self.__class__, (len(self.weightsIn), numpy.exp(self.logWeights), self.frozen)
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
