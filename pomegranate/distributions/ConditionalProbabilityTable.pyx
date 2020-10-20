@@ -4,21 +4,21 @@
 # ConditionalProbabilityTable.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+from libc.stdio cimport printf
+
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 from libc.string cimport memset
 from libc.math cimport exp as cexp
-
 from ..utils cimport _log
 from ..utils cimport isnan
+#from ..utils cimport  choose_one
 from ..utils import _check_nan
 from ..utils import check_random_state
 
 import itertools as it
-import json
 import numpy
-import random
 import scipy
 
 from .JointProbabilityTable import JointProbabilityTable
@@ -132,6 +132,8 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		if parent_values is None:
 			parent_values = {}
 
+
+
 		for parent in self.parents:
 			if parent not in parent_values:
 				parent_values[parent] = parent.sample(
@@ -148,10 +150,20 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 				sample_vals.append(cexp(self.values[ind]))
 
 		sample_vals /= numpy.sum(sample_vals)
-		sample_ind = numpy.where(random_state.multinomial(1, sample_vals))[0][0]
+
 
 		if n is None:
+			sample_ind = numpy.where(random_state.multinomial(1, sample_vals))[0][0]
 			return sample_cands[sample_ind]
+
+		# Random choice if much faster larger value of n
+		#elif n == 1:
+		#	return sample_cands[choose_one(sample_vals,len(sample_cands)-1)]
+
+
+		elif n > 5:
+			return random_state.choice(a=sample_cands,p=sample_vals,size=n)
+
 		else:
 			states = random_state.randint(1000000, size=n)
 			return [self.sample(parent_values, n=None, random_state=state)
@@ -180,11 +192,13 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			return log_probabilities[0]
 		return log_probabilities
 
+
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j, idx
 
 		for i in range(n):
 			idx = 0
+
 			for j in range(self.m+1):
 				if isnan(X[self.m-j]):
 					log_probability[i] = 0.
@@ -344,43 +358,23 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 			memset(self.counts, 0, self.n*sizeof(double))
 			memset(self.marginal_counts, 0, self.n*sizeof(double)/self.k)
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-		    The two separators to pass to the json.dumps function for formatting.
-		    Default is (',', ' : ').
-
-		indent : int, optional
-		    The indentation to use at each level. Passed to json.dumps for
-		    formatting. Default is 4.
-
-		Returns
-		-------
-		json : str
-		    A properly formatted JSON object.
-		"""
-
+	def to_dict(self):
 		table = [list(key + tuple([cexp(self.values[i])])) for key, i in self.keymap.items()]
 		table = [[str(item) for item in row] for row in table]
 
-		model = {
-					'class' : 'Distribution',
-		            'name' : 'ConditionalProbabilityTable',
-		            'table' : table,
-		            'dtypes' : self.dtypes,
-		            'parents' : [json.loads(dist.to_json()) for dist in self.parents]
-		        }
-
-		return json.dumps(model, separators=separators, indent=indent)
+		return {
+			'class' : 'Distribution',
+			'name' : 'ConditionalProbabilityTable',
+			'table' : table,
+			'dtypes' : self.dtypes,
+			'parents' : [dist.to_dict() for dist in self.parents]
+		}
 
 	@classmethod
 	def from_samples(cls, X, parents=None, weights=None, pseudocount=0.0, keys=None):
 		"""Learn the table from data."""
 
-		X = numpy.array(X)
+		X = numpy.asarray(X)
 		n, d = X.shape
 
 		keys = keys or [numpy.unique(X[:,i]) for i in range(d)]

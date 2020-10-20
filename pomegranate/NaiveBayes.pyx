@@ -3,7 +3,6 @@
 # NaiveBayes.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-import json
 import numpy
 cimport numpy
 
@@ -70,35 +69,24 @@ cdef class NaiveBayes(BayesModel):
 	def __reduce__(self):
 		return self.__class__, (self.distributions, self.weights)
 
-	def to_json(self, separators=(',', ' : '), indent=4):
+	def to_dict(self):
 		if self.d == 0:
 			raise ValueError("must fit components to the data before prediction")
 
-		nb = {
+		return {
 			'class' : 'NaiveBayes',
-			'models' : [json.loads(model.to_json()) for model in self.distributions],
+			'models' : [model.to_dict() for model in self.distributions],
 			'weights' : numpy.exp(self.weights).tolist()
 		}
 
-		return json.dumps(nb, separators=separators, indent=indent)
-
 	@classmethod
-	def from_json(cls, s):
-		try:
-			d = json.loads(s)
-		except:
-			try:
-				with open(s, 'r') as f:
-					d = json.load(f)
-			except:
-				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+	def from_dict(cls, d):
 		models = list()
 		for j in d['models']:
 			if j['class'] == 'Distribution':
-				models.append(Distribution.from_json(json.dumps(j)))
+				models.append(Distribution.from_dict(j))
 			elif j['class'] == 'GeneralMixtureModel':
-				models.append(GeneralMixtureModel.from_json(json.dumps(j)))
+				models.append(GeneralMixtureModel.from_dict(j))
 
 		nb = cls(models, numpy.array(d['weights']))
 		return nb

@@ -79,8 +79,8 @@ def benchmark_viterbi( model, sample ):
 
 def benchmark_training( model, samples, n_jobs ):
 	tic = time.time()
-	improvement = model.train( samples, max_iterations=10, verbose=False, n_jobs=n_jobs )
-	print("{:16}: time: {:5.5}, improvement: {:5.5} ({} jobs)".format( "BW TRAINING", time.time() - tic, improvement, n_jobs ))
+	improvement = model.fit( samples, max_iterations=10, verbose=False, n_jobs=n_jobs , return_history=True)
+	print("{:16}: time: {:5.5}, improvement: {:5.5} ({} jobs)".format( "BW TRAINING", time.time() - tic, improvement[1].total_improvement[0], n_jobs ))
 
 def main():
 	n = 15

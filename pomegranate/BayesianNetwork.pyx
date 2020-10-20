@@ -1,14 +1,17 @@
 # BayesianNetwork.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
+from libc.stdlib cimport srand
+
 import itertools as it
-import json
 import time
 import networkx as nx
 import numpy
 cimport numpy
 import os
 
+
+import random
 from joblib import Parallel
 from joblib import delayed
 
@@ -33,9 +36,25 @@ from .utils cimport isnan
 from .utils import PriorityQueue
 from .utils import parallelize_function
 from .utils import _check_nan
+from .utils cimport  choose_one
+#from .utils import  choose_one
+from .utils import check_random_state
+
 
 from .io import BaseGenerator
 from .io import DataGenerator
+
+#from libcpp.list cimport list as cpplist
+from libc.math cimport exp as cexp
+
+import cython
+cimport cython
+import numpy
+cimport numpy
+import random
+
+
+from collections import defaultdict
 
 try:
 	import tempfile
@@ -48,6 +67,7 @@ except ImportError:
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
+nan = numpy.nan
 nan = numpy.nan
 
 def _check_input(X, model):
@@ -188,7 +208,7 @@ cdef class BayesianNetwork(GraphModel):
 	[array(['B', 'A'], dtype=object)]
 	"""
 
-	cdef list idxs
+	cdef public list idxs
 	cdef public numpy.ndarray keymap
 	cdef int* parent_count
 	cdef int* parent_idxs
@@ -238,7 +258,7 @@ cdef class BayesianNetwork(GraphModel):
 				G.draw(filename, format='pdf', prog='dot')
 
 		else:
-			raise ValueError("must have pygraphviz installed for visualization")
+			raise ValueError("must have matplotlib and pygraphviz installed for visualization")
 
 	def bake(self):
 		"""Finalize the topology of the model.
@@ -416,8 +436,8 @@ cdef class BayesianNetwork(GraphModel):
 
 			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], self.__class__, 
-					'log_probability', fn) for batch in data_generator.batches())
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'log_probability',
+					fn) for batch in data_generator.batches())
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
@@ -583,12 +603,12 @@ cdef class BayesianNetwork(GraphModel):
 
 			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], self.__class__, 
-					'predict_proba', fn) for batch in data_generator.batches())
+				logp_array = parallel(f(batch[0], BayesianNetwork, 'predict_proba',
+					fn) for batch in data_generator.batches())
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
-		
+
 		elif check_input and not isinstance(X, dict):
 			X = _check_input(X, self)
 
@@ -666,7 +686,7 @@ cdef class BayesianNetwork(GraphModel):
 
 		batch_size = len(X) // n_jobs + len(X) % n_jobs
 		if not isinstance(X, BaseGenerator):
-			data_generator = DataGenerator(numpy.array(X, dtype=object), 
+			data_generator = DataGenerator(numpy.asarray(X, dtype=object),
 				weights, batch_size=batch_size)
 		else:
 			data_generator = X
@@ -683,6 +703,403 @@ cdef class BayesianNetwork(GraphModel):
 			print("Total Time (s): {:.4f}".format(total_time_spent))
 
 		return self
+
+	def sample(self, n=1, evidences=[{}], algorithm='rejection',random_state=None,**kwargs):
+		"""Sample the network, optionally given some evidences
+		Use rejection to condition on non marginal nodes
+
+		Parameters
+		----------
+		n : int, optional
+				The number of samples to generate. Defaults to 1.
+		evidences : list of dict, optional
+				Evidence to set constant while samples are generated.
+
+		algorithm: : str, one of 'gibbs', 'rejection' optional. default 'rejection'
+			Rejection sampling successively sample each node given its parents evidence. When evidences are given on
+			non-root nodes, only draws that are compatible with evidence nodes are not rejected. Rejection sampling is a good
+			option when evidences nodes are not far from the root nodes or when given evidence is likely. Rare evidences
+			lead to a high rate of rejected samples, thus to significant slow down of the sampling.
+			Gibbs sampling scheme is a Markov Chain Monte Carlo (MCMC) technique designed to speed up the sampling. It
+			builds conditional probability of state transition of each nodes given its neighbours in its markov blanket.
+			Works well with a lot of evidences in the network, even when they are far from the root nodes. Drawback :
+			convergence is only guaranteed when there is a non null probability path between states. If the posterior
+			consists of isolated islands of high probability, Gibbs sampling will stay stuck in one the island
+			and will never transition to the others. Successive samples will have high correlation.
+
+		min_prob : float <1 optional. If algorithm == "rejection"
+			stop iterations when  Sum P(X|Evidence) < min_prob. generated samples for a given evidence will be
+			incomplete (<n)
+
+		initial_state : dict, optional
+			initial state used by the Gibbs sampler.
+			Default is to use the maximum joint-probability values, calculated with self.predict().
+			The default should be optimal.
+
+		scan_order: str, one 'topological','random' optional. If algorithm == "gibbs"
+			Scan order or the gibbs sampler. Indicate in which order nodes are sampled. Topological order is good for
+			chain like networks (lots of successive nodes). Random order yield better results with more connected
+			 networks. Default : 'random'.
+
+
+		burnin : int, optional. If algorithm == "Gibbs"
+			Number of sample to discard at the begining of the sampling. Default is 0.
+
+		random_state : seed or seeded numpy instance (for gibbs, only seed)
+
+		Returns
+		-------
+		a nested list of sampled states of shape [n*len(evidences),len(nodes)]
+
+		Examples
+		--------
+		>>> network.sample(evidence = [{'HLML': '2'},{'HLML': '2','TYPL':'1'},{'NBPI': '02','TYPL':'1'}])
+
+		"""
+		if algorithm == "rejection":
+			return self._rejection(n=n,evidences=evidences,random_state=random_state,**kwargs)
+
+		if algorithm == "gibbs":
+			return self._gibbs( n=n, evidences=evidences,seed=random_state, **kwargs)
+
+
+	def _rejection(self, n=1, evidences=[{}],min_prob=0.01,random_state=None):
+		"""Sample the network, optionally given some evidences
+		Use rejection to condition on non marginal nodes
+
+		Parameters
+		----------
+		n : int, optional
+				The number of samples to generate. Defaults to 1.
+		evidences : list of dict, optional
+				Evidence to set constant while samples are generated.
+		min_prob : stop iterations when  Sum P(X|Evidence) < min_prob. generated samples for a given evidence will be
+				incomplete (<n)
+		Returns
+		-------
+		a nested list of sampled states
+
+		"""
+		random_state = check_random_state(random_state)
+		self.bake()
+		samples = []
+		node_dict = {node.name:node.distribution for node in self.states}
+
+		G = nx.DiGraph()
+		for state in self.states:
+			G.add_node(state)
+
+		for parent, child in self.edges:
+			G.add_edge(parent, child)
+
+		iter_ = it.cycle(enumerate(nx.topological_sort(G)))
+
+		for evidence in evidences:
+			count = 0
+			#sample=[]
+			#samples.append(sample)
+			safeguard = 0
+			state_dict = evidence.copy()
+			args = {node_dict[k]:v for k,v in evidence.items()}
+
+			while count < n:
+				safeguard +=1
+				if safeguard > n/min_prob:
+					# raise if P(X|Evidence) < 1%
+					raise Exception('Maximum iteration limit. Make sure the state configuration hinted at by evidence is reasonably reachable for this network or lower min_prob')
+
+				# Rejection sampling
+				# If the predicted value is not the one given in evidence, we start over until we reach the expected number of samples by evidence
+				j, node = iter_.__next__()
+				name = node.name
+
+				if node.distribution.name == "DiscreteDistribution":
+					if name in evidence :
+						val = evidence[name]
+					else :
+						val = node.distribution.sample(random_state=random_state)
+				else :
+					val = node.distribution.sample(args,random_state=random_state)
+
+				# rejection sampling
+				if node.distribution.name != "DiscreteDistribution" and (name in evidence):
+					if evidence[name] != val:
+						# make sure we start with the first node in the topoplogical order
+						[iter_.__next__() for i in range(self.d - j - 1)]
+						args = {node_dict[k]:v for k,v in evidence.items()}
+						state_dict = evidence.copy()
+						continue
+
+				else:
+					state_dict[name] = val
+					args[node_dict[name]] = val
+
+				if (j + 1) == self.d:
+					samples.append(state_dict)
+					args = {node_dict[k]:v for k,v in evidence.items()}
+					state_dict = evidence.copy()
+					count += 1
+
+			# make sure we start with the first node in the topoplogical order
+			[iter_.__next__() for i in range(self.d - j - 1)]
+
+		keys = node_dict.keys()
+		return  numpy.array([[r[k] for k in keys ] for i,r in enumerate(samples)])
+
+
+	def _gibbs(self, int n,  list evidences=[], dict initial_state ={}, int burnin=10,seed=1, scan_order='random',
+	double pseudocount=0):
+		"""
+		Draw samples from the bayesian network given evidences.
+		Evidences can be given for any nodes (root or not).
+
+		This will return sample of size <n> for each of the given evidence in <evidences>
+
+		Node sampling order is shuffled each iteration
+
+		Parameters
+		----------
+		n : int
+			The number of sample to draw for each evidence  each sample as a positive double. Default is None.
+
+		evidences : list [{<state_name>:<state_value>}]
+			The data to train on, where each row is a sample and each column
+			corresponds to the associated variable. Default [{}]
+
+		initial_state : dict, optional
+			Initial state used by the sampler.
+			Default is to use the maximum joint-probability values, calculated with self.predict().
+			The default should be optimal.
+			
+		scan_order: str, optional ['topological','random',]
+			scan order or the gibbs sampler. Indicate in which order nodes are sampled. Default : 'topological'.
+
+
+		burnin : int, optional
+			Number of sample to discard at the begining of the sampling. Default is 0.
+
+		seed : seed to be applied to srand
+
+		pseudocount : double, optional
+			A pseudocount to add to the emission of each distribution. This
+			effectively smoothes the states to prevent 0. probability symbols
+			if they don't happen to occur in the data. Only effects hidden
+			Markov models defined over discrete distributions. Default is 0.
+
+		Returns
+		-------
+		array : samples (n*len(evidences),n_state)
+			sample drawn from the bayesian network
+		"""
+
+		if seed is None:
+			seed = round(time.time())
+		srand(seed)
+
+		cdef int n_step, n_state, i,j,k, step, n_cpd, n_mod, node_pos, idx, col_n, e
+		cdef double p, s
+		cdef str val
+		cdef dict col_dict, col_dict_inv, graph_dict
+		cdef list modalities, cardinalities, cols, col_idxs, probs, cpds_, node_idx, samples
+
+		n_step = burnin+n
+		n_state = len(self.states)
+
+		cdef numpy.ndarray[numpy.double_t, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([n*len(evidences),n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t,ndim=1,mode='c'] prob, prob_tmp, state_subset, proba
+
+		cdef double [:] current_state_view = current_state
+		cdef double [:,:] all_states_view = all_states
+
+		col_dict   = {i:state.name for i,state in enumerate(self.states) }
+		col_dict_inv   = {state.name:i for i,state in enumerate(self.states) }
+		graph_dict = {state.name:state for i,state in enumerate(self.graph.states) }
+
+		# building graph of the model
+		G = nx.DiGraph()
+		for state in self.states:
+			G.add_node(state.name)
+
+		for parent, child in self.edges:
+			G.add_edge(parent.name, child.name)
+
+		topo_order = [col_dict_inv[node_name] for node_name in nx.topological_sort(G)]
+
+
+		if initial_state == {} :
+			# initial_state = {state.name: state.distribution.keys()[0] for state in self.states}
+			# Optimal initial state
+			in_st_nan = numpy.empty( (1, len(self.states)) )
+			in_st_nan[:] = numpy. nan
+			in_st_pred = self.predict(in_st_nan)
+			initial_state = {state.name: in_st_pred[0][i] for i, state in enumerate(self.states)}
+
+		modalities = []
+		modalities_int = []
+		modalities_dict = []
+
+		cpds = defaultdict(list)
+		node_idx_dict =  defaultdict(list)
+		col_idxs = []
+		columns_idxs_dict = defaultdict(list)
+		columns_idxs = []
+
+		state_names = {i:state.name for i,state in enumerate(self.states)}
+
+		for i,state in enumerate(self.states):
+			d = state.distribution
+			modalities_dict.append({mod :<double> c for c,mod in enumerate(d.keys())} )
+
+			if isinstance(state.distribution,MultivariateDistribution):
+				cols  = [col_dict[idx] for idx in d.column_idxs ]
+				col_idxs.append(d.column_idxs)
+
+
+				for col in cols :
+					cpds[col].append(d)
+					node_idx_dict[col].append(numpy.where(d.column_idxs==col_dict_inv[col])[0][0])
+					columns_idxs_dict[col].append(d.column_idxs)
+
+			else :
+				cols = [state.name]
+				col_idxs.append([i])
+
+				for col in cols :
+					cpds[col].append(d)
+					node_idx_dict[col].append(0)
+					columns_idxs_dict[col].append([i])
+
+		cardinalities = [len(m.keys()) for m in modalities_dict]
+
+		prob = numpy.zeros(numpy.max(cardinalities))
+		prob_tmp = numpy.zeros(numpy.max(cardinalities))
+		state_subset = numpy.zeros(n_state)
+
+		cdef double [:] prob_view = prob
+		cdef double [:] prob_tmp_view = prob_tmp
+		cdef double [:] state_subset_view = state_subset
+
+		cpds_  = [cpds[state.name] for state in self.states ]
+		node_idx = [node_idx_dict[state.name] for state in self.states ]
+		columns_idxs = [columns_idxs_dict[state.name] for state in self.states ]
+
+		samples = []
+
+		state_order = list(range(n_state))
+		if scan_order == 'topological':
+			state_order = topo_order
+
+		scan_order_is_random = scan_order == 'random'
+		if scan_order_is_random:
+			random.seed(seed)
+
+		for e,evidence in enumerate(evidences) :
+
+			for i,state in enumerate(self.states):
+
+				if state.name in evidence:
+					mod_i = modalities_dict[i]
+					ev_for_name = evidence[state.name]
+					if isinstance(list(mod_i.keys())[0], str):
+						current_state[i] = mod_i[ev_for_name]
+					else:
+						current_state[i] = mod_i[int(ev_for_name)]
+				else :
+					current_state[i] = modalities_dict[i][initial_state[state.name]]
+				pass
+
+			for step in range(n_step):
+
+				if scan_order_is_random:
+					random.shuffle(state_order)
+
+				for i in state_order:
+					if col_dict[i] in evidence:
+						#all_states_view[e*(n_step)+step+1,i] =
+						mod_i = modalities_dict[i]
+						if isinstance(list(mod_i.keys())[0], str):
+							current_state_view[i] = <double> mod_i[evidence[col_dict[i]]]
+						else:
+							current_state_view[i] = <double> mod_i[int(evidence[col_dict[i]])]
+						continue
+
+					cardinality = cardinalities[i]
+					column_idxs = columns_idxs[i]
+					for k,cpd in enumerate(cpds_[i]) :
+
+						col_len = len(column_idxs[k])
+
+						node_pos =  node_idx[i][k]
+
+						for col_n,idx in enumerate(column_idxs[k]):
+							state_subset_view[col_n] = current_state_view[idx]
+
+						if col_len !=1 :
+
+							self.cpd_prod(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality,node_pos)
+						else :
+							self.cpd_prod_marginal(cpd, state_subset[:col_n+1], prob,prob_tmp,cardinality,node_pos)
+
+					# normalizing log_prob to avoid probabilities smaller than double precision
+					prob[:] -= prob[:cardinality].max()
+					prob[:] = numpy.exp(prob[:])
+					prob[:]  = prob[:]/prob[:cardinality].sum()
+
+
+					current_state_view[i] = <double> choose_one(prob_view[:cardinality], cardinality)
+					prob_view[:] = 0.
+				if step >= burnin:
+					all_states_view[e*(n)+step-burnin,:] = current_state_view[:]
+
+		# convert back int to code
+		modalities_type = type(list(modalities_dict[0].keys())[0])
+		decoded_states = numpy.empty_like(all_states.astype(modalities_type))
+		for i,modality_dict in enumerate(modalities_dict):
+
+			to_values,from_values = list(zip(*modality_dict.items()))
+			sort_idx = numpy.argsort(from_values)
+			idx_ = numpy.searchsorted(from_values,all_states[:,i],sorter = sort_idx)
+			decoded_states[:,i]= numpy.array(to_values)[sort_idx][idx_]
+
+		return decoded_states
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	@cython.nonecheck(False)
+	cdef void cpd_prod(self,ConditionalProbabilityTable cpd, numpy.ndarray[numpy.double_t, ndim=1,mode="c"] state_subset,
+		numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob_tmp,
+	 	int cardinality,int node_pos):
+		cdef int j
+
+		for j in range(cardinality):
+			state_subset[node_pos] = j
+			cpd._log_probability(&state_subset[0],&prob_tmp[0],1)
+			if prob_tmp[0] != -numpy.inf:
+				prob[j] += prob_tmp[0]
+			else :
+				# default probability of unobserved event
+				prob[j] += -20
+
+	@cython.boundscheck(False)
+	@cython.wraparound(False)
+	@cython.nonecheck(False)
+	cdef void cpd_prod_marginal(self,DiscreteDistribution d, numpy.ndarray[numpy.double_t, ndim=1,mode="c"] state_subset,
+		numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob, numpy.ndarray[numpy.double_t, ndim=1,mode='c'] prob_tmp,
+	 	int cardinality,int node_pos):
+		cdef int j
+
+		for j in range(cardinality):
+			state_subset[node_pos] = j
+			d._log_probability(&state_subset[0],&prob_tmp[0],1)
+			if prob_tmp[0] != -numpy.inf:
+				prob[j] += prob_tmp[0]
+			else :
+				# default probability of unobserved event
+				prob[j] += -20
+#-----------------------------------------------------------------------------------------------
+
+
 
 	def summarize(self, X, weights=None):
 		"""Summarize a batch of data and store the sufficient statistics.
@@ -731,7 +1148,7 @@ cdef class BayesianNetwork(GraphModel):
 		if weights is None:
 			weights_ndarray = numpy.ones(n, dtype='float64')
 		else:
-			weights_ndarray = numpy.array(weights, dtype='float64')
+			weights_ndarray = numpy.asarray(weights, dtype='float64')
 
 		weights_ptr = <double*> weights_ndarray.data
 
@@ -773,65 +1190,22 @@ cdef class BayesianNetwork(GraphModel):
 
 		self.bake()
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-			The two separators to pass to the json.dumps function for formatting.
-
-		indent : int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting.
-
-		Returns
-		-------
-		json : str
-			A properly formatted JSON object.
-		"""
-
+	def to_dict(self):
 		states = [ state.copy() for state in self.states ]
 
-		model = {
-					'class' : 'BayesianNetwork',
-					'name'  : self.name,
-					'structure' : self.structure,
-					'states' : [ json.loads( state.to_json() ) for state in states ]
-				}
-
-		return json.dumps( model, separators=separators, indent=indent )
+		return {
+			'class' : 'BayesianNetwork',
+			'name'  : self.name,
+			'structure' : self.structure,
+			'states' : [ state.to_dict() for state in states ]
+		}
 
 	@classmethod
-	def from_json(cls, s):
-		"""Read in a serialized Bayesian Network and return the appropriate object.
-
-		Parameters
-		----------
-		s : str
-			A JSON formatted string containing the file.
-
-		Returns
-		-------
-		model : object
-			A properly initialized and baked model.
-		"""
-
-		# Load a dictionary from a JSON formatted string
-		try:
-			d = json.loads(s)
-		except:
-			try:
-				with open(s, 'r') as infile:
-					d = json.load(infile)
-			except:
-				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+	def from_dict(cls, d):
 		# Make a new generic Bayesian Network
 		model = cls(str(d['name']))
 
-		# Load all the states from JSON formatted strings
-		states = [State.from_json(json.dumps(j)) for j in d['states']]
+		states = [State.from_dict(j) for j in d['states']]
 		structure = d['structure']
 		for state, parents in zip(states, structure):
 			if len(parents) > 0:
@@ -898,11 +1272,11 @@ cdef class BayesianNetwork(GraphModel):
 			X = numpy.concatenate([batch[0] for batch in batches])
 			weights = numpy.concatenate([batch[1] for batch in batches])
 		else:
-			X = numpy.array(X)
+			X = numpy.asarray(X)
 			if weights is None:
 				weights = numpy.ones(X.shape[0], dtype='float64')
 			else:
-				weights = numpy.array(weights, dtype='float64')
+				weights = numpy.asarray(weights, dtype='float64')
 
 		d = len(structure)
 		nodes = [None for i in range(d)]
@@ -945,8 +1319,8 @@ cdef class BayesianNetwork(GraphModel):
 
 	@classmethod
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
-		 penalty=None, root=0, constraint_graph=None, include_edges=[], 
-		 exclude_edges=[], pseudocount=0.0, state_names=None, name=None, 
+		 penalty=None, root=0, constraint_graph=None, include_edges=None, 
+		 exclude_edges=None, pseudocount=0.0, state_names=None, name=None, 
 		 reduce_dataset=True, keys=None, n_jobs=1):
 		"""Learn the structure of the network from data.
 
@@ -959,13 +1333,13 @@ cdef class BayesianNetwork(GraphModel):
 			P(D|M) + penalty * |M|
 
 		where P(D|M) is the probability of the data given the found model,
-		penalty is a user-specified parameters, and |M| is the number of 
-		parameters in the model. When this penalty is log2(|D|) / 2 
-		(the default) where |D| is the weight sum of the examples, this is 
-		equivalent to the minimum description length (MDL). 
+		penalty is a user-specified parameters, and |M| is the number of
+		parameters in the model. When this penalty is log2(|D|) / 2
+		(the default) where |D| is the weight sum of the examples, this is
+		equivalent to the minimum description length (MDL).
 
-		There are currently three ways that the learned structure can be 
-		controlled. The first is to increase the penalty term to increase 
+		There are currently three ways that the learned structure can be
+		controlled. The first is to increase the penalty term to increase
 		sparsity. The second is to pass in a specified list of edges that
 		must exist (`include_edges`) or cannot exist (`exclude_edges`). Lastly,
 		a constraint graph can be specified where each node in the graph is a
@@ -979,7 +1353,7 @@ cdef class BayesianNetwork(GraphModel):
 			The data to fit the structure too, where each row is a sample and
 			each column corresponds to the associated variable.
 
-		weights : array-like, shape (n_nodes), optional
+		weights : array-like, shape (n_samples), optional
 			The weight of each sample as a positive double. Default is None.
 
 		algorithm : str, one of 'chow-liu', 'greedy', 'exact', 'exact-dp' optional
@@ -1002,8 +1376,8 @@ cdef class BayesianNetwork(GraphModel):
 		penalty : float or None, optional
 			The weighting of the model complexity term in the objective function.
 			Increasing this value will encourage sparsity whereas setting the value
-			to 0 will result in an unregularized structure. Default is 
-			log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+			to 0 will result in an unregularized structure. Default is
+			log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 		root : int, optional
 			For algorithms which require a single root ('chow-liu'), this is the
@@ -1019,11 +1393,11 @@ cdef class BayesianNetwork(GraphModel):
 
 		include_edges : list or None, optional
 			A list of (parent, child) tuples that are edges which must be 
-			present in the found structure.
+			present in the found structure. Default is None.
 
 		exclude_edges : list or None, optional
 			A list of (parent, child) tuples that are edges which cannot be
-			present in the found structure.
+			present in the found structure. Default is None.
 
 		pseudocount : double, optional
 			A pseudocount to add to the emission of each distribution. This
@@ -1064,6 +1438,15 @@ cdef class BayesianNetwork(GraphModel):
 			The learned BayesianNetwork.
 		"""
 
+		if algorithm == 'chow-liu' and include_edges is not None:
+			raise ValueError("Cannot use the Chow-Liu algorithm with inclusion constraints.")
+
+		if algorithm == 'chow-liu' and exclude_edges is not None:
+			raise ValueError("Cannot use the Chow-Liu algorithm with exclusion constraints.")
+
+		include_edges = include_edges or []
+		exclude_edges = exclude_edges or []
+
 		if constraint_graph is not None:
 			if len(include_edges) > 0:
 				raise ValueError("Cannot use both a constraint graph and " /
@@ -1074,11 +1457,11 @@ cdef class BayesianNetwork(GraphModel):
 			X = numpy.concatenate([batch[0] for batch in batches])
 			weights = numpy.concatenate([batch[1] for batch in batches])
 		else:
-			X = numpy.array(X)
+			X = numpy.asarray(X)
 			if weights is None:
 				weights = numpy.ones(X.shape[0], dtype='float64')
 			else:
-				weights = numpy.array(weights, dtype='float64')
+				weights = numpy.asarray(weights, dtype='float64')
 
 		n, d = X.shape
 
@@ -1104,7 +1487,7 @@ cdef class BayesianNetwork(GraphModel):
 			n, d = X.shape
 
 
-		X_int = numpy.empty((n, d), dtype='float64')
+		X_int = numpy.empty((n, d), dtype='float32')
 		for i in range(n):
 			for j in range(d):
 				if _check_nan(X[i, j]):
@@ -1123,38 +1506,38 @@ cdef class BayesianNetwork(GraphModel):
 		if algorithm == 'chow-liu':
 			if numpy.any(numpy.isnan(X_int)):
 				raise ValueError("Chow-Liu tree learning does not current support missing values")
-			structure = discrete_chow_liu_tree(X_int, weights, 
+			structure = discrete_chow_liu_tree(X_int, weights,
 				key_count, pseudocount=pseudocount, root=root)
 
 		elif algorithm == 'exact' and constraint_graph is not None:
 			structure = discrete_exact_with_constraints(X=X_int, weights=weights,
-				key_count=key_count, include_edges=include_edges, 
-				exclude_edges=exclude_edges, pseudocount=pseudocount, 
-				penalty=penalty, max_parents=max_parents, 
-				constraint_graph=constraint_graph, n_jobs=n_jobs)
-		
-		elif algorithm == 'exact':
-			structure = discrete_exact_a_star(X=X_int, weights=weights, 
-				key_count=key_count, include_edges=include_edges, 
-				exclude_edges=exclude_edges, pseudocount=pseudocount, 
-				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
-		
-		elif algorithm == 'greedy':
-			structure = discrete_greedy(X=X_int, weights=weights, 
 				key_count=key_count, include_edges=include_edges,
-				exclude_edges=exclude_edges, pseudocount=pseudocount, 
+				exclude_edges=exclude_edges, pseudocount=pseudocount,
+				penalty=penalty, max_parents=max_parents,
+				constraint_graph=constraint_graph, n_jobs=n_jobs)
+
+		elif algorithm == 'exact':
+			structure = discrete_exact_a_star(X=X_int, weights=weights,
+				key_count=key_count, include_edges=include_edges,
+				exclude_edges=exclude_edges, pseudocount=pseudocount,
+				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
+
+		elif algorithm == 'greedy':
+			structure = discrete_greedy(X=X_int, weights=weights,
+				key_count=key_count, include_edges=include_edges,
+				exclude_edges=exclude_edges, pseudocount=pseudocount,
 				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
 
 		elif algorithm == 'exact-dp':
-			structure = discrete_exact_dp(X=X_int, weights=weights, 
-				key_count=key_count, include_edges=include_edges, 
-				exclude_edges=exclude_edges, pseudocount=pseudocount, 
+			structure = discrete_exact_dp(X=X_int, weights=weights,
+				key_count=key_count, include_edges=include_edges,
+				exclude_edges=exclude_edges, pseudocount=pseudocount,
 				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
 		else:
 			raise ValueError("Invalid algorithm type passed in. Must be one of 'chow-liu', 'exact', 'exact-dp', 'greedy'")
 
-		return cls.from_structure(X, structure=structure, weights=weights, 
-			pseudocount=pseudocount, name=name, state_names=state_names, 
+		return cls.from_structure(X, structure=structure, weights=weights,
+			pseudocount=pseudocount, name=name, state_names=state_names,
 			keys=keys)
 
 
@@ -1193,8 +1576,8 @@ cdef class ParentGraph(object):
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1227,7 +1610,7 @@ cdef class ParentGraph(object):
 	cdef int* parents
 	cdef double penalty
 
-	def __init__(self, X, weights, key_count, i, include_edges=[], 
+	def __init__(self, X, weights, key_count, i, include_edges=[],
 		exclude_edges=[], pseudocount=0.0, penalty=-1, max_parents=-1):
 		self.X = X
 		self.weights = weights
@@ -1238,7 +1621,7 @@ cdef class ParentGraph(object):
 		self.values = {}
 		self.n = X.shape[0]
 		self.d = X.shape[1]
-		self.include_parents = set([parent for parent, child in include_edges 
+		self.include_parents = set([parent for parent, child in include_edges
 			if child == i])
 		self.exclude_parents = set([parent for parent, child in exclude_edges
 			if child == i])
@@ -1256,7 +1639,7 @@ cdef class ParentGraph(object):
 	def calculate_value(self, value):
 		cdef int k, parent, l = len(value)
 
-		cdef double* X = <double*> self.X.data
+		cdef float* X = <float*> self.X.data
 		cdef int* key_count = <int*> self.key_count.data
 		cdef int* m = self.m
 		cdef int* parents = self.parents
@@ -1314,7 +1697,7 @@ def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarra
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 	cdef int max_keys = key_count_ndarray.max()
 
-	cdef double* X = <double*> X_ndarray.data
+	cdef float* X = <float*> X_ndarray.data
 	cdef double* weights = <double*> weights_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 
@@ -1410,7 +1793,7 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
 
-	include_edges : list or None 
+	include_edges : list or None
 		A set of (parent, child) tuples where each tuple is an edge that
 		must exist in the found structure.
 
@@ -1421,8 +1804,8 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1443,7 +1826,7 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 	cdef list parent_graphs = []
 
 	parent_graphs = Parallel(n_jobs=n_jobs, backend='threading')(
-		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges, 
+		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges,
 			exclude_edges, pseudocount, penalty, max_parents) for i in range(d))
 
 	order_graph = nx.DiGraph()
@@ -1473,7 +1856,7 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 	return tuple(structure)
 
 
-def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges, 
+def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 	pseudocount, penalty, max_parents, n_jobs):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
@@ -1513,8 +1896,8 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1533,9 +1916,9 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 
 	cdef int i, n = X.shape[0], d = X.shape[1]
 
-	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count, 
-		include_edges=include_edges, exclude_edges=exclude_edges, i=i, 
-		pseudocount=pseudocount, penalty=penalty, 
+	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count,
+		include_edges=include_edges, exclude_edges=exclude_edges, i=i,
+		pseudocount=pseudocount, penalty=penalty,
 		max_parents=max_parents) for i in range(d)]
 
 	other_variables = {}
@@ -1611,8 +1994,8 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1632,9 +2015,9 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 	cdef int i, n = X.shape[0], d = X.shape[1]
 	cdef list parent_graphs = []
 
-	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count, 
-		include_edges=include_edges, exclude_edges=exclude_edges, i=i, 
-		pseudocount=pseudocount, penalty=penalty, 
+	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count,
+		include_edges=include_edges, exclude_edges=exclude_edges, i=i,
+		pseudocount=pseudocount, penalty=penalty,
 		max_parents=max_parents) for i in range(d)]
 
 	structure, seen_variables, unseen_variables = [() for i in range(d)], (), set(range(d))
@@ -1658,7 +2041,7 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 
 	return tuple(structure)
 
-def discrete_exact_with_constraints(X, weights, key_count, include_edges, 
+def discrete_exact_with_constraints(X, weights, key_count, include_edges,
 	exclude_edges, pseudocount, penalty, max_parents, constraint_graph, n_jobs):
 	"""This returns the optimal Bayesian network given a set of constraints.
 
@@ -1679,7 +2062,7 @@ def discrete_exact_with_constraints(X, weights, key_count, include_edges,
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
 
-	include_edges : list or None 
+	include_edges : list or None
 		A set of (parent, child) tuples where each tuple is an edge that
 		must exist in the found structure.
 
@@ -1693,8 +2076,8 @@ def discrete_exact_with_constraints(X, weights, key_count, include_edges,
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1747,11 +2130,11 @@ def discrete_exact_with_constraints(X, weights, key_count, include_edges,
 		else:
 			parents = [parent_sets[children] for children in component]
 			task = (3, parents, component)
-			tasks.append(task)		
+			tasks.append(task)
 
 	with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
 		local_structures = parallel(delayed(discrete_exact_with_constraints_task)(
-			X, weights, key_count, include_edges, exclude_edges, pseudocount, 
+			X, weights, key_count, include_edges, exclude_edges, pseudocount,
 			penalty, max_parents, task, n_jobs) for task in tasks)
 
 	structure = [[] for i in range(X.shape[1])]
@@ -1782,7 +2165,7 @@ def discrete_exact_with_constraints_task(X, weights, key_count, include_edges,
 	key_count : numpy.ndarray, shape=(d,)
 		The number of unique keys in each column.
 
-	include_edges : list or None 
+	include_edges : list or None
 		A set of (parent, child) tuples where each tuple is an edge that
 		must exist in the found structure.
 
@@ -1796,8 +2179,8 @@ def discrete_exact_with_constraints_task(X, weights, key_count, include_edges,
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1833,25 +2216,25 @@ def discrete_exact_with_constraints_task(X, weights, key_count, include_edges,
 	if case == 0:
 		parents = list(parents)
 		include_edges = [(parents.index(parent), parents.index(child)) for
-			parent, child in include_edges if parent in parents and 
+			parent, child in include_edges if parent in parents and
 			child in parents]
 
 		exclude_edges = [(parents.index(parent), parents.index(child)) for
-			parent, child in exclude_edges if parent in parents and 
+			parent, child in exclude_edges if parent in parents and
 			child in parents]
 
-		local_structure = discrete_exact_a_star(X[:,parents].copy(), 
-			weights, key_count[list(parents)], include_edges=include_edges, 
-			exclude_edges=exclude_edges, pseudocount=pseudocount, 
+		local_structure = discrete_exact_a_star(X[:,parents].copy(),
+			weights, key_count[list(parents)], include_edges=include_edges,
+			exclude_edges=exclude_edges, pseudocount=pseudocount,
 			penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
 
 		for i, parent in enumerate(parents):
 			structure[parent] = tuple([parents[k] for k in local_structure[i]])
 
 	elif case == 1:
-		structure = discrete_exact_slap(X, weights, task, 
-			key_count, include_edges=include_edges, exclude_edges=exclude_edges, 
-			pseudocount=pseudocount, penalty=penalty, max_parents=max_parents, 
+		structure = discrete_exact_slap(X, weights, task,
+			key_count, include_edges=include_edges, exclude_edges=exclude_edges,
+			pseudocount=pseudocount, penalty=penalty, max_parents=max_parents,
 			n_jobs=n_jobs)
 
 	elif case == 2:
@@ -1866,7 +2249,7 @@ def discrete_exact_with_constraints_task(X, weights, key_count, include_edges,
 	elif case == 3:
 		structure = discrete_exact_component(X, weights,
 			task, key_count, include_edges=include_edges,
-			exclude_edges=exclude_edges, pseudocount=pseudocount, 
+			exclude_edges=exclude_edges, pseudocount=pseudocount,
 			max_parents=max_parents, penalty=penalty, n_jobs=n_jobs)
 
 	return tuple(structure)
@@ -1911,8 +2294,8 @@ def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edge
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -1935,7 +2318,7 @@ def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edge
 	cdef list parent_graphs = [None for i in range(max(parents)+1)]
 
 	graphs = Parallel(n_jobs=n_jobs, backend='threading')(
-		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges, 
+		delayed(generate_parent_graph)(X, weights, key_count, i, include_edges,
 			exclude_edges, pseudocount, penalty, max_parents) for i in children)
 
 	for i, child in enumerate(children):
@@ -1970,7 +2353,7 @@ def discrete_exact_slap(X, weights, task, key_count, include_edges, exclude_edge
 	return tuple(structure)
 
 
-def discrete_exact_component(X, weights, task, key_count, include_edges, 
+def discrete_exact_component(X, weights, task, key_count, include_edges,
 	exclude_edges, pseudocount, penalty, max_parents, n_jobs):
 	"""Find the optimal graph over a multi-node component of the constaint graph.
 
@@ -2006,8 +2389,8 @@ def discrete_exact_component(X, weights, task, key_count, include_edges,
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -2041,8 +2424,8 @@ def discrete_exact_component(X, weights, task, key_count, include_edges,
 			child_sets[parent] += children
 
 	graphs = Parallel(n_jobs=n_jobs, backend='threading')(
-		delayed(generate_parent_graph)(X, weights, key_count, child, 
-			include_edges, exclude_edges, pseudocount, penalty, max_parents, 
+		delayed(generate_parent_graph)(X, weights, key_count, child,
+			include_edges, exclude_edges, pseudocount, penalty, max_parents,
 			parents) for child, parents in parent_sets.items())
 
 	parent_graphs = [None for i in range(d)]
@@ -2112,7 +2495,7 @@ def discrete_exact_component(X, weights, task, key_count, include_edges,
 
 def generate_parent_graph(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
-	int i, list include_edges, list exclude_edges, double pseudocount, 
+	int i, list include_edges, list exclude_edges, double pseudocount,
 	double penalty, int max_parents, tuple parent_set=()):
 	"""
 	Generate a parent graph for a single variable over its parents.
@@ -2153,8 +2536,8 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 	penalty : float or None, optional
 		The weighting of the model complexity term in the objective function.
 		Increasing this value will encourage sparsity whereas setting the value
-		to 0 will result in an unregularized structure. Default is 
-		log2(|D|) / 2 where |D| is the sum of the weights of the data. 
+		to 0 will result in an unregularized structure. Default is
+		log2(|D|) / 2 where |D| is the sum of the weights of the data.
 
 	max_parents : int
 		The maximum number of parents a node can have. If used, this means
@@ -2176,7 +2559,7 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 	cdef int j, k, variable, l
 	cdef int n = X_ndarray.shape[0], d = X_ndarray.shape[1]
 
-	cdef double* X = <double*> X_ndarray.data
+	cdef float* X = <float*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 	cdef int* m = <int*> malloc((d+2)*sizeof(int))
 	cdef int* parents = <int*> malloc(d*sizeof(int))
@@ -2214,13 +2597,13 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 					else:
 						best_structure = subset
-						
+
 						parents[j] = i
 						m[j+1] = m[j] * key_count[i]
 						m[j+2] = m[j] * (key_count[i] - 1)
 
 						with nogil:
-							best_score = discrete_score_node(X, weights, m, 
+							best_score = discrete_score_node(X, weights, m,
 								parents, n, j+1, d, pseudocount, penalty)
 
 			for k, variable in enumerate(subset):
@@ -2239,12 +2622,12 @@ def generate_parent_graph(numpy.ndarray X_ndarray,
 
 cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	numpy.ndarray weights_ndarray, numpy.ndarray key_count_ndarray,
-	double pseudocount, double penalty, int max_parents, tuple parent_set, 
+	double pseudocount, double penalty, int max_parents, tuple parent_set,
 	int i):
 	cdef int j, k
 	cdef int n = X_ndarray.shape[0], l = X_ndarray.shape[1]
 
-	cdef double* X = <double*> X_ndarray.data
+	cdef float* X = <float*> X_ndarray.data
 	cdef int* key_count = <int*> key_count_ndarray.data
 	cdef int* m = <int*> malloc((l+2)*sizeof(int))
 	cdef int* combs = <int*> malloc(l*sizeof(int))
@@ -2277,7 +2660,7 @@ cdef discrete_find_best_parents(numpy.ndarray X_ndarray,
 	free(combs)
 	return best_score, best_parents
 
-cdef double discrete_score_node(double* X, double* weights, int* m, int* parents,
+cdef double discrete_score_node(float* X, double* weights, int* m, int* parents,
 	int n, int d, int l, double pseudocount, double penalty) nogil:
 	cdef int i, j, k, idx
 	cdef double w_sum = 0
@@ -2285,12 +2668,12 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	cdef double count, marginal_count
 	cdef double* counts = <double*> calloc(m[d], sizeof(double))
 	cdef double* marginal_counts = <double*> calloc(m[d-1], sizeof(double))
-	cdef double* row;
+	cdef float* row;
 
 	for i in range(n):
 		idx = 0
 		row = X+i*l
-		
+
 		for j in range(d-1):
 			k = parents[j]
 			if isnan(row[k]):
@@ -2326,3 +2709,4 @@ cdef double discrete_score_node(double* X, double* weights, int* m, int* parents
 	free(counts)
 	free(marginal_counts)
 	return logp
+

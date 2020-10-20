@@ -6,12 +6,17 @@ from libc.math cimport log2 as clog2
 from libc.math cimport exp as cexp
 from libc.math cimport floor
 from libc.math cimport fabs
+from libc.stdlib cimport rand, RAND_MAX
 from libc.math cimport isnan
 
 from scipy.linalg.cython_blas cimport dgemm
 
-cimport numpy
+
+import cython
+cimport cython
 import numpy
+cimport numpy
+
 import numbers
 
 import heapq
@@ -216,7 +221,7 @@ cdef double pair_lse(double x, double y) nogil:
 def logsumexp(X):
 	"""Calculate the log-sum-exp of an array to add in log space."""
 
-	X = numpy.array(X, dtype='float64')
+	X = numpy.asarray(X, dtype='float64')
 	
 	cdef double* X_ptr = <double*> (<numpy.ndarray> X).data
 	cdef double x
@@ -242,8 +247,8 @@ def logsumexp(X):
 def logaddexp(X, Y):
 	"""Calculate the log-add-exp of a pair of arrays."""
 
-	X = numpy.array(X, dtype='float64')
-	Y = numpy.array(Y, dtype='float64')
+	X = numpy.asarray(X, dtype='float64')
+	Y = numpy.asarray(Y, dtype='float64')
 
 	if len(X.shape) != len(Y.shape):
 		raise ValueError("Both arrays must be of the same shape.")
@@ -452,7 +457,7 @@ def weight_set(items, weights):
 	if weights is None: # Weight everything 1 if no weights specified
 		weights = numpy.ones(items.shape[0], dtype=numpy.float64)
 	else: # Force whatever we have to be a Numpy array
-		weights = numpy.array(weights, dtype=numpy.float64)
+		weights = numpy.asarray(weights, dtype=numpy.float64)
 
 	return items, weights
 
@@ -488,4 +493,24 @@ def check_random_state(seed):
 		return seed
 	raise ValueError('%r cannot be used to seed a numpy.random.RandomState'
 					 ' instance' % seed)
-	
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.nonecheck(False)
+@cython.cdivision(True)
+cdef choose_one(double [:] weights, int length):
+
+	cdef int  i
+	cdef double cs
+	cdef double random
+
+	random = rand()*1./(RAND_MAX)
+
+	cs = 0.0
+	i = 0
+	while cs <= random and i < length:
+		cs += weights[i]
+		i += 1
+	return i-1
+

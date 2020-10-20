@@ -93,7 +93,7 @@ cdef class BayesModel(Model):
         if weights is None:
             weights = numpy.ones_like(distributions, dtype='float64') / self.n
         else:
-            weights = numpy.array(weights, dtype='float64') / sum(weights)
+            weights = numpy.asarray(weights, dtype='float64') / sum(weights)
 
         self.weights = numpy.log(weights)
         self.weights_ptr = <double*> self.weights.data
@@ -255,7 +255,7 @@ cdef class BayesModel(Model):
             if self.is_vl_:
                 for i in range(n):
                     with gil:
-                        X_ndarray = numpy.array(X[i])
+                        X_ndarray = numpy.asarray(X[i])
                         X_ptr = <double*> X_ndarray.data
                     logp[i] = self._vl_log_probability(X_ptr, n)
             else:
@@ -752,7 +752,7 @@ cdef class BayesModel(Model):
         if weights is None:
             weights = numpy.ones(X.shape[0], dtype='float64')
         else:
-            weights = numpy.array(weights, dtype='float64')
+            weights = numpy.asarray(weights, dtype='float64')
 
         if self.is_vl_:
             for i, distribution in enumerate(self.distributions):

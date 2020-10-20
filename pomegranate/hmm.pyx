@@ -8,7 +8,6 @@ from __future__ import print_function
 
 from libc.math cimport exp as cexp
 from operator import attrgetter
-import json
 import math
 import networkx
 import tempfile
@@ -323,7 +322,6 @@ cdef class HiddenMarkovModel(GraphModel):
 
         self.name = state['name']
 
-        # Load all the states from JSON formatted strings
         states = state['states']
         for i, j in state['distribution ties']:
             # Tie appropriate states together
@@ -541,7 +539,7 @@ cdef class HiddenMarkovModel(GraphModel):
             A deep copy of the model with entirely new objects.
         """
 
-        return self.__class__.from_json(self.to_json())
+        return self.__class__.from_dict(self.to_dict())
 
     def freeze_distributions(self):
         """Freeze all the distributions in model.
@@ -2325,10 +2323,13 @@ cdef class HiddenMarkovModel(GraphModel):
 
         if self.d == 0:
             raise ValueError("must bake model before prediction")
-
+        
         if algorithm == 'map':
             return [state_id for state_id, state in self.maximum_a_posteriori(sequence)[1]]
-        return [state_id for state_id, state in self.viterbi(sequence)[1]]
+        elif algorithm == 'viterbi':
+            return [state_id for state_id, state in self.viterbi(sequence)[1]]
+        else:
+            raise ValueError("algorithm must be map or viterbi")
 
     def maximum_a_posteriori(self, sequence):
         """Run posterior decoding on the sequence.
@@ -2396,7 +2397,8 @@ cdef class HiddenMarkovModel(GraphModel):
         pseudocount=None, transition_pseudocount=0, emission_pseudocount=0.0,
         use_pseudocount=False, inertia=None, edge_inertia=0.0,
         distribution_inertia=0.0, batches_per_epoch=None, lr_decay=0.0, 
-        callbacks=[], return_history=False, verbose=False, n_jobs=1):
+        callbacks=[], return_history=False, verbose=False, n_jobs=1,
+        multiple_check_input=True):
         """Fit the model to data using either Baum-Welch, Viterbi, or supervised training.
 
         Given a list of sequences, performs re-estimation on the model
@@ -2517,6 +2519,13 @@ cdef class HiddenMarkovModel(GraphModel):
             The number of threads to use when performing training. This
             leads to exact updates. Default is 1.
 
+        multiple_check_input : bool, optional
+            Whether to check and transcode input at each iteration. This
+            leads to copying whole input data in each iteration. Which 
+            can introduce significant overhead (up to 2 times slower) so 
+            should be turned off when you know that data won't be changed 
+            between fitting iteration. Default is True.
+
         Returns
         -------
         improvement : double
@@ -2535,14 +2544,49 @@ cdef class HiddenMarkovModel(GraphModel):
         cdef double last_log_probability_sum
         cdef str alg = algorithm.lower()
         cdef bint check_input = alg == 'viterbi'
-        cdef list X = []
 
         training_start_time = time.time()
 
-        if not isinstance(sequences, BaseGenerator):
-            data_generator = SequenceGenerator(sequences, weights, labels)
+        if multiple_check_input:
+            # if we should check input multiple times
+            # use old code, where we only change class of input
+            # checking input will be in `summarize` function
+            if not isinstance(sequences, BaseGenerator):
+                data_generator = SequenceGenerator(sequences, weights, labels)
+            else:
+                data_generator = sequences
         else:
-            data_generator = sequences
+            if not isinstance(sequences, BaseGenerator):
+                #check_input:
+                #sequences have elements which are ndarrays. For each dimension in
+                #our HMM model we have one row in this array, so we have to
+                #iterate over all sequences for all dimensions
+                checked_sequences = []
+                for sequence in sequences:
+                    sequence_ndarray = _check_input(sequence, self)
+                    checked_sequences.append(sequence_ndarray)
+
+                if labels is not None:
+                    labels = numpy.array(labels)
+
+                data_generator = SequenceGenerator(checked_sequences, weights, 
+                    labels)
+            else:
+                checked_sequences, checked_weights, checked_labels = [], [], []
+
+                for batch in sequences.batches():
+                    sequence_ndarray= _check_input(batch[0][0],self)
+                    checked_sequences.append(sequence_ndarray)
+                    checked_weights.append(batch[1])
+
+                    if len(batch) == 3:
+                        checked_labels.append(batch[2][0])
+                    else:
+                        checked_labels = None
+
+                data_generator = SequenceGenerator(checked_sequences, checked_weights,
+                    checked_labels)
+
 
         n = data_generator.shape[0]
 
@@ -2577,18 +2621,18 @@ cdef class HiddenMarkovModel(GraphModel):
 
                 if semisupervised:
                     log_probability_sum = sum(parallel(f(*batch, algorithm='labeled', 
-                        check_input=True) for batch in data_generator.labeled_batches()))
+                        check_input=multiple_check_input) for batch in data_generator.labeled_batches()))
 
                     log_probability_sum += sum(parallel(f(*batch, algorithm=algorithm, 
-                        check_input=True) for batch in data_generator.unlabeled_batches()))
+                        check_input=multiple_check_input) for batch in data_generator.unlabeled_batches()))
 
                 elif labels is not None:
                     log_probability_sum = sum(parallel(f(*batch, 
-                        algorithm=algorithm) for batch in data_generator.batches()))
+                        algorithm=algorithm, check_input=multiple_check_input) for batch in data_generator.batches()))
 
                 else:
                     log_probability_sum = sum(parallel(f(*batch, algorithm=algorithm,
-                        check_input=True) for batch in data_generator.batches()))
+                        check_input=multiple_check_input) for batch in data_generator.batches()))
 
                 if iteration == 0:
                     initial_log_probability_sum = log_probability_sum
@@ -3178,34 +3222,17 @@ cdef class HiddenMarkovModel(GraphModel):
         for state in self.states[:self.silent_start]:
             state.distribution.clear_summaries()
 
-    def to_json(self, separators=(',', ' : '), indent=4):
-        """Serialize the model to a JSON.
-
-        Parameters
-        ----------
-        separators : tuple, optional
-            The two separators to pass to the json.dumps function for formatting.
-
-        indent : int, optional
-            The indentation to use at each level. Passed to json.dumps for
-            formatting.
-
-        Returns
-        -------
-        json : str
-            A properly formatted JSON object.
-        """
-
+    def to_dict(self):
         model = {
-                    'class' : 'HiddenMarkovModel',
-                    'name'  : self.name,
-                    'start' : json.loads(self.start.to_json()),
-                    'end'   : json.loads(self.end.to_json()),
-                    'states' : [json.loads(state.to_json()) for state in self.states],
-                    'end_index' : self.end_index,
-                    'start_index' : self.start_index,
-                    'silent_index' : self.silent_start
-                }
+            'class' : 'HiddenMarkovModel',
+            'name'  : self.name,
+            'start' : self.start.to_dict(),
+            'end'   : self.end.to_dict(),
+            'states' : [state.to_dict() for state in self.states],
+            'end_index' : self.end_index,
+            'start_index' : self.start_index,
+            'silent_index' : self.silent_start
+        }
 
         indices = { state: i for i, state in enumerate(self.states)}
 
@@ -3250,37 +3277,14 @@ cdef class HiddenMarkovModel(GraphModel):
                 ties.append((i, self.tied[j]))
 
         model['distribution ties'] = ties
-        return json.dumps(model, separators=separators, indent=indent)
+        return model
 
     @classmethod
-    def from_json(cls, s, verbose=False):
-        """Read in a serialized model and return the appropriate classifier.
-
-        Parameters
-        ----------
-        s : str
-            A JSON formatted string containing the file.
-        Returns
-        -------
-        model : object
-            A properly initialized and baked model.
-        """
-
-        # Load a dictionary from a JSON formatted string
-        try:
-            d = json.loads(s)
-        except:
-            try:
-                with open(s, 'r') as infile:
-                    d = json.load(infile)
-            except:
-                raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+    def from_dict(cls, d, verbose=False):
         # Make a new generic HMM
         model = cls(str(d['name']))
 
-        # Load all the states from JSON formatted strings
-        states = [State.from_json(json.dumps(j)) for j in d['states']]
+        states = [State.from_dict(j) for j in d['states']]
         for i, j in d['distribution ties']:
             # Tie appropriate states together
             states[i].tie(states[j])
@@ -3404,7 +3408,8 @@ cdef class HiddenMarkovModel(GraphModel):
         max_iterations=1e8, n_init=1, init='kmeans++', max_kmeans_iterations=1,
         initialization_batch_size=None, batches_per_epoch=None, lr_decay=0.0, 
         end_state=False, state_names=None, name=None, keys=None, random_state=None, 
-        callbacks=[], return_history=False, verbose=False, n_jobs=1):
+        callbacks=[], return_history=False, verbose=False, n_jobs=1,
+        multiple_check_input=True):
         """Learn the transitions and emissions of a model directly from data.
 
         This method will learn both the transition matrix, emission distributions,
@@ -3575,6 +3580,13 @@ cdef class HiddenMarkovModel(GraphModel):
             The number of threads to use when performing training. This
             leads to exact updates. Default is 1.
 
+        multiple_check_input : bool, optional
+            Whether to check and transcode input at each iteration. This
+            leads to copying whole input data in each iteration. Which 
+            can introduce significant overhead (up to 2 times slower) so 
+            should be turned off when you know that data won't be changed 
+            between fitting iteration. Default is True.
+
         Returns
         -------
         model : HiddenMarkovModel
@@ -3703,7 +3715,8 @@ cdef class HiddenMarkovModel(GraphModel):
             inertia=inertia, edge_inertia=edge_inertia,
             distribution_inertia=distribution_inertia,
             batches_per_epoch=batches_per_epoch, lr_decay=lr_decay,
-            callbacks=callbacks, return_history=True, n_jobs=n_jobs)
+            callbacks=callbacks, return_history=True, n_jobs=n_jobs,
+            multiple_check_input=multiple_check_input)
 
 
         if return_history:

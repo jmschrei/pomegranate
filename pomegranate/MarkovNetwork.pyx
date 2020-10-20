@@ -1,5 +1,4 @@
 import itertools
-import json
 import time
 import numpy
 cimport numpy
@@ -444,7 +443,7 @@ cdef class MarkovNetwork(Model):
 		if weights is None:
 			weights = numpy.ones(len(X), dtype='float64')
 		else:
-			weights = numpy.array(weights, dtype='float64')
+			weights = numpy.asarray(weights, dtype='float64')
 
 		starts = [int(i*len(X)/n_jobs) for i in range(n_jobs)]
 		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
@@ -488,19 +487,11 @@ cdef class MarkovNetwork(Model):
 			raise ValueError("must bake model before summarizing data")
 
 		n, d = len(X), len(X[0])
-		X_int = numpy.empty((n, d), dtype='float64')
-
-		for i in range(n):
-			for j in range(d):
-				if X[i][j] == 'nan' or X[i][j] == None or X[i][j] == nan:
-					X_int[i, j] = nan
-				else:
-					X_int[i, j] = self.keymap[j][X[i][j]]
 
 		if weights is None:
 			weights = numpy.ones(n, dtype='float64')
 		else:
-			weights = numpy.array(weights, dtype='float64')
+			weights = numpy.asarray(weights, dtype='float64')
 
 		for i, d in enumerate(self.distributions):
 			d.summarize(X, weights)
@@ -535,63 +526,11 @@ cdef class MarkovNetwork(Model):
 
 		self.bake(calculate_partition=calculate_partition)
 
-	def to_json(self, separators=(',', ' : '), indent=4):
-		"""Serialize the model to a JSON.
-
-		Parameters
-		----------
-		separators : tuple, optional
-			The two separators to pass to the json.dumps function for formatting.
-
-		indent : int, optional
-			The indentation to use at each level. Passed to json.dumps for
-			formatting.
-
-		Returns
-		-------
-		json : str
-			A properly formatted JSON object.
-		"""
-
-		states = [distribution.copy() for distribution in self.distributions]
-
-		model = {
-					'class' : 'MarkovNetwork',
-					'name'  : self.name,
-					'distributions' : [json.loads(d.to_json()) 
-						for d in self.distributions]
-		}
-
-		return json.dumps(model, separators=separators, indent=indent)
-
 	@classmethod
-	def from_json(cls, s):
-		"""Read in a serialized Markov Network and return the appropriate object.
-
-		Parameters
-		----------
-		s : str
-			A JSON formatted string containing the file.
-
-		Returns
-		-------
-		model : object
-			A properly initialized and baked model.
-		"""
-
-		# Load a dictionary from a JSON formatted string
-		try:
-			d = json.loads(s)
-		except:
-			try:
-				with open(s, 'r') as infile:
-					d = json.load(infile)
-			except:
-				raise IOError("String must be properly formatted JSON or filename of properly formatted JSON.")
-
+	def from_dict(cls, d):
 		distributions = []
 		for j in d['distributions']:
-			distribution = JointProbabilityTable.from_json(json.dumps(j))
+			distribution = JointProbabilityTable.from_dict(j)
 			distributions.append(distribution)
 
 		model = cls(distributions, str(d['name']))
@@ -633,14 +572,14 @@ cdef class MarkovNetwork(Model):
 			A Markov network with the specified structure.
 		"""
 
-		X = numpy.array(X)
+		X = numpy.asarray(X)
 		n, d = X.shape
 		distributions = []
 
 		if weights is None:
 			weights = numpy.ones(X.shape[0], dtype='float64')
 		else:
-			weights = numpy.array(weights, dtype='float64')
+			weights = numpy.asarray(weights, dtype='float64')
 
 		for i, parents in enumerate(structure):
 			distribution = JointProbabilityTable.from_samples(X[:, parents],
@@ -738,7 +677,7 @@ cdef class MarkovNetwork(Model):
 			The learned Markov Network.
 		"""
 
-		X = numpy.array(X)
+		X = numpy.asarray(X)
 		n, d = X.shape
 
 		keys = [set([x for x in X[:,i] if not _check_nan(x)]) for i in range(d)]
@@ -748,7 +687,7 @@ cdef class MarkovNetwork(Model):
 		if weights is None:
 			weights = numpy.ones(X.shape[0], dtype='float64')
 		else:
-			weights = numpy.array(weights, dtype='float64')
+			weights = numpy.asarray(weights, dtype='float64')
 
 		if reduce_dataset:
 			X_count = {}

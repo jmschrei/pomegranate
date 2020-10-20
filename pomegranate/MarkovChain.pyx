@@ -180,7 +180,7 @@ cdef class MarkovChain(object):
 		if weights is None:
 			weights = numpy.ones(len(sequences), dtype='float64')
 		else:
-			weights = numpy.array(weights)
+			weights = numpy.asarray(weights)
 
 		n = max( map(len, sequences) )
 		for i in range(self.k):
@@ -247,7 +247,7 @@ cdef class MarkovChain(object):
 
 		model = {
 		            'class' : 'MarkovChain',
-		            'distributions' : [ json.loads( d.to_json() )
+		            'distributions' : [ d.to_dict()
 		                                for d in self.distributions ]
 		        }
 
@@ -269,7 +269,7 @@ cdef class MarkovChain(object):
 		"""
 
 		d = json.loads(s)
-		distributions = [ Distribution.from_json( json.dumps(j) )
+		distributions = [ Distribution.from_dict(j)
 		                  for j in d['distributions'] ]
 		model = cls(distributions)
 		return model

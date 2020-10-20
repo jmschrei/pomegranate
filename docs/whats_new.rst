@@ -12,6 +12,30 @@ Highlights
 ----------
 
 	- A variety of minor bug fixes and speed improvements
+	- Bayesian networks now support sampling using a Gibbs sampler or rejection sampling. Thanks @pascal-schetelat
+	- HMMs now have the option to disable rechecking the inputs at each iteration, which can dramatically speed up training for small models.
+
+General
+-------
+	
+	- pomegranate will now use `numpy.asarray` instead of `numpy.array` to avoid re-copying arrays.
+
+
+BayesianNetwork
+---------------
+	
+	- An error will now appropriately be raised when passing in constraints and selecting the Chow-Liu algorithm.
+	- Bayesian networks will now use 32-bit floats instead of 64-bit floats internally, leading to lower memory models. Thanks @alexhenrie
+
+
+
+Version 0.13.0
+==============
+
+Highlights
+----------
+
+	- A variety of minor bug fixes and speed improvements
 	- You can now pass in key sets to each model to define distributions over, even if that symbol doesn't occur in the training set
 	- The returns from `from_sample` uses class distributions instead of predefined ones, allowing for inheritence of distributions
 	- Checks added to ensure that input arrays are C ordered instead of transposed

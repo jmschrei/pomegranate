@@ -45,8 +45,7 @@ distributions = [
     'MultivariateGaussianDistribution',
     'DirichletDistribution',
     'ConditionalProbabilityTable',
-    'JointProbabilityTable',
-    "NeuralNetworkWrapper"
+    'JointProbabilityTable'
 ]
 
 if not use_cython:
@@ -71,7 +70,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.13.4',
+    version='0.13.5',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=[
