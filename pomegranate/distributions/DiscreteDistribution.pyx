@@ -57,11 +57,6 @@ cdef class DiscreteDistribution(Distribution):
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
 		self.summaries =[{ key: 0 for key in characters.keys() }, 0]
 
-		self.encoded_summary = 0
-		self.encoded_keys = None
-		self.encoded_counts = NULL
-		self.encoded_log_probability = NULL
-
 	def __dealloc__(self):
 		if self.encoded_keys is not None:
 			free(self.encoded_counts)

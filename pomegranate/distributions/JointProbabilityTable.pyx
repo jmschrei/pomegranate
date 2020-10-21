@@ -37,7 +37,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 		"""
 
 		self.name = "JointProbabilityTable"
-		self.frozen = False
 		self.d = len(parents) if parents is not None else len(table[0]) - 1
 		self.m = len(parents) if parents is not None else len(table[0]) - 1
 		self.n = len(table)
@@ -46,7 +45,6 @@ cdef class JointProbabilityTable(MultivariateDistribution):
 
 		self.values = <double*> malloc(self.n*sizeof(double))
 		self.counts = <double*> calloc(self.n, sizeof(double))
-		self.count = 0
 
 		self.n_columns = self.d
 

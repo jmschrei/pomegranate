@@ -37,7 +37,6 @@ cdef class ConditionalProbabilityTable(MultivariateDistribution):
 		"""
 
 		self.name = "ConditionalProbabilityTable"
-		self.frozen = False
 		self.m = len(parents) if parents is not None else len(table[0])-2
 		self.n = len(table)
 		self.k = len(set(row[-2] for row in table))

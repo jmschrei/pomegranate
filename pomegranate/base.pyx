@@ -21,8 +21,6 @@ cdef class Model(object):
 
 	def __cinit__(self):
 		self.name = "Model"
-		self.frozen = False
-		self.d = 0
 
 	def __str__(self):
 		return self.to_json()
@@ -332,9 +330,6 @@ cdef class GraphModel(Model):
 		self.name = name or str(id(self))
 		self.states = []
 		self.edges = []
-		self.n_edges = 0
-		self.n_states = 0
-		self.d = 0
 
 	def __str__(self):
 		"""Represent this model with it's name and states."""
