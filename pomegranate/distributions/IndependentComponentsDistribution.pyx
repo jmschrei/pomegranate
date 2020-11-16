@@ -4,6 +4,8 @@
 # IndependentComponentsDistribution.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
+from typing import Union
+
 import numpy
 
 from libc.stdlib cimport calloc
@@ -19,6 +21,7 @@ from ..utils import check_random_state
 from ..utils import weight_set
 
 from .DiscreteDistribution import DiscreteDistribution
+from .BernoulliDistribution import BernoulliDistribution
 
 
 cimport numpy
@@ -167,7 +170,6 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		the given sample. Items holds some sort of sequence. If weights is
 		specified, it holds a sequence of value to weight each item by.
 		"""
-
 		if self.frozen:
 			return
 
@@ -212,7 +214,7 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 				for i in range(d):
 					self.distributions[i].summarize(X_ndarray[:,i], w_ndarray)
 
-	def from_summaries(self, inertia=0.0, pseudocount=0.0):
+	def from_summaries(self, inertia=0.0, pseudocount=0.0, **kwargs):
 		"""
 		Use the collected summary statistics in order to update the
 		distributions.
@@ -223,10 +225,10 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 			return
 
 		for d in self.parameters[0]:
-			if isinstance(d, DiscreteDistribution):
-				d.from_summaries(inertia, pseudocount)
+			if isinstance(d, (DiscreteDistribution, BernoulliDistribution)):
+				d.from_summaries(inertia=inertia, pseudocount=pseudocount, **kwargs)
 			else:
-				d.from_summaries(inertia)
+				d.from_summaries(inertia, **kwargs)
 
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
@@ -243,8 +245,14 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		}
 
 	@classmethod
-	def from_samples(cls, X, weights=None, distribution_weights=None,
-		pseudocount=0.0, distributions=None):
+	def from_samples(
+		cls,
+		X,
+		weights=None,
+		distribution_weights=None,
+		pseudocount: Union[float, list, tuple, numpy.ndarray]=0.0,
+		distributions=None,
+	):
 		"""Create a new independent components distribution from data."""
 
 		if distributions is None:
@@ -253,10 +261,24 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		X, weights = weight_set(X, weights)
 		n, d = X.shape
 
-		if callable(distributions):
-			distributions = [distributions.from_samples(X[:,i], weights) for i in range(d)]
-		else:
-			distributions = [distributions[i].from_samples(X[:,i], weights) for i in range(d)]
+		initialised_distributions = []
+		# Fit distribution for each column.
+		for i in range(d):
+			if callable(distributions):
+				dist_i = distributions
+			else:
+				dist_i = distributions[i]
 
-		return cls(distributions, distribution_weights)
+			kwargs = {
+				'weights': weights,
+			}
+			if dist_i in (DiscreteDistribution, BernoulliDistribution):
+				if isinstance(pseudocount, float):
+					kwargs['pseudocount'] = pseudocount
+				else:
+					kwargs['pseudocount'] = pseudocount[i]
+
+			initialised_distributions.append(dist_i.from_samples(X[:,i], **kwargs))
+
+		return cls(initialised_distributions, distribution_weights)
 

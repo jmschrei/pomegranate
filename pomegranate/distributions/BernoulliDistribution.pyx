@@ -75,17 +75,39 @@ cdef class BernoulliDistribution(Distribution):
 			self.summaries[0] += w_sum
 			self.summaries[1] += x_sum
 
-	def from_summaries(self, inertia=0.0):
+	def from_summaries(self, inertia=0.0, pseudocount: float = 0.0):
 		"""Update the parameters of the distribution from the summaries."""
 
 		if self.summaries[0] < 1e-8 or self.frozen:
 			return
 
-		p = self.summaries[1] / self.summaries[0]
+		n: int = 2
+		p = (self.summaries[1] + pseudocount) / (self.summaries[0] + n * pseudocount)
 		self.p = self.p * inertia + p * (1-inertia)
 		self.logp[0] = _log(1-p)
 		self.logp[1] = _log(p)
 		self.summaries = [0.0, 0.0]
+
+	def fit(
+		self,
+		items,
+		weights=None,
+		inertia: float = 0.0,
+		column_idx: int = 0,
+		pseudocount: float = 0.0,
+	):
+		"""
+		Fit parameters of this Distribution by maximizing likelihood of samples.
+
+		Items holds a binary sequence. If weights is specified, weigh each
+		respective item.
+		"""
+
+		if self.frozen:
+			return
+
+		self.summarize(items, weights, column_idx)
+		self.from_summaries(inertia, pseudocount)
 
 	@classmethod
 	def blank(cls):

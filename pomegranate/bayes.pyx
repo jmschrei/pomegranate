@@ -8,12 +8,14 @@ from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 
 import time
+from typing import Optional
 
 import numpy
 cimport numpy
 
 from .base cimport Model
 from distributions.distributions cimport Distribution
+from distributions import BernoulliDistribution
 from distributions import DiscreteDistribution
 from distributions import JointProbabilityTable
 from distributions import IndependentComponentsDistribution
@@ -137,7 +139,7 @@ cdef class BayesModel(Model):
                     if isinstance(d, DiscreteDistribution):
                         d.bake(keymap_tuples[i])
 
-        
+
 
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(),
@@ -234,7 +236,7 @@ cdef class BayesModel(Model):
 
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
                 f = delayed(self.log_probability, check_pickle=False)
-                logp_array = parallel(f(batch[0]) for batch in 
+                logp_array = parallel(f(batch[0]) for batch in
                     data_generator.batches())
 
             return numpy.concatenate(logp_array)
@@ -332,7 +334,7 @@ cdef class BayesModel(Model):
             probability that the sample was generated from each component.
         """
 
-        return numpy.exp(self.predict_log_proba(X, n_jobs=n_jobs, 
+        return numpy.exp(self.predict_log_proba(X, n_jobs=n_jobs,
             batch_size=batch_size))
 
     def predict_log_proba(self, X, n_jobs=1, batch_size=None):
@@ -385,7 +387,7 @@ cdef class BayesModel(Model):
 
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
                 f = delayed(self.predict_log_proba, check_pickle=False)
-                y_array = parallel(f(batch[0]) for batch in 
+                y_array = parallel(f(batch[0]) for batch in
                     data_generator.batches())
 
             return numpy.concatenate(y_array)
@@ -490,7 +492,7 @@ cdef class BayesModel(Model):
 
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
                 f = delayed(self.predict, check_pickle=False)
-                y_array = parallel(f(batch[0]) for batch in 
+                y_array = parallel(f(batch[0]) for batch in
                     data_generator.batches())
 
             return numpy.concatenate(y_array)
@@ -550,8 +552,8 @@ cdef class BayesModel(Model):
         free(r)
 
     def fit(self, X, y=None, weights=None, inertia=0.0, pseudocount=0.0,
-        stop_threshold=0.1, max_iterations=1e8, callbacks=[],
-        return_history=False, verbose=False, n_jobs=1):
+        alpha: Optional[float] = None, stop_threshold=0.1, max_iterations=1e8,
+        callbacks=[], return_history=False, verbose=False, n_jobs=1):
         """Fit the Bayes classifier to the data by passing data to its components.
 
         The fit step for a Bayes classifier with purely labeled data is a simple
@@ -585,6 +587,10 @@ cdef class BayesModel(Model):
             A pseudocount to add to the emission of each distribution. This
             effectively smoothes the states to prevent 0. probability symbols
             if they don't happen to occur in the data. Default is 0.
+
+        alpha : double, optional
+            A pseudocount to smooth the distributions, but not the label (for 
+            which `pseudocount` can be used).
 
         stop_threshold : double, optional, positive
             The threshold at which EM will terminate for the improvement of
@@ -629,7 +635,7 @@ cdef class BayesModel(Model):
         if not isinstance(X, BaseGenerator):
             if y is None:
                 raise ValueError("Must pass in both X and y as arrays or a data generator for X.")
-                
+
             batch_size = X.shape[0] // n_jobs + X.shape[0] % n_jobs
             data_generator = DataGenerator(X, weights, y, batch_size=batch_size)
         else:
@@ -645,7 +651,7 @@ cdef class BayesModel(Model):
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
             f = delayed(self.summarize, check_pickle=False)
             parallel(f(*batch) for batch in data_generator.batches())
-            self.from_summaries(inertia, pseudocount)
+            self.from_summaries(inertia, pseudocount, alpha)
 
             semisupervised = -1 in data_generator.classes
             if semisupervised:
@@ -657,14 +663,14 @@ cdef class BayesModel(Model):
 
                 while improvement > stop_threshold and iteration < max_iterations + 1:
                     epoch_start_time = time.time()
-                    self.from_summaries(inertia, pseudocount)
+                    self.from_summaries(inertia, pseudocount, alpha)
 
                     unsupervised.weights[:] = self.weights
                     parallel(f(*batch) for batch in data_generator.labeled_batches())
 
                     unsupervised.summaries[:] = self.summaries
 
-                    log_probability_sum = sum(parallel(f2(*batch) for batch in 
+                    log_probability_sum = sum(parallel(f2(*batch) for batch in
                         data_generator.unlabeled_batches()))
 
                     self.summaries[:] = unsupervised.summaries
@@ -769,7 +775,13 @@ cdef class BayesModel(Model):
         int column_idx, int d) nogil:
         return -1
 
-    def from_summaries(self, inertia=0.0, pseudocount=0.0, **kwargs):
+    def from_summaries(
+        self,
+        inertia=0.0,
+        pseudocount=0.0,
+        alpha: Optional[float] = None,
+        **kwargs
+    ):
         """Fit the model to the collected sufficient statistics.
 
         Fit the parameters of the model to the sufficient statistics gathered
@@ -792,6 +804,10 @@ cdef class BayesModel(Model):
             emissions of each component. Otherwise, will only smooth the prior
             probabilities of each component. Default is 0.
 
+        alpha : double, optional
+            A pseudocount to smooth the distributions, but not the label (for
+            which `pseudocount` can be used).
+
         Returns
         -------
         None
@@ -804,8 +820,14 @@ cdef class BayesModel(Model):
         summaries /= summaries.sum()
 
         for i, distribution in enumerate(self.distributions):
-            if isinstance(distribution, DiscreteDistribution):
-                distribution.from_summaries(inertia, pseudocount)
+            if isinstance(
+                distribution,
+                (DiscreteDistribution, BernoulliDistribution, IndependentComponentsDistribution),
+            ):
+                distribution_smoothing = pseudocount
+                if alpha is not None:
+                    distribution_smoothing = alpha
+                distribution.from_summaries(inertia, pseudocount=distribution_smoothing, **kwargs)
             else:
                 distribution.from_summaries(inertia, **kwargs)
 

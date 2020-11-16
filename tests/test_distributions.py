@@ -879,6 +879,19 @@ def test_bernoulli():
 	assert_equal(f.name, "BernoulliDistribution")
 	assert_equal(round(f.parameters[0], 4), 0.1667)
 
+
+@with_setup(setup, teardown)
+def test_bernoulli_pseudocount():
+	"""
+	Test fitting Bernoulli distribution with non-zero pseudocount.
+	"""
+	a = [0.0, 0.0, 0.0]
+	d = BernoulliDistribution.from_samples(a, pseudocount=1)
+	assert_equal(d.probability(0), 0.8)
+	assert_equal(d.probability(1), 0.2)
+
+
+
 def test_distributions_uniform_kernel_random_sample():
 	d = BernoulliDistribution(0.2)
 
@@ -1008,6 +1021,30 @@ def test_independent():
 	assert_almost_equal(d.parameters[0][1].parameters[0], -1.5898, 4)
 	assert_almost_equal(d.parameters[0][1].parameters[1], 0.36673, 4)
 	assert_almost_equal(d.parameters[0][2].parameters[0], 1.27660, 4)
+
+
+
+@with_setup(setup, teardown)
+def test_independent_bernoulli_pseudocount():
+	"""
+	Test fitting Bernoulli distribution with non-zero pseudocount.
+	"""
+	X = numpy.array([
+		[0., 1.],
+		[0., 1.],
+		[0., 0.],
+	])
+	d = IndependentComponentsDistribution.from_samples(
+		X,
+		distributions=BernoulliDistribution,
+		pseudocount=1.,
+	)
+	params = d.parameters[0]
+	assert_equal(params[0].probability(0), 0.8)
+	assert_equal(params[0].probability(1), 0.2)
+	assert_equal(params[1].probability(0), 0.4)
+	assert_equal(params[1].probability(1), 0.6)
+
 
 
 def test_distributions_independent_random_sample():

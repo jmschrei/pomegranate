@@ -811,3 +811,88 @@ def test_io_from_samples():
 	logp2 = nb2.log_probability(X)
 
 	assert_array_almost_equal(logp1, logp2)
+
+def test_propagation_pseudocount():
+	"""
+	Test that naive Bayes pseudocounts are passed to BernoulliDistribution.
+	"""
+	X_train = np.array([
+		[0., 1.],
+		[0., 1.],
+		[0., 1.],
+	])
+	y_train = np.array([0, 0, 1])
+
+	# Test that both `alpha` and `pseudocount` are propagated to the
+	# BernoulliDistribution.
+	for kwargs in ({'alpha': 1.0}, {'pseudocount': 1.0}):
+		pmodel = NaiveBayes.from_samples(
+			BernoulliDistribution,
+			X_train,
+			y_train,
+			**kwargs
+		)
+		# Check fit for y=0 label (2 records + pseudocount=1 per category).
+		params_y0 = pmodel.distributions[0].parameters[0]
+		assert_equal(params_y0[0].probability(0), 0.75)
+		assert_equal(params_y0[1].probability(1), 0.75)
+
+		# Check fit for y=0 label (1 record + pseudocount=1 per category).
+		params_y1 = pmodel.distributions[1].parameters[0]
+		assert_almost_equal(params_y1[0].probability(0), 2/3)
+		assert_almost_equal(params_y1[1].probability(1), 2/3)
+
+def test_bernoulli_alpha():
+	"""
+	Test out-of-sample prediction for BernoulliDistribution with feature smoothing.
+	"""
+	X_train = np.array([
+		[0., 1.],
+		[0., 1.],
+		[0., 1.],
+	])
+	y_train = np.array([0, 0, 1])
+
+	pmodel = NaiveBayes.from_samples(
+		BernoulliDistribution,
+		X_train,
+		y_train,
+		alpha=1.0,
+	)
+
+	X_test = np.array([[0., 0.]])
+	py0 = 2/3
+	py1 = 1/3
+	p_x0_y0 = (3/4) * (1/4) * py0
+	p_x0_y1 = (2/3) * (1/3) * py1
+	p_x0 = p_x0_y0 + p_x0_y1
+	assert_almost_equal(pmodel.predict_proba(X_test)[0,0], p_x0_y0 / p_x0)
+	assert_almost_equal(pmodel.predict_proba(X_test)[0,1], p_x0_y1 / p_x0)
+
+def test_bernoulli_pseudocount():
+	"""
+	Test out-of-sample prediction for BernoulliDistribution with pseudocount.
+	"""
+	X_train = np.array([
+		[0., 1.],
+		[0., 1.],
+		[0., 1.],
+	])
+	y_train = np.array([0, 0, 1])
+
+	pmodel = NaiveBayes.from_samples(
+		BernoulliDistribution,
+		X_train,
+		y_train,
+		# Smooth both the label and the distribution.
+		pseudocount=1.0,
+	)
+
+	X_test = np.array([[0., 0.]])
+	py0 = 3/5
+	py1 = 2/5
+	p_x0_y0 = (3/4) * (1/4) * py0
+	p_x0_y1 = (2/3) * (1/3) * py1
+	p_x0 = p_x0_y0 + p_x0_y1
+	assert_almost_equal(pmodel.predict_proba(X_test)[0,0], p_x0_y0 / p_x0)
+	assert_almost_equal(pmodel.predict_proba(X_test)[0,1], p_x0_y1 / p_x0)
