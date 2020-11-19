@@ -811,3 +811,37 @@ def test_io_from_samples():
 	logp2 = nb2.log_probability(X)
 
 	assert_array_almost_equal(logp1, logp2)
+
+def test_discrete_distribution():
+	"""
+	Test fit NaiveBayes to discrete variables.
+	"""
+	X = np.array([
+	[0, 0],
+	[1, 1],
+	[2, 0],
+	[0, 0],
+	[1, 1],
+	[2, 0],
+	])
+	y = np.array([0, 0, 0, 1, 1, 1])
+	m = NaiveBayes.from_samples(
+		DiscreteDistribution,
+		X,
+		y,
+	)
+	p_y0 = m.distributions[0].parameters[0]
+	assert_almost_equal(list(p_y0[0].parameters[0].values()), [1/3, 1/3, 1/3])
+	assert_almost_equal(list(p_y0[1].parameters[0].values()), [2/3, 1/3])
+
+	p_y1 = m.distributions[1].parameters[0]
+	assert_almost_equal(list(p_y1[0].parameters[0].values()), [1/3, 1/3, 1/3])
+	assert_almost_equal(list(p_y1[1].parameters[0].values()), [2/3, 1/3])
+
+	# Check the probability calculation for a test variable.
+	X_test = np.array([[1, 0]])
+	p_groundtruth = np.array([[1/2, 1/2]])
+	assert_array_almost_equal(m.predict_log_proba(X_test), np.log(p_groundtruth))
+	assert_array_almost_equal(m.log_probability(X_test), [np.log(2/9)])
+	assert_array_almost_equal(m.predict_proba(X_test), p_groundtruth)
+	assert_array_almost_equal(m.predict(X_test), [0])

@@ -522,6 +522,10 @@ def test_distributions_discrete():
 	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'])
 	assert_equal(d.parameters[0], {'A': 0.75, 'B': 0.25})
 
+	# Test vector input instead of flat array.
+	d = DiscreteDistribution.from_samples(numpy.array(['A', 'B', 'A', 'A']).reshape(-1,1))
+	assert_equal(d.parameters[0], {'A': 0.75, 'B': 0.25})
+
 	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'], pseudocount=0.5)
 	assert_equal(d.parameters[0], {'A': 0.70, 'B': 0.30})
 

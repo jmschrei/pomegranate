@@ -4,8 +4,8 @@
 # DiscreteDistribution.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
-import numpy
 import itertools as it
+import numpy
 import random
 
 from libc.stdlib cimport calloc
@@ -38,7 +38,7 @@ cdef class DiscreteDistribution(Distribution):
 			self.dist = d
 			self.log_dist = {key: _log(value) for key, value in d.items()}
 
-	def __cinit__(self, dict characters, bint frozen=False):
+	def __cinit__(self, dict characters = {}, bint frozen=False):
 		"""
 		Make a new discrete distribution with a dictionary of discrete
 		characters and their probabilities, checking to see that these
@@ -46,12 +46,14 @@ cdef class DiscreteDistribution(Distribution):
 		Bernoulli distribution.
 		"""
 
-		if len(characters) == 0:
-			raise ValueError("Must pass in a dictionary with at least one value.")
-
 		self.name = "DiscreteDistribution"
 		self.frozen = frozen
-		self.dtype = str(type(list(characters.keys())[0])).split()[-1].strip('>').strip("'")
+
+		self.is_blank_= True
+		self.dtype = None
+		if len(characters) > 0:
+			self.is_blank_ = False
+			self.dtype = self._get_dtype(characters)
 
 		self.dist = characters.copy()
 		self.log_dist = { key: _log(value) for key, value in characters.items() }
@@ -61,6 +63,12 @@ cdef class DiscreteDistribution(Distribution):
 		self.encoded_keys = None
 		self.encoded_counts = NULL
 		self.encoded_log_probability = NULL
+
+	def _get_dtype(self, characters: dict) -> str:
+		"""
+		Determine dtype from characters.
+		"""
+		return str(type(list(characters.keys())[0])).split()[-1].strip('>').strip("'")
 
 	def __dealloc__(self):
 		if self.encoded_keys is not None:
@@ -234,8 +242,7 @@ cdef class DiscreteDistribution(Distribution):
 		else:
 			return random_state.choice(keys, p=probabilities, size=n)
 
-	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0,
-		column_idx=0):
+	def fit(self, items, weights=None, inertia=0.0, pseudocount=0.0):
 		"""
 		Set the parameters of this Distribution to maximize the likelihood of
 		the given sample. Items holds some sort of sequence. If weights is
@@ -243,23 +250,27 @@ cdef class DiscreteDistribution(Distribution):
 		"""
 
 		if self.frozen:
-			return
+			return self
 
-		self.summarize(items, weights, column_idx)
+		self.summarize(items, weights)
 		self.from_summaries(inertia, pseudocount)
+		return self
 
-	def summarize(self, items, weights=None, column_idx=0):
+	def summarize(self, items, weights=None):
 		"""Reduce a set of observations to sufficient statistics."""
-
 		if weights is None:
 			weights = numpy.ones(len(items))
 		else:
 			weights = numpy.asarray(weights)
+		items = numpy.asarray(items).flatten()
 			
 		for i in range(len(items)):
 			x = items[i]
 			if _check_nan(x) == False:
-				self.summaries[0][x] += weights[i]
+				try:
+					self.summaries[0][x] += weights[i]
+				except KeyError:
+					self.summaries[0][x] = weights[i]
 				self.summaries[1] += weights[i]
 
 	cdef double _summarize(self, double* items, double* weights, int n,
@@ -293,10 +304,12 @@ cdef class DiscreteDistribution(Distribution):
 		if self.encoded_summary == 0:
 			values = self.summaries[0].values()
 			_sum = sum(values) + pseudocount * len(values)
-			characters = {}
 			for key, value in self.summaries[0].items():
 				value += pseudocount
-				self.dist[key] = self.dist[key]*inertia + (1-inertia)*(value / _sum)
+				try:
+					self.dist[key] = self.dist[key]*inertia + (1-inertia)*(value / _sum)
+				except KeyError:
+					self.dist[key] = value / _sum
 				self.log_dist[key] = _log(self.dist[key])
 
 			self.bake(self.encoded_keys)
@@ -309,11 +322,14 @@ cdef class DiscreteDistribution(Distribution):
 				key = self.encoded_keys[i]
 				self.dist[key] = self.dist[key]*inertia + (1-inertia)*(value / _sum)
 				self.log_dist[key] = _log(self.dist[key])
-				self.encoded_counts[i] = 0
 
 			self.bake(self.encoded_keys)
 
-		self.summaries = [{ key: 0 for key in self.keys() }, 0]
+		if self.is_blank_:
+			self.dtype = self._get_dtype(self.dist)
+			self.is_blank_ = False
+
+		self.clear_summaries()
 
 	def clear_summaries(self):
 		"""Clear the summary statistics stored in the object."""
@@ -335,27 +351,13 @@ cdef class DiscreteDistribution(Distribution):
 	@classmethod
 	def from_samples(cls, items, weights=None, pseudocount=0, keys=None):
 		"""Fit a distribution to some data without pre-specifying it."""
-
-		if weights is None:
-			weights = numpy.ones(len(items))
-
-		keys = keys or numpy.unique(items)
-		counts = {key: 0 for key in keys if not _check_nan(key)}
-		total = 0
-
-		for X, weight in zip(items, weights):
-			if _check_nan(X):
-				continue
-
-			total += weight
-			counts[X] += weight
-
-		n = len(counts)
-		for X, weight in counts.items():
-			counts[X] = (weight + pseudocount) / (total + pseudocount * n)
-
-		return cls(counts)
+		key_initials = {}
+		if keys is not None:
+			clean_keys = tuple(key for key in keys if not _check_nan(key))
+			# A priori equal probability.
+			key_initials = {key: 1./len(clean_keys) for key in clean_keys}
+		return cls(key_initials).fit(items, weights=weights, pseudocount=pseudocount)
 
 	@classmethod
 	def blank(cls):
-		return cls({'None': 1.0})
+		return cls()

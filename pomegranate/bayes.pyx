@@ -104,26 +104,31 @@ cdef class BayesModel(Model):
         self.summaries = numpy.zeros_like(weights, dtype='float64')
         self.summaries_ptr = <double*> self.summaries.data
 
-        dist = distributions[0]
-        if self.is_vl_ == 1:
-            pass
+        if self.is_vl_ == 0:
+            if isinstance(distributions[0], JointProbabilityTable):
+                self.cython = 0
+            else:
+                self._build_keymap()
 
-        elif isinstance(dist, DiscreteDistribution):
+    def _build_keymap(self):
+        """
+        Assemble keys of child distributions and bake encodings.
+        """
+        dist = self.distributions[0]
+
+        if isinstance(dist, DiscreteDistribution):
             keys = []
-            for distribution in distributions:
+            for distribution in self.distributions:
                 keys.extend(distribution.keys())
             self.keymap = [{key: i for i, key in enumerate(keys)}]
-            for distribution in distributions:
+            for distribution in self.distributions:
                 distribution.bake(tuple(keys))
-
-        elif isinstance(dist, JointProbabilityTable):
-            self.cython = 0
 
         elif isinstance(dist, IndependentComponentsDistribution):
             self.keymap = [{} for i in range(self.d)]
             keymap_tuples = [tuple() for i in range(self.d)]
 
-            for distribution in distributions:
+            for distribution in self.distributions:
                 for i in range(self.d):
                     if isinstance(distribution[i], DiscreteDistribution):
                         for key in distribution[i].keys():
@@ -131,13 +136,11 @@ cdef class BayesModel(Model):
                                 self.keymap[i][key] = len(self.keymap[i])
                                 keymap_tuples[i] += (key,)
 
-            for distribution in distributions:
+            for distribution in self.distributions:
                 for i in range(self.d):
                     d = distribution[i]
                     if isinstance(d, DiscreteDistribution):
                         d.bake(keymap_tuples[i])
-
-        
 
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(),
@@ -646,6 +649,7 @@ cdef class BayesModel(Model):
             f = delayed(self.summarize, check_pickle=False)
             parallel(f(*batch) for batch in data_generator.batches())
             self.from_summaries(inertia, pseudocount)
+            self._build_keymap()
 
             semisupervised = -1 in data_generator.classes
             if semisupervised:
