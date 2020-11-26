@@ -120,6 +120,7 @@ cdef class BayesModel(Model):
             keys = []
             for distribution in self.distributions:
                 keys.extend(distribution.keys())
+            keys.sort()
             self.keymap = [{key: i for i, key in enumerate(keys)}]
             for distribution in self.distributions:
                 distribution.bake(tuple(keys))
@@ -140,7 +141,7 @@ cdef class BayesModel(Model):
                 for i in range(self.d):
                     d = distribution[i]
                     if isinstance(d, DiscreteDistribution):
-                        d.bake(keymap_tuples[i])
+                        d.bake(tuple(sorted(keymap_tuples[i])))
 
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(),
