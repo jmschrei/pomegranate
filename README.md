@@ -10,6 +10,10 @@ pomegranate is a package for building probabilistic models in Python that is imp
 
 pomegranate is pip-installable using `pip install pomegranate` and conda-installable using `conda install pomegranate`. If neither work, more detailed installation instructions can be found [here](http://pomegranate.readthedocs.io/en/latest/install.html).
 
+If you get an error involving `pomegranate/base.c`, try installing with `pip install --no-cache-dir pomegranate`.
+
+If you get an error involving `pomegranate/distributions/NeuralNetworkWrapper.c: No such file or directory`, try installing Cython first and then re-installing. 
+
 ### Models
 
 * [Probability Distributions](http://pomegranate.readthedocs.io/en/latest/Distributions.html)
