@@ -99,8 +99,8 @@ cdef class BayesClassifier(BayesModel):
 		return nb
 
 	@classmethod
-	def from_samples(cls, distributions, X, y=None, weights=None,
-		inertia=0.0, pseudocount=0.0, stop_threshold=0.1, max_iterations=1e8,
+	def from_samples(cls, distributions, X, y=None, weights=None, inertia=0.0,
+		pseudocount=0.0, alpha=0.0, stop_threshold=0.1, max_iterations=1e8,
 		callbacks=[], return_history=False, keys=None, verbose=False, n_jobs=1, **kwargs):
 		"""Create a Bayes classifier directly from the given dataset.
 
@@ -145,9 +145,14 @@ cdef class BayesClassifier(BayesModel):
 			Inertia used for the training the distributions.
 
 		pseudocount : double, optional
-			A pseudocount to add to the emission of each distribution. This
-			effectively smoothes the states to prevent 0. probability symbols
-			if they don't happen to occur in the data. Default is 0.
+			A pseudocount to smooth the label, but not the distribution (see
+			`alpha`). Smoothing increases the label counts to prevent 0.
+			probability symbols if the label doesn't occur in the data. Default
+			is 0.
+
+		alpha : double, optional
+			A pseudocount to smooth the distributions, but not the label (for
+			which `pseudocount` can be used). Default is 0.
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
@@ -219,7 +224,7 @@ cdef class BayesClassifier(BayesModel):
 				labels = numpy.unique(y)
 
 				distributions = [distributions.from_samples(X[y == label], 
-					weights=weights, keys=keys, pseudocount=pseudocount) for label in labels]
+					weights=weights, keys=keys, pseudocount=alpha) for label in labels]
 
 				return cls(distributions)
 
@@ -232,7 +237,7 @@ cdef class BayesClassifier(BayesModel):
 
 		model = cls(distributions)
 		_, history = model.fit(X=data_generator, weights=weights, inertia=inertia, 
-			pseudocount=pseudocount, stop_threshold=stop_threshold, 
+			pseudocount=pseudocount, alpha=alpha, stop_threshold=stop_threshold,
 			max_iterations=max_iterations, callbacks=callbacks, 
 			return_history=True, verbose=verbose, n_jobs=n_jobs)
 

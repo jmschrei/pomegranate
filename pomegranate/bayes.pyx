@@ -8,7 +8,6 @@ from libc.stdlib cimport free
 from libc.stdlib cimport malloc
 
 import time
-from typing import Optional
 
 import numpy
 cimport numpy
@@ -552,7 +551,7 @@ cdef class BayesModel(Model):
         free(r)
 
     def fit(self, X, y=None, weights=None, inertia=0.0, pseudocount=0.0,
-        alpha: Optional[float] = None, stop_threshold=0.1, max_iterations=1e8,
+        alpha=0.0, stop_threshold=0.1, max_iterations=1e8,
         callbacks=[], return_history=False, verbose=False, n_jobs=1):
         """Fit the Bayes classifier to the data by passing data to its components.
 
@@ -584,12 +583,13 @@ cdef class BayesModel(Model):
             Inertia used for the training the distributions.
 
         pseudocount : double, optional
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. Default is 0.
+            A pseudocount to smooth the label, but not the distribution (see
+            `alpha`). Smoothing increases the label counts to prevent 0.
+            probability symbols if the label doesn't occur in the data. Default
+            is 0.
 
         alpha : double, optional
-            A pseudocount to smooth the distributions, but not the label (for 
+            A pseudocount to smooth the distributions, but not the label (for
             which `pseudocount` can be used).
 
         stop_threshold : double, optional, positive
@@ -775,13 +775,7 @@ cdef class BayesModel(Model):
         int column_idx, int d) nogil:
         return -1
 
-    def from_summaries(
-        self,
-        inertia=0.0,
-        pseudocount=0.0,
-        alpha: Optional[float] = None,
-        **kwargs
-    ):
+    def from_summaries(self, inertia=0.0, pseudocount=0.0, alpha=0.0, **kwargs):
         """Fit the model to the collected sufficient statistics.
 
         Fit the parameters of the model to the sufficient statistics gathered
@@ -797,16 +791,14 @@ cdef class BayesModel(Model):
             inertia of 1 means ignore the new parameters. Default is 0.0.
 
         pseudocount : double, optional
-            A pseudocount to add to the emission of each distribution. This
-            effectively smoothes the states to prevent 0. probability symbols
-            if they don't happen to occur in the data. If discrete data, will
-            smooth both the prior probabilities of each component and the
-            emissions of each component. Otherwise, will only smooth the prior
-            probabilities of each component. Default is 0.
+            A pseudocount to smooth the label, but not the distribution (see
+            `alpha`). Smoothing increases the label counts to prevent 0.
+            probability symbols if the label doesn't occur in the data. Default
+            is 0.
 
         alpha : double, optional
             A pseudocount to smooth the distributions, but not the label (for
-            which `pseudocount` can be used).
+            which `pseudocount` can be used). Default is 0.
 
         Returns
         -------
@@ -820,16 +812,14 @@ cdef class BayesModel(Model):
         summaries /= summaries.sum()
 
         for i, distribution in enumerate(self.distributions):
+            params = kwargs
             if isinstance(
                 distribution,
                 (DiscreteDistribution, BernoulliDistribution, IndependentComponentsDistribution),
             ):
-                distribution_smoothing = pseudocount
-                if alpha is not None:
-                    distribution_smoothing = alpha
-                distribution.from_summaries(inertia, pseudocount=distribution_smoothing, **kwargs)
-            else:
-                distribution.from_summaries(inertia, **kwargs)
+                if alpha != 0.0:
+                    params['pseudocount'] = alpha
+            distribution.from_summaries(inertia, **params)
 
             self.weights[i] = _log(summaries[i])
             self.summaries[i] = 0.

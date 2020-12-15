@@ -887,9 +887,8 @@ def test_bernoulli_pseudocount():
 	"""
 	a = [0.0, 0.0, 0.0]
 	d = BernoulliDistribution.from_samples(a, pseudocount=1)
-	assert_equal(d.probability(0), 0.8)
-	assert_equal(d.probability(1), 0.2)
-
+	assert_almost_equal(d.probability(0), 0.8)
+	assert_almost_equal(d.probability(1), 0.2)
 
 
 def test_distributions_uniform_kernel_random_sample():

@@ -3,8 +3,6 @@
 # NaiveBayes.pyx
 # Contact: Jacob Schreiber ( jmschreiber91@gmail.com )
 
-from typing import Optional
-
 import numpy
 cimport numpy
 
@@ -95,7 +93,7 @@ cdef class NaiveBayes(BayesModel):
 
 	@classmethod
 	def from_samples(cls, distributions, X, y=None, weights=None,
-		pseudocount=0.0, alpha: Optional[float] = None, stop_threshold=0.1,
+		pseudocount=0.0, alpha=0.0, stop_threshold=0.1,
 		max_iterations=1e8, callbacks=[], return_history=False, verbose=False,
 		n_jobs=1):
 		"""Create a naive Bayes classifier directly from the given dataset.
@@ -138,14 +136,14 @@ cdef class NaiveBayes(BayesModel):
 			Default is None.
 
 		pseudocount : double, optional, positive
-			A pseudocount to add to the emission of each distribution. This
-			effectively smoothes the states to prevent 0. probability symbols
-			if they don't happen to occur in the data. Only effects mixture
-			models defined over discrete distributions. Default is 0.
+			A pseudocount to smooth the label, but not the distribution (see
+			`alpha`). Smoothing increases the label counts to prevent 0.
+			probability symbols if the label doesn't occur in the data. Default
+			is 0.
 
-        alpha : double, optional
-            A pseudocount to smooth the distributions, but not the label (for
-            which `pseudocount` can be used).
+		alpha : double, optional, positive
+			A pseudocount to smooth the distributions, but not the label (for
+			which `pseudocount` can be used).
 
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of

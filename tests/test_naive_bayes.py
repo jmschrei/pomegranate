@@ -823,28 +823,56 @@ def test_propagation_pseudocount():
 	])
 	y_train = np.array([0, 0, 1])
 
-	# Test that both `alpha` and `pseudocount` are propagated to the
-	# BernoulliDistribution.
-	for kwargs in ({'alpha': 1.0}, {'pseudocount': 1.0}):
-		pmodel = NaiveBayes.from_samples(
-			BernoulliDistribution,
-			X_train,
-			y_train,
-			**kwargs
-		)
-		# Check fit for y=0 label (2 records + pseudocount=1 per category).
-		params_y0 = pmodel.distributions[0].parameters[0]
-		assert_equal(params_y0[0].probability(0), 0.75)
-		assert_equal(params_y0[1].probability(1), 0.75)
+	# 1)
+	# Test only label smoothing.
+	pmodel = NaiveBayes.from_samples(
+		BernoulliDistribution,
+		X_train,
+		y_train,
+		pseudocount=1.0,
+	)
 
-		# Check fit for y=0 label (1 record + pseudocount=1 per category).
-		params_y1 = pmodel.distributions[1].parameters[0]
-		assert_almost_equal(params_y1[0].probability(0), 2/3)
-		assert_almost_equal(params_y1[1].probability(1), 2/3)
+	# Check label distribution smoothing.
+	assert_array_almost_equal(np.exp(pmodel.weights), np.array([3/5, 2/5]))
 
-def test_bernoulli_alpha():
+	# Check that the feature distributions were not smoothed.
+	# a) For y=0 label.
+	params_y0 = pmodel.distributions[0].parameters[0]
+	assert_equal(params_y0[0].probability(0), 1)
+	assert_equal(params_y0[1].probability(1), 1)
+
+	# b) For y=1 label.
+	params_y1 = pmodel.distributions[1].parameters[0]
+	assert_almost_equal(params_y1[0].probability(0), 1)
+	assert_almost_equal(params_y1[1].probability(1), 1)
+
+
+	# 2)
+	# Test only feature smoothing.
+	pmodel = NaiveBayes.from_samples(
+		BernoulliDistribution,
+		X_train,
+		y_train,
+		alpha=1.0,
+	)
+
+	# Check *no* label distribution smoothing.
+	assert_array_almost_equal(np.exp(pmodel.weights), np.array([2/3, 1/3]))
+
+	# Check that the feature distributions were smoothed.
+	# a) For y=0 label (2 records + pseudocount=1 per category).
+	params_y0 = pmodel.distributions[0].parameters[0]
+	assert_equal(params_y0[0].probability(0), 0.75)
+	assert_equal(params_y0[1].probability(1), 0.75)
+
+	# b) For y=0 label (1 record + pseudocount=1 per category).
+	params_y1 = pmodel.distributions[1].parameters[0]
+	assert_almost_equal(params_y1[0].probability(0), 2/3)
+	assert_almost_equal(params_y1[1].probability(1), 2/3)
+
+def test_bernoulli_smoothed_prediction():
 	"""
-	Test out-of-sample prediction for BernoulliDistribution with feature smoothing.
+	Test out-of-sample prediction for BernoulliDistribution with smoothing.
 	"""
 	X_train = np.array([
 		[0., 1.],
@@ -853,11 +881,13 @@ def test_bernoulli_alpha():
 	])
 	y_train = np.array([0, 0, 1])
 
+	# 1)
+	# Test only feature smoothing (don't smooth the label).
 	pmodel = NaiveBayes.from_samples(
 		BernoulliDistribution,
 		X_train,
 		y_train,
-		alpha=1.0,
+		alpha=1.0,  # Feature distribution smoothing.
 	)
 
 	X_test = np.array([[0., 0.]])
@@ -869,23 +899,14 @@ def test_bernoulli_alpha():
 	assert_almost_equal(pmodel.predict_proba(X_test)[0,0], p_x0_y0 / p_x0)
 	assert_almost_equal(pmodel.predict_proba(X_test)[0,1], p_x0_y1 / p_x0)
 
-def test_bernoulli_pseudocount():
-	"""
-	Test out-of-sample prediction for BernoulliDistribution with pseudocount.
-	"""
-	X_train = np.array([
-		[0., 1.],
-		[0., 1.],
-		[0., 1.],
-	])
-	y_train = np.array([0, 0, 1])
-
+	# 2)
+	# Smooth both the feature distributions as well as the labels.
 	pmodel = NaiveBayes.from_samples(
 		BernoulliDistribution,
 		X_train,
 		y_train,
-		# Smooth both the label and the distribution.
-		pseudocount=1.0,
+		pseudocount=1.0,  # Smooth the labels.
+		alpha=1.0,  # And smooth the feature distributions.
 	)
 
 	X_test = np.array([[0., 0.]])

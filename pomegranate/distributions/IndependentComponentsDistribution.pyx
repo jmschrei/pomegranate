@@ -4,8 +4,6 @@
 # IndependentComponentsDistribution.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
-from typing import Union
-
 import numpy
 
 from libc.stdlib cimport calloc
@@ -245,14 +243,8 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		}
 
 	@classmethod
-	def from_samples(
-		cls,
-		X,
-		weights=None,
-		distribution_weights=None,
-		pseudocount: Union[float, list, tuple, numpy.ndarray]=0.0,
-		distributions=None,
-	):
+	def from_samples(cls, X, weights=None, distribution_weights=None,
+					pseudocount=0.0, distributions=None):
 		"""Create a new independent components distribution from data."""
 
 		if distributions is None:
@@ -261,24 +253,16 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		X, weights = weight_set(X, weights)
 		n, d = X.shape
 
-		initialised_distributions = []
-		# Fit distribution for each column.
-		for i in range(d):
-			if callable(distributions):
-				dist_i = distributions
-			else:
-				dist_i = distributions[i]
+		params = {
+			'weights': weights,
+		}
+		if pseudocount != 0.0:
+			params['pseudocount'] = pseudocount
 
-			kwargs = {
-				'weights': weights,
-			}
-			if dist_i in (DiscreteDistribution, BernoulliDistribution):
-				if isinstance(pseudocount, float):
-					kwargs['pseudocount'] = pseudocount
-				else:
-					kwargs['pseudocount'] = pseudocount[i]
+		if callable(distributions):
+			distributions = [distributions.from_samples(X[:,i], **params) for i in range(d)]
+		else:
+			distributions = [distributions[i].from_samples(X[:,i], **params) for i in range(d)]
 
-			initialised_distributions.append(dist_i.from_samples(X[:,i], **kwargs))
-
-		return cls(initialised_distributions, distribution_weights)
+		return cls(distributions, distribution_weights)
 

@@ -706,3 +706,46 @@ def test_io_from_samples():
 	logp2 = bc2.log_probability(X)
 
 	assert_array_almost_equal(logp1, logp2)
+
+def test_propagation_pseudocount():
+	"""
+	Test that Bayes classifier pseudocounts are passed to parent distributions.
+	"""
+	X_train = np.array([[0], [0], [0]])
+	y_train = np.array([0, 0, 1])
+
+	# 1)
+	# Test only label smoothing.
+	pmodel = BayesClassifier.from_samples(
+		distributions=[BernoulliDistribution, BernoulliDistribution],
+		X=X_train,
+		y=y_train,
+		pseudocount=1.0,
+	)
+
+	# Check label distribution smoothing.
+	assert_array_almost_equal(np.exp(pmodel.weights), np.array([3/5, 2/5]))
+
+	# Check that the feature distributions were not smoothed.
+	# a) For y=0 label.
+	assert_equal(pmodel.distributions[0].probability(0), 1)
+	# b) For y=1 label.
+	assert_almost_equal(pmodel.distributions[1].probability(0), 1)
+
+	# 2)
+	# Test only feature smoothing.
+	pmodel = BayesClassifier.from_samples(
+		distributions=[BernoulliDistribution, BernoulliDistribution],
+		X=X_train,
+		y=y_train,
+		alpha=1.0,
+	)
+
+	# Check *no* label distribution smoothing.
+	assert_array_almost_equal(np.exp(pmodel.weights), np.array([2/3, 1/3]))
+
+	# Check that the feature distributions were smoothed.
+	# a) For y=0 label (2 records + pseudocount=1 per category).
+	assert_equal(pmodel.distributions[0].probability(0), 0.75)
+	# b) For y=0 label (1 record + pseudocount=1 per category).
+	assert_almost_equal(pmodel.distributions[1].probability(0), 2/3)
