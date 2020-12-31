@@ -233,7 +233,7 @@ cdef class BayesModel(Model):
                 data_generator = X
 
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-                f = delayed(self.log_probability, check_pickle=False)
+                f = delayed(self.log_probability)
                 logp_array = parallel(f(batch[0]) for batch in 
                     data_generator.batches())
 
@@ -384,7 +384,7 @@ cdef class BayesModel(Model):
                 data_generator = X
 
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-                f = delayed(self.predict_log_proba, check_pickle=False)
+                f = delayed(self.predict_log_proba)
                 y_array = parallel(f(batch[0]) for batch in 
                     data_generator.batches())
 
@@ -489,7 +489,7 @@ cdef class BayesModel(Model):
                 data_generator = X
 
             with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-                f = delayed(self.predict, check_pickle=False)
+                f = delayed(self.predict)
                 y_array = parallel(f(batch[0]) for batch in 
                     data_generator.batches())
 
@@ -643,7 +643,7 @@ cdef class BayesModel(Model):
             callback.on_training_begin()
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-            f = delayed(self.summarize, check_pickle=False)
+            f = delayed(self.summarize)
             parallel(f(*batch) for batch in data_generator.batches())
             self.from_summaries(inertia, pseudocount)
 
@@ -653,7 +653,7 @@ cdef class BayesModel(Model):
                 iteration, improvement = 0, INF
 
                 unsupervised = GeneralMixtureModel(self.distributions)
-                f2 = delayed(unsupervised.summarize, check_pickle=False)
+                f2 = delayed(unsupervised.summarize)
 
                 while improvement > stop_threshold and iteration < max_iterations + 1:
                     epoch_start_time = time.time()

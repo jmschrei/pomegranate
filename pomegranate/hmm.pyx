@@ -2606,7 +2606,7 @@ cdef class HiddenMarkovModel(GraphModel):
             callback.on_training_begin()
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-            f = delayed(self.summarize, check_pickle=False)
+            f = delayed(self.summarize)
 
             while improvement > stop_threshold or iteration < min_iterations + 1:
                 epoch_start_time = time.time()

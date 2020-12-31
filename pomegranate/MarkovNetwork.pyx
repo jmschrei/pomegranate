@@ -449,7 +449,7 @@ cdef class MarkovNetwork(Model):
 		ends = [int(i*len(X)/n_jobs) for i in range(1, n_jobs+1)]
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-			parallel( delayed(self.summarize, check_pickle=False)(
+			parallel( delayed(self.summarize)(
 				X[start:end], weights[start:end]) for start, end in zip(starts, ends))
 
 		self.from_summaries(inertia, pseudocount)

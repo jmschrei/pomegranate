@@ -53,7 +53,7 @@ def parallelize(model, X, func, n_jobs, backend):
 		The results of the method concatenated together across processes.
 	"""
 
-	delay = delayed(getattr(model, func), check_pickle=False)
+	delay = delayed(getattr(model, func))
 	with Parallel(n_jobs=n_jobs, backend=backend) as parallel:
 		if isinstance(model, HiddenMarkovModel):
 			y = parallel(delay(x) for x in X)
@@ -313,7 +313,7 @@ def summarize(model, X, weights=None, y=None, n_jobs=1, backend='threading', par
 	ends = starts[1:] + [n]
 
 	parallel = parallel or Parallel(n_jobs=n_jobs, backend=backend)
-	delay = delayed(model.summarize, check_pickle=False)
+	delay = delayed(model.summarize)
 
 	if isinstance(model, NaiveBayes):
 		y = parallel(delay(X[start:end], y[start:end], weights[start:end]) for start, end in zip(starts, ends))
@@ -428,7 +428,7 @@ def fit(model, X, weights=None, y=None, n_jobs=1, backend='threading', stop_thre
 			starts = [batch_size*i for i in range(n/batch_size+1)]
 
 		ends = starts[1:] + [n]
-		delay = delayed(model.summarize, check_pickle=False)
+		delay = delayed(model.summarize)
 
 		initial_log_probability_sum = NEGINF
 		iteration, improvement = 0, INF

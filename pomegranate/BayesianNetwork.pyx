@@ -707,7 +707,7 @@ cdef class BayesianNetwork(GraphModel):
 			data_generator = X
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-			f = delayed(self.summarize, check_pickle=False)
+			f = delayed(self.summarize)
 			parallel(f(*batch) for batch in data_generator.batches())
 
 		self.from_summaries(inertia, pseudocount)
