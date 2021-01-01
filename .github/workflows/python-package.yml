@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name: Test and build wheels on ${{ matrix.os }} for Python ${{ matrix.python-version }} 
+    name: ${{ matrix.os }} Python ${{ matrix.python-version }} 
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
