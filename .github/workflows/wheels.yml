@@ -2,9 +2,7 @@
 
 name: Wheels
 
-on:
-  release:
-    types: [published]
+on: workflow_dispatch
 
 jobs:
   build_wheels:
