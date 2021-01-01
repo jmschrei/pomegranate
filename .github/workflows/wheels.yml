@@ -31,6 +31,7 @@ jobs:
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
           CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
+          CIBW_BEFORE_BUILD: "rm -rf build/"
 
       - name: Upload wheels
         run: |
