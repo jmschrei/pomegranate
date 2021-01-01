@@ -31,5 +31,5 @@ jobs:
       - name: Upload wheels
         run: |
           python -m pip install twine
-          python -m twine upload ./wheelhouse/*.whl
+          python -m twine upload -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} ./wheelhouse/*.whl
           
