@@ -196,7 +196,16 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 		cdef numpy.npy_intp dim = n * self.d
 		cdef numpy.npy_intp n_elements = n
 
-		if self.cython == 1:
+		# Determine if the categories to summarize are still unknown in any of
+		# the distributions.
+		all_initialized = True
+		with gil:
+			for dist_i in self.distributions:
+				if getattr(dist_i, 'is_blank_', False):
+					all_initialized = False
+					break
+
+		if self.cython == 1 and all_initialized:
 			for i in range(d):
 				(<Model> self.distributions_ptr[i])._summarize(X, weights, n, 
 					i, d)

@@ -811,3 +811,79 @@ def test_io_from_samples():
 	logp2 = nb2.log_probability(X)
 
 	assert_array_almost_equal(logp1, logp2)
+
+def test_discrete_distribution():
+	"""
+	Test fit NaiveBayes to discrete variables.
+	"""
+	X = np.array([
+	[0, 0],
+	[1, 1],
+	[2, 0],
+	[0, 0],
+	[1, 1],
+	[2, 0],
+	])
+	y = np.array([0, 0, 0, 1, 1, 1])
+	m = NaiveBayes.from_samples(
+		DiscreteDistribution,
+		X,
+		y,
+	)
+	p_y0 = m.distributions[0].parameters[0]
+	assert_almost_equal(list(p_y0[0].parameters[0].values()), [1/3, 1/3, 1/3])
+	assert_almost_equal(list(p_y0[1].parameters[0].values()), [2/3, 1/3])
+
+	p_y1 = m.distributions[1].parameters[0]
+	assert_almost_equal(list(p_y1[0].parameters[0].values()), [1/3, 1/3, 1/3])
+	assert_almost_equal(list(p_y1[1].parameters[0].values()), [2/3, 1/3])
+
+	# Check the probability calculation for a test variable.
+	X_test = np.array([[1, 0]])
+	p_groundtruth = np.array([[1/2, 1/2]])
+	assert_array_almost_equal(m.predict_log_proba(X_test), np.log(p_groundtruth))
+	assert_array_almost_equal(m.log_probability(X_test), [np.log(2/9)])
+	assert_array_almost_equal(m.predict_proba(X_test), p_groundtruth)
+	assert_array_almost_equal(m.predict(X_test), [0])
+
+def test_bernoulli_discrete_distribution():
+	"""
+	Test model composed of a Bernoulli and discrete distribution.
+	"""
+	X = np.array([
+		# y = 0.
+		[0, 1],
+		[0, 1],
+		[1, 0],
+		[1, 0],
+		[1, 0],
+		# y = 1.
+		[0, 0],
+		[1, 0],
+		[1, 1],
+		[1, 1],
+	])
+	y = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1])
+
+	# Since the data is composed of binary values, `DiscreteDistribution` and
+	# `BernoulliDistribution` should coincide.
+	m1 = NaiveBayes.from_samples(DiscreteDistribution, X, y)
+	m2 = NaiveBayes.from_samples(BernoulliDistribution, X, y)
+	m3 = NaiveBayes.from_samples([DiscreteDistribution, BernoulliDistribution], X, y)
+	m4 = NaiveBayes.from_samples([BernoulliDistribution, DiscreteDistribution], X, y)
+
+	# Work out expression analytically for a single test point.
+	X_test = np.array([[0, 1]])
+	py0_x01 = (2/5) * (2/5) * (5/9)
+	py1_x01 = (1/4) * (1/2) * (4/9)
+	py0_cond_x01 = py0_x01 / (py0_x01 + py1_x01)
+	p_groundtruth = np.array([[py0_cond_x01, 1- py0_cond_x01]])
+	assert_array_almost_equal(m1.predict_proba(X_test), p_groundtruth)
+	assert_array_almost_equal(m1.predict_log_proba(X_test), np.log(p_groundtruth))
+	assert_array_almost_equal(m1.log_probability(X_test), [np.log(py0_x01 + py1_x01)])
+	assert_array_almost_equal(m1.predict(X_test), [0])
+
+	# Check that all predictions are identical.
+	assert_array_almost_equal(m1.predict_proba(X), m2.predict_proba(X))
+	assert_array_almost_equal(m2.predict_proba(X), m3.predict_proba(X))
+	assert_array_almost_equal(m3.predict_proba(X), m4.predict_proba(X))
