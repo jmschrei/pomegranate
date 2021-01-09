@@ -77,7 +77,6 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 		self.column_w_sum = <double*> calloc(d, sizeof(double))
 		self.pair_sum = <double*> calloc(d*d, sizeof(double))
 		self.pair_w_sum = <double*> calloc(d*d, sizeof(double))
-		self.clear_summaries()
 
 	def __reduce__(self):
 		"""Serialize the distribution for pickle."""
