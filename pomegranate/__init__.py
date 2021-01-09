@@ -22,7 +22,7 @@ from .BayesianNetwork import BayesianNetwork
 from .MarkovNetwork import MarkovNetwork
 from .FactorGraph import FactorGraph
 
-__version__ = '0.13.5'
+__version__ = '0.14.0'
 
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
