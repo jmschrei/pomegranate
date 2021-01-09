@@ -232,8 +232,23 @@ cdef class BayesianNetwork(GraphModel):
 		free(self.parent_idxs)
 
 	def plot(self, filename=None):
-		"""Draw this model's graph using pygraphviz.
+		"""Draw this model's graph using pygraphviz and matplotlib.
+		
+		If no filename, it uses pygraphviz to write a temporary png file,
+		and matplotlib to `imshow()` it. If using jupyter or IPython, enable
+		`%matplotlib inline` and this will immediately display your graph.
+		Otherwise, per usual matplotlib convention, you have to issue a 
+		`plt.show()` or `matplotlib.pyplot.show()` to open a window with the 
+		image.
+		    
+		TODO: Use svg or pdf for original image. Jupyter and IPython can render SVG
+		directly, e.g. `from IPython.display import SVG` and `SVG(filename=...)`. 
 
+		Parameters
+		----------
+		filename : str, optional
+			Filename for saving the .pdf graph. Default is None
+			
 		Returns
 		-------
 		None
@@ -692,7 +707,7 @@ cdef class BayesianNetwork(GraphModel):
 			data_generator = X
 
 		with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-			f = delayed(self.summarize, check_pickle=False)
+			f = delayed(self.summarize)
 			parallel(f(*batch) for batch in data_generator.batches())
 
 		self.from_summaries(inertia, pseudocount)

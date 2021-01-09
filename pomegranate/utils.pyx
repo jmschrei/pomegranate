@@ -63,7 +63,6 @@ cdef class PriorityQueue(object):
 	cdef dict entries
 
 	def __init__(self):
-		self.n = 0
 		self.pq = []
 		self.entries = {}
 

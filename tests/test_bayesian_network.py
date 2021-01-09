@@ -721,7 +721,7 @@ def test_gibbs_sampling():
     values, counts = numpy.unique(predictions[:, 1], return_counts=True)
     # will fail from time to time
     # need to fix the seed
-    assert(abs(counts[0]-340) < 15)
+    assert(abs(counts[0]-340) < 34)
 
 @with_setup(setup_monty, teardown)
 def test_predict_parallel():

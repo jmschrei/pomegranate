@@ -218,7 +218,7 @@ cdef class GeneralMixtureModel(BayesModel):
             callback.on_training_begin()
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-            f = delayed(self.summarize, check_pickle=False)
+            f = delayed(self.summarize)
 
             while improvement > stop_threshold and iteration < max_iterations + 1:
                 epoch_start_time = time.time()

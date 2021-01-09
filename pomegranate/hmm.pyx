@@ -215,32 +215,9 @@ cdef class HiddenMarkovModel(GraphModel):
         self.start = start or State(None, name=self.name + "-start")
         self.end = end or State(None, name=self.name + "-end")
 
-        self.d = 0
-        self.n_edges = 0
-        self.n_states = 0
-        self.discrete = 0
-        self.multivariate = 0
-
         # Put start and end in the graph
         self.graph.add_node(self.start)
         self.graph.add_node(self.end)
-
-        self.in_edge_count = NULL
-        self.in_transitions = NULL
-        self.in_transition_pseudocounts = NULL
-        self.in_transition_log_probabilities = NULL
-        self.out_edge_count = NULL
-        self.out_transitions = NULL
-        self.out_transition_pseudocounts = NULL
-        self.out_transition_log_probabilities = NULL
-        self.expected_transitions = NULL
-        self.summaries = 0
-
-        self.tied_state_count = NULL
-        self.tied = NULL
-        self.tied_edge_group_size = NULL
-        self.tied_edges_starts = NULL
-        self.tied_edges_ends = NULL
 
         self.state_names = set()
         self.state_name_mapping = {}
@@ -2606,7 +2583,7 @@ cdef class HiddenMarkovModel(GraphModel):
             callback.on_training_begin()
 
         with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-            f = delayed(self.summarize, check_pickle=False)
+            f = delayed(self.summarize)
 
             while improvement > stop_threshold or iteration < min_iterations + 1:
                 epoch_start_time = time.time()

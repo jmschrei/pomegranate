@@ -226,7 +226,6 @@ cdef class Kmeans(Model):
 
 	def __init__(self, k, init='kmeans++', n_init=10):
 		self.k = k
-		self.d = 0
 		self.n_init = n_init
 		self.centroid_norms = <double*> calloc(self.k, sizeof(double))
 
@@ -271,7 +270,7 @@ cdef class Kmeans(Model):
 
 		if n_jobs > 1:
 			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
-				y_pred = parallel(delayed(self.predict, check_pickle=False)(
+				y_pred = parallel(delayed(self.predict)(
 					X[start:end]) for start, end in zip(starts, ends))
 
 				return numpy.concatenate(y_pred)
@@ -469,13 +468,12 @@ cdef class Kmeans(Model):
 					self.from_summaries(inertia, clear_summaries)
 
 					if weights is not None:
-						distance_sum = sum(parallel(delayed(self.summarize,
-							check_pickle=False)(X[start:end], weights[start:end])
+						distance_sum = sum(parallel(delayed(self.summarize)(X[start:end], 
+							weights[start:end])
 							for start, end in zip(epoch_starts, epoch_ends)))
 					else:
-						distance_sum = sum(parallel(delayed(self.summarize,
-							check_pickle=False)(X[start:end]) for start, end in zip(
-								epoch_starts, epoch_ends)))
+						distance_sum = sum(parallel(delayed(self.summarize)(X[start:end]) 
+							for start, end in zip(epoch_starts, epoch_ends)))
 
 					if iteration == 0:
 						initial_distance_sum = distance_sum
