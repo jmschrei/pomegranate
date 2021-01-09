@@ -226,7 +226,6 @@ cdef class Kmeans(Model):
 
 	def __init__(self, k, init='kmeans++', n_init=10):
 		self.k = k
-		self.d = 0
 		self.n_init = n_init
 		self.centroid_norms = <double*> calloc(self.k, sizeof(double))
 
