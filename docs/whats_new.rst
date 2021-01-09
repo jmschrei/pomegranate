@@ -5,7 +5,23 @@
 Release History
 ===============
 
-Version 0.13.0
+Version 0.14.0
+==============
+
+Highlights
+----------
+
+	- A variety of minor bug fixes and enhancements
+	- Installations should be cleaner due to a transition from TravisCI/appveyor to GitHub actions. 
+
+BayesModels
+-----------
+	
+	- These models should now be able to fit to IndependentComponentDistributions.
+
+
+
+Version 0.13.1
 ==============
 
 Highlights
