@@ -920,8 +920,8 @@ cdef class BayesianNetwork(GraphModel):
 		n_step = burnin+n
 		n_state = len(self.states)
 
-		cdef numpy.ndarray[numpy.double_t, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float)
-		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([n*len(evidences),n_state],dtype=numpy.float)
+		cdef numpy.ndarray[numpy.double_t, ndim=1,mode='c'] current_state = numpy.empty([n_state],dtype=numpy.float64)
+		cdef numpy.ndarray[numpy.double_t, ndim=2,mode='c'] all_states = numpy.empty([n*len(evidences),n_state],dtype=numpy.float64)
 		cdef numpy.ndarray[numpy.double_t,ndim=1,mode='c'] prob, prob_tmp, state_subset, proba
 
 		cdef double [:] current_state_view = current_state
