@@ -1150,15 +1150,14 @@ cdef class BayesianNetwork(GraphModel):
 		indices = {state.distribution: i for i, state in enumerate(self.states)}
 
 		n, d = len(X), len(X[0])
-		cdef numpy.ndarray X_int = numpy.empty((n, d), dtype='float64')
-		cdef double* X_int_ptr = <double*> X_int.data
+		cdef double* X_int = <double*> malloc(n * d * sizeof(double))
 
 		for i in range(n):
 			for j in range(d):
 				if _check_nan(X[i][j]):
-					X_int[i, j] = nan
+					X_int[i * d + j] = nan
 				else:
-					X_int[i, j] = self.keymap[j][X[i][j]]
+					X_int[i * d + j] = self.keymap[j][X[i][j]]
 
 		if weights is None:
 			weights_ndarray = numpy.ones(n, dtype='float64')
@@ -1172,11 +1171,12 @@ cdef class BayesianNetwork(GraphModel):
 		for i, state in enumerate(self.states):
 			if isinstance(state.distribution, ConditionalProbabilityTable):
 				with nogil:
-					(<Model> self.distributions_ptr[i])._summarize(X_int_ptr, weights_ptr, n,
-						0, 1)
+					(<Model> self.distributions_ptr[i])._summarize(X_int, weights_ptr, n, 0, 1)
 
 			else:
 				state.distribution.summarize([x[i] for x in X], weights)
+
+		free(X_int)
 
 	def from_summaries(self, inertia=0.0, pseudocount=0.0):
 		"""Use MLE on the stored sufficient statistics to train the model.
