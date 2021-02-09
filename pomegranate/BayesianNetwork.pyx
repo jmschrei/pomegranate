@@ -68,7 +68,6 @@ DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
 nan = numpy.nan
-nan = numpy.nan
 
 def _check_input(X, model):
 	"""Ensure that the keys in the sample are valid keys.
