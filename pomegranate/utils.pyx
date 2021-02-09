@@ -22,20 +22,7 @@ import numbers
 import heapq
 
 cdef bint GPU = False
-cdef bint has_cupy = False
-
-try:
-	import cupy
-	from cupy import cuda
-	cuda.Device().cublas_handle
-
-	global has_cupy
-	has_cupy = True
-
-	enable_gpu()
-except:
-	global has_cupy
-	has_cupy = False
+cdef int has_cupy = -1
 
 numpy.import_array()
 
@@ -86,16 +73,42 @@ cdef class PriorityQueue(object):
 			raise KeyError("Attempting to pop from an empty priority queue")
 
 
+def init_cupy():
+	global has_cupy
+
+	try:
+		from cupy import cuda
+		cuda.Device().cublas_handle
+		has_cupy = 1
+	except:
+		has_cupy = 0
+
+	return has_cupy
+
 def is_gpu_enabled():
 	global GPU
+
+	if has_cupy == -1 and init_cupy():
+		GPU = True
+
 	return GPU
 
 cdef bint _is_gpu_enabled() nogil:
+	global GPU
+
+	if has_cupy == -1:
+		with gil:
+			if init_cupy():
+				GPU = True
+
 	return GPU
 
 cpdef enable_gpu():
 	global GPU
-	
+
+	if has_cupy == -1:
+		init_cupy()
+
 	if not has_cupy:
 		raise Warning("Please install cupy before attempting to utilize a GPU.")
 	else:

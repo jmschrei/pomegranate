@@ -23,11 +23,6 @@ cimport numpy
 from joblib import Parallel
 from joblib import delayed
 
-try:
-	import cupy
-except:
-	cupy = object
-
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 
