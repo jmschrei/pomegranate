@@ -2050,7 +2050,7 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 
 		structure[best_variable] = best_parents
 		seen_variables = tuple(sorted(seen_variables + (best_variable,)))
-		unseen_variables = unseen_variables - set([best_variable])
+		unseen_variables.remove(best_variable)
 		parent_graphs[best_variable] = None #free memory
 
 	return tuple(structure)
