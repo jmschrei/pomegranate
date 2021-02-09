@@ -47,12 +47,7 @@ from .io import DataGenerator
 #from libcpp.list cimport list as cpplist
 from libc.math cimport exp as cexp
 
-import cython
 cimport cython
-import numpy
-cimport numpy
-import random
-
 
 from collections import defaultdict
 
