@@ -21,14 +21,6 @@ import numbers
 
 import heapq
 
-try:
-	import tempfile
-	import pygraphviz
-	import matplotlib.pyplot as plt
-	import matplotlib.image
-except ImportError:
-	pygraphviz = None
-
 cdef bint GPU = False
 cdef bint has_cupy = False
 
@@ -391,6 +383,11 @@ cdef double lgamma(double x) nogil:
 	return (x - 0.5) * clog(x) - x + HALF_LOG2_PI + sum / x
 
 def plot_networkx(Q, edge_label=None, filename=None):
+	import tempfile
+	import pygraphviz
+	import matplotlib.pyplot as plt
+	import matplotlib.image
+
 	G = pygraphviz.AGraph(directed=True)
 
 	for state in Q.nodes():

@@ -56,14 +56,6 @@ import random
 
 from collections import defaultdict
 
-try:
-	import tempfile
-	import pygraphviz
-	import matplotlib.pyplot as plt
-	import matplotlib.image
-except ImportError:
-	pygraphviz = None
-
 DEF INF = float("inf")
 DEF NEGINF = float("-inf")
 
@@ -253,6 +245,14 @@ cdef class BayesianNetwork(GraphModel):
 		-------
 		None
 		"""
+
+		try:
+			import tempfile
+			import pygraphviz
+			import matplotlib.pyplot as plt
+			import matplotlib.image
+		except ImportError:
+			pygraphviz = None
 
 		if pygraphviz is not None:
 			G = pygraphviz.AGraph(directed=True)
