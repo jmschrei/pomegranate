@@ -4,8 +4,6 @@
 # ConditionalProbabilityTable.pyx
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
-from libc.stdio cimport printf
-
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.stdlib cimport malloc
@@ -19,7 +17,6 @@ from ..utils import check_random_state
 
 import itertools as it
 import numpy
-import scipy
 
 from .JointProbabilityTable import JointProbabilityTable
 
