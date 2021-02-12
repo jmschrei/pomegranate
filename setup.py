@@ -71,7 +71,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.14.1',
+    version='0.14.2',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=[
@@ -89,7 +89,7 @@ setup(
         "scipy >= 0.17.0"
     ],
     install_requires=[
-        "numpy >= 1.8.0",
+        "numpy >= 1.20.0",
         "joblib >= 0.9.0b4",
         "networkx >= 2.0",
         "scipy >= 0.17.0",
