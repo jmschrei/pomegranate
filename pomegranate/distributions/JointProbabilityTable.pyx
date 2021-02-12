@@ -17,8 +17,6 @@ from ..utils import _check_nan
 
 import itertools as it
 import numpy
-import random
-import scipy
 
 from .DiscreteDistribution import DiscreteDistribution
 

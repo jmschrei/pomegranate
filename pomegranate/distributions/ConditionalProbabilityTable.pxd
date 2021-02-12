@@ -8,7 +8,6 @@ from .distributions cimport MultivariateDistribution
 
 cdef class ConditionalProbabilityTable(MultivariateDistribution):
 	cdef double* values
-	cdef double values_
 	cdef double* counts
 	cdef double* marginal_counts
 	cdef int n, k
