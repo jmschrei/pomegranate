@@ -85,14 +85,14 @@ setup(
     cmdclass={'build_ext':build_ext},
     setup_requires=[
         "cython >= 0.22.1",
-        "'numpy >= 1.20.0'",
+        "numpy >= 1.20.0",
         "scipy >= 0.17.0"
     ],
     install_requires=[
-        "'numpy >= 1.20.0'",
-        "'joblib >= 0.9.0b4'",
-        "'networkx >= 2.0'",
-        "'scipy >= 0.17.0'",
+        "numpy >= 1.20.0",
+        "joblib >= 0.9.0b4",
+        "networkx >= 2.0",
+        "scipy >= 0.17.0",
         "pyyaml"
     ],
     extras_require={
