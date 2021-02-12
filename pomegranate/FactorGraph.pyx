@@ -4,14 +4,6 @@
 cimport numpy
 import numpy
 
-try:
-	import pygraphviz
-	import tempfile
-	import matplotlib
-	import matplotlib.pyplot as plt
-except:
-	pygraphviz = None
-
 from .base cimport GraphModel
 from .base cimport State
 
@@ -60,6 +52,14 @@ cdef class FactorGraph(GraphModel):
 		-------
 		None
 		"""
+
+		try:
+			import pygraphviz
+			import tempfile
+			import matplotlib
+			import matplotlib.pyplot as plt
+		except:
+			pygraphviz = None
 
 		if pygraphviz is not None:
 			G = pygraphviz.AGraph(directed=True)

@@ -95,6 +95,10 @@ setup(
         "scipy >= 0.17.0",
         "pyyaml"
     ],
+    extras_require={
+        "Plotting": ["pygraphviz", "matplotlib"],
+        "GPU": ["cupy"],
+    },
     test_suite = 'nose.collector',
     package_data={
         'pomegranate': ['*.pyd', '*.pxd'],

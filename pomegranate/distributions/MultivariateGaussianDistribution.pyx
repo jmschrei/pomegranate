@@ -7,11 +7,6 @@
 import numpy
 import scipy
 
-try:
-	import cupy
-except:
-	cupy = object
-
 from libc.stdlib cimport calloc
 from libc.stdlib cimport free
 from libc.string cimport memset
@@ -96,6 +91,8 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		if _is_gpu_enabled():
 			with gil:
+				import cupy
+
 				x = ndarray_wrap_cpointer(X, n*d).reshape(n, d)
 				x1 = cupy.array(x)
 				x2 = cupy.array(self.inv_cov)
@@ -183,6 +180,8 @@ cdef class MultivariateGaussianDistribution(MultivariateDistribution):
 
 		if _is_gpu_enabled():
 			with gil:
+				import cupy
+
 				x_ndarray = ndarray_wrap_cpointer(y, n*d).reshape(n, d)
 				x_gpu = cupy.array(x_ndarray, copy=False)
 				pair_sum_ndarray = cupy.dot(x_gpu.T, x_gpu).get()
