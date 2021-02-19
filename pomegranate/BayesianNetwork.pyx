@@ -1624,10 +1624,10 @@ cdef class ParentGraph(object):
 		self.key_count = key_count
 		self.i = i
 		self.pseudocount = pseudocount
-		self.max_parents = max_parents
 		self.values = {}
 		self.n = X.shape[0]
 		self.d = X.shape[1]
+		self.max_parents = self.d - 1 if max_parents < 0 else max_parents
 		self.include_parents = set([parent for parent, child in include_edges
 			if child == i])
 		self.exclude_parents = set([parent for parent, child in exclude_edges
