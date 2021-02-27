@@ -473,7 +473,7 @@ def _check_nan(X):
 	"""Checks to see if a value is nan, either as a float or a string."""
 	if isinstance(X, (str, unicode, numpy.string_)):
 		return X == 'nan'
-	if isinstance(X, (float, numpy.float, numpy.float32, numpy.float64)):
+	if isinstance(X, (float, numpy.float32, numpy.float64)):
 		return isnan(X)
 	return X is None
 
