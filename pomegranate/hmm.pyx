@@ -701,6 +701,8 @@ cdef class HiddenMarkovModel(GraphModel):
         None
         """
 
+        cdef int i
+
         self.free_bake_buffers()
 
         in_edge_count = numpy.zeros(len(self.graph.nodes()),
