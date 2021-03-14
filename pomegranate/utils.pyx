@@ -314,7 +314,7 @@ cdef double gamma(double x) nogil:
 		return INF
 
 	if x < 0.001:
-		return 1.0 / (x * (1.0 + GAMMA * x));
+		return 1.0 / (x * (1.0 + GAMMA * x))
 
 	# Second interval: [0.001, 12).
 
@@ -361,7 +361,7 @@ cdef double gamma(double x) nogil:
 	# Correct answer too large to display, force +infinity.
 		return INF
 
-	return cexp(lgamma(x));
+	return cexp(lgamma(x))
 
 cdef double lgamma(double x) nogil:
 	# Abramowitz and Stegun 6.1.41
