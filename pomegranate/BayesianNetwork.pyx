@@ -1330,7 +1330,7 @@ cdef class BayesianNetwork(GraphModel):
 	def from_samples(cls, X, weights=None, algorithm='greedy', max_parents=-1,
 		 penalty=None, root=0, constraint_graph=None, include_edges=None, 
 		 exclude_edges=None, pseudocount=0.0, state_names=None, name=None, 
-		 reduce_dataset=True, keys=None, n_jobs=1):
+		 reduce_dataset=True, keys=None, n_jobs=1, caching=None):
 		"""Learn the structure of the network from data.
 
 		There are currently two types of approaches implemented. The first,
@@ -1441,6 +1441,15 @@ cdef class BayesianNetwork(GraphModel):
 			provided it will parallelize the building of the parent graphs.
 			Both cases will provide large speed gains.
 
+		caching : str, one of 'dense', 'sparse', 'none' optional
+			How many of the parent set scores will be cached in memory for
+			faster lookup. Applies only to the 'greedy' and 'exact' algorithms.
+			'dense' caches scores for all parent sets, 'sparse' caches only the
+			scores of parent sets that are less than `max_parents` in size, and
+			'none' disables caching altogether. Default is None, which uses
+			'sparse' for the greedy algorithm and 'dense' for the exact
+			algorithm.
+
 		Returns
 		-------
 		model : BayesianNetwork
@@ -1526,16 +1535,22 @@ cdef class BayesianNetwork(GraphModel):
 				constraint_graph=constraint_graph, n_jobs=n_jobs)
 
 		elif algorithm == 'exact':
+			if caching is None:
+				caching = 'dense'
 			structure = discrete_exact_a_star(X=X_int, weights=weights,
 				key_count=key_count, include_edges=include_edges,
 				exclude_edges=exclude_edges, pseudocount=pseudocount,
-				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
+				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs,
+				caching=caching)
 
 		elif algorithm == 'greedy':
+			if caching is None:
+				caching = 'sparse'
 			structure = discrete_greedy(X=X_int, weights=weights,
 				key_count=key_count, include_edges=include_edges,
 				exclude_edges=exclude_edges, pseudocount=pseudocount,
-				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs)
+				penalty=penalty, max_parents=max_parents, n_jobs=n_jobs,
+				caching=caching)
 
 		elif algorithm == 'exact-dp':
 			structure = discrete_exact_dp(X=X_int, weights=weights,
@@ -1593,6 +1608,13 @@ cdef class ParentGraph(object):
 		using the k-learn procedure. Can drastically speed up algorithms.
 		If -1, no max on parents. Default is -1.
 
+	caching : str, one of 'dense', 'sparse', 'none' optional
+		How many of the parent set scores will be cached in memory for faster
+		lookup. Default is 'dense', which caches scores for all parent subsets.
+		'sparse' caches only the scores of parent sets that are either less than
+		`max_parents` in size or explicitly requested. 'none' disables caching
+		altogether.
+
 	parent_set : tuple, default ()
 		The variables which are possible parents for this variable. If nothing
 		is passed in then it defaults to all other variables, as one would
@@ -1616,9 +1638,11 @@ cdef class ParentGraph(object):
 	cdef int* m
 	cdef int* parents
 	cdef double penalty
+	cdef str caching
 
 	def __init__(self, X, weights, key_count, i, include_edges=[],
-		exclude_edges=[], pseudocount=0.0, penalty=-1, max_parents=-1):
+		exclude_edges=[], pseudocount=0.0, penalty=-1, max_parents=-1,
+		caching='dense'):
 		self.X = X
 		self.weights = weights
 		self.key_count = key_count
@@ -1635,6 +1659,7 @@ cdef class ParentGraph(object):
 		self.m = <int*> malloc((self.d+2)*sizeof(int))
 		self.parents = <int*> malloc(self.d*sizeof(int))
 		self.penalty = penalty
+		self.caching = caching
 
 	def __len__(self):
 		return len(self.values)
@@ -1674,7 +1699,8 @@ cdef class ParentGraph(object):
 			return self.values[value]
 
 		best_parents, best_score = (), NEGINF
-		if len(value) <= max(self.max_parents, len(self.include_parents)):
+		max_parents = max(self.max_parents, len(self.include_parents))
+		if len(value) <= max_parents:
 			for parent in value:
 				if parent in self.exclude_parents:
 					break
@@ -1686,16 +1712,23 @@ cdef class ParentGraph(object):
 					best_parents, best_score = value, self.calculate_value(
 						value)
 
-		for i in range(len(value)):
-			parent_subset = value[:i] + value[i+1:]
-			parents, score = self[parent_subset]
+		if len(value) > 0:
+			if self.caching == 'dense':
+				max_parents = len(value) - 1
+			else:
+				max_parents = min(max_parents, len(value) - 1)
+			parent_subsets = reversed(list(it.combinations(value, max_parents)))
+			for parent_subset in parent_subsets:
+				parents, score = self[parent_subset]
 
-			if score > best_score:
-				best_score = score
-				best_parents = parents
+				if score > best_score:
+					best_score = score
+					best_parents = parents
 
-		self.values[value] = (best_parents, best_score)
-		return self.values[value]
+		ret = (best_parents, best_score)
+		if self.caching != 'none':
+			self.values[value] = ret
+		return ret
 
 
 def discrete_chow_liu_tree(numpy.ndarray X_ndarray, numpy.ndarray weights_ndarray,
@@ -1864,7 +1897,7 @@ def discrete_exact_dp(X, weights, key_count, include_edges, exclude_edges,
 
 
 def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
-	pseudocount, penalty, max_parents, n_jobs):
+	pseudocount, penalty, max_parents, n_jobs, caching='dense'):
 	"""
 	Find the optimal graph over a set of variables with no other knowledge.
 
@@ -1915,6 +1948,13 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 		The number of threads to use when learning the structure of the
 		network. This parallelizes the creation of the parent graphs.
 
+	caching: str, one of 'dense', 'sparse', 'none'
+		How many of the parent set scores will be cached in memory for faster
+		lookup. Default is 'dense', which caches scores for all parent sets, and
+		is usually the fastest option for the exact A* algorithm. 'sparse'
+		caches only the scores of parent sets that are less than `max_parents`
+		in size. 'none' disables caching altogether.
+
 	Returns
 	-------
 	structure : tuple, shape=(d,)
@@ -1926,7 +1966,7 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count,
 		include_edges=include_edges, exclude_edges=exclude_edges, i=i,
 		pseudocount=pseudocount, penalty=penalty,
-		max_parents=max_parents) for i in range(d)]
+		max_parents=max_parents, caching=caching) for i in range(d)]
 
 	other_variables = {}
 	for i in range(d):
@@ -1972,7 +2012,7 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 
 
 def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
-	pseudocount, penalty, max_parents, n_jobs):
+	pseudocount, penalty, max_parents, n_jobs, caching='sparse'):
 	"""Find the optimal graph over a set of variables with no other knowledge.
 
 	Parameters
@@ -2013,6 +2053,13 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 		The number of threads to use when learning the structure of the
 		network. This parallelizes the creation of the parent graphs.
 
+	caching: str, one of 'dense', 'sparse', 'none'
+		How many of the parent set scores will be cached in memory for faster
+		lookup. Default is 'sparse', which caches only the scores of parent sets
+		that are less than `max_parents` in size, and is usually the fastest
+		option for the greedy algorithm. 'dense' caches scores for all parent
+		sets, and 'none' disables caching altogether.
+
 	Returns
 	-------
 	structure : tuple, shape=(d,)
@@ -2025,7 +2072,7 @@ def discrete_greedy(X, weights, key_count, include_edges, exclude_edges,
 	parent_graphs = [ParentGraph(X=X, weights=weights, key_count=key_count,
 		include_edges=include_edges, exclude_edges=exclude_edges, i=i,
 		pseudocount=pseudocount, penalty=penalty,
-		max_parents=max_parents) for i in range(d)]
+		max_parents=max_parents, caching=caching) for i in range(d)]
 
 	structure, seen_variables, unseen_variables = [() for i in range(d)], (), set(range(d))
 
