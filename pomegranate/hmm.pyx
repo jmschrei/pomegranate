@@ -2506,8 +2506,8 @@ cdef class HiddenMarkovModel(GraphModel):
 
         Returns
         -------
-        improvement : double
-            The total improvement in fitting the model to the data
+        improvement : HiddenMarkovModel
+            The trained model itself.
         """
 
         if self.d == 0:
