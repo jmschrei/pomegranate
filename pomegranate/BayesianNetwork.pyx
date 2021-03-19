@@ -1974,9 +1974,9 @@ def discrete_exact_a_star(X, weights, key_count, include_edges, exclude_edges,
 		pseudocount=pseudocount, penalty=penalty,
 		max_parents=max_parents, low_memory=low_memory) for i in range(d)]
 
-	other_variables = {}
+	other_variables = []
 	for i in range(d):
-		other_variables[i] = tuple(j for j in range(d) if j != i)
+		other_variables.append(tuple(j for j in range(d) if j != i))
 
 	o = PriorityQueue()
 	closed = set()
