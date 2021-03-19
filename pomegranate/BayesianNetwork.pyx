@@ -2779,9 +2779,9 @@ cdef double discrete_score_node(float* X, double* weights, int* m, int* parents,
 	for i in range(m[d]):
 		w_sum += counts[i]
 		count = pseudocount + counts[i]
-		marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
 
 		if count > 0:
+			marginal_count = pseudocount * (m[d] / m[d-1]) + marginal_counts[i%m[d-1]]
 			logp += count * _log2(count / marginal_count)
 
 	if w_sum > 1:
