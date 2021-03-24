@@ -79,7 +79,7 @@ setup(
         'pomegranate/distributions',
     ],
     url='http://pypi.python.org/pypi/pomegranate/',
-    license='LICENSE',
+    license='MIT',
     description='Pomegranate is a graphical models library for Python, implemented in Cython for speed.',
     ext_modules=extensions,
     cmdclass={'build_ext':build_ext},
