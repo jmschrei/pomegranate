@@ -8,7 +8,7 @@ import numpy
 from ..utils cimport _log
 from ..utils cimport isnan
 from ..utils import check_random_state
-from ..utils import lgamma
+from ..utils cimport lgamma
 
 
 from libc.math cimport sqrt as csqrt
@@ -30,7 +30,7 @@ cdef class TrueBetaDistribution(Distribution):
 	def __init__(self, alpha, beta, frozen=False, min_alpha_beta=0.0, x_eps=1e-6):
 		self.alpha = alpha
 		self.beta = beta
-        self.min_alpha_beta = min_alpha_beta
+		self.min_alpha_beta = min_alpha_beta
 		self.x_eps = x_eps
 		self.name = "TrueBetaDistribution"
 		self.frozen = frozen
@@ -43,6 +43,8 @@ cdef class TrueBetaDistribution(Distribution):
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
 		cdef int i
+		cdef double x_i
+
 		for i in range(n):
 			if isnan(X[i]):
 				log_probability[i] = 0.
@@ -52,9 +54,7 @@ cdef class TrueBetaDistribution(Distribution):
 					x_i = self.x_eps
 				if x_i > 1 - self.x_eps:
 					x_i = 1 - self.x_eps
-                log_probability[i] = (self.alpha - 1) * _log(x_i) + \
-									 (self.beta - 1) * _log(1 - x_i) + \
-									 lgamma(self.alpha + self.beta) - lgamma(self.alpha) - lgamma(self.beta) 
+				log_probability[i] = (self.alpha - 1) * _log(x_i) + (self.beta - 1) * _log(1 - x_i) + lgamma(self.alpha + self.beta) - lgamma(self.alpha) - lgamma(self.beta)
 									 
 	def sample(self, n=None, random_state=None):
 		random_state = check_random_state(random_state)
@@ -97,7 +97,7 @@ cdef class TrueBetaDistribution(Distribution):
 
 
 		alpha = x_bar * ((x_bar * (1 - x_bar)) / s2 - 1)
-    	beta = alpha * (1 - x_bar) /x_bar
+		beta = alpha * (1 - x_bar) /x_bar
 
 		if alpha < self.min_alpha_beta:
 			alpha = self.min_alpha_beta
@@ -105,8 +105,8 @@ cdef class TrueBetaDistribution(Distribution):
 		if beta < self.min_alpha_beta:
 			beta = self.min_alpha_beta
 
-		self.alpha = self.alpha * interia + alpha * (1-interia)
-		self.beta = self.beta * interia + beta * (1-inertia)
+		self.alpha = self.alpha * inertia + alpha * (1-inertia)
+		self.beta = self.beta * inertia+ beta * (1-inertia)
 		self.summaries = [0, 0, 0]
 
 	def clear_summaries(self):

@@ -8,6 +8,7 @@ from pomegranate import (Distribution,
 						 ExponentialDistribution,
 						 GammaDistribution,
 						 PoissonDistribution,
+						 TrueBetaDistribution,
 						 BetaDistribution,
 						 GaussianKernelDensity,
 						 TriangleKernelDensity,
@@ -711,6 +712,15 @@ def test_distributions_beta_random_sample():
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
 	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
+
+def test_distributions_true_beta_random_sample():
+	d = TrueBetaDistribution(2, 2)
+	
+	x = numpy.array([0.64372593, 0.84067723, 0.42423923, 0.2806314 , 0.252123])
+	assert_array_almost_equal(d.sample(5, random_state=5), x)
+	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+
 
 @with_setup(setup, teardown)
 def test_gaussian_kernel():

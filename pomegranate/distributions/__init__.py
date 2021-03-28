@@ -13,6 +13,7 @@ from .BernoulliDistribution import BernoulliDistribution
 from .NormalDistribution import NormalDistribution
 from .LogNormalDistribution import LogNormalDistribution
 from .ExponentialDistribution import ExponentialDistribution
+from .TrueBetaDistribution import TrueBetaDistribution
 from .BetaDistribution import BetaDistribution
 from .GammaDistribution import GammaDistribution
 from .DiscreteDistribution import DiscreteDistribution

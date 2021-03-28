@@ -36,6 +36,7 @@ distributions = [
     'NormalDistribution',
     'LogNormalDistribution',
     'ExponentialDistribution',
+    'TrueBetaDistribution'
     'BetaDistribution',
     'GammaDistribution',
     'DiscreteDistribution',
