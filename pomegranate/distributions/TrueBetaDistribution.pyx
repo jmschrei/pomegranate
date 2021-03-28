@@ -27,7 +27,7 @@ cdef class TrueBetaDistribution(Distribution):
 		def __set__(self, parameters):
 			self.alpha, self.beta = parameters
 
-	def __init__(self, alpha, beta, frozen=False, min_alpha_beta=0.0, x_eps=1e-6):
+	def __init__(self, alpha, beta, frozen=False, min_alpha_beta=0.0, x_eps=0.0):
 		self.alpha = alpha
 		self.beta = beta
 		self.min_alpha_beta = min_alpha_beta
