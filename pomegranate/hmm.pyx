@@ -2565,7 +2565,6 @@ cdef class HiddenMarkovModel(GraphModel):
                 data_generator = SequenceGenerator(checked_sequences, checked_weights,
                     checked_labels)
 
-
         n = data_generator.shape[0]
 
         semisupervised = False
@@ -2603,6 +2602,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
                     log_probability_sum += sum(parallel(f(*batch, algorithm=algorithm, 
                         check_input=multiple_check_input) for batch in data_generator.unlabeled_batches()))
+
 
                 elif labels is not None:
                     log_probability_sum = sum(parallel(f(*batch, 
@@ -2954,8 +2954,7 @@ cdef class HiddenMarkovModel(GraphModel):
                 labels[i] = self.states.index(label_ndarray[i])
             else:
                 labels[i] = self.state_name_mapping[label_ndarray[i]]
-
-
+                
         with nogil:
             log_sequence_probability = self.__labeled_summarize(sequence,
                 labels, weight, n, m)
@@ -3285,7 +3284,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
     @classmethod
     def from_matrix(cls, transition_probabilities, distributions, starts, ends=None,
-        state_names=None, name=None, verbose=False, merge='All'):
+        state_names=None, name=None, verbose=False, merge='None'):
         """Create a model from a more standard matrix format.
 
         Take in a 2D matrix of floats of size n by n, which are the transition
@@ -3695,7 +3694,6 @@ cdef class HiddenMarkovModel(GraphModel):
             batches_per_epoch=batches_per_epoch, lr_decay=lr_decay,
             callbacks=callbacks, return_history=True, n_jobs=n_jobs,
             multiple_check_input=multiple_check_input)
-
 
         if return_history:
             return model, history
