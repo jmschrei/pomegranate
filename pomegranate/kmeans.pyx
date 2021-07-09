@@ -356,7 +356,7 @@ cdef class Kmeans(Model):
 		stop_threshold : double, optional, positive
 			The threshold at which EM will terminate for the improvement of
 			the model. If the model does not improve its fit of the data by a
-			log probability of 0.1 then terminate. Default is 0.1.
+			log probability of the threshold then terminate. Default is 1e-3.
 
 		max_iterations : int, optional
 			The maximum number of iterations to run for. Default is 1e3.
