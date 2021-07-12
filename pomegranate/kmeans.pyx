@@ -221,7 +221,10 @@ cdef class Kmeans(Model):
 
 	def __init__(self, k, init='kmeans++', n_init=10):
 		self.k = k
-		self.n_init = n_init
+		if init != 'first-k':
+			self.n_init = n_init
+		else:
+			self.n_init = 1
 		self.centroid_norms = <double*> calloc(self.k, sizeof(double))
 
 		if isinstance(init, (list, numpy.ndarray)):
