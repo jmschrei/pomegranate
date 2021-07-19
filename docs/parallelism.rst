@@ -45,7 +45,7 @@ FAQ
 
 Q. What models support parallelism?
 
-A. All models should support parallel fitting. All models (except for HMMs) support parallel predictions natively through the `n_jobs` parameter. Basic distributions do not support parallelism as they typically take a neglible amount of time to do anything with.
+A. All models should support parallel fitting. All models (except for HMMs) support parallel predictions natively through the `n_jobs` parameter. Basic distributions do not support parallelism as they typically take a negligible amount of time to do anything with.
 
 
 Q. How can I parallelize something that doesn't have built-in parallelism?

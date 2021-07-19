@@ -53,7 +53,7 @@ Highlights
 
 	- A variety of minor bug fixes and speed improvements
 	- You can now pass in key sets to each model to define distributions over, even if that symbol doesn't occur in the training set
-	- The returns from `from_sample` uses class distributions instead of predefined ones, allowing for inheritence of distributions
+	- The returns from `from_sample` uses class distributions instead of predefined ones, allowing for inheritance of distributions
 	- Checks added to ensure that input arrays are C ordered instead of transposed
 
 Distributions
@@ -88,7 +88,7 @@ Highlights
 ----------
 
 	- MarkovNetwork models have been added in and include both inference and structure learning.
-	- Support for Python 2 has been depricated.
+	- Support for Python 2 has been deprecated.
 	- Markov network, data generator, and callback tutorials have been added in
 	- A robust `from_json` method has been added in to __init__.py that can deserialize JSONs from any pomegranate model.
 
@@ -136,7 +136,7 @@ Misc
 	- Unneccessary calls to memset have been removed, courtesy of @alexhenrie
 	- Checking for missing values has been slightly refactored to be cleaner, courtesy of @mareksmid-lucid
 	- Include the LICENSE file in MANIFEST.in and simplify a bit, courtesy of @toddrme2178
-	- Added in a robust from_json method that can be used to deseralize a JSON for any pomegranate model.
+	- Added in a robust from_json method that can be used to deserialize a JSON for any pomegranate model.
 
 docs
 ----
