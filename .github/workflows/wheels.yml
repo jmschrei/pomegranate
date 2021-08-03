@@ -6,11 +6,15 @@ on: workflow_dispatch
 
 jobs:
   build_wheels:
-    name: Build wheels for ${{ matrix.os }}
+    name: Build wheels on ${{matrix.arch}} for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
+        arch: [auto]
+        include:
+          - os: ubuntu-latest
+            arch: aarch64
 
     steps:
       - uses: actions/checkout@v2
@@ -26,6 +30,10 @@ jobs:
             python-version: ${{ matrix.python-version }}
             channels: conda-forge
       
+      - uses: docker/setup-qemu-action@v1
+        if: ${{ matrix.arch == 'aarch64' }}
+        name: Set up QEMU
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -39,7 +47,8 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_SKIP: "cp27-* cp35-* cp36-* cp310-* pp*"  # skip Python 2.7 wheels
+          CIBW_SKIP: "cp27-* cp35-* cp36-* cp310-* pp* *-musllinux_aarch64"  # skip Python 2.7 wheels
+          CIBW_ARCHS_LINUX: ${{matrix.arch}}
           CIBW_BEFORE_BUILD: "rm -rf build/"
 
       - name: Upload wheels
