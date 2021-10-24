@@ -21,7 +21,7 @@ The log dictionary that is returned has the following entries:
  - `log_probability` : `float`, the log probability of the training set after this round of training
  - `last_log_probability` : `float`, the log probability of the training set before this round of training
  - `duration` : `float`, the time in seconds that this epoch took
- - `epoch_start_time` : the time accoding to `time.time()` that this epoch began
+ - `epoch_start_time` : the time according to `time.time()` that this epoch began
  - `epoch_end_time`: the time according to `time.time()` that this epoch eded
  - `n_seen_batches` : `int`, the number of batches that have been seen by the model, only useful for mini-batching
  - `learning_rate` : The learning rate. This is undefined except when a decaying learning rate is set. 

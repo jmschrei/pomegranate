@@ -161,7 +161,7 @@ def setup_large_monty():
     # large_monty_Friend
     large_monty_friend = DiscreteDistribution({True: 0.5, False: 0.5})
 
-    # large_monty_Guest emisisons are completely random
+    # large_monty_Guest emissions are completely random
     large_monty_guest = ConditionalProbabilityTable(
         [[True, 'A', 0.50],
          [True, 'B', 0.25],
@@ -173,7 +173,7 @@ def setup_large_monty():
     # Number of large_monty_remaining cars
     large_monty_remaining = DiscreteDistribution({0: 0.1, 1: 0.7, 2: 0.2})
 
-    # Whether they large_monty_randomize is dependent on the numnber of
+    # Whether they large_monty_randomize is dependent on the number of
     # large_monty_remaining cars
     large_monty_randomize = ConditionalProbabilityTable(
         [[0, True, 0.05],

@@ -77,7 +77,7 @@ class NeuralNetworkWrapper():
         Parameters
         ----------
         X : numpy.ndarray, shape=(n, d)
-            The batch of data to calculcate probabilities over.
+            The batch of data to calculate probabilities over.
         '''
         
         return numpy.log(self.model.predict(X)[:,self.i])
