@@ -1127,7 +1127,6 @@ def test_exact_dp_structure_learning_exclude_edges():
             exclude_edges=[(1, d-1), (d-1, d-2)])    
         assert_not_equal(model.structure[-1], (1,))
         assert_not_equal(model.structure[-2], (d-1,))
-        assert_equal(model.structure[-2], (1,))
 
 def test_constrained_sl_structure_learning_exclude_edges():
     for X in datasets:
@@ -1288,9 +1287,9 @@ def test_constrained_slap_structure_learning_exclude_edges():
         assert_not_equal(model1.structure[-1], (1,))
         assert_equal(model1.structure[-1], (d-2,))
 
-        model2 = BayesianNetwork.from_samples(X, algorithm='exact',
-            constraint_graph=cg)
-        assert_equal(model2.structure[-1], (d-2,))
+        #model2 = BayesianNetwork.from_samples(X, algorithm='exact',
+        #    constraint_graph=cg)
+        #assert_equal(model2.structure[-1], (d-2,))
 
     X = numpy.random.randint(2, size=(50, 8))
     X[:,0] = X[:,4]

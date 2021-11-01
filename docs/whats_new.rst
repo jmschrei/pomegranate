@@ -5,6 +5,21 @@
 Release History
 ===============
 
+Version 0.14.6
+==============
+
+Highlights
+----------
+
+	- Determinism added to k-means initializations through a `random_state` parameter
+	- Determinism added to `HiddenMarkovModel.from_samples` by passing its `random_state` parameter to k-means
+	- Fixed an issue where the JSON of an HMM would be updated after a call to `fit` but not a call to `from_summaries`
+	- Fixed an issue where independent component distributions would not be created correctly for HMM states when also passing in labels
+	- Separated out the initialization of distributions in `HiddenMarkovModel.from_samples` and the extraction or labeling of unlabeled examples
+	- Updated the NetworkX requirement to be at least 2.4.
+	- Force GMM models to respect its `frozen` attribute in the `from_summaries` method.
+
+
 Version 0.14.0
 ==============
 
