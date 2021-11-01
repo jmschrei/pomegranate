@@ -29,7 +29,7 @@ jobs:
     - name: Install dependencies
       run: |
         conda create -y -n build-env
-        source activate build-env
+        conda activate build-env
         python -m pip install --upgrade pip setuptools wheel
         python -m pip install flake8 pytest
         conda install --file dev-requirements.txt
