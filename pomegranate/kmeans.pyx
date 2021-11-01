@@ -15,6 +15,7 @@ from .base cimport Model
 
 from .utils cimport mdot
 from .utils cimport isnan
+from .utils import check_random_state
 
 import time
 import numpy
@@ -36,8 +37,8 @@ cdef double distance(double* X, double* centroid, int d) nogil:
 
 	return distance
 
-cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
-	init='first-k', double oversampling_factor=0.95):
+cpdef numpy.ndarray _initialize_centroids(numpy.ndarray X, weights, int k,
+	init='first-k', double oversampling_factor=0.95, random_state=None):
 	"""Initialize the centroids for kmeans given a dataset.
 
 	This function will take in a dataset and return the centroids found using
@@ -64,6 +65,11 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 		'kmeans||' : use the scalable kmeans++ initialization algorithm,
 			as described in http://theory.stanford.edu/~sergei/papers/vldb12-kmpar.pdf
 
+    random_state : int, numpy.random.RandomState, or None
+        The random state used for generating samples. If set to none, a
+        random seed will be used. If set to either an integer or a
+        random seed, will produce deterministic outputs.
+
 	Returns
 	-------
 	centroids : numpy.ndarray, shape=(k, d)
@@ -85,6 +91,8 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 	cdef double* centroids_ptr
 	cdef double phi
 
+	random_state = check_random_state(random_state)
+
 	if weights is None:
 		weights = numpy.ones(len(X), dtype='float64') / len(X)
 	else:
@@ -99,14 +107,14 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 		centroids = X[:k].copy()
 
 	elif init == 'random':
-		idxs = numpy.random.choice(n, size=k, replace=False, p=weights)
+		idxs = random_state.choice(n, size=k, replace=False, p=weights)
 		centroids = X[idxs].copy()
 
 	elif init == 'kmeans++':
 		centroids = numpy.zeros((k, d), dtype='float64')
 		centroids_ptr = <double*> centroids.data
 
-		idx = numpy.random.choice(n, p=weights)
+		idx = random_state.choice(n, p=weights)
 		centroids[0] = X[idx]
 		centroids[0][numpy.isnan(centroids[0])] = 0.0
 
@@ -121,13 +129,13 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 				if dist < min_distance_ptr[i]:
 					min_distance_ptr[i] = dist
 
-			idx = numpy.random.choice(n, p=min_distance / min_distance.sum())
+			idx = random_state.choice(n, p=min_distance / min_distance.sum())
 			centroids[m+1] = X[idx]
 			centroids[m+1][numpy.isnan(centroids[m+1])] = 0.0
 
 	elif init == 'kmeans||':
 		centroids = numpy.zeros((1, d))
-		idx = numpy.random.choice(n, p=weights)
+		idx = random_state.choice(n, p=weights)
 		centroids[0] = X[idx]
 		centroids[0][numpy.isnan(centroids[0])] = 0
 		centroids_ptr = <double*> centroids.data
@@ -145,7 +153,7 @@ cpdef numpy.ndarray initialize_centroids(numpy.ndarray X, weights, int k,
 		count = 1
 
 		for iteration in range(int(clog10(phi))):
-			prob = numpy.random.uniform(0, 1, size=(n,))
+			prob = random_state.uniform(0, 1, size=(n,))
 			thresh = oversampling_factor * min_distance / phi
 
 			centroids = numpy.concatenate((centroids, X[prob < thresh]))
@@ -336,7 +344,7 @@ cdef class Kmeans(Model):
 
 	def fit(self, X, weights=None, inertia=0.0, stop_threshold=1e-3,
                 max_iterations=1e3, batch_size=None, batches_per_epoch=None,
-                clear_summaries=False, verbose=False, n_jobs=1):
+                clear_summaries=False, verbose=False, n_jobs=1, random_state=None):
 		"""Fit the model to the data using k centroids.
 
 		Parameters
@@ -394,6 +402,11 @@ cdef class Kmeans(Model):
 			The number of threads to use when processing data. Default to 1,
 			meaning no parallelism.
 
+        random_state : int, numpy.random.RandomState, or None
+            The random state used for generating samples. If set to none, a
+            random seed will be used. If set to either an integer or a
+            random seed, will produce deterministic outputs.
+
 		Returns
 		-------
 		self : Kmeans
@@ -438,11 +451,13 @@ cdef class Kmeans(Model):
 				iteration, improvement = 0, INF
 
 				if weights is not None and initial_centroids is None:
-					self.centroids = initialize_centroids(X[:ends[0]],
-						weights[:ends[0]], self.k, self.init)
+					self.centroids = _initialize_centroids(X=X[:ends[0]],
+						weights=weights[:ends[0]], k=self.k, init=self.init, 
+						random_state=random_state)
 				elif weights is None and initial_centroids is None:
-					self.centroids = initialize_centroids(X[:ends[0]],
-						None, self.k, self.init)
+					self.centroids = _initialize_centroids(X=X[:ends[0]],
+						weights=None, k=self.k, init=self.init, 
+						random_state=random_state)
 				else:
 					self.centroids = initial_centroids.copy()
 
@@ -679,9 +694,9 @@ cdef class Kmeans(Model):
 	@classmethod
 	def from_samples(cls, k, X, weights=None, init='kmeans++', n_init=10,
 		inertia=0.0, stop_threshold=0.1, max_iterations=1e3, batch_size=None,
-		batches_per_epoch=None, clear_summaries=False, verbose=False, n_jobs=1):
-		"""
-		Fit a k-means object to the data directly.
+		batches_per_epoch=None, clear_summaries=False, verbose=False, n_jobs=1,
+		random_state=None):
+		"""Fit a k-means object to the data directly.
 
 		Parameters
 		----------
@@ -753,6 +768,11 @@ cdef class Kmeans(Model):
 		n_jobs : int, optional
 			The number of threads to use. Default is 1, indicating no
 			parallelism is used.
+
+        random_state : int, numpy.random.RandomState, or None
+            The random state used for generating samples. If set to none, a
+            random seed will be used. If set to either an integer or a
+            random seed, will produce deterministic outputs.
 		"""
 
 		X = numpy.asarray(X, dtype='float64', order='C')
@@ -763,6 +783,6 @@ cdef class Kmeans(Model):
 		model.fit(X, weights, inertia=inertia, stop_threshold=stop_threshold,
 			max_iterations=max_iterations, batch_size=batch_size,
 			batches_per_epoch=batches_per_epoch, clear_summaries=clear_summaries,
-			verbose=verbose, n_jobs=n_jobs)
+			verbose=verbose, n_jobs=n_jobs, random_state=random_state)
 
 		return model

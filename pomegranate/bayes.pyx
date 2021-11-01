@@ -802,8 +802,11 @@ cdef class BayesModel(Model):
         None
         """
 
+        if self.frozen:
+            return self
+
         if self.summaries.sum() == 0:
-            return
+            return self
 
         summaries = self.summaries + pseudocount
         summaries /= summaries.sum()
