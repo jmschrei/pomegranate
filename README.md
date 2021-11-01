@@ -14,6 +14,8 @@ If you get an error involving `pomegranate/base.c`, try installing with `pip ins
 
 If you get an error involving `pomegranate/distributions/NeuralNetworkWrapper.c: No such file or directory`, try installing Cython first and then re-installing. 
 
+A few packages are optional to use pomegranate but necessary for some specific functionality. For example, pandas is needed to run the tests involving I/O, matplotlib and pygraphviz are needed for plotting capabilities, and cupy is needed for GPU acceleration. 
+
 ### Models
 
 * [Probability Distributions](http://pomegranate.readthedocs.io/en/latest/Distributions.html)
