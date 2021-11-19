@@ -34,6 +34,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        pip install sphinx-rtd-theme >= 0.2.0, < 0.3.0
         conda install flake8 pytest
         conda install --file dev-requirements.txt
         python setup.py install
