@@ -90,6 +90,18 @@ def setup_multivariate_discrete():
 	gmm = GeneralMixtureModel([d1, d2], weights=np.array([0.4,0.6]))
 
 
+def setup_multivariate_mixed_discrete_other():
+	d1 = IndependentComponentsDistribution([PoissonDistribution(4.0),
+	                                        DiscreteDistribution({'A':0.5, 'B':0.5}), 
+	                                        DiscreteDistribution({'0':0.2, '1':0.2, '2':0.2, '3':0.4})])
+	d2 = IndependentComponentsDistribution([PoissonDistribution(1.0),
+	                                        DiscreteDistribution({'A':0.1, 'B':0.9}), 
+	                                        DiscreteDistribution({'0':0.1, '1':0.6, '2':0.1, '3':0.2})])
+
+
+	global gmm
+	gmm = GeneralMixtureModel([d1, d2], weights=np.array([0.4,0.6]))
+
 def teardown():
 	"""
 	Teardown the model, so delete it.
@@ -1231,6 +1243,22 @@ def test_gmm_multivariate_mixed_random_sample():
 
 	assert_array_almost_equal(gmm.sample(3, random_state=5), x)
 	assert_raises(AssertionError, assert_array_almost_equal, gmm.sample(3), x)
+
+
+@with_setup(setup_multivariate_mixed_discrete_other)
+def test_gmm_multivariate_mixed_discrete_other_fit():
+	x = numpy.array(
+		[
+			[0, 'A', '0'],
+			[5, 'A', '1'],
+			[4, 'A', '3'],
+			[5, 'B', '0']
+		], 
+		dtype=object
+	)
+	gmm.fit(x)
+	assert_array_almost_equal(gmm.weights, numpy.array([-0.28544206, -1.39304465]))
+
 
 def test_io_log_probability():
 	X = numpy.random.randn(100, 5) + 0.5
