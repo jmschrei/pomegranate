@@ -20,13 +20,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    
+
     - name: Set up Python ${{ matrix.os }} ${{ matrix.python-version }}
-      uses: actions/conda-incubator@v2
+      uses: actions/setup-python@v2
       with:
-        auto-update-conda: true
         python-version: ${{ matrix.python-version }}
-    
+
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2.1.1
+
     - name: Install dependencies
       run: |
         conda install flake8 pytest
