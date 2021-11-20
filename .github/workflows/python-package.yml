@@ -34,9 +34,6 @@ jobs:
           auto-activate-base: true
           activate-environment: ""
 
-      run:
-        source activate test
-
     - name: Install dependencies
       run: |
         conda install flake8 pytest
