@@ -31,12 +31,10 @@ jobs:
       with:
           python-version: ${{ matrix.python-version }}
           channels: conda-forge
-          auto-activate-base: true
-          activate-environment: ""
 
     - name: Install dependencies
       run: |
-        conda install flake8 pytest
+        pip install flake8 pytest
         conda install --file requirements.txt
         pip install -r dev-requirements.txt
         python setup.py install
