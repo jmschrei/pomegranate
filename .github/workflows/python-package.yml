@@ -30,7 +30,7 @@ jobs:
       uses: conda-incubator/setup-miniconda@v2.1.1
       with:
           python-version: ${{ matrix.python-version }}
-          channels: conda-forge:
+          channels: conda-forge
           auto-activate-base: true
           activate-environment: ""
 
