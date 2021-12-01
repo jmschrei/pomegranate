@@ -1,6 +1,7 @@
 wheel
 pandas
 cython >= 0.22.1
+nose
 pytest
 numpy >= 1.20.0
 scipy >= 0.17.0
