@@ -11,6 +11,14 @@ Version 0.14.6
 Highlights
 ----------
 
+	- Adds ICD support for features having both discrete and continuous distributions. Thanks @lmcinnes!
+
+Version 0.14.6
+==============
+
+Highlights
+----------
+
 	- Determinism added to k-means initializations through a `random_state` parameter
 	- Determinism added to `HiddenMarkovModel.from_samples` by passing its `random_state` parameter to k-means
 	- Fixed an issue where the JSON of an HMM would be updated after a call to `fit` but not a call to `from_summaries`

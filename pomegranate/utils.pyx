@@ -440,9 +440,15 @@ def _check_input(X, keymap=None):
 					X_ndarray[i] = keymap[0][X[i]]
 				X_ndarray = X_ndarray.reshape(-1, 1)
 			else:
-				for i in range(X.shape[0]):
-					for j in range(X.shape[1]):
-						X_ndarray[i, j] = keymap[j][X[i, j]]
+				for j in range(X.shape[1]):
+					if len(keymap[j]) == 0: 
+						# No keymap for non-discrete distributions
+						# convert the whole column to floats;
+						X_ndarray[:, j] = X[:, j].astype(numpy.float64)
+					else:
+						# else convert entries via the keymap
+						for i in range(X.shape[0]):
+							X_ndarray[i, j] = keymap[j][X[i, j]]
 
 
 	return X_ndarray
