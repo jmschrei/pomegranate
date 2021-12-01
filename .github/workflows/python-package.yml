@@ -37,7 +37,6 @@ jobs:
         pip install flake8 pytest
         conda install --file requirements.txt
         pip install -r dev-requirements.txt
-        python setup.py install
         
     - name: Lint with flake8
       run: |
@@ -47,4 +46,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
         
     - name: Test with pytest
-      run: pytest tests/
+      run: |
+      pip install -e .
+      pytest tests/
