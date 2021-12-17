@@ -1330,7 +1330,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
 		return numpy.array(emissions)
 
-	cpdef double log_probability(self, sequence, check_input=True):
+	cpdef double log_probability(self, sequence, check_input=True) except *:
 		"""Calculate the log probability of a single sequence.
 
 		If a path is provided, calculate the log probability of that sequence
@@ -2968,7 +2968,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		free(b)
 		return log_sequence_probability * weight[0]
 
-	cpdef double _viterbi_summarize(self, numpy.ndarray sequence_ndarray, double weight):
+	cpdef double _viterbi_summarize(self, numpy.ndarray sequence_ndarray, double weight) except *:
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
@@ -3003,7 +3003,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		return log_probability * weight
 
 	cpdef double _labeled_summarize(self, numpy.ndarray sequence_ndarray,
-		numpy.ndarray label_ndarray, double weight):
+		numpy.ndarray label_ndarray, double weight) except *:
 		"""Python wrapper for the summarization step.
 
 		This is done to ensure compatibility with joblib's multithreading
