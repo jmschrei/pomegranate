@@ -145,8 +145,7 @@ cdef class BayesModel(Model):
 
     def __reduce__(self):
         return self.__class__, (self.distributions.tolist(),
-                                numpy.exp(self.weights),
-                                self.n)
+                                numpy.exp(self.weights))
 
     def sample(self, n=1, random_state=None):
         """Generate a sample from the model.
