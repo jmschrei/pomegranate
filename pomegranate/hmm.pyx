@@ -866,7 +866,7 @@ cdef class HiddenMarkovModel(GraphModel):
 					if merge=='all' or (merge=='partial' and b.is_silent()):
 
 						# Go through every transition to that state
-						for x, y, d in self.graph.edges(data=True):
+						for x, y, d in list(self.graph.edges(data=True)):
 
 							# Make sure that the edge points to the current node
 							if y is a:
@@ -898,8 +898,8 @@ cdef class HiddenMarkovModel(GraphModel):
 			# Detect whether or not there are loops of silent states by going
 			# through every pair of edges, and ensure that there is not a cycle
 			# of silent states.
-			for a, b, e in self.graph.edges(data=True):
-				for x, y, d in self.graph.edges(data=True):
+			for a, b, e in list(self.graph.edges(data=True)):
+				for x, y, d in list(self.graph.edges(data=True)):
 					if a is y and b is x and a.is_silent() and b.is_silent():
 						print("Loop: {} - {}".format(a.name, b.name))
 
