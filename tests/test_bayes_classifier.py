@@ -1,6 +1,7 @@
 from __future__ import (division)
 
 from pomegranate import *
+from pomegranate.bayes import BayesModel
 from pomegranate.io import DataGenerator
 from pomegranate.io import DataFrameGenerator
 
@@ -136,6 +137,21 @@ def setup_multivariate():
 def teardown():
 	pass
 
+def test_unpickle_bayes_model():
+	"""Test that `BayesModel` can be pickled and unpickled."""
+	dists = [BernoulliDistribution(0.2), BernoulliDistribution(0.3)]
+	model = BayesModel(distributions=dists)
+	unpickled_model = pickle.loads(pickle.dumps(model))
+	np.testing.assert_almost_equal(model.weights, unpickled_model.weights)
+	# Check weights of individual distributions.
+	np.testing.assert_almost_equal(
+		model.distributions[0].parameters,
+		unpickled_model.distributions[0].parameters,
+	)
+	np.testing.assert_almost_equal(
+		model.distributions[1].parameters,
+		unpickled_model.distributions[1].parameters,
+	)
 
 @with_setup(setup_multivariate_gaussian, teardown)
 def test_bc_multivariate_gaussian_initialization():
