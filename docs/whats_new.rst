@@ -5,6 +5,15 @@
 Release History
 ===============
 
+Version 0.14.8
+==============
+
+Highlights
+----------
+
+	- Fix an issue with saving and loading BayesModels
+	
+
 Version 0.14.6
 ==============
 
