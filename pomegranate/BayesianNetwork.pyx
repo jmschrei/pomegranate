@@ -443,10 +443,19 @@ cdef class BayesianNetwork(GraphModel):
 			with open(fn, 'w') as outfile:
 				outfile.write(self.to_json())
 
-			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+			with Parallel(n_jobs=n_jobs, backend='multiprocessing') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], BayesianNetwork, 'log_probability',
-					fn) for batch in data_generator.batches())
+				logp_array = parallel(
+					f(
+						batch[0],
+						BayesianNetwork,
+						'log_probability',
+						fn,
+						check_input=check_input,
+						n_jobs=1
+					)
+					for batch in data_generator.batches()
+				)
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
@@ -610,10 +619,21 @@ cdef class BayesianNetwork(GraphModel):
 			with open(fn, 'w') as outfile:
 				outfile.write(self.to_json())
 
-			with Parallel(n_jobs=n_jobs, backend='threading') as parallel:
+
+			with Parallel(n_jobs=n_jobs, backend='multiprocessing') as parallel:
 				f = delayed(parallelize_function)
-				logp_array = parallel(f(batch[0], BayesianNetwork, 'predict_proba',
-					fn) for batch in data_generator.batches())
+				logp_array = parallel(
+					f(
+						batch[0],
+						self.__class__,
+						'predict_proba',
+						fn,
+						max_iterations=max_iterations,
+						check_input=check_input,
+						n_jobs=1
+					)
+					for batch in data_generator.batches()
+				)
 
 			os.remove(fn)
 			return numpy.concatenate(logp_array)
