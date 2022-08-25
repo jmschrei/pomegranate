@@ -2027,7 +2027,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		cdef int n = len(sequence), m = len(self.states)
 		cdef int mv = self.multivariate
 		cdef void** distributions = <void**> self.distributions.data
-		cdef int* path = <int*> calloc(n+m, sizeof(int))
+		cdef int* path = <int*> calloc(n+m+1, sizeof(int))
 		cdef list vpath = []
 
 		sequence_ndarray = _check_input(sequence, self)
@@ -2061,7 +2061,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		cdef double log_probability
 		cdef int* in_edges = self.in_edge_count
 
-		memset(path, -1, (n+m)*sizeof(int))
+		memset(path, -1, (n+m+1)*sizeof(int))
 
 		# Fill in the emission table
 		for l in range(self.silent_start):
