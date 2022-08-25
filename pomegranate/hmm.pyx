@@ -49,6 +49,10 @@ cimport numpy
 from joblib import Parallel
 from joblib import delayed
 
+from libc.stdio cimport printf
+from libc.stdio cimport fflush
+from libc.stdio cimport stdout
+
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
@@ -2027,12 +2031,13 @@ cdef class HiddenMarkovModel(GraphModel):
 		cdef int n = len(sequence), m = len(self.states)
 		cdef int mv = self.multivariate
 		cdef void** distributions = <void**> self.distributions.data
-		cdef int* path = <int*> calloc(n+m+1, sizeof(int))
+		cdef size_t path_length = n+m+1
+		cdef int* path = <int*> calloc(path_length, sizeof(int))
 		cdef list vpath = []
 
 		sequence_ndarray = _check_input(sequence, self)
 		sequence_data = <double*> sequence_ndarray.data
-		logp = self._viterbi(sequence_data, path, n, m)
+		logp = self._viterbi(sequence_data, path, path_length, n, m)
 
 		for i in range(n+m):
 			if path[i] == -1:
@@ -2044,7 +2049,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		return logp, vpath if logp > NEGINF else None
 
 
-	cdef double _viterbi(self, double* sequence, int* path, int n, int m) nogil:
+	cdef double _viterbi(self, double* sequence, int* path, size_t path_length, int n, int m) nogil:
 		cdef int p = self.silent_start
 		cdef int i, l, k, ki
 		cdef int dim = self.d
@@ -2061,7 +2066,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		cdef double log_probability
 		cdef int* in_edges = self.in_edge_count
 
-		memset(path, -1, (n+m+1)*sizeof(int))
+		memset(path, -1, path_length*sizeof(int))
 
 		# Fill in the emission table
 		for l in range(self.silent_start):
@@ -2191,6 +2196,11 @@ cdef class HiddenMarkovModel(GraphModel):
 			# Until we've traced back to the start...
 			# Put the position in the path, making sure to look up the state
 			# object to use instead of the state index.
+
+			if length >= path_length:
+				printf("LENGTH WARNING: %d >= %d\n", length, path_length)
+				fflush(stdout)
+
 			path[length] = py
 			length += 1
 
@@ -2993,10 +3003,10 @@ cdef class HiddenMarkovModel(GraphModel):
 		in the observations.
 		"""
 
+		cdef size_t path_length = n+m+1
 		cdef int* path = <int*> malloc((n+m+1)*sizeof(int))
-		memset(path, -1, (n+m+1)*sizeof(int))
 
-		cdef double log_probability = self._viterbi(sequence, path, n, m)
+		cdef double log_probability = self._viterbi(sequence, path, path_length, n, m)
 		self.__labeled_summarize(sequence, path, weight, n, m)
 
 		free(path)
