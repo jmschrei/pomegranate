@@ -2,7 +2,7 @@
 #cython: cdivision=True
 # hmm.pyx: Yet Another Hidden Markov Model library
 # Authors: Jacob Schreiber <jmschreiber91@gmail.com>
-#          Adam Novak <anovak1@ucsc.edu>
+#	  Adam Novak <anovak1@ucsc.edu>
 
 from __future__ import print_function
 
@@ -49,14 +49,20 @@ cimport numpy
 from joblib import Parallel
 from joblib import delayed
 
-from libc.stdio cimport printf
-from libc.stdio cimport fflush
-from libc.stdio cimport stdout
-
 # Define some useful constants
 DEF NEGINF = float("-inf")
 DEF INF = float("inf")
 DEF SQRT_2_PI = 2.50662827463
+
+# For repetitive sequences in some models more
+# than (num_states + sequence_length + 1) states 
+# can be used.  This heuristic multiplier prevents 
+# heap overflows in the backtrace path calculation
+# for finite models.
+#
+# This comes at the expense of 4x more memory used
+# every time we solve for a viterbi path.
+DEF VITERBI_PATH_LENGTH_MULTIPLIER = 4
 
 def _check_input(sequence, model):
 	n = len(sequence)
@@ -2031,7 +2037,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		cdef int seq_length = len(sequence), num_states = len(self.states)
 		cdef int mv = self.multivariate
 		cdef void** distributions = <void**> self.distributions.data
-		cdef size_t path_length = seq_length+num_states+1
+		cdef size_t path_length = VITERBI_PATH_LENGTH_MULTIPLIER * (seq_length + num_states + 1)
 		cdef int* path = <int*> calloc(path_length, sizeof(int))
 		cdef list vpath = []
 
@@ -2189,17 +2195,13 @@ cdef class HiddenMarkovModel(GraphModel):
 
 		# Otherwise, do the traceback
 		# This holds the path, which we construct in reverse order
-		cdef int px = seq_length, py = end_index, npx
+		cdef int px = seq_length, py = end_index, npx = -1
 		cdef int length = 0
 
 		while px != 0 or py != self.start_index:
 			# Until we've traced back to the start...
 			# Put the position in the path, making sure to look up the state
 			# object to use instead of the state index.
-
-			if length >= path_length:
-				printf("LENGTH WARNING: %d >= %d (m=%d, n=%d)\n", length, path_length, num_states, seq_length)
-				fflush(stdout)
 
 			path[length] = py
 			length += 1
@@ -3003,8 +3005,8 @@ cdef class HiddenMarkovModel(GraphModel):
 		in the observations.
 		"""
 
-		cdef size_t path_length = seq_length + num_states + 1
-		cdef int* path = <int*> malloc((seq_length + num_states + 1) * sizeof(int))
+		cdef size_t path_length = VITERBI_PATH_LENGTH_MULTIPLIER * (seq_length + num_states + 1)
+		cdef int* path = <int*> malloc(path_length * sizeof(int))
 
 		cdef double log_probability = self._viterbi(sequence, path, path_length, seq_length, num_states)
 		self.__labeled_summarize(sequence, path, weight, seq_length, num_states)
