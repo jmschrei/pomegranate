@@ -2028,18 +2028,18 @@ cdef class HiddenMarkovModel(GraphModel):
 		cdef numpy.ndarray sequence_ndarray
 		cdef double* sequence_data
 		cdef double logp
-		cdef int n = len(sequence), m = len(self.states)
+		cdef int seq_length = len(sequence), num_states = len(self.states)
 		cdef int mv = self.multivariate
 		cdef void** distributions = <void**> self.distributions.data
-		cdef size_t path_length = n+m+1
+		cdef size_t path_length = seq_length+num_states+1
 		cdef int* path = <int*> calloc(path_length, sizeof(int))
 		cdef list vpath = []
 
 		sequence_ndarray = _check_input(sequence, self)
 		sequence_data = <double*> sequence_ndarray.data
-		logp = self._viterbi(sequence_data, path, path_length, n, m)
+		logp = self._viterbi(sequence_data, path, path_length, seq_length, num_states)
 
-		for i in range(n+m):
+		for i in range(seq_length+num_states):
 			if path[i] == -1:
 				break
 
@@ -2049,17 +2049,17 @@ cdef class HiddenMarkovModel(GraphModel):
 		return logp, vpath if logp > NEGINF else None
 
 
-	cdef double _viterbi(self, double* sequence, int* path, size_t path_length, int n, int m) nogil:
+	cdef double _viterbi(self, double* sequence, int* path, size_t path_length, int seq_length, int num_states) nogil:
 		cdef int p = self.silent_start
 		cdef int i, l, k, ki
 		cdef int dim = self.d
 
 		cdef void** distributions = <void**> self.distributions_ptr
 
-		cdef int* tracebackx = <int*> calloc((n+1)*m, sizeof(int))
-		cdef int* tracebacky = <int*> calloc((n+1)*m, sizeof(int))
-		cdef double* v = <double*> calloc((n+1)*m, sizeof(double))
-		cdef double* e = <double*> malloc((n*self.silent_start)*sizeof(double))
+		cdef int* tracebackx = <int*> calloc((seq_length + 1) * num_states, sizeof(int))
+		cdef int* tracebacky = <int*> calloc((seq_length + 1) * num_states, sizeof(int))
+		cdef double* v = <double*> calloc((seq_length + 1) * num_states, sizeof(double))
+		cdef double* emissions_table = <double*> malloc((seq_length * self.silent_start) * sizeof(double))
 
 		cdef double state_log_probability
 		cdef int end_index
@@ -2070,20 +2070,20 @@ cdef class HiddenMarkovModel(GraphModel):
 
 		# Fill in the emission table
 		for l in range(self.silent_start):
-			for i in range(n):
+			for i in range(seq_length):
 				if self.cython == 1:
-					(<Model> distributions[l])._log_probability(sequence+i*dim, e+l*n+i, 1)
+					(<Model> distributions[l])._log_probability(sequence + i * dim, emissions_table + l * seq_length + i, 1)
 				else:
 					with gil:
-						python_log_probability(self.distributions[l], sequence+i*dim, e+l*n+i, 1)
+						python_log_probability(self.distributions[l], sequence + i * dim, emissions_table + l * seq_length + i, 1)
 
-				e[l*n + i] += self.state_weights[l]
+				emissions_table[l * seq_length + i] += self.state_weights[l]
 
-		for i in range(m):
+		for i in range(num_states):
 			v[i] = NEGINF
 		v[self.start_index] = 0
 
-		for l in range(self.silent_start, m):
+		for l in range(self.silent_start, num_states):
 			# Handle transitions between silent states before the first symbol
 			# is emitted. No non-silent states have non-zero probability yet, so
 			# we can ignore them.
@@ -2105,30 +2105,30 @@ cdef class HiddenMarkovModel(GraphModel):
 					tracebackx[l] = 0
 					tracebacky[l] = ki
 
-		for i in range(n):
+		for i in range(seq_length):
 			for l in range(self.silent_start):
 				# Do the recurrence for non-silent states l
 				# Start out saying the best likelihood we have is -inf
-				v[(i+1)*m + l] = NEGINF
+				v[(i+1) * num_states + l] = NEGINF
 
 				for k in range(in_edges[l], in_edges[l+1]):
 					ki = self.in_transitions[k]
 
 					# For each previous state k
 					# This holds the log-probability coming that way
-					state_log_probability = v[i*m + ki] + \
-						self.in_transition_log_probabilities[k] + e[i + l*n]
+					state_log_probability = v[i * num_states + ki] + \
+											self.in_transition_log_probabilities[k] + emissions_table[i + l * seq_length]
 
-					if state_log_probability > v[(i+1)*m + l]:
-						v[(i+1)*m + l] = state_log_probability
-						tracebackx[(i+1)*m + l] = i
-						tracebacky[(i+1)*m + l] = ki
+					if state_log_probability > v[(i+1) * num_states + l]:
+						v[(i+1) * num_states + l] = state_log_probability
+						tracebackx[(i+1) * num_states + l] = i
+						tracebacky[(i+1) * num_states + l] = ki
 
-			for l in range(self.silent_start, m):
+			for l in range(self.silent_start, num_states):
 				# Now do the first pass over the silent states, finding the best
 				# current-step non-silent state they could come from.
 				# Start out saying the best likelihood we have is -inf
-				v[(i+1)*m + l] = NEGINF
+				v[(i+1) * num_states + l] = NEGINF
 
 				for k in range(in_edges[l], in_edges[l+1]):
 					ki = self.in_transitions[k]
@@ -2137,15 +2137,15 @@ cdef class HiddenMarkovModel(GraphModel):
 
 					# For each current-step non-silent state k
 					# This holds the log-probability coming that way
-					state_log_probability = v[(i+1)*m + ki] + \
-						self.in_transition_log_probabilities[k]
+					state_log_probability = v[(i+1) * num_states + ki] + \
+											self.in_transition_log_probabilities[k]
 
-					if state_log_probability > v[(i+1)*m + l]:
-						v[(i+1)*m + l] = state_log_probability
-						tracebackx[(i+1)*m + l] = i+1
-						tracebacky[(i+1)*m + l] = ki
+					if state_log_probability > v[(i+1) * num_states + l]:
+						v[(i+1) * num_states + l] = state_log_probability
+						tracebackx[(i+1) * num_states + l] = i + 1
+						tracebacky[(i+1) * num_states + l] = ki
 
-			for l in range(self.silent_start, m):
+			for l in range(self.silent_start, num_states):
 				# Now the second pass through silent states, where we check the
 				# silent states that could potentially reach here and see if
 				# they're better than the non-silent states we found.
@@ -2157,39 +2157,39 @@ cdef class HiddenMarkovModel(GraphModel):
 
 					# For each current-step preceding silent state k
 					# This holds the log-probability coming that way
-					state_log_probability = v[(i+1)*m + ki] + \
-						self.in_transition_log_probabilities[k]
+					state_log_probability = v[(i+1) * num_states + ki] + \
+											self.in_transition_log_probabilities[k]
 
-					if state_log_probability > v[(i+1)*m + l]:
-						v[(i+1)*m + l] = state_log_probability
-						tracebackx[(i+1)*m + l] = i+1
-						tracebacky[(i+1)*m + l] = ki
+					if state_log_probability > v[(i+1) * num_states + l]:
+						v[(i+1) * num_states + l] = state_log_probability
+						tracebackx[(i+1) * num_states + l] = i + 1
+						tracebacky[(i+1) * num_states + l] = ki
 
 		# Now the DP table is filled in. If this is a finite model, get the
 		# log likelihood of ending up in the end state after following the
 		# ML path through the model. If an infinite sequence, find the state
 		# which the ML path ends in, and begin there.
 		if self.finite == 1:
-			log_probability = v[n*m + self.end_index]
+			log_probability = v[seq_length * num_states + self.end_index]
 			end_index = self.end_index
 		else:
 			end_index = -1
 			log_probability = NEGINF
-			for i in range(m):
-				if v[n*m + i] > log_probability:
-					log_probability = v[n*m + i]
+			for i in range(num_states):
+				if v[seq_length * num_states + i] > log_probability:
+					log_probability = v[seq_length * num_states + i]
 					end_index = i
 
 		if log_probability == NEGINF:
 			free(tracebackx)
 			free(tracebacky)
 			free(v)
-			free(e)
+			free(emissions_table)
 			return log_probability
 
 		# Otherwise, do the traceback
 		# This holds the path, which we construct in reverse order
-		cdef int px = n, py = end_index, npx
+		cdef int px = seq_length, py = end_index, npx
 		cdef int length = 0
 
 		while px != 0 or py != self.start_index:
@@ -2198,15 +2198,15 @@ cdef class HiddenMarkovModel(GraphModel):
 			# object to use instead of the state index.
 
 			if length >= path_length:
-				printf("LENGTH WARNING: %d >= %d\n", length, path_length)
+				printf("LENGTH WARNING: %d >= %d (m=%d, n=%d)\n", length, path_length, num_states, seq_length)
 				fflush(stdout)
 
 			path[length] = py
 			length += 1
 
 			# Go backwards
-			npx = tracebackx[px*m + py]
-			py = tracebacky[px*m + py]
+			npx = tracebackx[px * num_states + py]
+			py = tracebacky[px * num_states + py]
 			px = npx
 
 		# We've now reached the start (if we didn't raise an exception because
@@ -2220,7 +2220,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		free(tracebackx)
 		free(tracebacky)
 		free(v)
-		free(e)
+		free(emissions_table)
 		return log_probability
 
 	def predict_proba(self, sequence):
@@ -2987,15 +2987,15 @@ cdef class HiddenMarkovModel(GraphModel):
 		"""
 
 		cdef double* sequence = <double*> sequence_ndarray.data
-		cdef int n = sequence_ndarray.shape[0], m = len(self.states)
+		cdef int seq_length = sequence_ndarray.shape[0], num_states = len(self.states)
 		cdef double log_sequence_probability
 
 		with nogil:
-			log_sequence_probability = self.__viterbi_summarize(sequence, weight, n, m)
+			log_sequence_probability = self.__viterbi_summarize(sequence, weight, seq_length, num_states)
 
 		return self.log_probability(sequence_ndarray, check_input=False)
 
-	cdef double __viterbi_summarize(self, double* sequence, double weight, int n, int m) nogil:
+	cdef double __viterbi_summarize(self, double* sequence, double weight, int seq_length, int num_states) nogil:
 		"""Perform Viterbi re-estimation on the model parameters.
 
 		The sequence is tagged using the viterbi algorithm, and both
@@ -3003,11 +3003,11 @@ cdef class HiddenMarkovModel(GraphModel):
 		in the observations.
 		"""
 
-		cdef size_t path_length = n+m+1
-		cdef int* path = <int*> malloc((n+m+1)*sizeof(int))
+		cdef size_t path_length = seq_length + num_states + 1
+		cdef int* path = <int*> malloc((seq_length + num_states + 1) * sizeof(int))
 
-		cdef double log_probability = self._viterbi(sequence, path, path_length, n, m)
-		self.__labeled_summarize(sequence, path, weight, n, m)
+		cdef double log_probability = self._viterbi(sequence, path, path_length, seq_length, num_states)
+		self.__labeled_summarize(sequence, path, weight, seq_length, num_states)
 
 		free(path)
 		return log_probability * weight
