@@ -16,7 +16,7 @@ install:
 	python setup.py install
 
 test:
-	python setup.py test
+	python3 -m pytest
 
 bigclean: nbclean
 	rm -rf build
@@ -64,9 +64,9 @@ py2uninstall:
 	rm -rf ~/miniconda2/envs/$(PY2_ENV)/lib/python2.7/site-packages/$(PACKAGE_NAME)*
 
 py3test:
-	(source activate $(PY3_ENV) ; python setup.py test )
+	(source activate $(PY3_ENV) ; python3 -m pytest )
 py2test:
-	(source activate $(PY2_ENV) ; python setup.py test )
+	(source activate $(PY2_ENV) ; python -m pytest )
 
 ## Notebook tests
 PYTHON_NOTEBOOKS= examples/*.ipynb tutorials/*.ipynb benchmarks/*.ipynb

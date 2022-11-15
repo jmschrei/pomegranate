@@ -5,33 +5,27 @@ from pomegranate.bayes import BayesModel
 from pomegranate.io import DataGenerator
 from pomegranate.io import DataFrameGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-from nose.tools import assert_true
 from numpy.testing import assert_array_almost_equal
+from .assert_tools import assert_almost_equal
 
 import pandas
-import random
 import pickle
 import numpy as np
 
-nan = numpy.nan
+import pytest
 
-def setup_multivariate_gaussian():
+nan = np.nan
+
+@pytest.fixture
+def multivariate_gaussian():
 	mu, cov = [0, 0, 0], numpy.eye(3)
 	d1 = MultivariateGaussianDistribution(mu, cov)
 
 	mu, cov = [2, 2, 2], numpy.eye(3)
 	d2 = MultivariateGaussianDistribution(mu, cov)
 
-	global model
 	model = BayesClassifier([d1, d2])
 
-	global X
 	X = numpy.array([[ 0.3,  0.5,  0.1],
 					 [ 0.8,  1.4,  0.5],
 					 [ 1.4,  2.6,  1.8],
@@ -43,10 +37,8 @@ def setup_multivariate_gaussian():
 					 [-1.8,  0.3,  0.5],
 					 [ 0.7, -1.3, -0.1]])
 
-	global y
 	y = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0]
 
-	global X_nan
 	X_nan = numpy.array([[ 0.3,  nan,  0.1],
 		     			 [ nan,  1.4,  nan],
 			     		 [ 1.4,  2.6,  nan],
@@ -57,9 +49,11 @@ def setup_multivariate_gaussian():
 						 [-1.2, -1.8, -1.5],
 						 [ nan,  0.3,  0.5],
 						 [ nan, -1.3,  nan]])
+	return model, X, y, X_nan
 
 
-def setup_multivariate_mixed():
+@pytest.fixture
+def multivariate_mixed():
 	mu, cov = [0, 0, 0], numpy.eye(3)
 	d1 = MultivariateGaussianDistribution(mu, cov)
 
@@ -68,10 +62,8 @@ def setup_multivariate_mixed():
 	d23 = PoissonDistribution(3)
 	d2 = IndependentComponentsDistribution([d21, d22, d23])
 
-	global model
 	model = BayesClassifier([d1, d2])
 
-	global X
 	X = numpy.array([[ 0.3,  0.5,  0.1],
 					 [ 0.8,  1.4,  0.5],
 					 [ 1.4,  2.6,  1.8],
@@ -83,10 +75,8 @@ def setup_multivariate_mixed():
 					 [ 1.8,  0.3,  0.5],
 					 [ 0.7,  1.3,  0.1]])
 
-	global y
 	y = [0, 0, 0, 1, 1, 1, 1, 0, 0, 0]
 
-	global X_nan
 	X_nan = numpy.array([[ 0.3,  nan,  0.1],
 		     			 [ nan,  1.4,  nan],
 			     		 [ 1.4,  2.6,  nan],
@@ -97,14 +87,11 @@ def setup_multivariate_mixed():
 						 [ 1.2,  1.8,  1.5],
 						 [ nan,  0.3,  0.5],
 						 [ nan,  1.3,  nan]])
+	return model, X, y, X_nan
 
 
-def setup_hmm():
-	global model
-	global hmm1
-	global hmm2
-	global hmm3
-
+@pytest.fixture
+def hmm():
 	rigged = State( DiscreteDistribution({ 'H': 0.8, 'T': 0.2 }) )
 	unrigged = State( DiscreteDistribution({ 'H': 0.5, 'T':0.5 }) )
 
@@ -128,14 +115,8 @@ def setup_hmm():
 	hmm3.bake()
 
 	model = BayesClassifier([hmm1, hmm2, hmm3])
+	return model, hmm1, hmm2, hmm3
 
-
-def setup_multivariate():
-	pass
-
-
-def teardown():
-	pass
 
 def test_unpickle_bayes_model():
 	"""Test that `BayesModel` can be pickled and unpickled."""
@@ -153,21 +134,21 @@ def test_unpickle_bayes_model():
 		unpickled_model.distributions[1].parameters,
 	)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_initialization():
-	assert_equal(model.d, 3)
-	assert_equal(model.n, 2)
-	assert_equal(model.is_vl_, False)
+def test_bc_multivariate_gaussian_initialization(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
+	assert model.d == 3
+	assert model.n == 2
+	assert model.is_vl_ == False
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_initialization():
-	assert_equal(model.d, 3)
-	assert_equal(model.n, 2)
-	assert_equal(model.is_vl_, False)
+def test_bc_multivariate_mixed_initialization(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
+	assert model.d == 3
+	assert model.n == 2
+	assert model.is_vl_ == False
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_predict_log_proba():
+def test_bc_multivariate_gaussian_predict_log_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_log_proba(X)
 	y = [[ -1.48842547e-02,  -4.21488425e+00],
 		 [ -4.37487950e-01,  -1.03748795e+00],
@@ -183,8 +164,8 @@ def test_bc_multivariate_gaussian_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_predict_log_proba():
+def test_bc_multivariate_mixed_predict_log_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_log_proba(X)
 	y = [[ -5.03107596e-01,  -9.27980626e-01],
 		 [ -1.86355320e-01,  -1.77183117e+00],
@@ -200,8 +181,8 @@ def test_bc_multivariate_mixed_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_nan_predict_log_proba():
+def test_bc_multivariate_gaussian_nan_predict_log_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_log_proba(X_nan)
 	y = [[ -3.99533332e-02,  -3.23995333e+00],
 		 [ -1.17110067e+00,  -3.71100666e-01],
@@ -217,8 +198,8 @@ def test_bc_multivariate_gaussian_nan_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_nan_predict_log_proba():
+def test_bc_multivariate_mixed_nan_predict_log_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_log_proba(X_nan)
 	y = [[ -3.57980882e-01,  -1.20093223e+00],
 		 [ -1.20735130e+00,  -3.55230506e-01],
@@ -234,8 +215,8 @@ def test_bc_multivariate_mixed_nan_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_predict_log_proba_parallel():
+def test_bc_multivariate_gaussian_predict_log_proba_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_log_proba(X, n_jobs=2)
 	y = [[ -1.48842547e-02,  -4.21488425e+00],
 		 [ -4.37487950e-01,  -1.03748795e+00],
@@ -251,8 +232,8 @@ def test_bc_multivariate_gaussian_predict_log_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_predict_log_proba_parallel():
+def test_bc_multivariate_mixed_predict_log_proba_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_log_proba(X, n_jobs=2)
 	y = [[ -5.03107596e-01,  -9.27980626e-01],
 		 [ -1.86355320e-01,  -1.77183117e+00],
@@ -268,8 +249,8 @@ def test_bc_multivariate_mixed_predict_log_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_predict_proba():
+def test_bc_multivariate_gaussian_predict_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_proba(X)
 	y =	[[  9.85225968e-01,   1.47740317e-02],
 		 [  6.45656306e-01,   3.54343694e-01],
@@ -285,8 +266,8 @@ def test_bc_multivariate_gaussian_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_predict_proba():
+def test_bc_multivariate_mixed_predict_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_proba(X)
 	y = [[ 0.60464873,  0.39535127],
 		 [ 0.82997863,  0.17002137],
@@ -302,8 +283,8 @@ def test_bc_multivariate_mixed_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_nan_predict_proba():
+def test_bc_multivariate_gaussian_nan_predict_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_proba(X_nan)
 	y = [[  9.60834277e-01,   3.91657228e-02],
 		 [  3.10025519e-01,   6.89974481e-01],
@@ -319,8 +300,8 @@ def test_bc_multivariate_gaussian_nan_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_nan_predict_proba():
+def test_bc_multivariate_mixed_nan_predict_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_proba(X_nan)
 	y = [[  6.99086440e-01,   3.00913560e-01],
 		 [  2.98988163e-01,   7.01011837e-01],
@@ -336,8 +317,8 @@ def test_bc_multivariate_mixed_nan_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_predict_proba_parallel():
+def test_bc_multivariate_gaussian_predict_proba_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_proba(X, n_jobs=2)
 	y = [[  9.85225968e-01,   1.47740317e-02],
 		 [  6.45656306e-01,   3.54343694e-01],
@@ -353,8 +334,8 @@ def test_bc_multivariate_gaussian_predict_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_predict_proba_parallel():
+def test_bc_multivariate_mixed_predict_proba_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_proba(X, n_jobs=2)
 	y = [[ 0.60464873,  0.39535127],
 		 [ 0.82997863,  0.17002137],
@@ -370,56 +351,56 @@ def test_bc_multivariate_mixed_predict_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_predict():
+def test_bc_multivariate_gaussian_predict(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict(X)
 	y = [0, 0, 1, 1, 1, 1, 1, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_predict():
+def test_bc_multivariate_mixed_predict(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict(X)
 	y = [0, 0, 0, 1, 1, 0, 0, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_nan_predict():
+def test_bc_multivariate_gaussian_nan_predict(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict(X_nan)
 	y = [0, 1, 1, 0, 1, 1, 1, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_nan_predict():
+def test_bc_multivariate_mixed_nan_predict(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict(X_nan)
 	y = [0, 1, 0, 0, 1, 0, 1, 0, 0, 1]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_predict_parallel():
+def test_bc_multivariate_gaussian_predict_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict(X, n_jobs=2)
 	y = [0, 0, 1, 1, 1, 1, 1, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_predict_parallel():
+def test_bc_multivariate_mixed_predict_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict(X, n_jobs=2)
 	y = [0, 0, 0, 1, 1, 0, 0, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_fit_parallel():
+def test_bc_multivariate_gaussian_fit_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model.fit(X, y, n_jobs=2)
 
 	mu1 = model.distributions[0].parameters[0]
@@ -443,8 +424,8 @@ def test_bc_multivariate_gaussian_fit_parallel():
 	assert_array_almost_equal(cov2, cov2_t)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_fit_parallel():
+def test_bc_multivariate_mixed_fit_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	model.fit(X, y, n_jobs=2)
 
 	mu1 = model.distributions[0].parameters[0]
@@ -465,8 +446,8 @@ def test_bc_multivariate_mixed_fit_parallel():
 	assert_array_almost_equal(d23.parameters, [2.625])
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_from_samples():
+def test_bc_multivariate_gaussian_from_samples(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model = BayesClassifier.from_samples(MultivariateGaussianDistribution, X, y)
 
 	mu1 = model.distributions[0].parameters[0]
@@ -489,68 +470,68 @@ def test_bc_multivariate_gaussian_from_samples():
 	assert_array_almost_equal(cov2, cov2_t)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_pickle():
+def test_bc_multivariate_gaussian_pickle(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model2 = pickle.loads(pickle.dumps(model))
 
-	assert_true(isinstance(model2, BayesClassifier))
-	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(model2.distributions[1], MultivariateGaussianDistribution))
+	assert isinstance(model2, BayesClassifier)
+	assert isinstance(model2.distributions[0], MultivariateGaussianDistribution)
+	assert isinstance(model2.distributions[1], MultivariateGaussianDistribution)
 	assert_array_almost_equal(model.weights, model2.weights)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_pickle():
+def test_bc_multivariate_mixed_pickle(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	model2 = pickle.loads(pickle.dumps(model))
 
-	assert_true(isinstance(model2, BayesClassifier))
-	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(model2.distributions[1], IndependentComponentsDistribution))
+	assert isinstance(model2, BayesClassifier)
+	assert isinstance(model2.distributions[0], MultivariateGaussianDistribution)
+	assert isinstance(model2.distributions[1], IndependentComponentsDistribution)
 	assert_array_almost_equal(model.weights, model2.weights)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_to_json():
+def test_bc_multivariate_gaussian_to_json(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model2 = BayesClassifier.from_json(model.to_json())
 
-	assert_true(isinstance(model2, BayesClassifier))
-	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(model2.distributions[1], MultivariateGaussianDistribution))
+	assert isinstance(model2, BayesClassifier)
+	assert isinstance(model2.distributions[0], MultivariateGaussianDistribution)
+	assert isinstance(model2.distributions[1], MultivariateGaussianDistribution)
 	assert_array_almost_equal(model.weights, model2.weights)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_to_json():
+def test_bc_multivariate_mixed_to_json(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	model2 = BayesClassifier.from_json(model.to_json())
 
-	assert_true(isinstance(model2, BayesClassifier))
-	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(model2.distributions[1], IndependentComponentsDistribution))
+	assert isinstance(model2, BayesClassifier)
+	assert isinstance(model2.distributions[0], MultivariateGaussianDistribution)
+	assert isinstance(model2.distributions[1], IndependentComponentsDistribution)
 	assert_array_almost_equal(model.weights, model2.weights)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_bc_multivariate_gaussian_robust_from_json():
+def test_bc_multivariate_gaussian_robust_from_json(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model2 = from_json(model.to_json())
 
-	assert_true(isinstance(model2, BayesClassifier))
-	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(model2.distributions[1], MultivariateGaussianDistribution))
+	assert isinstance(model2, BayesClassifier)
+	assert isinstance(model2.distributions[0], MultivariateGaussianDistribution)
+	assert isinstance(model2.distributions[1], MultivariateGaussianDistribution)
 	assert_array_almost_equal(model.weights, model2.weights)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_bc_multivariate_mixed_robust_from_json():
+def test_bc_multivariate_mixed_robust_from_json(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	model2 = from_json(model.to_json())
 
-	assert_true(isinstance(model2, BayesClassifier))
-	assert_true(isinstance(model2.distributions[0], MultivariateGaussianDistribution))
-	assert_true(isinstance(model2.distributions[1], IndependentComponentsDistribution))
+	assert isinstance(model2, BayesClassifier)
+	assert isinstance(model2.distributions[0], MultivariateGaussianDistribution)
+	assert isinstance(model2.distributions[1], IndependentComponentsDistribution)
 	assert_array_almost_equal(model.weights, model2.weights)
 
 
-@with_setup(setup_hmm, teardown)
-def test_model():
+def test_model(hmm):
+	model, hmm1, hmm2, hmm3 = hmm
 	assert_almost_equal(hmm1.log_probability(list('H')), -0.2231435513142097 )
 	assert_almost_equal(hmm1.log_probability(list('T')), -1.6094379124341003 )
 	assert_almost_equal(hmm1.log_probability(list('HHHH')), -0.8925742052568388 )
@@ -571,11 +552,11 @@ def test_model():
 	assert_almost_equal(hmm3.log_probability(list('THTHTHTHTHTH')), -8.883630243546788)
 	assert_almost_equal(hmm3.log_probability(list('THTHHHHHTHTH')), -7.645551826734343)
 
-	assert_equal(model.d, 1)
+	assert model.d == 1
 
 
-@with_setup(setup_hmm, teardown)
-def test_hmm_log_proba():
+def test_hmm_log_proba(hmm):
+	model, hmm1, hmm2, hmm3 = hmm
 	logs = model.predict_log_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
 
 	assert_almost_equal(logs[0][0], -0.89097292388986515)
@@ -599,8 +580,8 @@ def test_hmm_log_proba():
 	assert_almost_equal(logs[4][2], -0.7284958836972919)
 
 
-@with_setup(setup_hmm, teardown)
-def test_hmm_proba():
+def test_hmm_proba(hmm):
+	model, hmm1, hmm2, hmm3 = hmm
 	probs = model.predict_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
 
 	assert_almost_equal(probs[0][0], 0.41025641025641024)
@@ -624,18 +605,18 @@ def test_hmm_proba():
 	assert_almost_equal(probs[4][2], 0.48263438265925512)
 
 
-@with_setup(setup_hmm, teardown)
-def test_hmm_prediction():
+def test_hmm_prediction(hmm):
+	model, hmm1, hmm2, hmm3 = hmm
 	predicts = model.predict(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
 
-	assert_equal(predicts[0], 0)
-	assert_equal(predicts[1], 0)
-	assert_equal(predicts[2], 1)
-	assert_equal(predicts[3], 1)
-	assert_equal(predicts[4], 2)
+	assert predicts[0] == 0
+	assert predicts[1] == 0
+	assert predicts[2] == 1
+	assert predicts[3] == 1
+	assert predicts[4] == 2
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_log_probability():
+def test_io_log_probability(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 
@@ -646,8 +627,8 @@ def test_io_log_probability():
 	assert_array_almost_equal(logp1, logp2)
 	assert_array_almost_equal(logp1, logp3)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_predict():
+def test_io_predict(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 
@@ -658,8 +639,8 @@ def test_io_predict():
 	assert_array_almost_equal(y_hat1, y_hat2)
 	assert_array_almost_equal(y_hat1, y_hat3)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_predict_proba():
+def test_io_predict_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 
@@ -670,8 +651,8 @@ def test_io_predict_proba():
 	assert_array_almost_equal(y_hat1, y_hat2)
 	assert_array_almost_equal(y_hat1, y_hat3)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_predict_log_proba():
+def test_io_predict_log_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 

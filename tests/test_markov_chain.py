@@ -1,78 +1,67 @@
 from __future__ import (division)
 
 from pomegranate import *
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-import random
+from .assert_tools import assert_almost_equal
+
 import pickle
-import numpy as np
+import pytest
 
+
+@pytest.fixture
 def setup():
-	global data
-	global weights
-	global zeroth_dist
-	global first_dist
-	global second_dist
+    data = [ list('AAACBDAA'), list('DBBCBABD'), list('CBDCCDCBC'),	 list('DDDDC'),
+    		 list('DADBBCBBBACBC'), list('CBDBAC'), list('CACDDDBCAABA'), list('BBABDAADCABCCAD'),
+    		 list('DCBBBADBBCBC'), list('DCADDAAA'), list('AABBBCC'), list('CABBADACDBBDCC'),
+    		 list('AADDCDDDB'), list('CCDBDCDDDABDAC'), list('DDADB'), list('BCDACDBBBBAC'),
+    		 list('ADCBCCCB'), list('BDDBCA'), list('ACCDCBADCBBBB'), list('ACCBABCBA'),
+    		 list('DAABCCBBD'), list('CCAADACBDCDBABC'), list('BCDCACBBAD'), list('CBBBCDCA'),
+    		 list('CBDADACAADBCC'), list('DCDABCC'), list('AAAABCBC'), list('BDDDDACBBCABA'),
+    		 list('CCBDCBDCBADBBDB'), list('CBDAA'), list('CCDAAAB'), list('ABDBAC'),
+    		 list('DBCCDCC'), list('CCDCBB'), list('ACDBCDD'), list('CACCACCDBBDABB'),
+    		 list('DCDDAB'), list('ADDDCDACACA'), list('AAACACADB'), list('BDBBDDBACDCCAAA') ]
 
-	data = [ list('AAACBDAA'), list('DBBCBABD'), list('CBDCCDCBC'),	 list('DDDDC'),
-			 list('DADBBCBBBACBC'), list('CBDBAC'), list('CACDDDBCAABA'), list('BBABDAADCABCCAD'),
-			 list('DCBBBADBBCBC'), list('DCADDAAA'), list('AABBBCC'), list('CABBADACDBBDCC'),
-			 list('AADDCDDDB'), list('CCDBDCDDDABDAC'), list('DDADB'), list('BCDACDBBBBAC'),
-			 list('ADCBCCCB'), list('BDDBCA'), list('ACCDCBADCBBBB'), list('ACCBABCBA'),
-			 list('DAABCCBBD'), list('CCAADACBDCDBABC'), list('BCDCACBBAD'), list('CBBBCDCA'),
-			 list('CBDADACAADBCC'), list('DCDABCC'), list('AAAABCBC'), list('BDDDDACBBCABA'),
-			 list('CCBDCBDCBADBBDB'), list('CBDAA'), list('CCDAAAB'), list('ABDBAC'),
-			 list('DBCCDCC'), list('CCDCBB'), list('ACDBCDD'), list('CACCACCDBBDABB'),
-			 list('DCDDAB'), list('ADDDCDACACA'), list('AAACACADB'), list('BDBBDDBACDCCAAA') ]
+    weights = [ 8, 7, 1, 2, 8, 1, 9, 2, 6, 2, 5, 6, 10, 10, 8, 4, 10, 10, 2, 9,
+    			6, 2, 9, 9, 3, 1, 10, 6, 9, 1, 2, 9, 2, 1, 4, 1, 2, 7, 9, 4]
 
-	weights = [ 8, 7, 1, 2, 8, 1, 9, 2, 6, 2, 5, 6, 10, 10, 8, 4, 10, 10, 2, 9,
-				6, 2, 9, 9, 3, 1, 10, 6, 9, 1, 2, 9, 2, 1, 4, 1, 2, 7, 9, 4]
+    zeroth_dist = DiscreteDistribution( { 'A': 0.1, 'B': 0.2, 'C': 0.3, 'D': 0.4 } )
 
-	zeroth_dist = DiscreteDistribution( { 'A': 0.1, 'B': 0.2, 'C': 0.3, 'D': 0.4 } )
+    first_dist = ConditionalProbabilityTable(
+    	[[ 'A', 'A', 0.8 ], [ 'A', 'B', 0.05 ], [ 'A', 'C', 0.05 ], [ 'A', 'D', 0.1 ],
+    	 [ 'B', 'A', 0.1 ], [ 'B', 'B', 0.2 ], [ 'B', 'C', 0.6 ], [ 'B', 'D', 0.1 ],
+    	 [ 'C', 'A', 0.15 ], [ 'C', 'B', 0.1 ], [ 'C', 'C', 0.25 ], [ 'C', 'D', 0.5 ],
+    	 [ 'D', 'A', 0.25 ], [ 'D', 'B', 0.25 ], [ 'D', 'C', 0.4 ], [ 'D', 'D', 0.1 ]],
+    	 [ zeroth_dist ] )
 
-	first_dist = ConditionalProbabilityTable(
-		[[ 'A', 'A', 0.8 ], [ 'A', 'B', 0.05 ], [ 'A', 'C', 0.05 ], [ 'A', 'D', 0.1 ],
-		 [ 'B', 'A', 0.1 ], [ 'B', 'B', 0.2 ], [ 'B', 'C', 0.6 ], [ 'B', 'D', 0.1 ],
-		 [ 'C', 'A', 0.15 ], [ 'C', 'B', 0.1 ], [ 'C', 'C', 0.25 ], [ 'C', 'D', 0.5 ],
-		 [ 'D', 'A', 0.25 ], [ 'D', 'B', 0.25 ], [ 'D', 'C', 0.4 ], [ 'D', 'D', 0.1 ]],
-		 [ zeroth_dist ] )
+    second_dist = ConditionalProbabilityTable(
+    	[[ 'A', 'A', 'A', 0.05 ], [ 'A', 'A', 'B', 0.25 ], [ 'A', 'A', 'C', 0.15 ], [ 'A', 'A', 'D', 0.55 ],
+    	 [ 'A', 'B', 'A', 0.05 ], [ 'A', 'B', 'B', 0.05 ], [ 'A', 'B', 'C', 0.85 ], [ 'A', 'B', 'D', 0.05 ],
+    	 [ 'A', 'C', 'A', 0.7 ], [ 'A', 'C', 'B', 0.1 ], [ 'A', 'C', 'C', 0.1 ], [ 'A', 'C', 'D', 0.1 ],
+    	 [ 'A', 'D', 'A', 0.2 ], [ 'A', 'D', 'B', 0.4 ], [ 'A', 'D', 'C', 0.35 ], [ 'A', 'D', 'D', 0.05 ],
+    	 [ 'B', 'A', 'A', 0.3 ], [ 'B', 'A', 'B', 0.05 ], [ 'B', 'A', 'C', 0.15 ], [ 'B', 'A', 'D', 0.5 ],
+    	 [ 'B', 'B', 'A', 0.8 ], [ 'B', 'B', 'B', 0.1 ], [ 'B', 'B', 'C', 0.1 ], [ 'B', 'B', 'D', 0.0 ],
+    	 [ 'B', 'C', 'A', 0.1 ], [ 'B', 'C', 'B', 0.35 ], [ 'B', 'C', 'C', 0.3 ], [ 'B', 'C', 'D', 0.25 ],
+    	 [ 'B', 'D', 'A', 0.3 ], [ 'B', 'D', 'B', 0.1 ], [ 'B', 'D', 'C', 0.2 ], [ 'B', 'D', 'D', 0.4 ],
+    	 [ 'C', 'A', 'A', 0.2 ], [ 'C', 'A', 'B', 0.3 ], [ 'C', 'A', 'C', 0.3 ], [ 'C', 'A', 'D', 0.2 ],
+    	 [ 'C', 'B', 'A', 0.35 ], [ 'C', 'B', 'B', 0.45 ], [ 'C', 'B', 'C', 0.0 ], [ 'C', 'B', 'D', 0.2 ],
+    	 [ 'C', 'C', 'A', 0.25 ], [ 'C', 'C', 'B', 0.0 ], [ 'C', 'C', 'C', 0.6 ], [ 'C', 'C', 'D', 0.15 ],
+    	 [ 'C', 'D', 'A', 0.8 ], [ 'C', 'D', 'B', 0.1 ], [ 'C', 'D', 'C', 0.05 ], [ 'C', 'D', 'D', 0.05 ],
+    	 [ 'D', 'A', 'A', 0.5 ], [ 'D', 'A', 'B', 0.0 ], [ 'D', 'A', 'C', 0.5 ], [ 'D', 'A', 'D', 0.0 ],
+    	 [ 'D', 'B', 'A', 0.35 ], [ 'D', 'B', 'B', 0.5 ], [ 'D', 'B', 'C', 0.1 ], [ 'D', 'B', 'D', 0.05 ],
+    	 [ 'D', 'C', 'A', 0.1 ], [ 'D', 'C', 'B', 0.45 ], [ 'D', 'C', 'C', 0.0 ], [ 'D', 'C', 'D', 0.45 ],
+    	 [ 'D', 'D', 'A', 0.2 ], [ 'D', 'D', 'B', 0.1 ], [ 'D', 'D', 'C', 0.1 ], [ 'D', 'D', 'D', 0.6 ]],
+    	 [ zeroth_dist, first_dist ] )
+    return data, weights, zeroth_dist, first_dist, second_dist
 
-	second_dist = ConditionalProbabilityTable(
-		[[ 'A', 'A', 'A', 0.05 ], [ 'A', 'A', 'B', 0.25 ], [ 'A', 'A', 'C', 0.15 ], [ 'A', 'A', 'D', 0.55 ],
-		 [ 'A', 'B', 'A', 0.05 ], [ 'A', 'B', 'B', 0.05 ], [ 'A', 'B', 'C', 0.85 ], [ 'A', 'B', 'D', 0.05 ],
-		 [ 'A', 'C', 'A', 0.7 ], [ 'A', 'C', 'B', 0.1 ], [ 'A', 'C', 'C', 0.1 ], [ 'A', 'C', 'D', 0.1 ],
-		 [ 'A', 'D', 'A', 0.2 ], [ 'A', 'D', 'B', 0.4 ], [ 'A', 'D', 'C', 0.35 ], [ 'A', 'D', 'D', 0.05 ],
-		 [ 'B', 'A', 'A', 0.3 ], [ 'B', 'A', 'B', 0.05 ], [ 'B', 'A', 'C', 0.15 ], [ 'B', 'A', 'D', 0.5 ],
-		 [ 'B', 'B', 'A', 0.8 ], [ 'B', 'B', 'B', 0.1 ], [ 'B', 'B', 'C', 0.1 ], [ 'B', 'B', 'D', 0.0 ],
-		 [ 'B', 'C', 'A', 0.1 ], [ 'B', 'C', 'B', 0.35 ], [ 'B', 'C', 'C', 0.3 ], [ 'B', 'C', 'D', 0.25 ],
-		 [ 'B', 'D', 'A', 0.3 ], [ 'B', 'D', 'B', 0.1 ], [ 'B', 'D', 'C', 0.2 ], [ 'B', 'D', 'D', 0.4 ],
-		 [ 'C', 'A', 'A', 0.2 ], [ 'C', 'A', 'B', 0.3 ], [ 'C', 'A', 'C', 0.3 ], [ 'C', 'A', 'D', 0.2 ],
-		 [ 'C', 'B', 'A', 0.35 ], [ 'C', 'B', 'B', 0.45 ], [ 'C', 'B', 'C', 0.0 ], [ 'C', 'B', 'D', 0.2 ],
-		 [ 'C', 'C', 'A', 0.25 ], [ 'C', 'C', 'B', 0.0 ], [ 'C', 'C', 'C', 0.6 ], [ 'C', 'C', 'D', 0.15 ],
-		 [ 'C', 'D', 'A', 0.8 ], [ 'C', 'D', 'B', 0.1 ], [ 'C', 'D', 'C', 0.05 ], [ 'C', 'D', 'D', 0.05 ],
-		 [ 'D', 'A', 'A', 0.5 ], [ 'D', 'A', 'B', 0.0 ], [ 'D', 'A', 'C', 0.5 ], [ 'D', 'A', 'D', 0.0 ],
-		 [ 'D', 'B', 'A', 0.35 ], [ 'D', 'B', 'B', 0.5 ], [ 'D', 'B', 'C', 0.1 ], [ 'D', 'B', 'D', 0.05 ],
-		 [ 'D', 'C', 'A', 0.1 ], [ 'D', 'C', 'B', 0.45 ], [ 'D', 'C', 'C', 0.0 ], [ 'D', 'C', 'D', 0.45 ],
-		 [ 'D', 'D', 'A', 0.2 ], [ 'D', 'D', 'B', 0.1 ], [ 'D', 'D', 'C', 0.1 ], [ 'D', 'D', 'D', 0.6 ]],
-		 [ zeroth_dist, first_dist ] )
-
-def teardown():
-	pass
-
-@with_setup( setup, teardown )
-def test_zeroth_dist():
+def test_zeroth_dist(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	assert_almost_equal( zeroth_dist.log_probability( 'A' ), -2.3025850929940455 )
 	assert_almost_equal( zeroth_dist.log_probability( 'B' ), -1.6094379124341003 )
 	assert_almost_equal( zeroth_dist.log_probability( 'C' ), -1.2039728043259361 )
 	assert_almost_equal( zeroth_dist.log_probability( 'D' ), -0.916290731874155 )
-	assert_almost_equal( zeroth_dist.log_probability( 'E' ), -float('inf') )
+	assert zeroth_dist.log_probability( 'E' ) == -float('inf')
 
-@with_setup( setup, teardown )
-def test_first_dist():
+def test_first_dist(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	assert_almost_equal( first_dist.log_probability( ('A', 'A') ), -0.22314355131420971 )
 	assert_almost_equal( first_dist.log_probability( ('A', 'B') ), -2.9957322735539909 )
 
@@ -85,8 +74,8 @@ def test_first_dist():
 	assert_almost_equal( first_dist.log_probability( ('D', 'D') ), -2.3025850929940455 )
 	assert_almost_equal( first_dist.log_probability( ('D', 'A') ), -1.3862943611198906 )
 
-@with_setup( setup, teardown )
-def test_second_dist():
+def test_second_dist(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	assert_almost_equal( second_dist.log_probability( ('A', 'A', 'C') ), -1.89711998489 )
 	assert_almost_equal( second_dist.log_probability( ('A', 'A', 'A') ), -2.99573227355 )
 	assert_almost_equal( second_dist.log_probability( ('A', 'B', 'A') ), -2.99573227355 )
@@ -100,7 +89,7 @@ def test_second_dist():
 	assert_almost_equal( second_dist.log_probability( ('B', 'A', 'B') ), -2.99573227355 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'A', 'D') ), -0.69314718056 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'B', 'B') ), -2.30258509299 )
-	assert_almost_equal( second_dist.log_probability( ('B', 'B', 'D') ), -float('inf') )
+	assert second_dist.log_probability( ('B', 'B', 'D') ) == -float('inf')
 
 	assert_almost_equal( second_dist.log_probability( ('B', 'C', 'A') ), -2.30258509299 )
 	assert_almost_equal( second_dist.log_probability( ('B', 'C', 'B') ), -1.0498221245 )
@@ -109,15 +98,15 @@ def test_second_dist():
 
 	assert_almost_equal( second_dist.log_probability( ('C', 'A', 'A') ), -1.60943791243 )
 	assert_almost_equal( second_dist.log_probability( ('C', 'A', 'B') ), -1.20397280433 )
-	assert_almost_equal( second_dist.log_probability( ('C', 'B', 'C') ), -float('inf') )
+	assert second_dist.log_probability( ('C', 'B', 'C') ) == -float('inf')
 	assert_almost_equal( second_dist.log_probability( ('C', 'B', 'A') ), -1.0498221245 )
 
 	assert_almost_equal( second_dist.log_probability( ('C', 'C', 'D') ), -1.89711998489 )
-	assert_almost_equal( second_dist.log_probability( ('C', 'C', 'B') ), -float('inf') )
+	assert second_dist.log_probability( ('C', 'C', 'B') ) == -float('inf')
 	assert_almost_equal( second_dist.log_probability( ('C', 'D', 'A') ), -0.223143551314 )
 	assert_almost_equal( second_dist.log_probability( ('C', 'D', 'C') ), -2.99573227355 )
 
-	assert_almost_equal( second_dist.log_probability( ('D', 'A', 'D') ), -float('inf') )
+	assert second_dist.log_probability( ('D', 'A', 'D') ) == -float('inf')
 	assert_almost_equal( second_dist.log_probability( ('D', 'A', 'A') ), -0.69314718056 )
 	assert_almost_equal( second_dist.log_probability( ('D', 'B', 'D') ), -2.99573227355 )
 	assert_almost_equal( second_dist.log_probability( ('D', 'B', 'C') ), -2.30258509299 )
@@ -127,14 +116,14 @@ def test_second_dist():
 	assert_almost_equal( second_dist.log_probability( ('D', 'D', 'D') ), -0.510825623766 )
 	assert_almost_equal( second_dist.log_probability( ('D', 'D', 'A') ), -1.60943791243 )
 
-@with_setup( setup, teardown )
-def test_constructors():
+def test_constructors(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	# raises no errors
 	first_chain = MarkovChain([ zeroth_dist, first_dist ])
 	second_chain = MarkovChain([ zeroth_dist, first_dist, second_dist ])
 
-@with_setup( setup, teardown )
-def test_first_log_probability():
+def test_first_log_probability(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	# test going one state back
 	first_chain = MarkovChain([ zeroth_dist, first_dist ])
 
@@ -179,20 +168,20 @@ def test_first_log_probability():
 
 	assert_almost_equal( second_chain.log_probability( list('ABDD') ), -9.21034037198 )
 	assert_almost_equal( second_chain.log_probability( list('CCCD') ), -4.9982127741 )
-	assert_almost_equal( second_chain.log_probability( list('CCBD') ), -float('inf') )
+	assert second_chain.log_probability( list('CCBD') ) == -float('inf')
 	assert_almost_equal( second_chain.log_probability( list('ACAC') ), -6.85896511481 )
 
 	assert_almost_equal( second_chain.log_probability( list('ABDBCCDC') ), -18.9960448889 )
-	assert_almost_equal( second_chain.log_probability( list('DACCBDCB') ), -float('inf') )
+	assert second_chain.log_probability( list('DACCBDCB') ) == -float('inf')
 
 	assert_almost_equal( second_chain.log_probability( list('BCCCACBDBDBABACD') ), -29.1792463442 )
 
-	assert_almost_equal( second_chain.log_probability( list('DABBCBDACAAADCBDCDBCBDCACBDABBAA') ), -float('inf') )
+	assert second_chain.log_probability( list('DABBCBDACAAADCBDCDBCBDCACBDABBAA') ) == -float('inf')
 
 # if summarize and from summaries work, so does fit
 
-@with_setup( setup, teardown )
-def test_summarize_no_weights_no_inertia():
+def test_summarize_no_weights_no_inertia(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	first_chain = MarkovChain([ zeroth_dist, first_dist ])
 
 	# split in four
@@ -236,8 +225,8 @@ def test_summarize_no_weights_no_inertia():
 	second_chain.summarize( data[30:] )
 	second_chain.from_summaries()
 
-@with_setup( setup, teardown )
-def test_summarize_no_weights_with_inertia():
+def test_summarize_no_weights_with_inertia(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	first_chain = MarkovChain([ zeroth_dist, first_dist ])
 
 	first_chain.summarize( data[:10] )
@@ -270,8 +259,8 @@ def test_summarize_no_weights_with_inertia():
 
 	assert_almost_equal( first_chain.log_probability( list('DABBCBDACAAADCBDCDBCBDCACBDABBAA') ), -44.8853484278 )
 
-@with_setup( setup, teardown )
-def test_summarize_with_weights_no_inertia():
+def test_summarize_with_weights_no_inertia(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	first_chain = MarkovChain([ zeroth_dist, first_dist ])
 
 	# split in four
@@ -305,8 +294,8 @@ def test_summarize_with_weights_no_inertia():
 
 	assert_almost_equal( first_chain.log_probability( list('DABBCBDACAAADCBDCDBCBDCACBDABBAA') ), -44.3127858762 )
 
-@with_setup( setup, teardown )
-def test_summarize_with_weights_with_inertia():
+def test_summarize_with_weights_with_inertia(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	first_chain = MarkovChain([ zeroth_dist, first_dist ])
 
 	# split in four
@@ -340,28 +329,28 @@ def test_summarize_with_weights_with_inertia():
 
 	assert_almost_equal( first_chain.log_probability( list('DABBCBDACAAADCBDCDBCBDCACBDABBAA') ), -45.1660985662 )
 
-@with_setup( setup, teardown )
-def test_raise_errors():
+def test_raise_errors(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	pass
 
-@with_setup( setup, teardown )
-def test_pickling():
+def test_pickling(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	chain1 = MarkovChain([ zeroth_dist, first_dist ])
 	chain2 = pickle.loads( pickle.dumps( chain1 ) )
 
 	assert_almost_equal( chain1.log_probability( list('BCCCACBDBDBABACD') ),
 	                     chain2.log_probability( list('BCCCACBDBDBABACD') ) )
 
-@with_setup( setup, teardown )
-def test_json():
+def test_json(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	chain1 = MarkovChain([ zeroth_dist, first_dist ])
 	chain2 = MarkovChain.from_json(chain1.to_json())
 
 	assert_almost_equal( chain1.log_probability( list('BCCCACBDBDBABACD') ),
 	                     chain2.log_probability( list('BCCCACBDBDBABACD') ) )
 
-@with_setup( setup, teardown )
-def test_robust_from_json():
+def test_robust_from_json(setup):
+	data, weights, zeroth_dist, first_dist, second_dist = setup
 	chain1 = MarkovChain([ zeroth_dist, first_dist ])
 	chain2 = from_json(chain1.to_json())
 

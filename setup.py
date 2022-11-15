@@ -99,7 +99,6 @@ setup(
         "Plotting": ["pygraphviz", "matplotlib"],
         "GPU": ["cupy"],
     },
-    test_suite = 'nose.collector',
     package_data={
         'pomegranate': ['*.pyd', '*.pxd'],
         'pomegranate/distributions': ['*.pyd', '*.pxd'],

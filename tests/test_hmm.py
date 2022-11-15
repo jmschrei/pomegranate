@@ -1,23 +1,15 @@
 from __future__ import (division)
 
 from pomegranate import *
-from pomegranate.parallel import log_probability
 from pomegranate.io import SequenceGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-from nose.tools import assert_greater
+from .assert_tools import assert_almost_equal
 from numpy.testing import assert_array_almost_equal
-from numpy.testing import assert_array_equal
 
 import pickle
 import random
 import numpy
-import time
+import pytest
 
 numpy.random.seed(0)
 random.seed(0)
@@ -92,61 +84,60 @@ def sparse_model(d1, d2, d3, i_d):
     return model
 
 
-def setup():
-    global model
-
+@pytest.fixture
+def model():
     i_d = DiscreteDistribution({ 'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25 })
     d1 = DiscreteDistribution({ "A": 0.95, 'C': 0.01, 'G': 0.01, 'T': 0.02 })
     d2 = DiscreteDistribution({ "A": 0.003, 'C': 0.99, 'G': 0.003, 'T': 0.004 })
     d3 = DiscreteDistribution({ "A": 0.01, 'C': 0.01, 'G': 0.01, 'T': 0.97 })
 
-    model = sparse_model(d1, d2, d3, i_d)
+    return sparse_model(d1, d2, d3, i_d)
 
 
-def setup_multivariate_discrete_sparse():
-    global model
-
+@pytest.fixture
+def multivariate_discrete_sparse():
     i1 = DiscreteDistribution({'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25})
     i2 = DiscreteDistribution({'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25})
     i_d = IndependentComponentsDistribution([i1, i2])
-
+    
     d11 = DiscreteDistribution({ "A": 0.95, 'C': 0.01, 'G': 0.01, 'T': 0.02 })
     d12 = DiscreteDistribution({ "A": 0.92, 'C': 0.02, 'G': 0.02, 'T': 0.03 })
-
+    
     d21 = DiscreteDistribution({ "A": 0.005, 'C': 0.96, 'G': 0.005, 'T': 0.003 })
     d22 = DiscreteDistribution({ "A": 0.003, 'C': 0.99, 'G': 0.003, 'T': 0.004 })
-
+    
     d31 = DiscreteDistribution({ "A": 0.01, 'C': 0.01, 'G': 0.01, 'T': 0.97 })
     d32 = DiscreteDistribution({ "A": 0.05, 'C': 0.03, 'G': 0.02, 'T': 0.90 })
-
+    
     d1 = IndependentComponentsDistribution([d11, d12])
     d2 = IndependentComponentsDistribution([d21, d22])
     d3 = IndependentComponentsDistribution([d31, d32])
-
+    
     model = sparse_model(d1, d2, d3, i_d)
+    return model
 
 
-def setup_multivariate_gaussian_sparse():
-    global model
-
+@pytest.fixture
+def multivariate_gaussian_sparse():
     i1 = UniformDistribution(-20, 20)
     i2 = UniformDistribution(-20, 20)
     i_d = IndependentComponentsDistribution([i1, i2])
-
+    
     d11 = NormalDistribution(5, 1)
     d12 = NormalDistribution(7, 1)
-
+    
     d21 = NormalDistribution(13, 1)
     d22 = NormalDistribution(17, 1)
-
+    
     d31 = NormalDistribution(-2, 1)
     d32 = NormalDistribution(-5, 1)
-
+    
     d1 = IndependentComponentsDistribution([d11, d12])
     d2 = IndependentComponentsDistribution([d21, d22])
     d3 = IndependentComponentsDistribution([d31, d32])
-
+    
     model = sparse_model(d1, d2, d3, i_d)
+    return model
 
 
 def dense_model(d1, d2, d3, d4):
@@ -185,42 +176,41 @@ def dense_model(d1, d2, d3, d4):
     return model
 
 
-def setup_univariate_discrete_dense():
-    global model
-
+@pytest.fixture
+def univariate_discrete_dense():
     d1 = DiscreteDistribution({'A': 0.90, 'B': 0.02, 'C': 0.03, 'D': 0.05})
     d2 = DiscreteDistribution({'A': 0.02, 'B': 0.90, 'C': 0.03, 'D': 0.05})
     d3 = DiscreteDistribution({'A': 0.03, 'B': 0.02, 'C': 0.90, 'D': 0.05})
     d4 = DiscreteDistribution({'A': 0.05, 'B': 0.02, 'C': 0.03, 'D': 0.90})
 
     model = dense_model(d1, d2, d3, d4)
+    return model
 
 
-def setup_univariate_gaussian_dense():
-    global model
-
+@pytest.fixture
+def univariate_gaussian_dense():
     d1 = NormalDistribution(5, 1)
     d2 = NormalDistribution(1, 1)
     d3 = NormalDistribution(13, 2)
     d4 = NormalDistribution(16, 0.5)
 
     model = dense_model(d1, d2, d3, d4)
+    return model
 
 
-def setup_univariate_poisson_dense():
-    global model
-
+@pytest.fixture
+def univariate_poisson_dense():
     d1 = PoissonDistribution(12.1)
     d2 = PoissonDistribution(8.7)
     d3 = PoissonDistribution(1)
     d4 = PoissonDistribution(5)
 
     model = dense_model(d1, d2, d3, d4)
+    return model
 
 
-def setup_multivariate_mixed_dense():
-    global model
-
+@pytest.fixture
+def multivariate_mixed_dense():
     d11 = NormalDistribution(1, 1)
     d12 = ExponentialDistribution(5)
     d13 = LogNormalDistribution(0.5, 0.78)
@@ -250,11 +240,11 @@ def setup_multivariate_mixed_dense():
     d4 = IndependentComponentsDistribution([d41, d42, d43, d44, d45])
 
     model = dense_model(d1, d2, d3, d4)
+    return model
 
 
-def setup_multivariate_gaussian_dense():
-    global model
-
+@pytest.fixture
+def multivariate_gaussian_dense():
     random_state = numpy.random.RandomState(0)
     mu = random_state.normal(0, 1, size=(4, 5))
     d1 = MultivariateGaussianDistribution(mu[0], numpy.eye(5))
@@ -263,11 +253,11 @@ def setup_multivariate_gaussian_dense():
     d4 = MultivariateGaussianDistribution(mu[3], numpy.eye(5))
 
     model = dense_model(d1, d2, d3, d4)
+    return model
 
 
-def setup_general_mixture_gaussian():
-    global model
-
+@pytest.fixture
+def general_mixture_gaussian():
     # should be able to pass list of weights
     gmm1 = GeneralMixtureModel([NormalDistribution(5, 2), NormalDistribution(1, 2)], weights=[0.33, 0.67])
     gmm2 = GeneralMixtureModel([NormalDistribution(3, 2), NormalDistribution(-1, 2)], weights=numpy.array([0.67, 0.33]))
@@ -282,19 +272,11 @@ def setup_general_mixture_gaussian():
     model.add_transition(s2, s2, 0.8)
     model.add_transition(s2, s1, 0.2)
     model.bake()
+    return model
 
 
-def teardown():
-    '''
-    Remove the model at the end of the unit testing. Since it is stored in a
-    global variance, simply delete it.
-    '''
-
-    pass
-
-
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_forward():
+def test_hmm_univariate_discrete_dense_forward(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.forward(['A', 'B', 'D', 'D', 'C'])
     logp = numpy.array([[-inf, -inf, -inf, -inf, 0., -inf],
                 [-2.40794561, -5.11599581, -5.11599581, -3.91202301, -inf, -4.40631933],
@@ -306,8 +288,8 @@ def test_hmm_univariate_discrete_dense_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_forward():
+def test_hmm_univariate_gaussian_dense_forward(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.forward([3, 5, 8, 19, 13])
     logp = numpy.array([[-inf, -inf, -inf, -inf, 0.0, -inf],
         [-5.221523626198319, -4.122911337530209, -15.72152362619832, -339.14208208451845, -inf, -6.137807473983832],
@@ -319,8 +301,8 @@ def test_hmm_univariate_gaussian_dense_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_forward():
+def test_hmm_univariate_poisson_dense_forward(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.forward([5, 8, 2, 4, 7, 8, 2])
     logp = numpy.array([[-inf, -inf, -inf, -inf, 0.0, -inf],
         [-6.724049572762615, -3.874849418805291, -7.396929655216146, -2.6565929124856993, -inf, -4.680333421931903],
@@ -334,8 +316,8 @@ def test_hmm_univariate_poisson_dense_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_forward():
+def test_hmm_multivariate_mixed_dense_forward(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.forward([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [4, 6, 2, 0, 1]])
     logp = numpy.array([[ -inf,  -inf,  -inf,  -inf,  0.,  -inf],
          [ -14.73222089,  -46.16604623,  -29.00420739,  -62.64844211, -inf, -17.03480535],
@@ -345,8 +327,8 @@ def test_hmm_multivariate_mixed_dense_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_forward():
+def test_hmm_multivariate_gaussian_dense_forward(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.forward([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
     logp = numpy.array([[-inf, -inf, -inf, -inf, 0.0, -inf],
         [-17.388625105797296, -25.109952452723487, -20.33305760532214, -28.085443290422877, -inf, -19.639474084287432],
@@ -356,8 +338,8 @@ def test_hmm_multivariate_gaussian_dense_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_nan_forward():
+def test_hmm_univariate_discrete_dense_nan_forward(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.forward(['A', nan, 'D', nan, 'C'])
     logp = numpy.array([[       -inf,        -inf,        -inf,        -inf,  0.,                -inf],
          [-2.40794561, -5.11599581, -5.11599581, -3.91202301,        -inf, -4.40631933],
@@ -369,8 +351,8 @@ def test_hmm_univariate_discrete_dense_nan_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_nan_forward():
+def test_hmm_univariate_gaussian_dense_nan_forward(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.forward([3, 5, 8, nan, 13])
     logp = numpy.array([[         -inf,          -inf, -inf, -inf, 0., -inf],
          [  -5.22152363,   -4.12291134,  -15.72152363, -339.14208208, -inf, -6.13780747],
@@ -382,8 +364,8 @@ def test_hmm_univariate_gaussian_dense_nan_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_nan_forward():
+def test_hmm_univariate_poisson_dense_nan_forward(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.forward([5, 8, 2, nan, 7, nan, 2])
     logp = numpy.array([[        -inf,         -inf, -inf, -inf, 0., -inf],
          [ -6.72404957,  -3.87484942,  -7.39692966,  -2.65659291, -inf, -4.68033342],
@@ -397,8 +379,8 @@ def test_hmm_univariate_poisson_dense_nan_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_nan_forward():
+def test_hmm_multivariate_mixed_dense_nan_forward(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.forward([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [4, nan, 2, nan, 1]])
     logp = numpy.array([[-inf, -inf, -inf, -inf, 0.0, -inf],
         [-8.64586382, -11.86321233, -20.72307256, -49.92199169, -inf, -10.90916394],
@@ -408,8 +390,8 @@ def test_hmm_multivariate_mixed_dense_nan_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_nan_forward():
+def test_hmm_multivariate_gaussian_dense_nan_forward(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.forward([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [-4, nan, -2, nan, 1]])
     logp = numpy.array([[        -inf,         -inf,        -inf, -inf,   0.,  -inf],
          [-15.34182759, -21.05906503, -16.62794596, -24.70263887, -inf, -17.39777437],
@@ -419,8 +401,8 @@ def test_hmm_multivariate_gaussian_dense_nan_forward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_backward():
+def test_hmm_univariate_discrete_dense_backward(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.backward(['A', 'B', 'D', 'D', 'C'])
     logp = numpy.array([[-9.86805902419294, -10.666561769922483, -11.09973677168472, -10.617074536069564, -11.092510372852566, -inf],
         [-9.120551817416588, -9.07513780778706, -9.061129343592423, -8.517934491110973, -8.143527673240188, -inf],
@@ -432,8 +414,8 @@ def test_hmm_univariate_discrete_dense_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_backward():
+def test_hmm_univariate_gaussian_dense_backward(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.backward([3, 5, 8, 19, 13])
     logp = numpy.array([[-24.010022764471987, -24.820878919065986, -25.359784144328874, -24.666641886986977, -24.907606167690343, -inf],
         [-20.47495458748052, -21.390489786220005, -22.08295469697486, -21.390527588974052, -22.081667004696868, -inf],
@@ -445,8 +427,8 @@ def test_hmm_univariate_gaussian_dense_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_backward():
+def test_hmm_univariate_poisson_dense_backward(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.backward([5, 8, 2, 4, 7, 8, 2])
     logp = numpy.array([[-21.691907586187032, -21.73799328948721, -21.138366991878907, -21.083291604178275, -21.044274521213687, -inf],
         [-18.8959690490499, -19.147279755417475, -18.96895836891973, -18.554384880883024, -18.344028493972242, -inf],
@@ -460,8 +442,8 @@ def test_hmm_univariate_poisson_dense_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_backward():
+def test_hmm_multivariate_mixed_dense_backward(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.backward([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [4, 6, 2, 0, 1]])
     logp = numpy.array([[-95.62390845, -96.54019907, -97.23334619, -96.54019916, -97.23334625, -inf],
         [-82.50112549, -83.41741621, -84.11056338, -83.41741622, -84.11056339, -inf],
@@ -471,8 +453,8 @@ def test_hmm_multivariate_mixed_dense_backward():
 
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_backward():
+def test_hmm_multivariate_gaussian_dense_backward(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.backward([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
     logp = numpy.array([[-68.2539137567533, -69.16076639610863, -69.84868309756291, -69.16857768159394, -69.85376066028503, -inf],
         [-52.47579136451719, -53.392079325925124, -54.08522496164164, -53.392081629466915, -54.08522649261687, -inf],
@@ -481,8 +463,8 @@ def test_hmm_multivariate_gaussian_dense_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_nan_backward():
+def test_hmm_univariate_discrete_dense_nan_backward(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.backward(['A', nan, 'D', nan, 'C'])
     logp = numpy.array([[-6.2351892, -7.03937052, -7.53995041, -7.0284468, -7.53208902, -inf],
         [-5.47529921, -5.28136881, -5.22459211, -5.34120086, -5.21037792, -inf],
@@ -494,8 +476,8 @@ def test_hmm_univariate_discrete_dense_nan_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_nan_backward():
+def test_hmm_univariate_gaussian_dense_nan_backward(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.backward([3, 5, 8, nan, 13])
     logp = numpy.array([[-16.72877261, -17.53965174, -18.0785865, -17.38544424, -17.62647294, -inf],
         [-13.19368605, -14.10946925, -14.80215433, -14.10948639, -14.80126502, -inf],
@@ -507,8 +489,8 @@ def test_hmm_univariate_gaussian_dense_nan_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_nan_backward():
+def test_hmm_univariate_poisson_dense_nan_backward(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.backward([5, 8, 2, nan, 7, nan, 2])
     logp = numpy.array([[-16.63348003, -16.67956771, -16.0798998, -16.02482554, -15.98581404, -inf],
         [-13.83793763, -14.08893409, -13.91233676, -13.49588981, -13.28439885, -inf],
@@ -522,8 +504,8 @@ def test_hmm_univariate_poisson_dense_nan_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_nan_backward():
+def test_hmm_multivariate_mixed_dense_nan_backward(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.backward([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [4, nan, 2, nan, 1]])
     logp = numpy.array([[-58.07503525, -58.9897255, -59.68021202, -58.98706625, -59.66964241, -inf],
         [-51.03967719, -51.95596417, -52.64910927, -51.95596729, -52.64911135, -inf],
@@ -533,8 +515,8 @@ def test_hmm_multivariate_mixed_dense_nan_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_nan_backward():
+def test_hmm_multivariate_gaussian_dense_nan_backward(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.backward([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [-4, nan, -2, nan, 1]])
     logp = numpy.array([[-50.72705835, -51.59493939, -52.26201549, -51.63477927, -52.28702405, -inf],
         [-37.00027105, -37.91654779, -38.60968708, -37.91655924, -38.60969427, -inf],
@@ -544,8 +526,8 @@ def test_hmm_multivariate_gaussian_dense_nan_backward():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_predict_log_proba():
+def test_hmm_univariate_discrete_dense_predict_log_proba(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict_log_proba(['A', 'B', 'D', 'D', 'C'])
     logp = numpy.array([[-0.43598705, -3.09862324, -3.08461478, -1.33744712],
         [-2.75011524, -0.18557067, -3.32315748, -2.66771698],
@@ -556,8 +538,8 @@ def test_hmm_univariate_discrete_dense_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_predict_log_proba():
+def test_hmm_univariate_gaussian_dense_predict_log_proba(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict_log_proba([3, 5, 8, 19, 13])
     logp = numpy.array([[-0.78887205, -0.60579496, -12.89687216, -335.62500351],
         [-0.00062775, -8.15629975, -7.98472576, -241.94669106],
@@ -568,8 +550,8 @@ def test_hmm_univariate_gaussian_dense_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_predict_log_proba():
+def test_hmm_univariate_poisson_dense_predict_log_proba(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict_log_proba([5, 8, 2, 4, 7, 8, 2])
     logp = numpy.array([[-4.5757441, -1.97785465, -5.3216135, -0.16670327],
         [-2.12263997, -0.57356459, -10.23962484, -1.14968683],
@@ -582,8 +564,8 @@ def test_hmm_univariate_poisson_dense_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_predict_log_proba():
+def test_hmm_multivariate_mixed_dense_predict_log_proba(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict_log_proba([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [4, 6, 2, 0, 1]])
     logp = numpy.array([[-1.3e-07, -32.35011618, -15.88142452, -48.83251208],
         [-0.0, -125.38948844, -20.25379271, -140.90667878],
@@ -591,8 +573,8 @@ def test_hmm_multivariate_mixed_dense_predict_log_proba():
 
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_predict_log_proba_from_json():
+def test_hmm_multivariate_mixed_dense_predict_log_proba_from_json(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     logp = numpy.array([[-1.3e-07, -32.35011618, -15.88142452, -48.83251208],
         [-0.0, -125.38948844, -20.25379271, -140.90667878],
         [-3.29e-06, -178.10391312, -12.6258323, -138.86820172]])
@@ -602,8 +584,8 @@ def test_hmm_multivariate_mixed_dense_predict_log_proba_from_json():
     f = hmm_json.predict_log_proba(s)
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_predict_log_proba_from_yaml():
+def test_hmm_multivariate_mixed_dense_predict_log_proba_from_yaml(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     logp = numpy.array([[-1.3e-07, -32.35011618, -15.88142452, -48.83251208],
         [-0.0, -125.38948844, -20.25379271, -140.90667878],
         [-3.29e-06, -178.10391312, -12.6258323, -138.86820172]])
@@ -613,8 +595,8 @@ def test_hmm_multivariate_mixed_dense_predict_log_proba_from_yaml():
     f = hmm_yaml.predict_log_proba(s)
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_robust_from_json():
+def test_hmm_multivariate_mixed_dense_robust_from_json(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     logp = numpy.array([[-1.3e-07, -32.35011618, -15.88142452, -48.83251208],
         [-0.0, -125.38948844, -20.25379271, -140.90667878],
         [-3.29e-06, -178.10391312, -12.6258323, -138.86820172]])
@@ -624,8 +606,8 @@ def test_hmm_multivariate_mixed_dense_robust_from_json():
     f = hmm_json.predict_log_proba(s)
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_predict_log_proba():
+def test_hmm_multivariate_gaussian_dense_predict_log_proba(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict_log_proba([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
     logp = numpy.array([[-0.01065581, -8.64827112, -4.56452191, -11.62376426],
         [-3.5e-07, -21.03621875, -14.85696805, -21.01998258],
@@ -634,8 +616,8 @@ def test_hmm_multivariate_gaussian_dense_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_predict_log_proba_from_json():
+def test_hmm_multivariate_gaussian_dense_predict_log_proba_from_json(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     logp = numpy.array([[-0.01065581, -8.64827112, -4.56452191, -11.62376426],
         [-3.5e-07, -21.03621875, -14.85696805, -21.01998258],
         [-18.86968176, -0.07127267, -3.75635416, -3.09173086]])
@@ -645,8 +627,8 @@ def test_hmm_multivariate_gaussian_dense_predict_log_proba_from_json():
     f = hmm_json.predict_log_proba(s)
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_predict_log_proba_from_yaml():
+def test_hmm_multivariate_gaussian_dense_predict_log_proba_from_yaml(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     logp = numpy.array([[-0.01065581, -8.64827112, -4.56452191, -11.62376426],
         [-3.5e-07, -21.03621875, -14.85696805, -21.01998258],
         [-18.86968176, -0.07127267, -3.75635416, -3.09173086]])
@@ -656,8 +638,8 @@ def test_hmm_multivariate_gaussian_dense_predict_log_proba_from_yaml():
     f = hmm_yaml.predict_log_proba(s)
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_robust_from_json():
+def test_hmm_multivariate_gaussian_dense_robust_from_json(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     logp = numpy.array([[-0.01065581, -8.64827112, -4.56452191, -11.62376426],
         [-3.5e-07, -21.03621875, -14.85696805, -21.01998258],
         [-18.86968176, -0.07127267, -3.75635416, -3.09173086]])
@@ -667,8 +649,8 @@ def test_hmm_multivariate_gaussian_dense_robust_from_json():
     f = hmm_json.predict_log_proba(s)
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_nan_predict_log_proba():
+def test_hmm_univariate_discrete_dense_nan_predict_log_proba(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict_log_proba(['A', nan, 'D', nan, 'C'])
     logp = numpy.array([[-0.35115579, -2.8652756, -2.8084989, -1.72113484],
         [-1.05957958, -2.32005107, -1.66860008, -1.0034317],
@@ -679,8 +661,8 @@ def test_hmm_univariate_discrete_dense_nan_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_nan_predict_log_proba():
+def test_hmm_univariate_gaussian_dense_nan_predict_log_proba(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict_log_proba([3, 5, 8, nan, 13])
     logp = numpy.array([[-0.78873673, -0.60590764, -12.89720502, -335.62509553],
         [-0.00042349, -8.53359013, -8.39210104, -242.13279062],
@@ -691,8 +673,8 @@ def test_hmm_univariate_gaussian_dense_nan_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_nan_predict_log_proba():
+def test_hmm_univariate_poisson_dense_nan_predict_log_proba(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict_log_proba([5, 8, 2, nan, 7, nan, 2])
     logp = numpy.array([[-4.57617316, -1.97796947, -5.32345238, -0.16666868],
         [-2.12417036, -0.56894186, -10.24308433, -1.15738144],
@@ -705,8 +687,8 @@ def test_hmm_univariate_poisson_dense_nan_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_nan_predict_log_proba():
+def test_hmm_multivariate_mixed_dense_nan_predict_log_proba(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict_log_proba([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [4, nan, 2, nan, 1]])
     logp = numpy.array([[-0.0158986, -4.14953409, -13.70253942, -42.20831658],
         [-4.8e-07, -124.2732402, -14.55816895, -115.82582217],
@@ -715,8 +697,8 @@ def test_hmm_multivariate_mixed_dense_nan_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_nan_predict_log_proba():
+def test_hmm_multivariate_gaussian_dense_nan_predict_log_proba(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict_log_proba([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [-4, nan, -2, nan, 1]])
     logp = numpy.array([[-0.05507459, -6.68858877, -2.95060899, -10.33217406],
         [-2.76e-06, -16.54254089, -12.82407236, -19.35159412],
@@ -725,8 +707,8 @@ def test_hmm_multivariate_gaussian_dense_nan_predict_log_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_predict_proba():
+def test_hmm_univariate_discrete_dense_predict_proba(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict_proba(['A', 'B', 'D', 'D', 'C'])
     logp = numpy.array([[0.6466261, 0.04511127, 0.04574765, 0.26251498],
         [0.06392049, 0.83063013, 0.03603886, 0.06941051],
@@ -737,8 +719,8 @@ def test_hmm_univariate_discrete_dense_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_predict_proba():
+def test_hmm_univariate_gaussian_dense_predict_proba(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict_proba([3, 5, 8, 19, 13])
     logp = numpy.array([[0.454357, 0.54564049, 2.51e-06, 0.0],
         [0.99937245, 0.00028692, 0.00034063, 0.0],
@@ -749,8 +731,8 @@ def test_hmm_univariate_gaussian_dense_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_predict_proba():
+def test_hmm_univariate_poisson_dense_predict_proba(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict_proba([5, 8, 2, 4, 7, 8, 2])
     logp = numpy.array([[0.01029863, 0.13836576, 0.00488487, 0.84645074],
         [0.11971517, 0.56351316, 3.573e-05, 0.31673595],
@@ -763,8 +745,8 @@ def test_hmm_univariate_poisson_dense_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_predict_proba():
+def test_hmm_multivariate_mixed_dense_predict_proba(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict_proba([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [4, 6, 2, 0, 1]])
     logp = numpy.array([[0.99999987, 0.0, 1.3e-07, 0.0],
         [1.0, 0.0, 0.0, 0.0],
@@ -772,8 +754,8 @@ def test_hmm_multivariate_mixed_dense_predict_proba():
 
     assert_array_almost_equal(f, logp)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_predict_proba():
+def test_hmm_multivariate_gaussian_dense_predict_proba(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict_proba([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
     logp = numpy.array([[0.98940076, 0.00017543, 0.01041486, 8.95e-06],
         [0.99999965, 0.0, 3.5e-07, 0.0],
@@ -782,8 +764,8 @@ def test_hmm_multivariate_gaussian_dense_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_nan_predict_proba():
+def test_hmm_univariate_discrete_dense_nan_predict_proba(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict_proba(['A', nan, 'D', nan, 'C'])
     logp = numpy.array([[0.70387409, 0.05696743, 0.06029543, 0.17886305],
         [0.3466015, 0.09826857, 0.18851078, 0.36661915],
@@ -794,8 +776,8 @@ def test_hmm_univariate_discrete_dense_nan_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_nan_predict_proba():
+def test_hmm_univariate_gaussian_dense_nan_predict_proba(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict_proba([3, 5, 8, nan, 13])
     logp = numpy.array([[0.45441848, 0.54557901, 2.51e-06, 0.0],
         [0.9995766, 0.00019675, 0.00022665, 0.0],
@@ -806,8 +788,8 @@ def test_hmm_univariate_gaussian_dense_nan_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_nan_predict_proba():
+def test_hmm_univariate_poisson_dense_nan_predict_proba(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict_proba([5, 8, 2, nan, 7, nan, 2])
     logp = numpy.array([[0.01029422, 0.13834988, 0.00487589, 0.84648002],
         [0.1195321, 0.56612416, 3.56e-05, 0.31430814],
@@ -820,8 +802,8 @@ def test_hmm_univariate_poisson_dense_nan_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_nan_predict_proba():
+def test_hmm_multivariate_mixed_dense_nan_predict_proba(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict_proba([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [4, nan, 2, nan, 1]])
     logp = numpy.array([[0.98422712, 0.01577176, 1.12e-06, 0.0],
         [0.99999952, 0.0, 4.8e-07, 0.0],
@@ -830,8 +812,8 @@ def test_hmm_multivariate_mixed_dense_nan_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_nan_predict_proba():
+def test_hmm_multivariate_gaussian_dense_nan_predict_proba(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict_proba([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [-4, nan, -2, nan, 1]])
     logp = numpy.array([[0.94641455, 0.00124504, 0.05230784, 3.257e-05],
         [0.99999724, 7e-08, 2.7e-06, 0.0],
@@ -840,119 +822,119 @@ def test_hmm_multivariate_gaussian_dense_nan_predict_proba():
     assert_array_almost_equal(f, logp)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_predict():
+def test_hmm_univariate_discrete_dense_predict(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict(['A', 'B', 'D', 'D', 'C'])
     path = [0, 1, 3, 3, 2]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_predict():
+def test_hmm_univariate_gaussian_dense_predict(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict([3, 5, 8, 19, 13])
     path = [1, 0, 2, 2, 2]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_predict():
+def test_hmm_univariate_poisson_dense_predict(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict([5, 8, 2, 4, 7, 8, 2])
     path = [3, 1, 2, 3, 3, 1, 2]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_predict():
+def test_hmm_multivariate_mixed_dense_predict(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [4, 6, 2, 0, 1]])
     path = [0, 0, 0]
 
     assert_array_almost_equal(f, path)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_predict():
+def test_hmm_multivariate_gaussian_dense_predict(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]])
     path = [0, 0, 1]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_nan_predict():
+def test_hmm_univariate_discrete_dense_nan_predict(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict(['A', nan, 'D', nan, 'C'])
     path = [0, 3, 3, 1, 2]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_nan_predict():
+def test_hmm_univariate_gaussian_dense_nan_predict(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict([3, 5, 8, nan, 13])
     path = [1, 0, 0, 2, 2]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_nan_predict():
+def test_hmm_univariate_poisson_dense_nan_predict(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict([5, 8, 2, nan, 7, nan, 2])
     path = [3, 1, 2, 3, 3, 3, 2]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_nan_predict():
+def test_hmm_multivariate_mixed_dense_nan_predict(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [4, nan, 2, nan, 1]])
     path = [0, 0, 0]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_nan_predict():
+def test_hmm_multivariate_gaussian_dense_nan_predict(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [-4, nan, -2, nan, 1]])
     path = [0, 0, 1]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_predict_viterbi():
+def test_hmm_univariate_discrete_dense_predict_viterbi(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict(['A', 'B', 'D', 'D', 'C'], algorithm='viterbi')
     path = [4, 0, 1, 3, 3, 2, 5]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_predict_viterbi():
+def test_hmm_univariate_gaussian_dense_predict_viterbi(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict([3, 5, 8, 19, 13], algorithm='viterbi')
     path = [4, 1, 0, 2, 2, 2, 5]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_predict_viterbi():
+def test_hmm_univariate_poisson_dense_predict_viterbi(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict([5, 8, 2, 4, 7, 8, 2], algorithm='viterbi')
     path = [4, 3, 1, 2, 3, 3, 1, 2, 5]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_predict_viterbi():
+def test_hmm_multivariate_mixed_dense_predict_viterbi(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [4, 6, 2, 0, 1]],
         algorithm='viterbi')
     path = [4, 0, 0, 0, 5]
 
     assert_array_almost_equal(f, path)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_predict_viterbi():
+def test_hmm_multivariate_gaussian_dense_predict_viterbi(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict([[0, 1, 5, 2, 3], [2, 4, 1, 5, 6], [-4, 6, -2, 0, 1]],
         algorithm='viterbi')
     path = [4, 0, 0, 1, 5]
@@ -960,32 +942,32 @@ def test_hmm_multivariate_gaussian_dense_predict_viterbi():
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_discrete_dense)
-def test_hmm_univariate_discrete_dense_nan_predict_viterbi():
+def test_hmm_univariate_discrete_dense_nan_predict_viterbi(univariate_discrete_dense):
+    model = univariate_discrete_dense
     f = model.predict(['A', nan, 'D', nan, 'C'], algorithm='viterbi')
     path = [4, 0, 0, 3, 1, 2, 5]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_univariate_gaussian_dense_nan_predict_viterbi():
+def test_hmm_univariate_gaussian_dense_nan_predict_viterbi(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     f = model.predict([3, 5, 8, nan, 13], algorithm='viterbi')
     path = [4, 1, 0, 0, 0, 2, 5]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_univariate_poisson_dense)
-def test_hmm_univariate_poisson_dense_nan_predict_viterbi():
+def test_hmm_univariate_poisson_dense_nan_predict_viterbi(univariate_poisson_dense):
+    model = univariate_poisson_dense
     f = model.predict([5, 8, 2, nan, 7, nan, 2], algorithm='viterbi')
     path = [4, 3, 1, 2, 3, 3, 1, 2, 5]
 
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_multivariate_mixed_dense)
-def test_hmm_multivariate_mixed_dense_nan_predict_viterbi():
+def test_hmm_multivariate_mixed_dense_nan_predict_viterbi(multivariate_mixed_dense):
+    model = multivariate_mixed_dense
     f = model.predict([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [4, nan, 2, nan, 1]],
         algorithm='viterbi')
     path = [4, 0, 0, 0, 5]
@@ -993,8 +975,8 @@ def test_hmm_multivariate_mixed_dense_nan_predict_viterbi():
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_multivariate_gaussian_dense_nan_predict_viterbi():
+def test_hmm_multivariate_gaussian_dense_nan_predict_viterbi(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     f = model.predict([[0, nan, 5, nan, 3], [nan, 4, 1, 5, 6], [-4, nan, -2, nan, 1]],
         algorithm='viterbi')
     path = [4, 0, 0, 1, 5]
@@ -1002,8 +984,7 @@ def test_hmm_multivariate_gaussian_dense_nan_predict_viterbi():
     assert_array_almost_equal(f, path)
 
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit():
+def test_hmm_viterbi_fit(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1015,11 +996,10 @@ def test_hmm_viterbi_fit():
                                use_pseudocount=True)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.2834)
+    assert round(total_improvement, 4) == 83.2834
 
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit_no_pseudocount():
+def test_hmm_viterbi_fit_no_pseudocount(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1031,11 +1011,10 @@ def test_hmm_viterbi_fit_no_pseudocount():
                                      use_pseudocount=False)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 84.9318)
+    assert round(total_improvement, 4) == 84.9318
 
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit_w_pseudocount():
+def test_hmm_viterbi_fit_w_pseudocount(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1047,11 +1026,10 @@ def test_hmm_viterbi_fit_w_pseudocount():
                                      transition_pseudocount=1.)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 79.4713)
+    assert round(total_improvement, 4) == 79.4713
 
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit_w_pseudocount_priors():
+def test_hmm_viterbi_fit_w_pseudocount_priors(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1064,11 +1042,10 @@ def test_hmm_viterbi_fit_w_pseudocount_priors():
                                      use_pseudocount=True)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 81.7439)
+    assert round(total_improvement, 4) == 81.7439
 
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit_w_inertia():
+def test_hmm_viterbi_fit_w_inertia(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1080,11 +1057,10 @@ def test_hmm_viterbi_fit_w_inertia():
                                      edge_inertia=0.193)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 84.9318)
+    assert round(total_improvement, 4) == 84.9318
 
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit_w_inertia2():
+def test_hmm_viterbi_fit_w_inertia2(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1096,11 +1072,10 @@ def test_hmm_viterbi_fit_w_inertia2():
                                      edge_inertia=0.82)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 84.9318)
+    assert round(total_improvement, 4) == 84.9318
 
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit_w_pseudocount_inertia():
+def test_hmm_viterbi_fit_w_pseudocount_inertia(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1113,10 +1088,9 @@ def test_hmm_viterbi_fit_w_pseudocount_inertia():
                                      use_pseudocount=True)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.2834)
+    assert round(total_improvement, 4) == 83.2834
 
-@with_setup(setup, teardown)
-def test_hmm_viterbi_fit_one_check_input():
+def test_hmm_viterbi_fit_one_check_input(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
     'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
     'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1129,10 +1103,9 @@ def test_hmm_viterbi_fit_one_check_input():
                                multiple_check_input=False)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.2834)
+    assert round(total_improvement, 4) == 83.2834
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit():
+def test_hmm_bw_fit(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1145,11 +1118,11 @@ def test_hmm_bw_fit():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.1132)
+    assert round(total_improvement, 4) == 83.1132
 
 
-@with_setup(setup_multivariate_discrete_sparse, teardown)
-def test_hmm_bw_multivariate_discrete_fit():
+def test_hmm_bw_multivariate_discrete_fit(multivariate_discrete_sparse):
+    model = multivariate_discrete_sparse
     seqs = [[['A', 'A'], ['A', 'C'], ['C', 'T']], [['A', 'A'], ['C', 'C'], ['T', 'T']],
             [['A', 'A'], ['A', 'C'], ['C', 'C'], ['T', 'T']], [['A', 'A'], ['C', 'C']]]
 
@@ -1161,11 +1134,11 @@ def test_hmm_bw_multivariate_discrete_fit():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 13.3622)
+    assert round(total_improvement, 4) == 13.3622
 
 
-@with_setup(setup_multivariate_discrete_sparse, teardown)
-def test_hmm_bw_multivariate_discrete_fit_json_yaml():
+def test_hmm_bw_multivariate_discrete_fit_json_yaml(multivariate_discrete_sparse):
+    model = multivariate_discrete_sparse
     seqs = [[['A', 'A'], ['A', 'C'], ['C', 'T']], [['A', 'A'], ['C', 'C'], ['T', 'T']],
             [['A', 'A'], ['A', 'C'], ['C', 'C'], ['T', 'T']], [['A', 'A'], ['C', 'C']]]
 
@@ -1178,10 +1151,10 @@ def test_hmm_bw_multivariate_discrete_fit_json_yaml():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 13.3622)
+    assert round(total_improvement, 4) == 13.3622
 
-@with_setup(setup_multivariate_discrete_sparse, teardown)
-def test_hmm_bw_multivariate_discrete_fit_robust_from_json():
+def test_hmm_bw_multivariate_discrete_fit_robust_from_json(multivariate_discrete_sparse):
+    model = multivariate_discrete_sparse
     seqs = [[['A', 'A'], ['A', 'C'], ['C', 'T']], [['A', 'A'], ['C', 'C'], ['T', 'T']],
             [['A', 'A'], ['A', 'C'], ['C', 'C'], ['T', 'T']], [['A', 'A'], ['C', 'C']]]
 
@@ -1194,10 +1167,10 @@ def test_hmm_bw_multivariate_discrete_fit_robust_from_json():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 13.3622)
+    assert round(total_improvement, 4) == 13.3622
 
-@with_setup(setup_multivariate_discrete_sparse, teardown)
-def test_hmm_bw_multivariate_discrete_fit_from_yaml():
+def test_hmm_bw_multivariate_discrete_fit_from_yaml(multivariate_discrete_sparse):
+    model = multivariate_discrete_sparse
     seqs = [[['A', 'A'], ['A', 'C'], ['C', 'T']], [['A', 'A'], ['C', 'C'], ['T', 'T']],
             [['A', 'A'], ['A', 'C'], ['C', 'C'], ['T', 'T']], [['A', 'A'], ['C', 'C']]]
 
@@ -1210,11 +1183,11 @@ def test_hmm_bw_multivariate_discrete_fit_from_yaml():
                               max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 13.3622)
+    assert round(total_improvement, 4) == 13.3622
 
 
-@with_setup(setup_multivariate_gaussian_sparse, teardown)
-def test_hmm_bw_multivariate_gaussian_fit():
+def test_hmm_bw_multivariate_gaussian_fit(multivariate_gaussian_sparse):
+    model = multivariate_gaussian_sparse
     seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]],
             [[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
 
@@ -1226,10 +1199,10 @@ def test_hmm_bw_multivariate_gaussian_fit():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 24.7013)
+    assert round(total_improvement, 4) == 24.7013
 
-@with_setup(setup_multivariate_gaussian_sparse, teardown)
-def test_hmm_bw_multivariate_gaussian_from_json():
+def test_hmm_bw_multivariate_gaussian_from_json(multivariate_gaussian_sparse):
+    model = multivariate_gaussian_sparse
     seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]],
             [[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
 
@@ -1242,10 +1215,10 @@ def test_hmm_bw_multivariate_gaussian_from_json():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 24.7013)
+    assert round(total_improvement, 4) == 24.7013
 
-@with_setup(setup_multivariate_gaussian_sparse, teardown)
-def test_hmm_bw_multivariate_gaussian_robust_from_json():
+def test_hmm_bw_multivariate_gaussian_robust_from_json(multivariate_gaussian_sparse):
+    model = multivariate_gaussian_sparse
     seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]],
             [[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
 
@@ -1258,10 +1231,10 @@ def test_hmm_bw_multivariate_gaussian_robust_from_json():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 24.7013)
+    assert round(total_improvement, 4) == 24.7013
 
-@with_setup(setup_multivariate_gaussian_sparse, teardown)
-def test_hmm_bw_multivariate_gaussian_from_yaml(): 
+def test_hmm_bw_multivariate_gaussian_from_yaml(multivariate_gaussian_sparse):
+    model = multivariate_gaussian_sparse
     seqs = [[[5, 8], [8, 10], [13, 17], [-3, -4]], [[6, 7], [13, 16], [12, 11], [-6, -7]],
             [[4, 6], [13, 15], [-4, -7]], [[6, 5], [14, 18], [-7, -5]]]
             
@@ -1274,10 +1247,9 @@ def test_hmm_bw_multivariate_gaussian_from_yaml():
                               max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 24.7013)
+    assert round(total_improvement, 4) == 24.7013
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_json():
+def test_hmm_bw_fit_json(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1291,14 +1263,13 @@ def test_hmm_bw_fit_json():
 
     total_improvement = history.total_improvement[-1]
 
-    assert_equal(round(total_improvement, 4), 83.1132)
+    assert round(total_improvement, 4) == 83.1132
     assert_almost_equal(sum(model.log_probability(seq) for seq in seqs), -42.2341, 4)
 
     hmm = HiddenMarkovModel.from_json(model.to_json())
     assert_almost_equal(sum(model.log_probability(seq) for seq in seqs), -42.2341, 4)
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_robust_from_json():
+def test_hmm_bw_fit_robust_from_json(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1312,14 +1283,13 @@ def test_hmm_bw_fit_robust_from_json():
 
     total_improvement = history.total_improvement[-1]
 
-    assert_equal(round(total_improvement, 4), 83.1132)
+    assert round(total_improvement, 4) == 83.1132
     assert_almost_equal(sum(model.log_probability(seq) for seq in seqs), -42.2341, 4)
 
     hmm = from_json(model.to_json())
     assert_almost_equal(sum(model.log_probability(seq) for seq in seqs), -42.2341, 4)
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_no_pseudocount():
+def test_hmm_bw_fit_no_pseudocount(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1332,11 +1302,10 @@ def test_hmm_bw_fit_no_pseudocount():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 85.681)
+    assert round(total_improvement, 4) == 85.681
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_pseudocount():
+def test_hmm_bw_fit_w_pseudocount(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1349,11 +1318,10 @@ def test_hmm_bw_fit_w_pseudocount():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 84.9408)
+    assert round(total_improvement, 4) == 84.9408
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_pseudocount_priors():
+def test_hmm_bw_fit_w_pseudocount_priors(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1367,11 +1335,10 @@ def test_hmm_bw_fit_w_pseudocount_priors():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 81.2265)
+    assert round(total_improvement, 4) == 81.2265
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_inertia():
+def test_hmm_bw_fit_w_inertia(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1384,11 +1351,10 @@ def test_hmm_bw_fit_w_inertia():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 85.0528)
+    assert round(total_improvement, 4) == 85.0528
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_inertia2():
+def test_hmm_bw_fit_w_inertia2(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1401,11 +1367,10 @@ def test_hmm_bw_fit_w_inertia2():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 72.5134)
+    assert round(total_improvement, 4) == 72.5134
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_pseudocount_inertia():
+def test_hmm_bw_fit_w_pseudocount_inertia(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1419,11 +1384,10 @@ def test_hmm_bw_fit_w_pseudocount_inertia():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.0764)
+    assert round(total_improvement, 4) == 83.0764
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_frozen_distributions():
+def test_hmm_bw_fit_w_frozen_distributions(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1436,11 +1400,10 @@ def test_hmm_bw_fit_w_frozen_distributions():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 64.474)
+    assert round(total_improvement, 4) == 64.474
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_frozen_edges():
+def test_hmm_bw_fit_w_frozen_edges(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1453,11 +1416,10 @@ def test_hmm_bw_fit_w_frozen_edges():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 44.0208)
+    assert round(total_improvement, 4) == 44.0208
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_edge_a_distribution_inertia():
+def test_hmm_bw_fit_w_edge_a_distribution_inertia(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1471,11 +1433,10 @@ def test_hmm_bw_fit_w_edge_a_distribution_inertia():
                                      max_iterations=5)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 81.5447)
+    assert round(total_improvement, 4) == 81.5447
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_parallel():
+def test_hmm_bw_fit_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1489,11 +1450,10 @@ def test_hmm_bw_fit_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.1132)
+    assert round(total_improvement, 4) == 83.1132
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_no_pseudocount_parallel():
+def test_hmm_bw_fit_no_pseudocount_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1507,11 +1467,10 @@ def test_hmm_bw_fit_no_pseudocount_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 85.681)
+    assert round(total_improvement, 4) == 85.681
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_pseudocount_parallel():
+def test_hmm_bw_fit_w_pseudocount_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1525,11 +1484,10 @@ def test_hmm_bw_fit_w_pseudocount_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 84.9408)
+    assert round(total_improvement, 4) == 84.9408
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_pseudocount_priors_parallel():
+def test_hmm_bw_fit_w_pseudocount_priors_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1544,11 +1502,10 @@ def test_hmm_bw_fit_w_pseudocount_priors_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 81.2265)
+    assert round(total_improvement, 4) == 81.2265
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_inertia_parallel():
+def test_hmm_bw_fit_w_inertia_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1562,11 +1519,10 @@ def test_hmm_bw_fit_w_inertia_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 85.0528)
+    assert round(total_improvement, 4) == 85.0528
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_inertia2_parallel():
+def test_hmm_bw_fit_w_inertia2_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1580,11 +1536,10 @@ def test_hmm_bw_fit_w_inertia2_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 72.5134)
+    assert round(total_improvement, 4) == 72.5134
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_pseudocount_inertia_parallel():
+def test_hmm_bw_fit_w_pseudocount_inertia_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1599,11 +1554,10 @@ def test_hmm_bw_fit_w_pseudocount_inertia_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.0764)
+    assert round(total_improvement, 4) == 83.0764
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_frozen_distributions_parallel():
+def test_hmm_bw_fit_w_frozen_distributions_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1617,11 +1571,10 @@ def test_hmm_bw_fit_w_frozen_distributions_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 64.474)
+    assert round(total_improvement, 4) == 64.474
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_frozen_edges_parallel():
+def test_hmm_bw_fit_w_frozen_edges_parallel(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1635,11 +1588,10 @@ def test_hmm_bw_fit_w_frozen_edges_parallel():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 44.0208)
+    assert round(total_improvement, 4) == 44.0208
 
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_w_edge_a_distribution_inertia():
+def test_hmm_bw_fit_w_edge_a_distribution_inertia(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1654,10 +1606,9 @@ def test_hmm_bw_fit_w_edge_a_distribution_inertia():
                                      n_jobs=2)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 81.5447)
+    assert round(total_improvement, 4) == 81.5447
 
-@with_setup(setup, teardown)
-def test_hmm_bw_fit_one_check_input():
+def test_hmm_bw_fit_one_check_input(model):
     seqs = [list(x) for x in ['ACT', 'ACT', 'ACC', 'ACTC', 'ACT', 'ACT', 'CCT',
         'CCC', 'AAT', 'CT', 'AT', 'CT', 'CT', 'CT', 'CT', 'CT', 'CT',
         'ACT', 'ACT', 'CT', 'ACT', 'CT', 'CT', 'CT', 'CT']]
@@ -1671,11 +1622,11 @@ def test_hmm_bw_fit_one_check_input():
                                      multiple_check_input=False)
 
     total_improvement = history.total_improvement[-1]
-    assert_equal(round(total_improvement, 4), 83.1132)
+    assert round(total_improvement, 4) == 83.1132
 
 def test_hmm_initialization():
     hmmd1 = HiddenMarkovModel()
-    assert_equal(hmmd1.d, 0)
+    assert hmmd1.d == 0
 
 
 def test_hmm_univariate_initialization():
@@ -1691,10 +1642,10 @@ def test_hmm_univariate_initialization():
     hmmd1.add_transition(s3d1, s1d1, 0.5)
     hmmd1.add_transition(s3d1, s2d1, 0.5)
 
-    assert_equal(hmmd1.d, 0)
+    assert hmmd1.d == 0
 
     hmmd1.bake()
-    assert_equal(hmmd1.d, 1)
+    assert hmmd1.d == 1
 
 
 def test_hmm_multivariate_initialization():
@@ -1703,7 +1654,7 @@ def test_hmm_multivariate_initialization():
     s3d3 = State(IndependentComponentsDistribution([UniformDistribution(0, 10), UniformDistribution(0, 10), UniformDistribution(0, 10)]))
 
     hmmd3 = HiddenMarkovModel()
-    assert_equal(hmmd3.d, 0)
+    assert hmmd3.d == 0
 
     hmmd3.add_transition(hmmd3.start, s1d3, 0.5)
     hmmd3.add_transition(hmmd3.start, s2d3, 0.5)
@@ -1711,10 +1662,10 @@ def test_hmm_multivariate_initialization():
     hmmd3.add_transition(s2d3, s3d3, 1)
     hmmd3.add_transition(s3d3, s1d3, 0.5)
     hmmd3.add_transition(s3d3, s2d3, 0.5)
-    assert_equal(hmmd3.d, 0)
+    assert hmmd3.d == 0
 
     hmmd3.bake()
-    assert_equal(hmmd3.d, 3)
+    assert hmmd3.d == 3
 
 
 def test_hmm_initialization_error():
@@ -1729,11 +1680,12 @@ def test_hmm_initialization_error():
     hmmb.add_transition(sbd3, sbd1, 0.5)
     hmmb.add_transition(sbd3, sbd3, 0.5)
 
-    assert_raises(ValueError, hmmb.bake)
+    with pytest.raises(ValueError):
+        hmmb.bake()
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_pickle_univariate():
+def test_hmm_pickle_univariate(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     model2 = pickle.loads(pickle.dumps(model))
 
     random_state = numpy.random.RandomState(0)
@@ -1746,8 +1698,8 @@ def test_hmm_pickle_univariate():
         assert_almost_equal(logp1, logp2)
 
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_json_univariate():
+def test_hmm_json_univariate(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     model2 = HiddenMarkovModel.from_json(model.to_json())
 
     random_state = numpy.random.RandomState(0)
@@ -1759,8 +1711,8 @@ def test_hmm_json_univariate():
 
         assert_almost_equal(logp1, logp2)
 
-@with_setup(setup_univariate_gaussian_dense)
-def test_hmm_robust_from_json_univariate():
+def test_hmm_robust_from_json_univariate(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     model2 = from_json(model.to_json())
 
     random_state = numpy.random.RandomState(0)
@@ -1772,8 +1724,8 @@ def test_hmm_robust_from_json_univariate():
 
         assert_almost_equal(logp1, logp2)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_pickle_multivariate():
+def test_hmm_pickle_multivariate(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     model2 = pickle.loads(pickle.dumps(model))
 
     random_state = numpy.random.RandomState(0)
@@ -1786,8 +1738,8 @@ def test_hmm_pickle_multivariate():
         assert_almost_equal(logp1, logp2)
 
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_json_multivariate():
+def test_hmm_json_multivariate(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     model2 = HiddenMarkovModel.from_json(model.to_json())
 
     random_state = numpy.random.RandomState(0)
@@ -1799,8 +1751,8 @@ def test_hmm_json_multivariate():
 
         assert_almost_equal(logp1, logp2)
 
-@with_setup(setup_multivariate_gaussian_dense)
-def test_hmm_robust_from_json_multivariate():
+def test_hmm_robust_from_json_multivariate(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     model2 = from_json(model.to_json())
 
     random_state = numpy.random.RandomState(0)
@@ -1812,19 +1764,19 @@ def test_hmm_robust_from_json_multivariate():
 
         assert_almost_equal(logp1, logp2)
 
-@with_setup(setup_univariate_discrete_dense, teardown)
-def test_hmm_univariate_discrete_from_samples():
+def test_hmm_univariate_discrete_from_samples(univariate_discrete_dense):
+    model = univariate_discrete_dense
     X = [model.sample(random_state=0) for i in range(25)]
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25)
 
     logp1 = sum(map(model.log_probability, X))
     logp2 = sum(map(model2.log_probability, X))
 
-    assert_greater(logp2, logp1)
+    assert logp2 > logp1
 
 
-@with_setup(setup_univariate_discrete_dense, teardown)
-def test_hmm_univariate_discrete_from_samples_with_labels():
+def test_hmm_univariate_discrete_from_samples_with_labels(univariate_discrete_dense):
+    model = univariate_discrete_dense
     X, y = zip(*model.sample(25, path=True, random_state=0))
     y = [[state.name for state in seq if not state.is_silent()] for seq in y]
 
@@ -1834,10 +1786,10 @@ def test_hmm_univariate_discrete_from_samples_with_labels():
     logp1 = sum(map(model.log_probability, X))
     logp2 = sum(map(model2.log_probability, X))
 
-    assert_greater(logp2, logp1)
+    assert logp2 > logp1
 
-@with_setup(setup_univariate_discrete_dense, teardown)
-def test_hmm_univariate_discrete_from_samples_one_check_input():
+def test_hmm_univariate_discrete_from_samples_one_check_input(univariate_discrete_dense):
+    model = univariate_discrete_dense
     X = [model.sample(random_state=0) for i in range(25)]
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, 
                                             max_iterations=25,
@@ -1846,53 +1798,53 @@ def test_hmm_univariate_discrete_from_samples_one_check_input():
     logp1 = sum(map(model.log_probability, X))
     logp2 = sum(map(model2.log_probability, X))
 
-    assert_greater(logp2, logp1)
+    assert logp2 > logp1
 
-@with_setup(setup_univariate_gaussian_dense, teardown)
-def test_hmm_univariate_gaussian_from_samples():
+def test_hmm_univariate_gaussian_from_samples(univariate_gaussian_dense):
+    model = univariate_gaussian_dense
     X = model.sample(n=25, random_state=0)
     model2 = HiddenMarkovModel.from_samples(NormalDistribution, 4, X, max_iterations=25)
 
     logp1 = sum(map(model.log_probability, X))
     logp2 = sum(map(model2.log_probability, X))
 
-    assert_greater(logp2, logp1)
+    assert logp2 > logp1
 
 
-@with_setup(setup_multivariate_gaussian_dense, teardown)
-def test_hmm_multivariate_gaussian_from_samples():
+def test_hmm_multivariate_gaussian_from_samples(multivariate_gaussian_dense):
+    model = multivariate_gaussian_dense
     X = model.sample(n=25, random_state=0)
     model2 = HiddenMarkovModel.from_samples(MultivariateGaussianDistribution, 4, X, max_iterations=25)
 
     logp1 = sum(map(model.log_probability, X))
     logp2 = sum(map(model2.log_probability, X))
 
-    assert_greater(logp2, logp1)
+    assert logp2 > logp1
 
-@with_setup(setup_univariate_discrete_dense, teardown)
-def test_hmm_univariate_discrete_from_samples_end_state():
+def test_hmm_univariate_discrete_from_samples_end_state(univariate_discrete_dense):
+    model = univariate_discrete_dense
     X = model.sample(n=25, random_state=0)
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, end_state=True)
 
     #We get non-zero end probabilities for each state
-    assert_greater(model2.dense_transition_matrix()[0][model2.end_index],0)
-    assert_greater(model2.dense_transition_matrix()[1][model2.end_index],0)
-    assert_greater(model2.dense_transition_matrix()[2][model2.end_index],0)
-    assert_greater(model2.dense_transition_matrix()[3][model2.end_index],0)
+    assert model2.dense_transition_matrix()[0][model2.end_index] >0
+    assert model2.dense_transition_matrix()[1][model2.end_index] >0
+    assert model2.dense_transition_matrix()[2][model2.end_index] >0
+    assert model2.dense_transition_matrix()[3][model2.end_index] >0
 
-@with_setup(setup_univariate_discrete_dense, teardown)
-def test_hmm_univariate_discrete_from_samples_no_end_state():
+def test_hmm_univariate_discrete_from_samples_no_end_state(univariate_discrete_dense):
+    model = univariate_discrete_dense
     X = [model.sample(random_state=0) for i in range(25)]
     model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, max_iterations=25, end_state=False)
 
     #We don't have end probabilities for each state
-    assert_equal(model2.dense_transition_matrix()[0][model2.end_index],0)
-    assert_equal(model2.dense_transition_matrix()[1][model2.end_index],0)
-    assert_equal(model2.dense_transition_matrix()[2][model2.end_index],0)
-    assert_equal(model2.dense_transition_matrix()[3][model2.end_index],0)
+    assert model2.dense_transition_matrix()[0][model2.end_index] ==0
+    assert model2.dense_transition_matrix()[1][model2.end_index] ==0
+    assert model2.dense_transition_matrix()[2][model2.end_index] ==0
+    assert model2.dense_transition_matrix()[3][model2.end_index] ==0
 
-@with_setup(setup_general_mixture_gaussian, teardown)
-def test_hmm_json_general_mixture_gaussian():
+def test_hmm_json_general_mixture_gaussian(general_mixture_gaussian):
+    model = general_mixture_gaussian
     model2 = HiddenMarkovModel.from_json(model.to_json())
     random_state = numpy.random.RandomState(0)
     for i in range(10):
@@ -1903,8 +1855,8 @@ def test_hmm_json_general_mixture_gaussian():
 
         assert_almost_equal(logp1, logp2)
 
-@with_setup(setup_general_mixture_gaussian, teardown)
-def test_hmm_robust_from_json_general_mixture_gaussian():
+def test_hmm_robust_from_json_general_mixture_gaussian(general_mixture_gaussian):
+    model = general_mixture_gaussian
     model2 = from_json(model.to_json())
     random_state = numpy.random.RandomState(0)
     for i in range(10):

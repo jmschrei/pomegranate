@@ -24,7 +24,7 @@ conda config --add channels conda-forge
 conda config --get channels
 # wip add packages that should be in base:
 base_packages=" cython "
-pom_packages=" scipy joblib nose networkx=1.11 "
+pom_packages=" scipy joblib pytest networkx=1.11 "
 pom_nbtest_packages=" scikit-learn pandas seaborn pygraphviz pillow xlrd memory_profiler jupyter jupyter_contrib_nbextensions jupyter_nbextensions_configurator "
 echo "Don't forget to also install gnuplot-py since it isn't yet in the tools Makefile"
 conda install --yes $base_packages $pom_packages $pom_nbtest_packages

@@ -4,34 +4,31 @@ from pomegranate import *
 from pomegranate.io import DataGenerator
 from pomegranate.io import DataFrameGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-from nose.tools import assert_true
-from numpy.testing import assert_array_equal
+from .assert_tools import assert_almost_equal
 from numpy.testing import assert_array_almost_equal
 
 import pandas
-import random
 import pickle
 import numpy as np
 
-nan = numpy.nan
+import pytest
 
-def setup_univariate_mixed():
+nan = np.nan
+
+
+@pytest.fixture
+def univariate_mixed():
 	normal = NormalDistribution(5, 2)
 	uniform = UniformDistribution(0, 10)
 
-	global model
 	model = NaiveBayes([normal, uniform])
 
-	global X
 	X = numpy.array([[5], [3], [1], [-1]])
+	return model, X
 
-def setup_multivariate_gaussian():
+
+@pytest.fixture
+def multivariate_gaussian():
 	d11 = NormalDistribution(0.0, 1)
 	d12 = NormalDistribution(0.5, 1)
 	d13 = NormalDistribution(0.3, 1)
@@ -42,28 +39,26 @@ def setup_multivariate_gaussian():
 	d23 = NormalDistribution(1.5, 1)
 	d2 = IndependentComponentsDistribution([d21, d22, d23])
 
-	global model
 	model = NaiveBayes([d1, d2])
 
-	global X
 	X = numpy.array([[0.3, 0.5, 0.1],
 					 [0.8, 1.4, 0.5],
 					 [1.4, 2.6, 1.8],
 					 [4.2, 3.3, 3.7],
 					 [2.6, 3.6, 3.3]])
 
-	global y
 	y = [0, 0, 0, 1, 1]
 
-	global X_nan
 	X_nan = numpy.array([[0.3, nan, 0.1],
 		     			 [nan, 1.4, nan],
 			     		 [1.4, 2.6, nan],
 				    	 [nan, nan, nan],
 					     [nan, 3.6, 3.3]])
+	return model, X, y, X_nan
 
 
-def setup_multivariate_mixed():
+@pytest.fixture
+def multivariate_mixed():
 	d11 = ExponentialDistribution(5)
 	d12 = LogNormalDistribution(0.5, 0.78)
 	d13 = PoissonDistribution(4)
@@ -74,41 +69,34 @@ def setup_multivariate_mixed():
 	d23 = PoissonDistribution(6)
 	d2 = IndependentComponentsDistribution([d21, d22, d23])
 
-	global model
 	model = NaiveBayes([d1, d2])
 
-	global X
 	X = numpy.array([[0.3, 0.5, 0.1],
 					 [0.8, 1.4, 0.5],
 					 [1.4, 2.6, 1.8],
 					 [4.2, 3.3, 3.7],
 					 [2.6, 3.6, 3.3]])
 
-	global y
 	y = [0, 0, 0, 1, 1]
 
-	global X_nan
 	X_nan = numpy.array([[0.3, nan, 0.1],
 		     			 [nan, 1.4, nan],
 			     		 [1.4, 2.6, nan],
 				    	 [nan, nan, nan],
 					     [nan, 3.6, 3.3]])
+	return model, X, y, X_nan
 
 
-def teardown():
-	pass
+def test_nb_univariate_initialization(univariate_mixed):
+	model, X = univariate_mixed
+	assert model.d == 1
+	assert model.n == 2
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_initialization():
-	assert_equal(model.d, 1)
-	assert_equal(model.n, 2)
-
-
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_initialization():
-	assert_equal(model.d, 3)
-	assert_equal(model.n, 2)
+def test_nb_multivariate_initialization(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
+	assert model.d == 3
+	assert model.n == 2
 
 
 def test_nb_univariate_constructors():
@@ -117,9 +105,12 @@ def test_nb_univariate_constructors():
 	d3 = IndependentComponentsDistribution([NormalDistribution(0, 1),
 		NormalDistribution(2, 1), NormalDistribution(3, 1)])
 
-	assert_raises(TypeError, NaiveBayes, [d1, d2])
-	assert_raises(TypeError, NaiveBayes, [d1, d3])
-	assert_raises(ValueError, NaiveBayes, [NormalDistribution])
+	with pytest.raises(TypeError):
+		NaiveBayes([d1, d2])
+	with pytest.raises(TypeError):
+		NaiveBayes([d1, d3])
+	with pytest.raises(ValueError):
+		NaiveBayes([NormalDistribution])
 
 
 def test_nb_multivariate_constructors():
@@ -130,14 +121,18 @@ def test_nb_multivariate_constructors():
 		NormalDistribution(2, 1)])
 
 	NaiveBayes([d1, d3])
-	assert_raises(TypeError, NaiveBayes, [d2, d3])
-	assert_raises(TypeError, NaiveBayes, [d2, d1])
-	assert_raises(ValueError, NaiveBayes, [MultivariateGaussianDistribution])
-	assert_raises(ValueError, NaiveBayes, [IndependentComponentsDistribution])
+	with pytest.raises(TypeError):
+		NaiveBayes([d2, d3])
+	with pytest.raises(TypeError):
+		NaiveBayes([d2, d1])
+	with pytest.raises(ValueError):
+		NaiveBayes([MultivariateGaussianDistribution])
+	with pytest.raises(ValueError):
+		NaiveBayes([IndependentComponentsDistribution])
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_predict_log_proba():
+def test_nb_univariate_mixed_predict_log_proba(univariate_mixed):
+	model, X = univariate_mixed
 	y_hat = model.predict_log_proba(X)
 	y = [[-0.4063484, -1.096847],
 	     [-0.6024268, -0.792926],
@@ -147,8 +142,8 @@ def test_nb_univariate_mixed_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_predict_log_proba():
+def test_nb_multivariate_gaussian_predict_log_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_log_proba(X)
 	y = [[ -2.194303e-01,    -1.624430e+00],
  		 [ -8.00891133e-01,  -5.95891133e-01],
@@ -159,8 +154,8 @@ def test_nb_multivariate_gaussian_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_predict_log_proba():
+def test_nb_multivariate_mixed_predict_log_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_log_proba(X)
 	y = [[ -3.96979060e-05,  -1.01342320e+01],
 		 [ -1.43325352e-11,  -2.49684574e+01],
@@ -171,8 +166,8 @@ def test_nb_multivariate_mixed_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_nan_predict_log_proba():
+def test_nb_multivariate_gaussian_nan_predict_log_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_log_proba(X_nan)
 	y = [[-0.27268481, -1.43268481],
 		 [-0.90406199, -0.51906199],
@@ -183,8 +178,8 @@ def test_nb_multivariate_gaussian_nan_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_nan_predict_log_proba():
+def test_nb_multivariate_mixed_nan_predict_log_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_log_proba(X_nan)
 	y = [[ -1.21742279e-04,  -9.01366508e+00],
 		 [ -2.83092062e-01,  -1.40019217e+00],
@@ -195,8 +190,8 @@ def test_nb_multivariate_mixed_nan_predict_log_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_predict_log_proba_parallel():
+def test_nb_univariate_mixed_predict_log_proba_parallel(univariate_mixed):
+	model, X = univariate_mixed
 	y_hat = model.predict_log_proba(X, n_jobs=2)
 	y = [[-0.4063484, -1.096847],
 	     [-0.6024268, -0.792926],
@@ -206,8 +201,8 @@ def test_nb_univariate_mixed_predict_log_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_predict_log_proba_parallel():
+def test_nb_multivariate_gaussian_predict_log_proba_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_log_proba(X, n_jobs=2)
 	y = [[ -2.194303e-01,    -1.624430e+00],
  		 [ -8.00891133e-01,  -5.95891133e-01],
@@ -218,8 +213,8 @@ def test_nb_multivariate_gaussian_predict_log_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_predict_log_proba_parallel():
+def test_nb_multivariate_mixed_predict_log_proba_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_log_proba(X, n_jobs=2)
 	y = [[ -3.96979060e-05,  -1.01342320e+01],
 		 [ -1.43325352e-11,  -2.49684574e+01],
@@ -230,8 +225,8 @@ def test_nb_multivariate_mixed_predict_log_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_predict_proba():
+def test_nb_univariate_mixed_predict_proba(univariate_mixed):
+	model, X = univariate_mixed
 	y_hat = model.predict_proba(X)
 	y = [[ 0.66607801,  0.33392199],
 		 [ 0.54748134,  0.45251866],
@@ -241,8 +236,8 @@ def test_nb_univariate_mixed_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_predict_proba():
+def test_nb_multivariate_gaussian_predict_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_proba(X)
 	y =	[[  8.02976114e-01,   1.97023886e-01],
 		 [  4.48928731e-01,   5.51071269e-01],
@@ -253,8 +248,8 @@ def test_nb_multivariate_gaussian_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_predict_proba():
+def test_nb_multivariate_mixed_predict_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_proba(X)
 	y = [[  9.99960303e-01,   3.96971181e-05],
 		 [  1.00000000e+00,   1.43329876e-11],
@@ -265,8 +260,8 @@ def test_nb_multivariate_mixed_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_nan_predict_proba():
+def test_nb_multivariate_gaussian_nan_predict_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_proba(X_nan)
 	y = [[ 0.76133271,  0.23866729],
 		 [ 0.40492153,  0.59507847],
@@ -277,8 +272,8 @@ def test_nb_multivariate_gaussian_nan_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_nan_predict_proba():
+def test_nb_multivariate_mixed_nan_predict_proba(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_proba(X_nan)
 	y = [[  9.99878265e-01,   1.21734869e-04],
 		 [  7.53450421e-01,   2.46549579e-01],
@@ -289,8 +284,8 @@ def test_nb_multivariate_mixed_nan_predict_proba():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_predict_proba_parallel():
+def test_nb_univariate_mixed_predict_proba_parallel(univariate_mixed):
+	model, X = univariate_mixed
 	y_hat = model.predict_proba(X, n_jobs=2)
 	y =  [[ 0.66607801,  0.33392199],
 		  [ 0.54748134,  0.45251866],
@@ -300,8 +295,8 @@ def test_nb_univariate_mixed_predict_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_predict_proba_parallel():
+def test_nb_multivariate_gaussian_predict_proba_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict_proba(X, n_jobs=2)
 	y = [[  8.02976114e-01,   1.97023886e-01],
 		 [  4.48928731e-01,   5.51071269e-01],
@@ -312,8 +307,8 @@ def test_nb_multivariate_gaussian_predict_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_predict_proba_parallel():
+def test_nb_multivariate_mixed_predict_proba_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict_proba(X, n_jobs=2)
 	y = [[  9.99960303e-01,   3.96971181e-05,],
 		 [  1.00000000e+00,   1.43329876e-11,],
@@ -324,72 +319,72 @@ def test_nb_multivariate_mixed_predict_proba_parallel():
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_predict():
+def test_nb_univariate_mixed_predict(univariate_mixed):
+	model, X = univariate_mixed
 	y_hat = model.predict(X)
 	y = [0, 0, 1, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_predict():
+def test_nb_multivariate_gaussian_predict(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict(X)
 	y = [0, 1, 1, 1, 1]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_predict():
+def test_nb_multivariate_mixed_predict(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict(X)
 	y = [0, 0, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_nan_predict():
+def test_nb_multivariate_gaussian_nan_predict(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict(X_nan)
 	y = [0, 1, 1, 0, 1]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_nan_predict():
+def test_nb_multivariate_mixed_nan_predict(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict(X_nan)
 	y = [0, 0, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_predict_parallel():
+def test_nb_univariate_mixed_predict_parallel(univariate_mixed):
+	model, X = univariate_mixed
 	y_hat = model.predict(X, n_jobs=2)
 	y = [0, 0, 1, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_predict_parallel():
+def test_nb_multivariate_gaussian_predict_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	y_hat = model.predict(X, n_jobs=2)
 	y = [0, 1, 1, 1, 1]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_predict_parallel():
+def test_nb_multivariate_mixed_predict_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	y_hat = model.predict(X, n_jobs=2)
 	y = [0, 0, 0, 0, 0]
 
 	assert_array_almost_equal(y, y_hat)
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_fit():
+def test_nb_univariate_mixed_fit(univariate_mixed):
+	model, X = univariate_mixed
 	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
 	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
@@ -403,8 +398,8 @@ def test_nb_univariate_mixed_fit():
 	assert_array_almost_equal(d1.parameters, [4.916666666666667, 0.7592027982620252])
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_fit():
+def test_nb_multivariate_gaussian_fit(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model.fit(X, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -422,8 +417,8 @@ def test_nb_multivariate_gaussian_fit():
 	assert_array_almost_equal(d23.parameters, [3.5, 0.19999999999999787])
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_fit():
+def test_nb_multivariate_mixed_fit(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	model.fit(X, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -441,8 +436,8 @@ def test_nb_multivariate_mixed_fit():
 	assert_array_almost_equal(d23.parameters, [3.5])
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_nan_fit():
+def test_nb_multivariate_gaussian_nan_fit(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model.fit(X_nan, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -460,8 +455,8 @@ def test_nb_multivariate_gaussian_nan_fit():
 	assert_array_almost_equal(d23.parameters, [3.3, 0.0])
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_nan_fit():
+def test_nb_multivariate_mixed_nan_fit(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	model.fit(X_nan, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -479,8 +474,8 @@ def test_nb_multivariate_mixed_nan_fit():
 	assert_array_almost_equal(d23.parameters, [3.3])
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_fit_parallel():
+def test_nb_univariate_mixed_fit_parallel(univariate_mixed):
+	model, X = univariate_mixed
 	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
 	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
@@ -494,8 +489,8 @@ def test_nb_univariate_mixed_fit_parallel():
 	assert_array_almost_equal(d1.parameters, [4.916666666666667, 0.7592027982620252])
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_fit_parallel():
+def test_nb_multivariate_gaussian_fit_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model.fit(X, y, n_jobs=2)
 
 	d11 = model.distributions[0].distributions[0]
@@ -513,8 +508,8 @@ def test_nb_multivariate_gaussian_fit_parallel():
 	assert_array_almost_equal(d23.parameters, [3.5, 0.19999999999999787])
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_fit_parallel():
+def test_nb_multivariate_mixed_fit_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	model.fit(X, y, n_jobs=2)
 
 	d11 = model.distributions[0].distributions[0]
@@ -532,8 +527,8 @@ def test_nb_multivariate_mixed_fit_parallel():
 	assert_array_almost_equal(d23.parameters, [3.5])
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_from_samples():
+def test_nb_univariate_mixed_from_samples(univariate_mixed):
+	model, X = univariate_mixed
 	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
 	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
@@ -548,8 +543,8 @@ def test_nb_univariate_mixed_from_samples():
 	assert_array_almost_equal(d1.parameters, [4.916666666666667, 0.7592027982620252])
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_from_samples():
+def test_nb_multivariate_gaussian_from_samples(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model = NaiveBayes.from_samples(NormalDistribution, X, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -567,8 +562,8 @@ def test_nb_multivariate_gaussian_from_samples():
 	assert_array_almost_equal(d23.parameters, [3.5, 0.19999999999999787])
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_from_samples():
+def test_nb_multivariate_mixed_from_samples(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	d = [ExponentialDistribution, LogNormalDistribution, PoissonDistribution]
 	model = NaiveBayes.from_samples(d, X, y)
 
@@ -587,8 +582,8 @@ def test_nb_multivariate_mixed_from_samples():
 	assert_array_almost_equal(d23.parameters, [3.5])
 
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_nan_from_samples():
+def test_nb_multivariate_gaussian_nan_from_samples(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model = NaiveBayes.from_samples(NormalDistribution, X_nan, y)
 
 	d11 = model.distributions[0].distributions[0]
@@ -606,8 +601,8 @@ def test_nb_multivariate_gaussian_nan_from_samples():
 	assert_array_almost_equal(d23.parameters, [3.3, 0.0])
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_nan_from_samples():
+def test_nb_multivariate_mixed_nan_from_samples(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	d = [ExponentialDistribution, LogNormalDistribution, PoissonDistribution]
 	model = NaiveBayes.from_samples(d, X_nan, y)
 
@@ -626,8 +621,8 @@ def test_nb_multivariate_mixed_nan_from_samples():
 	assert_array_almost_equal(d23.parameters, [3.3])
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_nb_univariate_mixed_from_samples_parallel():
+def test_nb_univariate_mixed_from_samples_parallel(univariate_mixed):
+	model, X = univariate_mixed
 	X = np.array([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4, 0, 0,
 		1, 9, 8, 2, 0, 1, 1, 8, 10, 0]).reshape(-1, 1)
 	y = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
@@ -642,8 +637,8 @@ def test_nb_univariate_mixed_from_samples_parallel():
 	assert_array_almost_equal(d1.parameters, [4.916666666666667, 0.7592027982620252])
 	assert_array_almost_equal(d2.parameters, [0.0, 10.0])
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_nb_multivariate_gaussian_from_samples_parallel():
+def test_nb_multivariate_gaussian_from_samples_parallel(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	model = NaiveBayes.from_samples(NormalDistribution, X, y, n_jobs=2)
 
 	d11 = model.distributions[0].distributions[0]
@@ -661,8 +656,8 @@ def test_nb_multivariate_gaussian_from_samples_parallel():
 	assert_array_almost_equal(d23.parameters, [3.5, 0.19999999999999787])
 
 
-@with_setup(setup_multivariate_mixed, teardown)
-def test_nb_multivariate_mixed_from_samples_parallel():
+def test_nb_multivariate_mixed_from_samples_parallel(multivariate_mixed):
+	model, X, y, X_nan = multivariate_mixed
 	d = [ExponentialDistribution, LogNormalDistribution, PoissonDistribution]
 	model = NaiveBayes.from_samples(d, X, y, n_jobs=2)
 
@@ -681,8 +676,8 @@ def test_nb_multivariate_mixed_from_samples_parallel():
 	assert_array_almost_equal(d23.parameters, [3.5])
 
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_raise_errors():
+def test_raise_errors(univariate_mixed):
+	model, X = univariate_mixed
 	# check raises no errors when converting values
 	model.predict_log_proba([[5]])
 	model.predict_log_proba([[4.5]])
@@ -699,38 +694,38 @@ def test_raise_errors():
 	model.predict([[5], [6]])
 	model.predict(np.array([[5], [6]]))
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_pickling():
+def test_pickling(univariate_mixed):
+	model, X = univariate_mixed
 	j_univ = pickle.dumps(model)
 
 	new_univ = pickle.loads(j_univ)
-	assert_true(isinstance(new_univ.distributions[0], NormalDistribution))
-	assert_true(isinstance(new_univ.distributions[1], UniformDistribution))
-	assert_true(isinstance(new_univ, NaiveBayes))
+	assert isinstance(new_univ.distributions[0], NormalDistribution)
+	assert isinstance(new_univ.distributions[1], UniformDistribution)
+	assert isinstance(new_univ, NaiveBayes)
 	numpy.testing.assert_array_equal(model.weights, new_univ.weights)
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_json():
+def test_json(univariate_mixed):
+	model, X = univariate_mixed
 	j_univ = model.to_json()
 
 	new_univ = model.from_json(j_univ)
-	assert_true(isinstance(new_univ.distributions[0], NormalDistribution))
-	assert_true(isinstance(new_univ.distributions[1], UniformDistribution))
-	assert_true(isinstance(new_univ, NaiveBayes))
+	assert isinstance(new_univ.distributions[0], NormalDistribution)
+	assert isinstance(new_univ.distributions[1], UniformDistribution)
+	assert isinstance(new_univ, NaiveBayes)
 	numpy.testing.assert_array_equal( model.weights, new_univ.weights)
 
-@with_setup(setup_univariate_mixed, teardown)
-def test_robust_from_json():
+def test_robust_from_json(univariate_mixed):
+	model, X = univariate_mixed
 	j_univ = model.to_json()
 
 	new_univ = from_json(j_univ)
-	assert_true(isinstance(new_univ.distributions[0], NormalDistribution))
-	assert_true(isinstance(new_univ.distributions[1], UniformDistribution))
-	assert_true(isinstance(new_univ, NaiveBayes))
+	assert isinstance(new_univ.distributions[0], NormalDistribution)
+	assert isinstance(new_univ.distributions[1], UniformDistribution)
+	assert isinstance(new_univ, NaiveBayes)
 	numpy.testing.assert_array_equal( model.weights, new_univ.weights)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_log_probability():
+def test_io_log_probability(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 	logp1 = model.log_probability(X)
@@ -739,8 +734,8 @@ def test_io_log_probability():
 	assert_array_almost_equal(logp1, logp2)
 	assert_array_almost_equal(logp1, logp3)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_predict():
+def test_io_predict(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 	y_hat1 = model.predict(X)
@@ -749,8 +744,8 @@ def test_io_predict():
 	assert_array_almost_equal(y_hat1, y_hat2)
 	assert_array_almost_equal(y_hat1, y_hat3)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_predict_proba():
+def test_io_predict_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 	y_hat1 = model.predict_proba(X)
@@ -759,8 +754,8 @@ def test_io_predict_proba():
 	assert_array_almost_equal(y_hat1, y_hat2)
 	assert_array_almost_equal(y_hat1, y_hat3)
 
-@with_setup(setup_multivariate_gaussian, teardown)
-def test_io_predict_log_proba():
+def test_io_predict_log_proba(multivariate_gaussian):
+	model, X, y, X_nan = multivariate_gaussian
 	X2 = DataGenerator(X)
 	X3 = DataFrameGenerator(pandas.DataFrame(X))
 	y_hat1 = model.predict_log_proba(X)
@@ -831,12 +826,12 @@ def test_discrete_distribution():
 		y,
 	)
 	p_y0 = m.distributions[0].parameters[0]
-	assert_almost_equal(list(p_y0[0].parameters[0].values()), [1/3, 1/3, 1/3])
-	assert_almost_equal(list(p_y0[1].parameters[0].values()), [2/3, 1/3])
+	assert list(p_y0[0].parameters[0].values()) == [1/3, 1/3, 1/3]
+	assert list(p_y0[1].parameters[0].values()) == [2/3, 1/3]
 
 	p_y1 = m.distributions[1].parameters[0]
-	assert_almost_equal(list(p_y1[0].parameters[0].values()), [1/3, 1/3, 1/3])
-	assert_almost_equal(list(p_y1[1].parameters[0].values()), [2/3, 1/3])
+	assert list(p_y1[0].parameters[0].values()) == [1/3, 1/3, 1/3]
+	assert list(p_y1[1].parameters[0].values()) == [2/3, 1/3]
 
 	# Check the probability calculation for a test variable.
 	X_test = np.array([[1, 0]])

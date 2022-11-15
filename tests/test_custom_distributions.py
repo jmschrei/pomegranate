@@ -1,20 +1,12 @@
 from __future__ import (division)
 
 from pomegranate import *
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-from nose.tools import assert_true
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 
 import numpy
 import scipy.stats
-
-nan = numpy.nan
+import pytest
 
 class NormalDistribution2():
 	def __init__(self, mu, std):
@@ -116,10 +108,9 @@ def build_model(d1, d2):
 	model.bake()
 	return model
 
-def setup_normal_hmm():
-	global model1
-	global model2
 
+@pytest.fixture
+def normal_hmm():
 	d1 = NormalDistribution(0, 1)
 	d2 = NormalDistribution(1, 1)
 	model1 = build_model(d1, d2)
@@ -127,24 +118,21 @@ def setup_normal_hmm():
 	d3 = NormalDistribution2(0, 1)
 	d4 = NormalDistribution2(1, 1)
 	model2 = build_model(d3, d4)
+	return model1, model2
 
-def setup_mgd_hmm():
-	global model1
-	global model2
-
+@pytest.fixture
+def mgd_hmm():
 	d1 = MultivariateGaussianDistribution(numpy.zeros(3), numpy.eye(3))
 	d2 = MultivariateGaussianDistribution(numpy.ones(3), numpy.eye(3))
 	model1 = build_model(d1, d2)
-	
 
 	d3 = MultivariateGaussianDistribution2(numpy.zeros(3), numpy.eye(3))
 	d4 = MultivariateGaussianDistribution2(numpy.ones(3), numpy.eye(3))
 	model2 = build_model(d3, d4)
+	return model1, model2
 
-def setup_icd_hmm():
-	global model1
-	global model2
-
+@pytest.fixture
+def icd_hmm():
 	d1 = IndependentComponentsDistribution([NormalDistribution(0, 1) for _ in range(5)])
 	d2 = IndependentComponentsDistribution([NormalDistribution(1, 1) for _ in range(5)])
 	model1 = build_model(d1, d2)
@@ -152,15 +140,16 @@ def setup_icd_hmm():
 	d3 = IndependentComponentsDistribution([NormalDistribution2(0, 1) for _ in range(5)])
 	d4 = IndependentComponentsDistribution([NormalDistribution2(1, 1) for _ in range(5)])
 	model2 = build_model(d3, d4)
+	return model1, model2
 
 def test_custom_normal_gmm_init():
 	d1 = NormalDistribution2(0, 1)
 	d2 = NormalDistribution2(1, 1)
 	model = GeneralMixtureModel([d1, d2])
 
-	assert_equal(d1.d, 1)
-	assert_equal(d2.d, 1)
-	assert_equal(model.d, 1)
+	assert d1.d == 1
+	assert d2.d == 1
+	assert model.d == 1
 
 def test_custom_normal_gmm_logp():
 	X = numpy.random.normal(0.5, 1, size=(20, 1))
@@ -247,9 +236,9 @@ def test_custom_mgd_gmm_init():
 	d2 = MultivariateGaussianDistribution2(numpy.ones(3), numpy.eye(3))
 	model = GeneralMixtureModel([d1, d2])
 
-	assert_equal(d1.d, 3)
-	assert_equal(d2.d, 3)
-	assert_equal(model.d, 3)
+	assert d1.d == 3
+	assert d2.d == 3
+	assert model.d == 3
 
 def test_custom_mgd_gmm_logp():
 	X = numpy.random.normal(0.5, 1, size=(20,3))
@@ -337,9 +326,9 @@ def test_custom_icd_gmm_init():
 	d2 = IndependentComponentsDistribution([NormalDistribution2(1, 1) for _ in range(5)])
 	model = GeneralMixtureModel([d1, d2])
 
-	assert_equal(d1.d, 5)
-	assert_equal(d2.d, 5)
-	assert_equal(model.d, 5)
+	assert d1.d == 5
+	assert d2.d == 5
+	assert model.d == 5
 
 def test_custom_icd_gmm_logp():
 	X = numpy.random.normal(0.5, 1, size=(20,5))
@@ -426,9 +415,9 @@ def test_custom_normal_nb_init():
 	d2 = NormalDistribution2(1, 1)
 	model = NaiveBayes([d1, d2])
 
-	assert_equal(d1.d, 1)
-	assert_equal(d2.d, 1)
-	assert_equal(model.d, 1)
+	assert d1.d == 1
+	assert d2.d == 1
+	assert model.d == 1
 
 def test_custom_normal_nb_logp():
 	X = numpy.random.normal(0.5, 1, size=(20, 1))
@@ -519,9 +508,9 @@ def test_custom_mgd_bc_init():
 	d2 = MultivariateGaussianDistribution2(numpy.ones(3), numpy.eye(3))
 	model = BayesClassifier([d1, d2])
 
-	assert_equal(d1.d, 3)
-	assert_equal(d2.d, 3)
-	assert_equal(model.d, 3)
+	assert d1.d == 3
+	assert d2.d == 3
+	assert model.d == 3
 
 def test_custom_mgd_bc_logp():
 	X = numpy.random.normal(0.5, 1, size=(20,3))
@@ -612,9 +601,9 @@ def test_custom_icd_nb_init():
 	d2 = IndependentComponentsDistribution([NormalDistribution2(1, 1) for _ in range(5)])
 	model = NaiveBayes([d1, d2])
 
-	assert_equal(d1.d, 5)
-	assert_equal(d2.d, 5)
-	assert_equal(model.d, 5)
+	assert d1.d == 5
+	assert d2.d == 5
+	assert model.d == 5
 
 def test_custom_icd_nb_logp():
 	X = numpy.random.normal(0.5, 1, size=(20,5))
@@ -700,33 +689,33 @@ def test_custom_icd_nb_from_samples():
 
 	assert_array_almost_equal(model1.log_probability(X), model2.log_probability(X))
 
-@with_setup(setup_normal_hmm)
-def test_custom_normal_hmm_init():
-	assert_equal(model1.d, 1)
-	assert_equal(model2.d, 1)
+def test_custom_normal_hmm_init(normal_hmm):
+	model1, model2 = normal_hmm
+	assert model1.d == 1
+	assert model2.d == 1
 
-@with_setup(setup_normal_hmm)
-def test_custom_normal_hmm_logp():
+def test_custom_normal_hmm_logp(normal_hmm):
+	model1, model2 = normal_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 1))
 	assert_array_almost_equal(model1.log_probability(X), model2.log_probability(X))
 
-@with_setup(setup_normal_hmm)
-def test_custom_normal_hmm_predict():
+def test_custom_normal_hmm_predict(normal_hmm):
+	model1, model2 = normal_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 1))
 	assert_array_equal(model1.predict(X), model2.predict(X))
 
-@with_setup(setup_normal_hmm)
-def test_custom_normal_hmm_predict_proba():
+def test_custom_normal_hmm_predict_proba(normal_hmm):
+	model1, model2 = normal_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 1))
 	assert_array_almost_equal(model1.predict_proba(X), model2.predict_proba(X))
 
-@with_setup(setup_normal_hmm)
-def test_custom_normal_hmm_predict_log_proba():
+def test_custom_normal_hmm_predict_log_proba(normal_hmm):
+	model1, model2 = normal_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 1))
 	assert_array_almost_equal(model1.predict_log_proba(X), model2.predict_log_proba(X))
 
-@with_setup(setup_normal_hmm)
-def test_custom_normal_hmm_fit():
+def test_custom_normal_hmm_fit(normal_hmm):
+	model1, model2 = normal_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 1))
 
 	model1.fit(X, max_iterations=5)
@@ -743,33 +732,33 @@ def test_custom_normal_hmm_from_samples():
 
 	assert_array_almost_equal(model1.log_probability(X), model2.log_probability(X))
 
-@with_setup(setup_mgd_hmm)
-def test_custom_mgd_hmm_init():
-	assert_equal(model1.d, 3)
-	assert_equal(model2.d, 3)
+def test_custom_mgd_hmm_init(mgd_hmm):
+	model1, model2 = mgd_hmm
+	assert model1.d == 3
+	assert model2.d == 3
 
-@with_setup(setup_mgd_hmm)
-def test_custom_mgd_hmm_logp():
+def test_custom_mgd_hmm_logp(mgd_hmm):
+	model1, model2 = mgd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 3))
 	assert_array_almost_equal(model1.log_probability(X), model2.log_probability(X))
 
-@with_setup(setup_mgd_hmm)
-def test_custom_mgd_hmm_predict():
+def test_custom_mgd_hmm_predict(mgd_hmm):
+	model1, model2 = mgd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 3))
 	assert_array_equal(model1.predict(X), model2.predict(X))
 
-@with_setup(setup_mgd_hmm)
-def test_custom_mgd_hmm_predict_proba():
+def test_custom_mgd_hmm_predict_proba(mgd_hmm):
+	model1, model2 = mgd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 3))
 	assert_array_almost_equal(model1.predict_proba(X), model2.predict_proba(X))
 
-@with_setup(setup_mgd_hmm)
-def test_custom_mgd_hmm_predict_log_proba():
+def test_custom_mgd_hmm_predict_log_proba(mgd_hmm):
+	model1, model2 = mgd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 3))
 	assert_array_almost_equal(model1.predict_log_proba(X), model2.predict_log_proba(X))
 
-@with_setup(setup_mgd_hmm)
-def test_custom_mgd_hmm_fit():
+def test_custom_mgd_hmm_fit(mgd_hmm):
+	model1, model2 = mgd_hmm
 	X = numpy.random.normal(0, 0.1, size=(2, 50, 3))
 	X[:, ::2] += 1
 
@@ -787,33 +776,33 @@ def test_custom_mgd_hmm_from_samples():
 
 	assert_array_almost_equal(model1.log_probability(X), model2.log_probability(X))
 
-@with_setup(setup_icd_hmm)
-def test_custom_icd_hmm_init():
-	assert_equal(model1.d, 5)
-	assert_equal(model2.d, 5)
+def test_custom_icd_hmm_init(icd_hmm):
+	model1, model2 = icd_hmm
+	assert model1.d == 5
+	assert model2.d == 5
 
-@with_setup(setup_icd_hmm)
-def test_custom_icd_hmm_logp():
+def test_custom_icd_hmm_logp(icd_hmm):
+	model1, model2 = icd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 5))
 	assert_array_almost_equal(model1.log_probability(X), model2.log_probability(X))
 
-@with_setup(setup_icd_hmm)
-def test_custom_icd_hmm_predict():
+def test_custom_icd_hmm_predict(icd_hmm):
+	model1, model2 = icd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 5))
 	assert_array_almost_equal(model1.predict(X), model2.predict(X))
 
-@with_setup(setup_icd_hmm)
-def test_custom_icd_hmm_predict_proba():
+def test_custom_icd_hmm_predict_proba(icd_hmm):
+	model1, model2 = icd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 5))
 	assert_array_almost_equal(model1.predict_proba(X), model2.predict_proba(X))
 
-@with_setup(setup_icd_hmm)
-def test_custom_icd_hmm_predict_log_proba():
+def test_custom_icd_hmm_predict_log_proba(icd_hmm):
+	model1, model2 = icd_hmm
 	X = numpy.random.normal(0.5, 1, size=(5, 20, 5))
 	assert_array_almost_equal(model1.predict_log_proba(X), model2.predict_log_proba(X))
 
-@with_setup(setup_icd_hmm)
-def test_custom_icd_hmm_fit():
+def test_custom_icd_hmm_fit(icd_hmm):
+	model1, model2 = icd_hmm
 	X = numpy.random.normal(0.5, 1, size=(3, 20, 5))
 
 	model1.fit(X, max_iterations=5)

@@ -62,14 +62,14 @@ pomegranate requires:
 - joblib
 ```
 
-To run the tests, you also must have `nose` installed.
+To run the tests, you also must have `pytest` installed.
 
 ## Contributing
 
-If you would like to contribute a feature then fork the master branch (fork the release if you are fixing a bug). Be sure to run the tests before changing any code. You'll need to have [nosetests](https://github.com/nose-devs/nose) installed. The following command will run all the tests:
+If you would like to contribute a feature then fork the master branch (fork the release if you are fixing a bug). Be sure to run the tests before changing any code. You'll need to have [pytest](https://pytest.org) installed. The following command will run all the tests:
 
 ```
-python setup.py test
+python3 -m pytest
 ```
 
 Let us know what you want to do just in case we're already working on an implementation of something similar. This way we can avoid any needless duplication of effort. Also, please don't forget to add tests for any new functions.

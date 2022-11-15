@@ -3,17 +3,13 @@ from pomegranate.io import DataGenerator
 from pomegranate.io import SequenceGenerator
 from pomegranate.io import DataFrameGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_true
-from nose.tools import assert_equal
-from nose.tools import assert_raises
 from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_equal
-from numpy.testing import assert_array_almost_equal
 
 import random
 import numpy
 import pandas
+import pytest
 
 numpy.random.seed(0)
 random.seed(0)
@@ -30,7 +26,9 @@ def test_io_datagenerator_classes_fail():
 	X = numpy.random.randn(500, 13)
 	data = DataGenerator(X)
 
-	assert_raises(ValueError, lambda data: data.classes, data)
+	with pytest.raises(ValueError):
+		d = lambda data: data.classes
+		d(data)
 
 def test_io_datagenerator_classes():
 	X = numpy.random.randn(500, 13)
@@ -146,7 +144,7 @@ def test_io_datagenerator_wy_unlabeled():
 	X_ = numpy.concatenate([batch[0] for batch in data.unlabeled_batches()])
 	w_ = numpy.concatenate([batch[1] for batch in data.unlabeled_batches()])
 
-	assert_true(X.shape[0] > X_.shape[0])
+	assert X.shape[0] > X_.shape[0]
 	assert_almost_equal(X[y == -1], X_)
 	assert_almost_equal(w[y == -1], w_)
 
@@ -160,7 +158,7 @@ def test_io_datagenerator_wy_labeled():
 	y_ = numpy.concatenate([batch[1] for batch in data.labeled_batches()])
 	w_ = numpy.concatenate([batch[2] for batch in data.labeled_batches()])
 
-	assert_true(X.shape[0] > X_.shape[0])
+	assert X.shape[0] > X_.shape[0]
 	assert_almost_equal(X[y != -1], X_)
 	assert_almost_equal(y[y != -1], y_)
 	assert_almost_equal(w[y != -1], w_)
@@ -278,8 +276,8 @@ def test_io_seqgenerator_wy_unlabeled():
 	X_ = numpy.concatenate([batch[0] for batch in data.unlabeled_batches()])
 	w_ = numpy.concatenate([batch[1] for batch in data.unlabeled_batches()])
 
-	assert_true(len(X) > len(X_))
-	assert_true(len(w) > len(w_))
+	assert len(X) > len(X_)
+	assert len(w) > len(w_)
 
 	i = 0
 	for j in range(500):
@@ -301,8 +299,8 @@ def test_io_seqgenerator_wy_symbol_unlabeled():
 	X_ = numpy.concatenate([batch[0] for batch in data.unlabeled_batches()])
 	w_ = numpy.concatenate([batch[1] for batch in data.unlabeled_batches()])
 
-	assert_true(len(X) > len(X_))
-	assert_true(len(w) > len(w_))
+	assert len(X) > len(X_)
+	assert len(w) > len(w_)
 
 	i = 0
 	for j in range(500):
@@ -325,9 +323,9 @@ def test_io_seqgenerator_wy_labeled():
 	w_ = numpy.concatenate([batch[1] for batch in data.labeled_batches()])
 	y_ = numpy.concatenate([batch[2] for batch in data.labeled_batches()])
 
-	assert_true(len(X) > len(X_))
-	assert_true(len(w) > len(w_))
-	assert_true(len(y) > len(y_))
+	assert len(X) > len(X_)
+	assert len(w) > len(w_)
+	assert len(y) > len(y_)
 
 	i = 0
 	for j in range(500):
@@ -351,9 +349,9 @@ def test_io_seqgenerator_wy_symbol_labeled():
 	w_ = numpy.concatenate([batch[1] for batch in data.labeled_batches()])
 	y_ = numpy.concatenate([batch[2] for batch in data.labeled_batches()])
 
-	assert_true(len(X) > len(X_))
-	assert_true(len(w) > len(w_))
-	assert_true(len(y) > len(y_))
+	assert len(X) > len(X_)
+	assert len(w) > len(w_)
+	assert len(y) > len(y_)
 
 	i = 0
 	for j in range(500):
@@ -373,7 +371,9 @@ def test_io_dfgenerator_classes_fail():
 	X = pandas.DataFrame(numpy.random.randn(500, 13))
 	data = DataFrameGenerator(X)
 
-	assert_raises(ValueError, lambda data: data.classes, data)
+	with pytest.raises(ValueError):
+		d = lambda data: data.classes
+		d(data)
 
 def test_io_dfgenerator_numpy_classes():
 	X = pandas.DataFrame(numpy.random.randn(500, 13))
@@ -627,7 +627,7 @@ def test_io_dfgenerator_wy_unlabeled():
 	X_ = numpy.concatenate([batch[0] for batch in data.unlabeled_batches()])
 	w_ = numpy.concatenate([batch[1] for batch in data.unlabeled_batches()])
 
-	assert_true(X.shape[0] > X_.shape[0])
+	assert X.shape[0] > X_.shape[0]
 	assert_almost_equal(X.loc[y == -1], X_)
 	assert_almost_equal(w[y == -1], w_)
 
@@ -644,7 +644,7 @@ def test_io_dfgenerator_wy_str_unlabeled():
 	X_ = numpy.concatenate([batch[0] for batch in data.unlabeled_batches()])
 	w_ = numpy.concatenate([batch[1] for batch in data.unlabeled_batches()])
 
-	assert_true(X.shape[0] > X_.shape[0])
+	assert X.shape[0] > X_.shape[0]
 	assert_almost_equal(X2.loc[y == -1], X_)
 	assert_almost_equal(w[y == -1], w_)
 
@@ -658,7 +658,7 @@ def test_io_dfgenerator_wy_labeled():
 	y_ = numpy.concatenate([batch[1] for batch in data.labeled_batches()])
 	w_ = numpy.concatenate([batch[2] for batch in data.labeled_batches()])
 
-	assert_true(X.shape[0] > X_.shape[0])
+	assert X.shape[0] > X_.shape[0]
 	assert_almost_equal(X.loc[y != -1], X_)
 	assert_almost_equal(y[y != -1], y_)
 	assert_almost_equal(w[y != -1], w_)
@@ -677,7 +677,7 @@ def test_io_dfgenerator_wy_str_labeled():
 	y_ = numpy.concatenate([batch[1] for batch in data.labeled_batches()])
 	w_ = numpy.concatenate([batch[2] for batch in data.labeled_batches()])
 
-	assert_true(X.shape[0] > X_.shape[0])
+	assert X.shape[0] > X_.shape[0]
 	assert_almost_equal(X2.loc[y != -1], X_)
 	assert_almost_equal(y[y != -1], y_)
 	assert_almost_equal(w[y != -1], w_)

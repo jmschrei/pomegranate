@@ -18,28 +18,15 @@ from pomegranate import (Distribution,
 						 BernoulliDistribution,
 						 from_json)
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_true
-from nose.tools import assert_raises
+from .assert_tools import assert_almost_equal
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 import pickle
 import numpy
+import pytest
 
 nan = numpy.nan
 inf = float("inf")
-
-def setup():
-	pass
-
-
-def teardown():
-	pass
-
 
 def discrete_equality(x, y, z=8):
 	'''
@@ -56,22 +43,25 @@ def discrete_equality(x, y, z=8):
 
 def test_distributions_uniform_initialization():
 	d = UniformDistribution(0, 10)
-	assert_equal(d.name, "UniformDistribution")
+	assert d.name == "UniformDistribution"
 	assert_array_equal(d.parameters, [0, 10])
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
 
 def test_distributions_uniform_blank():
 	d = UniformDistribution.blank()
-	assert_equal(d.name, "UniformDistribution")
+	assert d.name == "UniformDistribution"
 	assert_array_equal(d.parameters, [0, 0])
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
 
 def test_distributions_uniform_initialization_error():
-	assert_raises(TypeError, UniformDistribution, 0)
-	assert_raises(TypeError, UniformDistribution, [0, 10])
-	assert_raises(TypeError, UniformDistribution, 0, 10, 4, 7, 3)
+	with pytest.raises(TypeError):
+		UniformDistribution(0)
+	with pytest.raises(TypeError):
+		UniformDistribution([0, 10])
+	with pytest.raises(TypeError):
+		UniformDistribution(0, 10, 4, 7, 3)
 
 
 def test_distributions_uniform_log_probability():
@@ -79,26 +69,26 @@ def test_distributions_uniform_log_probability():
 	e = UniformDistribution(0., 10.)
 
 	assert_almost_equal(d.log_probability(5), -2.302585092)
-	assert_equal(d.log_probability(5), e.log_probability(5))
-	assert_equal(d.log_probability(5), d.log_probability(5.))
+	assert d.log_probability(5) == e.log_probability(5)
+	assert d.log_probability(5) == d.log_probability(5.)
 
 	assert_almost_equal(d.log_probability(0), -2.302585092)
-	assert_equal(d.log_probability(0), e.log_probability(0.))
+	assert d.log_probability(0) == e.log_probability(0.)
 
-	assert_equal(d.log_probability(-1), -inf)
-	assert_equal(d.log_probability(11), -inf)
+	assert d.log_probability(-1) == -inf
+	assert d.log_probability(11) == -inf
 
 
 def test_distributions_uniform_nan_log_probability():
 	d = UniformDistribution(0, 10)
 
-	assert_equal(d.log_probability(nan), 0)
+	assert d.log_probability(nan) == 0
 	assert_array_almost_equal(d.log_probability([nan, 5]), [0, -2.302585092])
 
 
 def test_distributions_uniform_underflow_log_probability():
 	d = UniformDistribution(0, 10)
-	assert_equal(d.log_probability(1e100), float("-inf"))
+	assert d.log_probability(1e100) == float("-inf")
 
 
 def test_distributions_uniform_probability():
@@ -106,20 +96,20 @@ def test_distributions_uniform_probability():
 	e = UniformDistribution(0., 10.)
 
 	assert_almost_equal(d.probability(5), 0.0999999999)
-	assert_equal(d.probability(5), e.probability(5))
-	assert_equal(d.probability(5), d.probability(5.))
+	assert d.probability(5) == e.probability(5)
+	assert d.probability(5) == d.probability(5.)
 
 	assert_almost_equal(d.probability(0), 0.0999999999)
-	assert_equal(d.probability(0), e.probability(0.))
+	assert d.probability(0) == e.probability(0.)
 
-	assert_equal(d.probability(-1), 0)
-	assert_equal(d.probability(11), 0)
+	assert d.probability(-1) == 0
+	assert d.probability(11) == 0
 
 
 def test_distributions_uniform_nan_probability():
 	d = UniformDistribution(0, 10)
 
-	assert_equal(d.probability(nan), 1)
+	assert d.probability(nan) == 1
 	assert_array_almost_equal(d.probability([nan, 5]), [1, 0.0999999999])
 
 
@@ -135,10 +125,10 @@ def test_distributions_uniform_fit():
 	d.fit([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4])
 
 	assert_array_equal(d.parameters, [4, 6])
-	assert_not_equal(d.log_probability(4), e.log_probability(4))
+	assert d.log_probability(4) != e.log_probability(4)
 	assert_almost_equal(d.log_probability(4), -0.69314718055994529)
-	assert_equal(d.log_probability(18), -inf)
-	assert_equal(d.log_probability(1e8), -inf)
+	assert d.log_probability(18) == -inf
+	assert d.log_probability(1e8) == -inf
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
 
@@ -149,10 +139,10 @@ def test_distributions_uniform_nan_fit():
 	d.fit([5, 4, nan, 5, 4, nan, 6, 5, 6, nan, nan, 5, 4, 6, nan, 5, 4, nan])
 
 	assert_array_equal(d.parameters, [4, 6])
-	assert_not_equal(d.log_probability(4), e.log_probability(4))
+	assert d.log_probability(4) != e.log_probability(4)
 	assert_almost_equal(d.log_probability(4), -0.69314718055994529)
-	assert_equal(d.log_probability(18), -inf)
-	assert_equal(d.log_probability(1e8), -inf)
+	assert d.log_probability(18) == -inf
+	assert d.log_probability(1e8) == -inf
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
 
@@ -234,7 +224,7 @@ def test_distributions_uniform_pickle_serialization():
 	d = UniformDistribution(0, 10)
 
 	e = pickle.loads(pickle.dumps(d))
-	assert_equal(e.name, "UniformDistribution")
+	assert e.name == "UniformDistribution"
 	assert_array_equal(e.parameters, [0, 10])
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
@@ -243,7 +233,7 @@ def test_distributions_uniform_json_serialization():
 	d = UniformDistribution(0, 10)
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "UniformDistribution")
+	assert e.name == "UniformDistribution"
 	assert_array_equal(e.parameters, [0, 10])
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
@@ -251,7 +241,7 @@ def test_distributions_uniform_robust_json_serialization():
 	d = UniformDistribution(0, 10)
 
 	e = from_json(d.to_json())
-	assert_equal(e.name, "UniformDistribution")
+	assert e.name == "UniformDistribution"
 	assert_array_equal(e.parameters, [0, 10])
 	assert_array_equal(d.summaries, [inf, -inf, 0])
 
@@ -262,26 +252,30 @@ def test_distributions_uniform_random_sample():
 		4.88411189])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 def test_distributions_normal_initialization():
 	d = NormalDistribution(5, 2)
-	assert_equal(d.name, "NormalDistribution")
+	assert d.name == "NormalDistribution"
 	assert_array_equal(d.parameters, [5, 2])
 	assert_array_equal(d.summaries, [0, 0, 0])
 
 
 def test_distributions_normal_blank():
 	d = NormalDistribution.blank()
-	assert_equal(d.name, "NormalDistribution")
+	assert d.name == "NormalDistribution"
 	assert_array_equal(d.parameters, [0, 1])
 	assert_array_equal(d.summaries, [0, 0, 0])
 
 
 def test_distributions_normal_initialization_error():
-	assert_raises(TypeError, NormalDistribution, 5)
-	assert_raises(TypeError, NormalDistribution, [5, 1])
-	assert_raises(TypeError, NormalDistribution, 5, 1, 4, 7, 3)
+	with pytest.raises(TypeError):
+		NormalDistribution(5)
+	with pytest.raises(TypeError):
+		NormalDistribution([5, 1])
+	with pytest.raises(TypeError):
+		NormalDistribution(5, 1, 4, 7, 3)
 
 
 def test_distributions_normal_log_probability():
@@ -289,23 +283,23 @@ def test_distributions_normal_log_probability():
 	e = NormalDistribution(5., 2.)
 
 	assert_almost_equal(d.log_probability(5), -1.61208571)
-	assert_equal(d.log_probability(5), e.log_probability(5))
-	assert_equal(d.log_probability(5), d.log_probability(5.))
+	assert d.log_probability(5) == e.log_probability(5)
+	assert d.log_probability(5) == d.log_probability(5.)
 
 	assert_almost_equal(d.log_probability(0), -4.737085713764219)
-	assert_equal(d.log_probability(0), e.log_probability(0.))
+	assert d.log_probability(0) == e.log_probability(0.)
 
 
 def test_distributions_normal_nan_log_probability():
 	d = NormalDistribution(5, 2)
 
-	assert_equal(d.log_probability(nan), 0)
+	assert d.log_probability(nan) == 0
 	assert_array_almost_equal(d.log_probability([nan, 5]), [0, -1.61208571])
 
 
 def test_distributions_normal_underflow_log_probability():
 	d = NormalDistribution(5, 1e-10)
-	assert_almost_equal(d.log_probability(1e100), -4.9999999999999987e+219, delta=6.270570637641398e+203)
+	assert abs(d.log_probability(1e100) - (-4.9999999999999987e+219)) <= 6.270570637641398e+203
 
 
 def test_distributions_normal_probability():
@@ -313,17 +307,17 @@ def test_distributions_normal_probability():
 	e = NormalDistribution(5., 2.)
 
 	assert_almost_equal(d.probability(5), 0.19947114)
-	assert_equal(d.probability(5), e.probability(5))
-	assert_equal(d.probability(5), d.probability(5.))
+	assert d.probability(5) == e.probability(5)
+	assert d.probability(5) == d.probability(5.)
 
 	assert_almost_equal(d.probability(0), 0.0087641502)
-	assert_equal(d.probability(0), e.probability(0.))
+	assert d.probability(0) == e.probability(0.)
 
 
 def test_distributions_normal_nan_probability():
 	d = NormalDistribution(5, 2)
 
-	assert_equal(d.probability(nan), 1)
+	assert d.probability(nan) == 1
 	assert_array_almost_equal(d.probability([nan, 5]), [1, 0.199471])
 
 
@@ -339,7 +333,7 @@ def test_distributions_normal_fit():
 	d.fit([5, 4, 5, 4, 6, 5, 6, 5, 4, 6, 5, 4])
 
 	assert_array_almost_equal(d.parameters, [4.9167, 0.7592], 4)
-	assert_not_equal(d.log_probability(4), e.log_probability(4))
+	assert d.log_probability(4) != e.log_probability(4)
 	assert_almost_equal(d.log_probability(4), -1.3723678499651766)
 	assert_almost_equal(d.log_probability(18), -149.13140399454429)
 	assert_almost_equal(d.log_probability(1e8), -8674697942168743.0, -4)
@@ -353,7 +347,7 @@ def test_distributions_normal_nan_fit():
 	d.fit([5, 4, nan, 5, 4, nan, 6, 5, 6, nan, nan, 5, 4, 6, nan, 5, 4, nan])
 
 	assert_array_almost_equal(d.parameters, [4.9167, 0.7592], 4)
-	assert_not_equal(d.log_probability(4), e.log_probability(4))
+	assert d.log_probability(4) != e.log_probability(4)
 	assert_almost_equal(d.log_probability(4), -1.3723678499651766)
 	assert_almost_equal(d.log_probability(18), -149.13140399454429)
 	assert_almost_equal(d.log_probability(1e8), -8674697942168743.0, -4)
@@ -438,7 +432,7 @@ def test_distributions_normal_pickle_serialization():
 	d = NormalDistribution(5, 2)
 
 	e = pickle.loads(pickle.dumps(d))
-	assert_equal(e.name, "NormalDistribution")
+	assert e.name == "NormalDistribution"
 	assert_array_equal(e.parameters, [5, 2])
 	assert_array_equal(e.summaries, [0, 0, 0])
 
@@ -447,7 +441,7 @@ def test_distributions_normal_json_serialization():
 	d = NormalDistribution(5, 2)
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "NormalDistribution")
+	assert e.name == "NormalDistribution"
 	assert_array_equal(e.parameters, [5, 2])
 	assert_array_equal(e.summaries, [0, 0, 0])
 
@@ -455,166 +449,165 @@ def test_distributions_normal_robust_json_serialization():
 	d = NormalDistribution(5, 2)
 
 	e = from_json(d.to_json())
-	assert_equal(e.name, "NormalDistribution")
+	assert e.name == "NormalDistribution"
 	assert_array_equal(e.parameters, [5, 2])
 	assert_array_equal(e.summaries, [0, 0, 0])
 
 def test_distributions_normal_random_sample():
 	d = NormalDistribution(0, 1)
 
-	x = numpy.array([ 0.44122749, -0.33087015,  2.43077119, -0.25209213,  
+	x = numpy.array([ 0.44122749, -0.33087015,	2.43077119, -0.25209213,
 		0.10960984])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
-@with_setup(setup, teardown)
 def test_distributions_discrete():
 	d = DiscreteDistribution({'A': 0.25, 'C': 0.25, 'G': 0.25, 'T': 0.25})
 
-	assert_equal(d.log_probability('C'), -1.3862943611198906)
-	assert_equal(d.log_probability('A'), d.log_probability('C'))
-	assert_equal(d.log_probability('G'), d.log_probability('T'))
-	assert_equal(d.log_probability('a'), float('-inf'))
+	assert d.log_probability('C') == -1.3862943611198906
+	assert d.log_probability('A') == d.log_probability('C')
+	assert d.log_probability('G') == d.log_probability('T')
+	assert d.log_probability('a') == float('-inf')
 
 	seq = "ACGTACGTTGCATGCACGCGCTCTCGCGC"
 	d.fit(list(seq))
 
-	assert_equal(d.log_probability('C'), -0.9694005571881036)
-	assert_equal(d.log_probability('A'), -1.9810014688665833)
-	assert_equal(d.log_probability('T'), -1.575536360758419)
+	assert d.log_probability('C') == -0.9694005571881036
+	assert d.log_probability('A') == -1.9810014688665833
+	assert d.log_probability('T') == -1.575536360758419
 
 	seq = "ACGTGTG"
 	d.fit(list(seq), weights=[0., 1., 2., 3., 4., 5., 6.])
 
-	assert_equal(d.log_probability('A'), float('-inf'))
-	assert_equal(d.log_probability('C'), -3.044522437723423)
-	assert_equal(d.log_probability('G'), -0.5596157879354228)
+	assert d.log_probability('A') == float('-inf')
+	assert d.log_probability('C') == -3.044522437723423
+	assert d.log_probability('G') == -0.5596157879354228
 
 	d.summarize(list("ACG"), weights=[0., 1., 2.])
 	d.summarize(list("TGT"), weights=[3., 4., 5.])
 	d.summarize(list("G"), weights=[6.])
 	d.from_summaries()
 
-	assert_equal(d.log_probability('A'), float('-inf'))
-	assert_equal(round(d.log_probability('C'), 4), -3.0445)
-	assert_equal(round(d.log_probability('G'), 4), -0.5596)
+	assert d.log_probability('A') == float('-inf')
+	assert round(d.log_probability('C'), 4) == -3.0445
+	assert round(d.log_probability('G'), 4) == -0.5596
 
 	d = DiscreteDistribution({'A': 0.0, 'B': 1.0})
 	d.summarize(list("ABABABAB"))
 	d.summarize(list("ABAB"))
 	d.summarize(list("BABABABABABABABABA"))
 	d.from_summaries(inertia=0.75)
-	assert_equal(d.parameters[0], {'A': 0.125, 'B': 0.875})
+	assert d.parameters[0] == {'A': 0.125, 'B': 0.875}
 
 	d = DiscreteDistribution({'A': 0.0, 'B': 1.0})
 	d.summarize(list("ABABABAB"))
 	d.summarize(list("ABAB"))
 	d.summarize(list("BABABABABABABABABA"))
 	d.from_summaries(inertia=0.5)
-	assert_equal(d.parameters[0], {'A': 0.25, 'B': 0.75})
+	assert d.parameters[0] == {'A': 0.25, 'B': 0.75}
 
 	d.freeze()
 	d.fit(list('ABAABBAAAAAAAAAAAAAAAAAA'))
-	assert_equal(d.parameters[0], {'A': 0.25, 'B': 0.75})
+	assert d.parameters[0] == {'A': 0.25, 'B': 0.75}
 
 	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'])
-	assert_equal(d.parameters[0], {'A': 0.75, 'B': 0.25})
+	assert d.parameters[0] == {'A': 0.75, 'B': 0.25}
 
 	# Test vector input instead of flat array.
 	d = DiscreteDistribution.from_samples(numpy.array(['A', 'B', 'A', 'A']).reshape(-1,1))
-	assert_equal(d.parameters[0], {'A': 0.75, 'B': 0.25})
+	assert d.parameters[0] == {'A': 0.75, 'B': 0.25}
 
 	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'], pseudocount=0.5)
-	assert_equal(d.parameters[0], {'A': 0.70, 'B': 0.30})
+	assert d.parameters[0] == {'A': 0.70, 'B': 0.30}
 
 	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'], pseudocount=6)
-	assert_equal(d.parameters[0], {'A': 0.5625, 'B': 0.4375})
+	assert d.parameters[0] == {'A': 0.5625, 'B': 0.4375}
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "DiscreteDistribution")
-	assert_equal(e.parameters[0], {'A': 0.5625, 'B': 0.4375})
+	assert e.name == "DiscreteDistribution"
+	assert e.parameters[0] == {'A': 0.5625, 'B': 0.4375}
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(f.name, "DiscreteDistribution")
-	assert_equal(f.parameters[0], {'A': 0.5625, 'B': 0.4375})
+	assert f.name == "DiscreteDistribution"
+	assert f.parameters[0] == {'A': 0.5625, 'B': 0.4375}
 
 
 def test_discrete_robust_json_serialization():
 	d = DiscreteDistribution.from_samples(['A', 'B', 'A', 'A'], pseudocount=6)
 
 	e = from_json(d.to_json())
-	assert_equal(e.name, "DiscreteDistribution")
-	assert_equal(e.parameters[0], {'A': 0.5625, 'B': 0.4375})
+	assert e.name == "DiscreteDistribution"
+	assert e.parameters[0] == {'A': 0.5625, 'B': 0.4375}
 
-@with_setup(setup, teardown)
 def test_lognormal():
 	d = LogNormalDistribution(5, 2)
-	assert_equal(round(d.log_probability(5), 4), -4.6585)
+	assert round(d.log_probability(5), 4) == -4.6585
 
 	d.fit([5.1, 5.03, 4.98, 5.05, 4.91, 5.2, 5.1, 5., 4.8, 5.21])
-	assert_equal(round(d.parameters[0], 4), 1.6167)
-	assert_equal(round(d.parameters[1], 4), 0.0237)
+	assert round(d.parameters[0], 4) == 1.6167
+	assert round(d.parameters[1], 4) == 0.0237
 
 	d.summarize([5.1, 5.03, 4.98, 5.05])
 	d.summarize([4.91, 5.2, 5.1])
 	d.summarize([5., 4.8, 5.21])
 	d.from_summaries()
 
-	assert_equal(round(d.parameters[0], 4), 1.6167)
-	assert_equal(round(d.parameters[1], 4), 0.0237)
+	assert round(d.parameters[0], 4) == 1.6167
+	assert round(d.parameters[1], 4) == 0.0237
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "LogNormalDistribution")
-	assert_equal(round(e.parameters[0], 4), 1.6167)
-	assert_equal(round(e.parameters[1], 4), 0.0237)
+	assert e.name == "LogNormalDistribution"
+	assert round(e.parameters[0], 4) == 1.6167
+	assert round(e.parameters[1], 4) == 0.0237
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(f.name, "LogNormalDistribution")
-	assert_equal(round(f.parameters[0], 4), 1.6167)
-	assert_equal(round(f.parameters[1], 4), 0.0237)
+	assert f.name == "LogNormalDistribution"
+	assert round(f.parameters[0], 4) == 1.6167
+	assert round(f.parameters[1], 4) == 0.0237
 
 
 def test_distributions_lognormal_random_sample():
 	d = LogNormalDistribution(0, 1)
 
-	x = numpy.array([1.55461432,  0.71829843, 11.36764528,  0.77717313,  
+	x = numpy.array([1.55461432,  0.71829843, 11.36764528,	0.77717313,
 		1.11584263])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
-@with_setup(setup, teardown)
 def test_gamma():
 	d = GammaDistribution(5, 2)
-	assert_equal(round(d.log_probability(4), 4), -2.1671)
+	assert round(d.log_probability(4), 4) == -2.1671
 
 	d.fit([2.3, 4.3, 2.7, 2.3, 3.1, 3.2, 3.4, 3.1, 2.9, 2.8])
-	assert_equal(round(d.parameters[0], 4), 31.8806)
-	assert_equal(round(d.parameters[1], 4), 10.5916)
+	assert round(d.parameters[0], 4) == 31.8806
+	assert round(d.parameters[1], 4) == 10.5916
 
 	d = GammaDistribution(2, 7)
-	assert_not_equal(round(d.log_probability(4), 4), -2.1671)
+	assert round(d.log_probability(4), 4) != -2.1671
 
 	d.summarize([2.3, 4.3, 2.7])
 	d.summarize([2.3, 3.1, 3.2])
 	d.summarize([3.4, 3.1, 2.9, 2.8])
 	d.from_summaries()
 
-	assert_equal(round(d.parameters[0], 4), 31.8806)
-	assert_equal(round(d.parameters[1], 4), 10.5916)
+	assert round(d.parameters[0], 4) == 31.8806
+	assert round(d.parameters[1], 4) == 10.5916
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "GammaDistribution")
-	assert_equal(round(e.parameters[0], 4), 31.8806)
-	assert_equal(round(e.parameters[1], 4), 10.5916)
+	assert e.name == "GammaDistribution"
+	assert round(e.parameters[0], 4) == 31.8806
+	assert round(e.parameters[1], 4) == 10.5916
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(f.name, "GammaDistribution")
-	assert_equal(round(f.parameters[0], 4), 31.8806)
-	assert_equal(round(f.parameters[1], 4), 10.5916)
+	assert f.name == "GammaDistribution"
+	assert round(f.parameters[0], 4) == 31.8806
+	assert round(f.parameters[1], 4) == 10.5916
 
 
 def test_distributions_gamma_random_sample():
@@ -623,34 +616,34 @@ def test_distributions_gamma_random_sample():
 	x = numpy.array([0.049281, 0.042733, 0.238545, 0.773426, 0.088091])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
-@with_setup(setup, teardown)
 def test_exponential():
 	d = ExponentialDistribution(3)
-	assert_equal(round(d.log_probability(8), 4), -22.9014)
+	assert round(d.log_probability(8), 4) == -22.9014
 
 	d.fit([2.7, 2.9, 3.8, 1.9, 2.7, 1.6, 1.3, 1.0, 1.9])
-	assert_equal(round(d.parameters[0], 4), 0.4545)
+	assert round(d.parameters[0], 4) == 0.4545
 
 	d = ExponentialDistribution(4)
-	assert_not_equal(round(d.log_probability(8), 4), -22.9014)
+	assert round(d.log_probability(8), 4) != -22.9014
 
 	d.summarize([2.7, 2.9, 3.8])
 	d.summarize([1.9, 2.7, 1.6])
 	d.summarize([1.3, 1.0, 1.9])
 	d.from_summaries()
 
-	assert_equal(round(d.parameters[0], 4), 0.4545)
+	assert round(d.parameters[0], 4) == 0.4545
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "ExponentialDistribution")
-	assert_equal(round(e.parameters[0], 4), 0.4545)
+	assert e.name == "ExponentialDistribution"
+	assert round(e.parameters[0], 4) == 0.4545
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(f.name, "ExponentialDistribution")
-	assert_equal(round(f.parameters[0], 4), 0.4545)
+	assert f.name == "ExponentialDistribution"
+	assert round(f.parameters[0], 4) == 0.4545
 
 
 def test_distributions_exponential_random_sample():
@@ -659,40 +652,40 @@ def test_distributions_exponential_random_sample():
 	x = numpy.array([0.03586, 0.292267, 0.033083, 0.358359, 0.095748])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
-@with_setup(setup, teardown)
 def test_poisson():
 	d = PoissonDistribution(5)
 
 	assert_almost_equal(d.log_probability(5), -1.7403021806115442)
 	assert_almost_equal(d.log_probability(10), -4.0100334487345126)
 	assert_almost_equal(d.log_probability(1), -3.3905620875658995)
-	assert_equal(d.log_probability(-1), float("-inf"))
+	assert d.log_probability(-1) == float("-inf")
 
 	d = PoissonDistribution(0)
 
-	assert_equal(d.log_probability(1), float("-inf"))
-	assert_equal(d.log_probability(7), float("-inf"))
+	assert d.log_probability(1) == float("-inf")
+	assert d.log_probability(7) == float("-inf")
 
 	d.fit([1, 6, 4, 9, 1])
-	assert_equal(d.parameters[0], 4.2)
+	assert d.parameters[0] == 4.2
 
 	d.fit([1, 6, 4, 9, 1], weights=[0, 0, 0, 1, 0])
-	assert_equal(d.parameters[0], 9)
+	assert d.parameters[0] == 9
 
 	d.fit([1, 6, 4, 9, 1], weights=[1, 0, 0, 1, 0])
-	assert_equal(d.parameters[0], 5)
+	assert d.parameters[0] == 5
 
 	assert_almost_equal(d.log_probability(5), -1.7403021806115442)
 	assert_almost_equal(d.log_probability(10), -4.0100334487345126)
 	assert_almost_equal(d.log_probability(1), -3.3905620875658995)
-	assert_equal(d.log_probability(-1), float("-inf"))
+	assert d.log_probability(-1) == float("-inf")
 
 	e = pickle.loads(pickle.dumps(d))
-	assert_equal(e.name, "PoissonDistribution")
-	assert_equal(e.parameters[0], 5)
+	assert e.name == "PoissonDistribution"
+	assert e.parameters[0] == 5
 
 
 def test_distributions_poisson_random_sample():
@@ -701,14 +694,15 @@ def test_distributions_poisson_random_sample():
 	x = numpy.array([0, 1, 2, 2, 0])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 def test_beta():
 	"""Test pickling of beta distribution."""
 	d = BetaDistribution(2, 3)
 	e = pickle.loads(pickle.dumps(d))
-	assert_equal(e.name, "BetaDistribution")
-	assert_equal(e.parameters, [2, 3])
+	assert e.name == "BetaDistribution"
+	assert e.parameters == [2, 3]
 
 def test_distributions_beta_random_sample():
 	d = BetaDistribution(1, 1)
@@ -716,45 +710,45 @@ def test_distributions_beta_random_sample():
 	x = numpy.array([0.612564, 0.098563, 0.735983, 0.583171, 0.69296 ])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
-@with_setup(setup, teardown)
 def test_gaussian_kernel():
 	d = GaussianKernelDensity([0, 4, 3, 5, 7, 4, 2])
-	assert_equal(round(d.log_probability(3.3), 4), -1.7042)
+	assert round(d.log_probability(3.3), 4) == -1.7042
 
 	d.fit([1, 6, 8, 3, 2, 4, 7, 2])
-	assert_equal(round(d.log_probability(1.2), 4), -2.0237)
+	assert round(d.log_probability(1.2), 4) == -2.0237
 
 	d.fit([1, 0, 108], weights=[2., 3., 278.])
-	assert_equal(round(d.log_probability(110), 4), -2.9368)
-	assert_equal(round(d.log_probability(0), 4), -5.1262)
+	assert round(d.log_probability(110), 4) == -2.9368
+	assert round(d.log_probability(0), 4) == -5.1262
 
 	d.summarize([1, 6, 8, 3])
 	d.summarize([2, 4, 7])
 	d.summarize([2])
 	d.from_summaries()
-	assert_equal(round(d.log_probability(1.2), 4), -2.0237)
+	assert round(d.log_probability(1.2), 4) == -2.0237
 
 	d.summarize([1, 0, 108], weights=[2., 3., 278.])
 	d.from_summaries()
-	assert_equal(round(d.log_probability(110), 4), -2.9368)
-	assert_equal(round(d.log_probability(0), 4), -5.1262)
+	assert round(d.log_probability(110), 4) == -2.9368
+	assert round(d.log_probability(0), 4) == -5.1262
 
 	d.freeze()
 	d.fit([1, 3, 5, 4, 6, 7, 3, 4, 2])
-	assert_equal(round(d.log_probability(110), 4), -2.9368)
-	assert_equal(round(d.log_probability(0), 4), -5.1262)
+	assert round(d.log_probability(110), 4) == -2.9368
+	assert round(d.log_probability(0), 4) == -5.1262
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "GaussianKernelDensity")
-	assert_equal(round(e.log_probability(110), 4), -2.9368)
-	assert_equal(round(e.log_probability(0), 4), -5.1262)
+	assert e.name == "GaussianKernelDensity"
+	assert round(e.log_probability(110), 4) == -2.9368
+	assert round(e.log_probability(0), 4) == -5.1262
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(f.name, "GaussianKernelDensity")
-	assert_equal(round(f.log_probability(110), 4), -2.9368)
-	assert_equal(round(f.log_probability(0), 4), -5.1262)
+	assert f.name == "GaussianKernelDensity"
+	assert round(f.log_probability(110), 4) == -2.9368
+	assert round(f.log_probability(0), 4) == -5.1262
 
 
 def test_distributions_gaussian_kernel_random_sample():
@@ -763,34 +757,34 @@ def test_distributions_gaussian_kernel_random_sample():
 	x = numpy.array([5.367586, 2.574708, 2.114238, 2.170925, 4.596907])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
-@with_setup(setup, teardown)
 def test_triangular_kernel():
 	d = TriangleKernelDensity([1, 6, 3, 4, 5, 2])
-	assert_equal(round(d.log_probability(6.5), 4), -2.4849)
+	assert round(d.log_probability(6.5), 4) == -2.4849
 
 	d = TriangleKernelDensity([1, 8, 100])
-	assert_not_equal(round(d.log_probability(6.5), 4), -2.4849)
+	assert round(d.log_probability(6.5), 4) != -2.4849
 
 	d.summarize([1, 6])
 	d.summarize([3, 4, 5])
 	d.summarize([2])
 	d.from_summaries()
-	assert_equal(round(d.log_probability(6.5), 4), -2.4849)
+	assert round(d.log_probability(6.5), 4) == -2.4849
 
 	d.freeze()
 	d.fit([1, 4, 6, 7, 3, 5, 7, 8, 3, 3, 4])
-	assert_equal(round(d.log_probability(6.5), 4), -2.4849)
+	assert round(d.log_probability(6.5), 4) == -2.4849
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "TriangleKernelDensity")
-	assert_equal(round(e.log_probability(6.5), 4), -2.4849)
+	assert e.name == "TriangleKernelDensity"
+	assert round(e.log_probability(6.5), 4) == -2.4849
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(f.name, "TriangleKernelDensity")
-	assert_equal(round(f.log_probability(6.5), 4), -2.4849)
+	assert f.name == "TriangleKernelDensity"
+	assert round(f.log_probability(6.5), 4) == -2.4849
 
 
 def test_distributions_triangle_kernel_random_sample():
@@ -799,36 +793,36 @@ def test_distributions_triangle_kernel_random_sample():
 	x = numpy.array([4.118801, 2.31576 , 4.018591, 1.770455, 4.612734])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
-@with_setup(setup, teardown)
 def test_uniform_kernel():
 	d = UniformKernelDensity([1, 3, 5, 6, 2, 2, 3, 2, 2])
 
-	assert_equal(round(d.log_probability(2.2), 4), -0.4055)
-	assert_equal(round(d.log_probability(6.2), 4), -2.1972)
-	assert_equal(d.log_probability(10), float('-inf'))
+	assert round(d.log_probability(2.2), 4) == -0.4055
+	assert round(d.log_probability(6.2), 4) == -2.1972
+	assert d.log_probability(10) == float('-inf')
 
 	d = UniformKernelDensity([1, 100, 200])
-	assert_not_equal(round(d.log_probability(2.2), 4), -0.4055)
-	assert_not_equal(round(d.log_probability(6.2), 4), -2.1972)
+	assert round(d.log_probability(2.2), 4) != -0.4055
+	assert round(d.log_probability(6.2), 4) != -2.1972
 
 	d.summarize([1, 3, 5, 6, 2])
 	d.summarize([2, 3, 2, 2])
 	d.from_summaries()
-	assert_equal(round(d.log_probability(2.2), 4), -0.4055)
-	assert_equal(round(d.log_probability(6.2), 4), -2.1972)
+	assert round(d.log_probability(2.2), 4) == -0.4055
+	assert round(d.log_probability(6.2), 4) == -2.1972
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "UniformKernelDensity")
-	assert_equal(round(e.log_probability(2.2), 4), -0.4055)
-	assert_equal(round(e.log_probability(6.2), 4), -2.1972)
+	assert e.name == "UniformKernelDensity"
+	assert round(e.log_probability(2.2), 4) == -0.4055
+	assert round(e.log_probability(6.2), 4) == -2.1972
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(e.name, "UniformKernelDensity")
-	assert_equal(round(f.log_probability(2.2), 4), -0.4055)
-	assert_equal(round(f.log_probability(6.2), 4), -2.1972)
+	assert e.name == "UniformKernelDensity"
+	assert round(f.log_probability(2.2), 4) == -0.4055
+	assert round(f.log_probability(6.2), 4) == -2.1972
 
 
 def test_distributions_uniform_kernel_random_sample():
@@ -837,57 +831,57 @@ def test_distributions_uniform_kernel_random_sample():
 	x = numpy.array([4.223488, 2.531816, 4.036836, 1.593601, 4.375442])
 
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
-@with_setup(setup, teardown)
 def test_bernoulli():
 	d = BernoulliDistribution(0.6)
-	assert_equal(d.probability(0), 0.4)
-	assert_equal(d.probability(1), 0.6)
-	assert_equal(d.parameters[0], 1-d.probability(0))
-	assert_equal(d.parameters[0], d.probability(1))
+	assert d.probability(0) == 0.4
+	assert d.probability(1) == 0.6
+	assert d.parameters[0] == 1-d.probability(0)
+	assert d.parameters[0] == d.probability(1)
 
 	d.fit([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-	assert_not_equal(d.probability(1), 1.0)
-	assert_equal(d.probability(0), 1.0)
+	assert d.probability(1) != 1.0
+	assert d.probability(0) == 1.0
 
 	a = [0.0, 0.0, 0.0]
 	b = [1.0, 1.0, 1.0]
 	c = [1.0, 1.0, 1.0]
 	d.summarize(a)
 	d.from_summaries()
-	assert_equal(d.probability(0), 1)
-	assert_equal(d.probability(1), 0)
+	assert d.probability(0) == 1
+	assert d.probability(1) == 0
 
 	d.summarize(a)
 	d.summarize(b)
 	d.from_summaries()
-	assert_equal(d.probability(0), 0.5)
-	assert_equal(d.probability(1), 0.5)
-	assert_equal(d.parameters[0], d.probability(0))
-	assert_equal(d.parameters[0], d.probability(1))
+	assert d.probability(0) == 0.5
+	assert d.probability(1) == 0.5
+	assert d.parameters[0] == d.probability(0)
+	assert d.parameters[0] == d.probability(1)
 
 	d.summarize(a)
 	d.summarize(b)
 	d.summarize(c)
 	d.from_summaries()
-	assert_equal(round(d.probability(0), 4), 0.3333)
-	assert_equal(round(d.probability(1), 4), 0.6667)
-	assert_equal(d.parameters[0], d.probability(1))
+	assert round(d.probability(0), 4) == 0.3333
+	assert round(d.probability(1), 4) == 0.6667
+	assert d.parameters[0] == d.probability(1)
 
 	d = BernoulliDistribution.from_samples([0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
-	assert_equal(round(d.probability(0), 4), 0.8333)
-	assert_equal(round(d.probability(1), 4), 0.1667)
+	assert round(d.probability(0), 4) == 0.8333
+	assert round(d.probability(1), 4) == 0.1667
 	assert_almost_equal(d.parameters[0], d.probability(1))
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "BernoulliDistribution")
-	assert_equal(round(e.parameters[0], 4), 0.1667)
+	assert e.name == "BernoulliDistribution"
+	assert round(e.parameters[0], 4) == 0.1667
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(f.name, "BernoulliDistribution")
-	assert_equal(round(f.parameters[0], 4), 0.1667)
+	assert f.name == "BernoulliDistribution"
+	assert round(f.parameters[0], 4) == 0.1667
 
 def test_distributions_uniform_kernel_random_sample():
 	d = BernoulliDistribution(0.2)
@@ -896,48 +890,48 @@ def test_distributions_uniform_kernel_random_sample():
 			0, 0, 0, 0, 0])
 
 	assert_array_equal(d.sample(20, random_state=5), x)
-	assert_raises(AssertionError, assert_array_equal, d.sample(20), x)
+	with pytest.raises(AssertionError):
+		assert_array_equal(d.sample(20), x)
 
-@with_setup(setup, teardown)
 def test_independent():
 	d = IndependentComponentsDistribution(
 		[NormalDistribution(5, 2), ExponentialDistribution(2)])
 
-	assert_equal(round(d.log_probability((4, 1)), 4), -3.0439)
-	assert_equal(round(d.log_probability((100, 0.001)), 4), -1129.0459)
+	assert round(d.log_probability((4, 1)), 4) == -3.0439
+	assert round(d.log_probability((100, 0.001)), 4) == -1129.0459
 
 	d = IndependentComponentsDistribution([NormalDistribution(5, 2),
 										   ExponentialDistribution(2)],
 										  weights=[18., 1.])
 
-	assert_equal(round(d.log_probability((4, 1)), 4), -32.5744)
-	assert_equal(round(d.log_probability((100, 0.001)), 4), -20334.5764)
+	assert round(d.log_probability((4, 1)), 4) == -32.5744
+	assert round(d.log_probability((100, 0.001)), 4) == -20334.5764
 
 	d.fit([(5, 1), (5.2, 1.7), (4.7, 1.9), (4.9, 2.4), (4.5, 1.2)])
 
-	assert_equal(round(d.parameters[0][0].parameters[0], 4), 4.86)
-	assert_equal(round(d.parameters[0][0].parameters[1], 4), 0.2417)
-	assert_equal(round(d.parameters[0][1].parameters[0], 4), 0.6098)
+	assert round(d.parameters[0][0].parameters[0], 4) == 4.86
+	assert round(d.parameters[0][0].parameters[1], 4) == 0.2417
+	assert round(d.parameters[0][1].parameters[0], 4) == 0.6098
 
 	d = IndependentComponentsDistribution([NormalDistribution(5, 2),
 										   UniformDistribution(0, 10)])
 	d.fit([(0, 0), (5, 0), (3, 0), (5, -5), (7, 0),
 		   (3, 0), (4, 0), (5, 0), (2, 20)], inertia=0.5)
 
-	assert_equal(round(d.parameters[0][0].parameters[0], 4), 4.3889)
-	assert_equal(round(d.parameters[0][0].parameters[1], 4), 1.9655)
+	assert round(d.parameters[0][0].parameters[0], 4) == 4.3889
+	assert round(d.parameters[0][0].parameters[1], 4) == 1.9655
 
-	assert_equal(d.parameters[0][1].parameters[0], -2.5)
-	assert_equal(d.parameters[0][1].parameters[1], 15)
+	assert d.parameters[0][1].parameters[0] == -2.5
+	assert d.parameters[0][1].parameters[1] == 15
 
 	d.fit([(0, 0), (5, 0), (3, 0), (5, -5), (7, 0),
 		   (3, 0), (4, 0), (5, 0), (2, 20)], inertia=0.75)
 
-	assert_not_equal(round(d.parameters[0][0].parameters[0], 4), 4.3889)
-	assert_not_equal(round(d.parameters[0][0].parameters[1], 4), 1.9655)
+	assert round(d.parameters[0][0].parameters[0], 4) != 4.3889
+	assert round(d.parameters[0][0].parameters[1], 4) != 1.9655
 
-	assert_not_equal(d.parameters[0][1].parameters[0], -2.5)
-	assert_not_equal(d.parameters[0][1].parameters[1], 15)
+	assert d.parameters[0][1].parameters[0] != -2.5
+	assert d.parameters[0][1].parameters[1] != 15
 
 	d = IndependentComponentsDistribution([NormalDistribution(5, 2),
 										   UniformDistribution(0, 10)])
@@ -947,45 +941,45 @@ def test_independent():
 	d.summarize([(3, 0), (4, 0), (5, 0), (2, 20)])
 	d.from_summaries(inertia=0.5)
 
-	assert_equal(round(d.parameters[0][0].parameters[0], 4), 4.3889)
-	assert_equal(round(d.parameters[0][0].parameters[1], 4), 1.9655)
+	assert round(d.parameters[0][0].parameters[0], 4) == 4.3889
+	assert round(d.parameters[0][0].parameters[1], 4) == 1.9655
 
-	assert_equal(d.parameters[0][1].parameters[0], -2.5)
-	assert_equal(d.parameters[0][1].parameters[1], 15)
+	assert d.parameters[0][1].parameters[0] == -2.5
+	assert d.parameters[0][1].parameters[1] == 15
 
 	d.freeze()
 	d.fit([(1, 7), (7, 2), (2, 4), (2, 4), (1, 4)])
 
-	assert_equal(round(d.parameters[0][0].parameters[0], 4), 4.3889)
-	assert_equal(round(d.parameters[0][0].parameters[1], 4), 1.9655)
+	assert round(d.parameters[0][0].parameters[0], 4) == 4.3889
+	assert round(d.parameters[0][0].parameters[1], 4) == 1.9655
 
-	assert_equal(d.parameters[0][1].parameters[0], -2.5)
-	assert_equal(d.parameters[0][1].parameters[1], 15)
+	assert d.parameters[0][1].parameters[0] == -2.5
+	assert d.parameters[0][1].parameters[1] == 15
 
 	e = Distribution.from_json(d.to_json())
-	assert_equal(e.name, "IndependentComponentsDistribution")
+	assert e.name == "IndependentComponentsDistribution"
 
-	assert_equal(round(e.parameters[0][0].parameters[0], 4), 4.3889)
-	assert_equal(round(e.parameters[0][0].parameters[1], 4), 1.9655)
+	assert round(e.parameters[0][0].parameters[0], 4) == 4.3889
+	assert round(e.parameters[0][0].parameters[1], 4) == 1.9655
 
-	assert_equal(e.parameters[0][1].parameters[0], -2.5)
-	assert_equal(e.parameters[0][1].parameters[1], 15)
+	assert e.parameters[0][1].parameters[0] == -2.5
+	assert e.parameters[0][1].parameters[1] == 15
 
 	f = pickle.loads(pickle.dumps(e))
-	assert_equal(e.name, "IndependentComponentsDistribution")
+	assert e.name == "IndependentComponentsDistribution"
 
-	assert_equal(round(f.parameters[0][0].parameters[0], 4), 4.3889)
-	assert_equal(round(f.parameters[0][0].parameters[1], 4), 1.9655)
+	assert round(f.parameters[0][0].parameters[0], 4) == 4.3889
+	assert round(f.parameters[0][0].parameters[1], 4) == 1.9655
 
-	assert_equal(f.parameters[0][1].parameters[0], -2.5)
-	assert_equal(f.parameters[0][1].parameters[1], 15)
+	assert f.parameters[0][1].parameters[0] == -2.5
+	assert f.parameters[0][1].parameters[1] == 15
 
 	X = numpy.array([[0.5, 0.2, 0.7],
-		          [0.3, 0.1, 0.9],
-		          [0.4, 0.3, 0.8],
-		          [0.3, 0.3, 0.9],
-		          [0.3, 0.2, 0.6],
-		          [0.5, 0.2, 0.8]])
+				  [0.3, 0.1, 0.9],
+				  [0.4, 0.3, 0.8],
+				  [0.3, 0.3, 0.9],
+				  [0.3, 0.2, 0.6],
+				  [0.5, 0.2, 0.8]])
 
 	d = IndependentComponentsDistribution.from_samples(X,
 		distributions=NormalDistribution)
@@ -1031,26 +1025,27 @@ def test_distributions_independent_random_sample():
 					 [9.861542, 2.067192, 0.033083, 2.644041]])
 
 	assert_array_almost_equal(d.sample(3, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
 def test_conditional():
 	phditis = DiscreteDistribution({True: 0.01, False: 0.99})
 	test_result = ConditionalProbabilityTable(
-		[[True,  True,  0.95],
+		[[True,  True,	0.95],
 		 [True,  False, 0.05],
-		 [False, True,  0.05],
+		 [False, True,	0.05],
 		 [False, False, 0.95]], [phditis])
 
 	assert discrete_equality(test_result.marginal(),
 							 DiscreteDistribution({False: 0.941, True: 0.059}))
 
 
-def setup_cpt():
+@pytest.fixture
+def cpt():
 	guest = DiscreteDistribution({'A': 1. / 3, 'B': 1. / 3, 'C': 1. / 3})
 	prize = DiscreteDistribution({'A': 1. / 3, 'B': 1. / 3, 'C': 1. / 3})
 
-	global monty
 	monty = ConditionalProbabilityTable(
 		[['A', 'A', 'A', 0.0],
 		 ['A', 'A', 'B', 0.5],
@@ -1080,9 +1075,8 @@ def setup_cpt():
 		 ['C', 'C', 'B', 0.5],
 		 ['C', 'C', 'C', 0.0]], [guest, prize])
 
-	global X
 	X = [['A', 'A', 'C'],
-	 	['A', 'A', 'B'],
+		['A', 'A', 'B'],
 		['A', 'A', 'C'],
 		['A', 'A', 'B'],
 		['A', 'A', 'A'],
@@ -1113,10 +1107,8 @@ def setup_cpt():
 		['C', 'C', 'C'],
 		['C', 'C', 'C']]
 
-
-	global X_nan
 	X_nan = [['nan', 'A', 'C'],
-	 	['A', 'A', 'nan'],
+		['A', 'A', 'nan'],
 		['A', 'nan', 'C'],
 		['A', 'A', 'B'],
 		['A', 'A', 'A'],
@@ -1146,11 +1138,12 @@ def setup_cpt():
 		['C', 'nan', 'C'],
 		['C', 'C', 'C'],
 		['C', 'C', 'C']]
+	return monty, X, X_nan
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_initialization():
-	assert_equal(monty.name, "ConditionalProbabilityTable")
+def test_distributions_cpt_initialization(cpt):
+	monty, X, X_nan = cpt
+	assert monty.name == "ConditionalProbabilityTable"
 	assert_array_equal(monty.parameters[0], [['A', 'A', 'A', 0.0],
 		 ['A', 'A', 'B', 0.5],
 		 ['A', 'A', 'C', 0.5],
@@ -1179,52 +1172,52 @@ def test_distributions_cpt_initialization():
 		 ['C', 'C', 'B', 0.5],
 		 ['C', 'C', 'C', 0.0]])
 
-	assert_equal(monty.n_columns, 3)
-	assert_equal(monty.m, 2)
+	assert monty.n_columns == 3
+	assert monty.m == 2
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_log_probability():
-	assert_equal(monty.log_probability(('A', 'B', 'C')), 0.)
-	assert_equal(monty.log_probability(('C', 'B', 'A')), 0.)
-	assert_equal(monty.log_probability(('C', 'C', 'C')), -inf)
-	assert_equal(monty.log_probability(('A', 'A', 'A')), -inf)
-	assert_equal(monty.log_probability(('B', 'A', 'C')), 0.)
-	assert_equal(monty.log_probability(('C', 'A', 'B')), 0.)
+def test_distributions_cpt_log_probability(cpt):
+	monty, X, X_nan = cpt
+	assert monty.log_probability(('A', 'B', 'C')) == 0.
+	assert monty.log_probability(('C', 'B', 'A')) == 0.
+	assert monty.log_probability(('C', 'C', 'C')) == -inf
+	assert monty.log_probability(('A', 'A', 'A')) == -inf
+	assert monty.log_probability(('B', 'A', 'C')) == 0.
+	assert monty.log_probability(('C', 'A', 'B')) == 0.
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_nan_log_probability():
-	assert_equal(monty.log_probability(('A', 'nan', 'C')), 0.)
-	assert_equal(monty.log_probability(('nan', 'nan', 'C')), 0.)
-	assert_equal(monty.log_probability(('A', 'nan', 'nan')), 0.)
-	assert_equal(monty.log_probability(('nan', 'nan', 'nan')), 0.)
-	assert_equal(monty.log_probability(('nan', 'B', 'C')), 0.)
-	assert_equal(monty.log_probability(('A', 'B', 'nan')), 0.)
+def test_distributions_cpt_nan_log_probability(cpt):
+	monty, X, X_nan = cpt
+	assert monty.log_probability(('A', 'nan', 'C')) == 0.
+	assert monty.log_probability(('nan', 'nan', 'C')) == 0.
+	assert monty.log_probability(('A', 'nan', 'nan')) == 0.
+	assert monty.log_probability(('nan', 'nan', 'nan')) == 0.
+	assert monty.log_probability(('nan', 'B', 'C')) == 0.
+	assert monty.log_probability(('A', 'B', 'nan')) == 0.
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_probability():
-	assert_equal(monty.probability(('A', 'B', 'C')), 1.)
-	assert_equal(monty.probability(('C', 'B', 'A')), 1.)
-	assert_equal(monty.probability(('C', 'C', 'C')), 0.)
-	assert_equal(monty.probability(('A', 'A', 'A')), 0.)
-	assert_equal(monty.probability(('B', 'A', 'C')), 1.)
-	assert_equal(monty.probability(('C', 'A', 'B')), 1.)
+def test_distributions_cpt_probability(cpt):
+	monty, X, X_nan = cpt
+	assert monty.probability(('A', 'B', 'C')) == 1.
+	assert monty.probability(('C', 'B', 'A')) == 1.
+	assert monty.probability(('C', 'C', 'C')) == 0.
+	assert monty.probability(('A', 'A', 'A')) == 0.
+	assert monty.probability(('B', 'A', 'C')) == 1.
+	assert monty.probability(('C', 'A', 'B')) == 1.
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_nan_probability():
-	assert_equal(monty.probability(('A', 'nan', 'C')), 1.)
-	assert_equal(monty.probability(('nan', 'nan', 'C')), 1.)
-	assert_equal(monty.probability(('A', 'nan', 'nan')), 1.)
-	assert_equal(monty.probability(('nan', 'nan', 'nan')), 1.)
-	assert_equal(monty.probability(('nan', 'B', 'C')), 1.)
-	assert_equal(monty.probability(('A', 'B', 'nan')), 1.)
+def test_distributions_cpt_nan_probability(cpt):
+	monty, X, X_nan = cpt
+	assert monty.probability(('A', 'nan', 'C')) == 1.
+	assert monty.probability(('nan', 'nan', 'C')) == 1.
+	assert monty.probability(('A', 'nan', 'nan')) == 1.
+	assert monty.probability(('nan', 'nan', 'nan')) == 1.
+	assert monty.probability(('nan', 'B', 'C')) == 1.
+	assert monty.probability(('A', 'B', 'nan')) == 1.
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_fit():
+def test_distributions_cpt_fit(cpt):
+	monty, X, X_nan = cpt
 	monty.fit(X)
 
 	assert_array_equal(monty.parameters[0],
@@ -1257,8 +1250,8 @@ def test_distributions_cpt_fit():
 		['C', 'C', 'C', 0.75]])
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_nan_fit():
+def test_distributions_cpt_nan_fit(cpt):
+	monty, X, X_nan = cpt
 	monty.fit(X_nan)
 
 	assert_array_equal(monty.parameters[0],
@@ -1291,8 +1284,8 @@ def test_distributions_cpt_nan_fit():
 		['C', 'C', 'C', 1.0]])
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_exclusive_nan_fit():
+def test_distributions_cpt_exclusive_nan_fit(cpt):
+	monty, X, X_nan = cpt
 	X = [['nan', 'nan', 'nan'],
 		 ['nan', 'nan', 'nan'],
 		 ['nan', 'nan', 'nan'],
@@ -1331,8 +1324,8 @@ def test_distributions_cpt_exclusive_nan_fit():
 		 ['C', 'C', 'C', 0.0]])
 
 
-@with_setup(setup_cpt)
-def test_distributions_cpt_weighted_fit():
+def test_distributions_cpt_weighted_fit(cpt):
+	monty, X, X_nan = cpt
 	weights = [1, 3, 2, 3, 7, 4, 2, 2, 2, 1, 1, 1, 1, 0, 0, 0, 1, 2, 1, 3, 1,
 		1, 1, 2, 1, 1, 1, 3, 1, 1, 1]
 
@@ -1400,11 +1393,12 @@ def test_distributions_mgd_random_sample():
 	d = MultivariateGaussianDistribution(mu, cov)
 
 	x = numpy.array([[5.441227, 0.66913 ],
-			         [7.430771, 0.747908],
-			         [5.10961 , 2.582481]])
+					 [7.430771, 0.747908],
+					 [5.10961 , 2.582481]])
 
 	assert_array_almost_equal(d.sample(3, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 
 def test_distributions_independent_random_sample():
@@ -1418,7 +1412,8 @@ def test_distributions_independent_random_sample():
 					 [9.861542, 2.067192, 0.033083, 2.644041]])
 
 	assert_array_almost_equal(d.sample(3, random_state=5), x)
-	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
+	with pytest.raises(AssertionError):
+		assert_array_almost_equal(d.sample(5), x)
 
 def test_cpd_sampling():
 	d1 = DiscreteDistribution({"A": 0.1, "B": 0.9})
@@ -1458,12 +1453,13 @@ def test_distributions_cpt_random_sample():
 		[["A", "A", 0.1], ["A", "B", 0.9], ["B", "A", 0.7], ["B", "B", 0.3]],
 		[d1])
 
-    # Not true with actual seed
+	# Not true with actual seed
 	# x = numpy.array(['B', 'A', 'B', 'B', 'A', 'B', 'A', 'A', 'B', 'A', 'A', 
-	# 	'B', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A'])
+	#	'B', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A'])
 
 	x = numpy.array(['B', 'A', 'B', 'A', 'A', 'B', 'A', 'A', 'A', 'A', 'B', 'A', 'A',
-           'B', 'A', 'A', 'A', 'A', 'A', 'A'])
+		   'B', 'A', 'A', 'A', 'A', 'A', 'A'])
 
 	assert_array_equal(d.sample(n=20, random_state=5), x)
-	assert_raises(AssertionError, assert_array_equal, d.sample(n=10), x)
+	with pytest.raises(AssertionError):
+		assert_array_equal(d.sample(n=10), x)
