@@ -50,7 +50,7 @@ class ModelCheckpoint(Callback):
 	def __init__(self, name=None, verbose=True):
 		self.model = None
 		self.params = None
-		self.name = None
+		self.name = name
 		self.verbose = verbose
 
 	def on_epoch_end(self, logs):
