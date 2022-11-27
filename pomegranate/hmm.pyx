@@ -2960,7 +2960,8 @@ cdef class HiddenMarkovModel(GraphModel):
 				for i in range(self.n_edges):
 					self.expected_transitions[i] += expected_transitions[i] * weight[0]
 
-		self.expected_transitions_numpy = np.asarray(self.expected_transitions)
+				self.expected_transitions_numpy = numpy.asarray(self.expected_transitions)
+				
 		self.summaries += 1
 
 		free(expected_transitions)
