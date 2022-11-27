@@ -244,7 +244,7 @@ cdef class HiddenMarkovModel(GraphModel):
 	cdef double [:] state_weights
 	cdef public bint discrete
 	cdef public bint multivariate
-	cdef int summaries
+	cdef public int summaries
 	cdef int cython
 	cdef int* tied_state_count
 	cdef int* tied
@@ -253,7 +253,7 @@ cdef class HiddenMarkovModel(GraphModel):
 	cdef int* tied_edges_ends
 	cdef double* in_transition_log_probabilities
 	cdef double* out_transition_log_probabilities
-	cdef double* expected_transitions
+	cdef public double* expected_transitions
 	cdef int* in_edge_count
 	cdef int* in_transitions
 	cdef int* out_edge_count
