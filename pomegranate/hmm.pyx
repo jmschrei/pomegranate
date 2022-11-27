@@ -385,7 +385,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		self.bake(verbose=False)
 	
 	@property
-	def expected_transitions_numpy(self):
+	cdef expected_transitions_numpy(self):
 		return np.asarray(self.expected_transitions)
 
 	def free_bake_buffers(self):
