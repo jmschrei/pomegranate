@@ -2957,10 +2957,10 @@ cdef class HiddenMarkovModel(GraphModel):
 
 			# Update the master expected transitions vector representing the sparse matrix.
 			with gil:
-				out = []
+				expected_transitions_numpy = numpy.empty([self.n_edges])
 				for i in range(self.n_edges):
 					self.expected_transitions[i] += expected_transitions[i] * weight[0]
-					out.append(self.expected_transitions[i])
+					expected_transitions_numpy[i] = self.expected_transitions[i]
 					
 		self.summaries += 1
 
