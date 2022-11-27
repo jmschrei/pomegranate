@@ -254,6 +254,7 @@ cdef class HiddenMarkovModel(GraphModel):
 	cdef double* in_transition_log_probabilities
 	cdef double* out_transition_log_probabilities
 	cdef double* expected_transitions
+	cdef public numpy.ndarray expected_transitions_numpy
 	cdef int* in_edge_count
 	cdef int* in_transitions
 	cdef int* out_edge_count
@@ -382,6 +383,10 @@ cdef class HiddenMarkovModel(GraphModel):
 
 		# Bake the model
 		self.bake(verbose=False)
+	
+	@property
+	def expected_transitions_numpy(self):
+		return np.asarray(self.expected_transitions)
 
 	def free_bake_buffers(self):
 		free(self.in_transition_pseudocounts)
