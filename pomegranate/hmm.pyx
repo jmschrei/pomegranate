@@ -350,11 +350,22 @@ cdef class HiddenMarkovModel(GraphModel):
 		return state
 	
 	def set_expected_transitions(self, expected_transitions):
-		assert expected_transitions.ndim == 1
-		assert expected_transitions.shape[0] == self.n_edges
+		try:
+			assert expected_transitions.ndim == 1
+			assert expected_transitions.shape[0] == self.n_edges
+		except AssertionError:
+			print(
+				"Argument expected_transitions has the wrong shape: expected {e}, got {g}".format(
+					e = (self.n_edges),
+					g = expected_transitions.shape
+				)
+			)
+			raise AssertionError
+			
 		self.expected_transitions = <double*> calloc(self.n_edges, sizeof(double))
 		for i in range(self.n_edges):
 			self.expected_transitions[i] = expected_transitions[i]
+		
 			
 	@property		
 	def expected_transitions_numpy(self):
