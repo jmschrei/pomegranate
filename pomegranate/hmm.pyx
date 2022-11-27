@@ -349,6 +349,13 @@ cdef class HiddenMarkovModel(GraphModel):
 		state['distribution ties'] = ties
 
 		return state
+	
+	def set_expected_transitions(self, expected_transitions):
+		assert expected_transitions.ndim == 1
+		assert expected_transitions.shape[0] == self.n_edges
+		self.expected_transitions = <double*> calloc(self.n_edges, sizeof(double))
+		for i in range(self.n_edges):
+			self.expected_transitions[i] = expected_transitions[i]
 
 	def __reduce__(self):
 		return self.__class__, tuple(), self.__getstate__()
