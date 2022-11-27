@@ -253,7 +253,7 @@ cdef class HiddenMarkovModel(GraphModel):
 	cdef int* tied_edges_ends
 	cdef double* in_transition_log_probabilities
 	cdef double* out_transition_log_probabilities
-	cdef public double* expected_transitions
+	cdef double* expected_transitions
 	cdef int* in_edge_count
 	cdef int* in_transitions
 	cdef int* out_edge_count
