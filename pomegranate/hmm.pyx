@@ -356,7 +356,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		except AssertionError:
 			print(
 				"Argument expected_transitions has the wrong shape: expected {e}, got {g}".format(
-					e = (self.n_edges),
+					e = (self.n_edges,),
 					g = expected_transitions.shape
 				)
 			)
