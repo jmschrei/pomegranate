@@ -358,7 +358,7 @@ cdef class HiddenMarkovModel(GraphModel):
 			
 	@property		
 	def expected_transitions_numpy(self):
-		expected_transitions_numpy = np.zeros([self.n_edges], dtype=numpy.double)
+		expected_transitions_numpy = numpy.zeros([self.n_edges], dtype=numpy.double)
 		for i in range(self.n_edges):
 			expected_transitions_numpy[i] = self.expected_transitions[i]
 		
