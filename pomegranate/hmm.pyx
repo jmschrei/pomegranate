@@ -2839,6 +2839,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		cdef double log_transition_emission_probability_sum
 
 		cdef double* expected_transitions = <double*> calloc(self.n_edges, sizeof(double))
+		cdef double[:] expected_transitions_view = self.expected_transitions
 		cdef double* f
 		cdef double* b
 		cdef double* e
@@ -2960,7 +2961,6 @@ cdef class HiddenMarkovModel(GraphModel):
 				for i in range(self.n_edges):
 					self.expected_transitions[i] += expected_transitions[i] * weight[0]
 				
-			cdef double[:] expected_transitions_view = self.expected_transitions
 			#self.expected_transitions_numpy = numpy.asarray(expected_transitions_view)
 					
 		self.summaries += 1
