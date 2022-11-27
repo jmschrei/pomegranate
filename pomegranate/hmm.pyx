@@ -3271,6 +3271,7 @@ cdef class HiddenMarkovModel(GraphModel):
 		"""
 
 		memset(self.expected_transitions, 0, self.n_edges*sizeof(double))
+		self.expected_transitions_numpy[:] = 0
 		self.summaries = 0
 
 		for state in self.states[:self.silent_start]:
