@@ -286,7 +286,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
 		self.state_names = set()
 		self.state_name_mapping = {}
-
+		
 	def __dealloc__(self):
 		self.free_bake_buffers()
 
@@ -383,11 +383,7 @@ cdef class HiddenMarkovModel(GraphModel):
 
 		# Bake the model
 		self.bake(verbose=False)
-	
-	@property
-	cdef expected_transitions_numpy(self):
-		return np.asarray(self.expected_transitions)
-
+		
 	def free_bake_buffers(self):
 		free(self.in_transition_pseudocounts)
 		free(self.out_transition_pseudocounts)
@@ -2964,6 +2960,7 @@ cdef class HiddenMarkovModel(GraphModel):
 				for i in range(self.n_edges):
 					self.expected_transitions[i] += expected_transitions[i] * weight[0]
 
+		self.expected_transitions_numpy = np.asarray(self.expected_transitions)
 		self.summaries += 1
 
 		free(expected_transitions)
