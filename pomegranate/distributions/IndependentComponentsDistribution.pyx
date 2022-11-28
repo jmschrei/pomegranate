@@ -138,6 +138,12 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 				return logp_array
 
 	cdef void _log_probability(self, double* X, double* log_probability, int n) nogil:
+		if self.cython == 1:
+			self._log_probability_cython(X, log_probability, n)
+		else:
+			self._log_probability_python(X, log_probability, n)
+
+	cdef void _log_probability_cython(self, double* X, double* log_probability, int n) nogil:
 		cdef int i, j
 		cdef double logp
 
@@ -145,11 +151,19 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 
 		for i in range(n):
 			for j in range(self.d):
-				if self.cython == 1:
-					(<Model> self.distributions_ptr[j])._log_probability(X+i*self.d+j, &logp, 1)
-				else:
-					with gil:
-						python_log_probability(self.distributions[j], X+i*self.d+j, &logp, 1)
+				(<Model> self.distributions_ptr[j])._log_probability(X+i*self.d+j, &logp, 1)
+				log_probability[i] += logp * self.weights_ptr[j]
+
+	cdef void _log_probability_python(self, double* X, double* log_probability, int n) nogil:
+		cdef int i, j
+		cdef double logp
+
+		memset(log_probability, 0, n*sizeof(double))
+
+		for i in range(n):
+			for j in range(self.d):
+				with gil:
+					python_log_probability(self.distributions[j], X+i*self.d+j, &logp, 1)
 
 				log_probability[i] += logp * self.weights_ptr[j]
 
