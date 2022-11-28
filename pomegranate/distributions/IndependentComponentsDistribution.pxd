@@ -15,4 +15,5 @@ cdef class IndependentComponentsDistribution(MultivariateDistribution):
 	cdef public int cython
 	cdef double* weights_ptr
 	cdef void** distributions_ptr
-
+	cdef void _log_probability_cython(self, double* symbol, double* log_probability, int n) nogil
+	cdef void _log_probability_python(self, double* symbol, double* log_probability, int n) nogil
