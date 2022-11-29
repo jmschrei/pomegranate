@@ -2,6 +2,11 @@
 
 [![Downloads](https://pepy.tech/badge/pomegranate)](https://pepy.tech/project/pomegranate)![build](https://github.com/jmschrei/pomegranate/workflows/build/badge.svg) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jmschrei/pomegranate/master)
 
+
+> **Note**
+> pomegranate is currently being rewritten from the ground up using PyTorch, which is being released as torchegranate until it is completed. Check it out! https://github.com/jmschrei/torchegranate
+
+
 Please consider citing the [**JMLR-MLOSS Manuscript**](http://jmlr.org/papers/volume18/17-636/17-636.pdf) if you've used pomegranate in your academic work!
 
 pomegranate is a package for building probabilistic models in Python that is implemented in Cython for speed. A primary focus of pomegranate is to merge the easy-to-use API of scikit-learn with the modularity of probabilistic modeling to allow users to specify complicated models without needing to worry about implementation details. The models implemented here are built from the ground up with big data processing in mind and so natively support features like multi-threaded parallelism and out-of-core processing. Click on the binder badge above to interactively play with the tutorials!
