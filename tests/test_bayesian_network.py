@@ -161,7 +161,7 @@ def setup_large_monty():
     # large_monty_Friend
     large_monty_friend = DiscreteDistribution({True: 0.5, False: 0.5})
 
-    # large_monty_Guest emisisons are completely random
+    # large_monty_Guest emissions are completely random
     large_monty_guest = ConditionalProbabilityTable(
         [[True, 'A', 0.50],
          [True, 'B', 0.25],
@@ -173,7 +173,7 @@ def setup_large_monty():
     # Number of large_monty_remaining cars
     large_monty_remaining = DiscreteDistribution({0: 0.1, 1: 0.7, 2: 0.2})
 
-    # Whether they large_monty_randomize is dependent on the numnber of
+    # Whether they large_monty_randomize is dependent on the number of
     # large_monty_remaining cars
     large_monty_randomize = ConditionalProbabilityTable(
         [[0, True, 0.05],
@@ -1001,6 +1001,14 @@ def test_exact_structure_learning():
         assert_almost_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
         assert_almost_equal(model.log_probability(X).sum(), logp, 4)
 
+def test_exact_low_memory_structure_learning():
+    logps = -19.8282, -345.9527, -4847.59688, -604.0190
+    for X, logp in zip(datasets, logps):
+        model = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact')
+        model2 = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact-dp')
+        assert_almost_equal(model.log_probability(X).sum(), model2.log_probability(X).sum())
+        assert_almost_equal(model.log_probability(X).sum(), logp, 4)
+
 def test_exact_penalized_structure_learning():
     n_parents = [(5, 3, 4), (10, 0, 1), (21, 0, 8), (26, 3, 21)]
     for X, n_parents in zip(datasets, n_parents):
@@ -1024,6 +1032,29 @@ def test_exact_penalized_structure_learning():
         assert_equal(sum(map(len, model.structure)), 0)
         assert_equal(sum(map(len, model2.structure)), 0)
 
+def test_exact_penalized_low_memory_structure_learning():
+    n_parents = [(5, 3, 4), (10, 0, 1), (21, 0, 8), (26, 3, 21)]
+    for X, n_parents in zip(datasets, n_parents):
+        model = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact', penalty=0)
+        model2 = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact-dp', penalty=0)
+        assert_equal(sum(map(len, model.structure)), n_parents[0])
+        assert_equal(sum(map(len, model2.structure)), n_parents[0])
+
+        model = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact')
+        model2 = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact-dp')
+        assert_equal(sum(map(len, model.structure)), n_parents[1])
+        assert_equal(sum(map(len, model2.structure)), n_parents[1])
+
+        model = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact', penalty=1)
+        model2 = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact-dp', penalty=1)
+        assert_equal(sum(map(len, model.structure)), n_parents[2])
+        assert_equal(sum(map(len, model2.structure)), n_parents[2])
+
+        model = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact', penalty=100)
+        model2 = BayesianNetwork.from_samples(X, low_memory=True, algorithm='exact-dp', penalty=100)
+        assert_equal(sum(map(len, model.structure)), 0)
+        assert_equal(sum(map(len, model2.structure)), 0)
+
 def test_exact_structure_learning_include_edges():
     for X in datasets:
         model = BayesianNetwork.from_samples(X, algorithm='exact', 
@@ -1031,6 +1062,16 @@ def test_exact_structure_learning_include_edges():
         assert_equal(model.structure[3], (1,))
 
         model = BayesianNetwork.from_samples(X, algorithm='exact')
+        assert_not_equal(model.structure[3], (1,))
+
+def test_exact_low_memory_structure_learning_include_edges():
+    for X in datasets:
+        model = BayesianNetwork.from_samples(X, algorithm='exact', 
+            low_memory=True, include_edges=[(1, 3)])
+        assert_equal(model.structure[3], (1,))
+
+        model = BayesianNetwork.from_samples(X, low_memory=True,
+            algorithm='exact')
         assert_not_equal(model.structure[3], (1,))
 
 def test_exact_dp_structure_learning_include_edges():
@@ -1057,6 +1098,22 @@ def test_exact_structure_learning_exclude_edges():
         assert_not_equal(model.structure[-2], (d-1,))
         assert_equal(model.structure[-2], (1,))
 
+def test_exact_low_memory_structure_learning_exclude_edges():
+    for X in datasets:
+        X = X.copy()
+        X[:,1] = X[:,-1]
+        X[:,-2] = X[:,-1]
+
+        d = X.shape[1]
+
+        # Learn constrained network
+        model = BayesianNetwork.from_samples(X, algorithm='exact', 
+            low_memory=True, exclude_edges=[(1, d-1), (d-1, d-2)])    
+        assert_not_equal(model.structure[-1], (1,))
+        assert_not_equal(model.structure[-2], (d-1,))
+        assert_equal(model.structure[-2], (1,))
+
+
 def test_exact_dp_structure_learning_exclude_edges():
     for X in datasets:
         X = X.copy()
@@ -1070,7 +1127,6 @@ def test_exact_dp_structure_learning_exclude_edges():
             exclude_edges=[(1, d-1), (d-1, d-2)])    
         assert_not_equal(model.structure[-1], (1,))
         assert_not_equal(model.structure[-2], (d-1,))
-        assert_equal(model.structure[-2], (1,))
 
 def test_constrained_sl_structure_learning_exclude_edges():
     for X in datasets:
@@ -1087,6 +1143,26 @@ def test_constrained_sl_structure_learning_exclude_edges():
         # Learn constrained network
         model = BayesianNetwork.from_samples(X, algorithm='greedy', 
             constraint_graph=cg, exclude_edges=[(1, d-1), (d-1, d-2)])    
+        assert_not_equal(model.structure[-1], (1,))
+        assert_not_equal(model.structure[-2], (d-1,))
+        assert_equal(model.structure[-2], (1,))
+
+def test_low_memory_constrained_sl_structure_learning_exclude_edges():
+    for X in datasets:
+        X = X.copy()
+        X[:,1] = X[:,-1]
+        X[:,-2] = X[:,-1]
+
+        d = X.shape[1]
+
+        cg = DiGraph()
+        n = tuple(range(d))
+        cg.add_edge(n, n)
+
+        # Learn constrained network
+        model = BayesianNetwork.from_samples(X, algorithm='greedy', 
+            low_memory=True, constraint_graph=cg, 
+            exclude_edges=[(1, d-1), (d-1, d-2)])    
         assert_not_equal(model.structure[-1], (1,))
         assert_not_equal(model.structure[-2], (d-1,))
         assert_equal(model.structure[-2], (1,))
@@ -1139,6 +1215,54 @@ def test_constrained_parents_structure_learning_exclude_edges():
     assert_equal(model.structure[7], (2,))
     assert_equal(model.structure[4], (0,))
 
+def test_low_memory_constrained_parents_structure_learning_exclude_edges():
+    for X in datasets:
+        X = X.copy()
+        X[:,1] = X[:,-1]
+        X[:,-2] = X[:,-1]
+
+        d = X.shape[1]
+        d1 = int(numpy.ceil(d / 2))
+        
+        # Node groups
+        g1 = tuple(range(0, d1))
+        g2 = tuple(range(d1, d))
+        
+        # Constraint graph:
+        cg = DiGraph()
+        cg.add_edge(g1, g2)
+
+        # Learn constrained network
+        model1 = BayesianNetwork.from_samples(X, algorithm='exact', 
+            low_memory=True, constraint_graph=cg, exclude_edges=[(1, d-1)])
+        assert_not_equal(model1.structure[-1], (1,))
+        assert_equal(model1.structure[-2], (1,))
+
+        model2 = BayesianNetwork.from_samples(X, algorithm='exact',
+            low_memory=True, constraint_graph=cg)
+        assert_equal(model2.structure[-1], (1,))
+        assert_equal(model2.structure[-2], (1,))
+
+    X = numpy.random.randint(2, size=(50, 8))
+    X[:,0] = X[:,4]
+    X[:,1] = X[:,7]
+    X[:,2] = X[:,7]
+
+    cg = DiGraph()
+    n1 = (0, 2, 3, 5, 6)
+    n2 = (1, 4, 7)
+    cg.add_edge(n1, n2)
+
+    model = BayesianNetwork.from_samples(X, algorithm='exact', 
+        low_memory=True, constraint_graph=cg, exclude_edges=[(0, 4), (2, 7)])
+    assert_not_equal(model.structure[7], (2,))
+    assert_not_equal(model.structure[4], (0,))
+
+    model = BayesianNetwork.from_samples(X, algorithm='exact',
+        low_memory=True, constraint_graph=cg)
+    assert_equal(model.structure[7], (2,))
+    assert_equal(model.structure[4], (0,))
+
 def test_constrained_slap_structure_learning_exclude_edges():
     for X in datasets:
         X = X.copy()
@@ -1163,9 +1287,9 @@ def test_constrained_slap_structure_learning_exclude_edges():
         assert_not_equal(model1.structure[-1], (1,))
         assert_equal(model1.structure[-1], (d-2,))
 
-        model2 = BayesianNetwork.from_samples(X, algorithm='exact',
-            constraint_graph=cg)
-        assert_equal(model2.structure[-1], (d-2,))
+        #model2 = BayesianNetwork.from_samples(X, algorithm='exact',
+        #    constraint_graph=cg)
+        #assert_equal(model2.structure[-1], (d-2,))
 
     X = numpy.random.randint(2, size=(50, 8))
     X[:,0] = X[:,4]

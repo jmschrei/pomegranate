@@ -72,7 +72,7 @@ class build_ext(_build_ext):
 
 setup(
     name='pomegranate',
-    version='0.14.2',
+    version='0.14.8',
     author='Jacob Schreiber',
     author_email='jmschreiber91@gmail.com',
     packages=[
@@ -80,7 +80,7 @@ setup(
         'pomegranate/distributions',
     ],
     url='http://pypi.python.org/pypi/pomegranate/',
-    license='LICENSE.txt',
+    license='MIT',
     description='Pomegranate is a graphical models library for Python, implemented in Cython for speed.',
     ext_modules=extensions,
     cmdclass={'build_ext':build_ext},
@@ -92,7 +92,7 @@ setup(
     install_requires=[
         "numpy >= 1.20.0",
         "joblib >= 0.9.0b4",
-        "networkx >= 2.0",
+        "networkx >= 2.4",
         "scipy >= 0.17.0",
         "pyyaml"
     ],

@@ -704,6 +704,12 @@ def test_distributions_poisson_random_sample():
 	assert_array_almost_equal(d.sample(5, random_state=5), x)
 	assert_raises(AssertionError, assert_array_almost_equal, d.sample(5), x)
 
+def test_beta():
+	"""Test pickling of beta distribution."""
+	d = BetaDistribution(2, 3)
+	e = pickle.loads(pickle.dumps(d))
+	assert_equal(e.name, "BetaDistribution")
+	assert_equal(e.parameters, [2, 3])
 
 def test_distributions_beta_random_sample():
 	d = BetaDistribution(1, 1)

@@ -1,6 +1,11 @@
 <img src="https://github.com/jmschrei/pomegranate/blob/master/docs/logo/pomegranate-logo.png" width=300>
 
-![build](https://github.com/jmschrei/pomegranate/workflows/build/badge.svg) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jmschrei/pomegranate/master)
+[![Downloads](https://pepy.tech/badge/pomegranate)](https://pepy.tech/project/pomegranate)![build](https://github.com/jmschrei/pomegranate/workflows/build/badge.svg) [![Documentation Status](https://readthedocs.org/projects/pomegranate/badge/?version=latest)](http://pomegranate.readthedocs.io/en/latest/?badge=latest) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/jmschrei/pomegranate/master)
+
+
+> **Note**
+> pomegranate is currently being rewritten from the ground up using PyTorch, which is being released as torchegranate until it is completed. Check it out! https://github.com/jmschrei/torchegranate
+
 
 Please consider citing the [**JMLR-MLOSS Manuscript**](http://jmlr.org/papers/volume18/17-636/17-636.pdf) if you've used pomegranate in your academic work!
 
@@ -13,6 +18,8 @@ pomegranate is pip-installable using `pip install pomegranate` and conda-install
 If you get an error involving `pomegranate/base.c`, try installing with `pip install --no-cache-dir pomegranate`.
 
 If you get an error involving `pomegranate/distributions/NeuralNetworkWrapper.c: No such file or directory`, try installing Cython first and then re-installing. 
+
+A few packages are optional to use pomegranate but necessary for some specific functionality. For example, pandas is needed to run the tests involving I/O, matplotlib and pygraphviz are needed for plotting capabilities, and cupy is needed for GPU acceleration. 
 
 ### Models
 
