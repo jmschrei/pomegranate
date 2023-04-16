@@ -57,3 +57,38 @@ This returns the matrix of posterior probabilities P(M|D) directly. The predict 
 	>>> model.predict_log_proba(X)
 
 This returns the matrix of log posterior probabilities for numerical stability.
+
+
+API Reference
+-------------
+
+.. automodule:: pomegranate.distributions
+   :members: Bernoulli, Categorical, ConditionalCategorical, JointCategorical, DiracDelta, Exponential, Gamma, Normal, Poisson, StudentT, Uniform, ZeroInflated
+
+.. automodule:: pomegranate.bayes_classifier.BayesClassifier
+	:members:
+	:inherited-members:
+
+.. automodule:: pomegranate.gmm.GeneralMixtureModel
+	:members:
+	:inherited-members:
+
+.. automodule:: pomegranate.hmm.DenseHMM
+	:members:
+	:inherited-members:
+
+.. automodule:: pomegranate.hmm.SparseHMM
+	:members:
+	:inherited-members:
+
+.. automodule:: pomegranate.markov_chain.MarkovChain
+	:members:
+	:inherited-members:
+
+.. automodule:: pomegranate.bayesian_network.BayesianNetwork
+	:members:
+	:inherited-members:
+
+.. automodule:: pomegranate.factor_graph.FactorGraph
+	:members:
+	:inherited-members:

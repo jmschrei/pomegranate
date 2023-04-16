@@ -50,19 +50,20 @@ Contributions are eagerly accepted! If you would like to contribute a feature th
    :hidden:
    :caption: Features
 
-   features/ooc.rst
-   features/semisupervised.rst
-   features/nan.rst
+   tutorials/C_Feature_Tutorial_1_GPU_Usage.ipynb
+   tutorials/C_Feature_Tutorial_2_Mixed_Precision_and_DataTypes.ipynb
+   tutorials/C_Feature_Tutorial_3_Out_Of_Core_Learning.ipynb
+   tutorials/C_Feature_Tutorial_4_Priors_and_Semi-supervised_Learning.ipynb
 
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Models
 
-   models/distributions.rst
-   models/gmm.rst
-   models/bayes_classifier.rst
-   models/hmm.rst
-   models/markov_chain.rst
-   models/bayesian_network.rst
-   models/factor_graph.rst
+   tutorials/B_Model_Tutorial_1_Distributions.ipynb
+   tutorials/B_Model_Tutorial_2_General_Mixture_Models.ipynb
+   tutorials/B_Model_Tutorial_3_Bayes_Classifier.ipynb
+   tutorials/B_Model_Tutorial_4_Hidden_Markov_Models.ipynb
+   tutorials/B_Model_Tutorial_5_Markov_Chains.ipynb
+   tutorials/B_Model_Tutorial_6_Bayesian_Networks.ipynb
+   tutorials/B_Model_Tutorial_7_Factor_Graphs.ipynb

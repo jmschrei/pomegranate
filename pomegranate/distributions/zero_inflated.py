@@ -66,8 +66,8 @@ class ZeroInflated(Distribution):
 	"""
 
 	def __init__(self, distribution, priors=None, max_iter=10, 
-		tol=0.1, inertia=0.0, frozen=False, verbose=False):
-		super().__init__(inertia=inertia, frozen=frozen)
+		tol=0.1, inertia=0.0, frozen=False, check_data=False, verbose=False):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
 		self.name = "ZeroInflated"
 
 		self.distribution = distribution

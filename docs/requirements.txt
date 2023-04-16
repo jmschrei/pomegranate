@@ -6,3 +6,5 @@ apricot-select >= 0.6.1
 networkx >= 2.8.4
 pomegranate >= 1.0.0
 sphinx-rtd-theme
+pandoc
+nbsphinx
