@@ -3,7 +3,7 @@
 Probability Distributions
 =========================
 
-..`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_1_Distributions.ipynb>`_
+`Tutorial Notebook <https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_1_Distributions.ipynb>`_
 
 Simple probability distributions, such as normal or exponential distributions, are commonly used as components as more complex models, such as mixtures and hidden Markov models, but they can also be used by themselves. Because everything in pomegranate has the same API, you can use these simple probability distributions in the same situations as the more complex models. 
 
@@ -23,7 +23,6 @@ Simple probability distributions, such as normal or exponential distributions, a
     DiracDelta
     Exponential
     Gamma
-    LogNormal
     Normal
     Poisson
     StudentT
@@ -78,4 +77,4 @@ API Reference
 -------------
 
 .. automodule:: pomegranate.distributions
-   :members: Bernoulli, Categorical, ConditionalCategorical, JointCategorical, DiracDelta, Exponential, Gamma, LogNormal, Normal, Poisson, StudentT, Uniform, ZeroInflated
+   :members: Bernoulli, Categorical, ConditionalCategorical, JointCategorical, DiracDelta, Exponential, Gamma, Normal, Poisson, StudentT, Uniform, ZeroInflated

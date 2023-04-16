@@ -8,12 +8,6 @@
 	:width: 300px
 
 |
- 
-.. image:: https://travis-ci.org/jmschrei/pomegranate.svg?branch=master
-   :target: https://travis-ci.org/jmschrei/pomegranate
-
-.. image:: https://ci.appveyor.com/api/projects/status/github/jmschrei/pomegranate?svg=True
-   :target: https://ci.appveyor.com/project/JacobSchreiber/pomegranate/branch/master
 
 .. image:: https://readthedocs.org/projects/pomegranate/badge/?version=latest
    :target: http://pomegranate.readthedocs.io/en/latest/?badge=latest
@@ -46,6 +40,7 @@ Contributions are eagerly accepted! If you would like to contribute a feature th
 
    self
    install.rst
+   api.rst
    CODE_OF_CONDUCT.rst
    faq.rst
    whats_new.rst
@@ -55,20 +50,19 @@ Contributions are eagerly accepted! If you would like to contribute a feature th
    :hidden:
    :caption: Features
 
-   api.rst
-   ooc.rst
-   semisupervised.rst
-   nan.rst
+   features/ooc.rst
+   features/semisupervised.rst
+   features/nan.rst
 
 .. toctree::
    :maxdepth: 1
    :hidden:
    :caption: Models
 
-   Distributions.rst
-   GeneralMixtureModel.rst
-   BayesClassifier.rst
-   HiddenMarkovModel.rst
-   MarkovChain.rst
-   BayesianNetwork.rst
-   FactorGraph.rst
+   models/distributions.rst
+   models/gmm.rst
+   models/bayes_classifier.rst
+   models/hmm.rst
+   models/markov_chain.rst
+   models/bayesian_network.rst
+   models/factor_graph.rst

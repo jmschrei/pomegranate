@@ -1,4 +1,4 @@
-.. _bayesiannetwork:
+.. _bayesian_network:
 
 Bayesian Networks
 =================
@@ -100,6 +100,6 @@ Fitting a Bayesian network to data is a fairly simple process. Essentially, for 
 API Reference
 -------------
 
-.. automodule:: pomegranate.BayesianNetwork
+.. automodule:: pomegranate.bayesian_network.BayesianNetwork
 	:members:
 	:inherited-members:

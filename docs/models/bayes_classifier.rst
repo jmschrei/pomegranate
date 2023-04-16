@@ -1,9 +1,9 @@
-.. _naivebayes:
+.. _bayes_classifier:
 
 Bayes Classifiers and Naive Bayes
 =================================
 
-..`IPython Notebook Tutorial <https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_5_Bayes_Classifiers.ipynb>`_
+`Tutorial Notebook <https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_3_Bayes_Classifier.ipynb>`_
 
 
 Bayes classifiers are simple classification models that use Bayes theorem to make predictions based on a set of probability distributions. Essentially, each class is modeled by a probability distribution and classifications are made by multiplying the prior probability of each distribution ``P(M)`` by the likelihood of the data ``P(D|M)`` to get the posterior probabilities ``P(M|D)``. The normalization factor is ignored since it is the same for each class.  Bayes classifiers can be viewed as the supervised version of general mixture models in that all the operations are identical assuming that, rather than determining weights using the expectation step of EM, the weights are given in the form of labels. Consequently, once a Bayes classifier or a mixture model are fit, one can use them identically. 
@@ -157,10 +157,6 @@ As we can see, there are four samples, with the first two samples labeled as cla
 API Reference
 -------------
 
-.. automodule:: pomegranate.NaiveBayes
-	:members:
-	:inherited-members:
-
-.. automodule:: pomegranate.BayesClassifier
+.. automodule:: pomegranate.bayes_classifier.BayesClassifier
 	:members:
 	:inherited-members:
