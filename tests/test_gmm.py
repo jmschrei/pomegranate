@@ -6,8 +6,8 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.gmm import GeneralMixtureModel
-from torchegranate.distributions import Exponential
+from pomegranate.gmm import GeneralMixtureModel
+from pomegranate.distributions import Exponential
 
 from .distributions._utils import _test_initialization_raises_one_parameter
 from .distributions._utils import _test_initialization

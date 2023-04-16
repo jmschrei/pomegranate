@@ -5,9 +5,9 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.hmm import DenseHMM
-from torchegranate.distributions import Exponential
-from torchegranate.distributions import Gamma
+from pomegranate.hmm import DenseHMM
+from pomegranate.distributions import Exponential
+from pomegranate.distributions import Gamma
 
 from ..distributions._utils import _test_initialization_raises_one_parameter
 from ..distributions._utils import _test_initialization

@@ -6,7 +6,7 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.kmeans import KMeans
+from pomegranate.kmeans import KMeans
 
 from .distributions._utils import _test_initialization_raises_one_parameter
 from .distributions._utils import _test_initialization

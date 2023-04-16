@@ -5,15 +5,15 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.bayesian_network import BayesianNetwork
+from pomegranate.bayesian_network import BayesianNetwork
 
-from torchegranate.bayesian_network import _from_structure
-from torchegranate.bayesian_network import _learn_structure
-from torchegranate.bayesian_network import _categorical_exact
-from torchegranate.bayesian_network import _categorical_chow_liu
+from pomegranate.bayesian_network import _from_structure
+from pomegranate.bayesian_network import _learn_structure
+from pomegranate.bayesian_network import _categorical_exact
+from pomegranate.bayesian_network import _categorical_chow_liu
 
-from torchegranate.distributions import Categorical
-from torchegranate.distributions import ConditionalCategorical
+from pomegranate.distributions import Categorical
+from pomegranate.distributions import ConditionalCategorical
 
 from nose.tools import assert_raises
 from numpy.testing import assert_array_almost_equal

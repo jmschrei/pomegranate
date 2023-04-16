@@ -1,4 +1,4 @@
-# zeroinflated.py
+# zero_inflated.py
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
 import time
@@ -32,8 +32,8 @@ class ZeroInflated(Distribution):
 
 	Parameters
 	----------
-	distribution: torchegranate.distributions._distribution.Distribution
-		A torchegranate distribution object. It should probably be a discrete
+	distribution: pomegranate.distributions.Distribution
+		A pomegranate distribution object. It should probably be a discrete
 		distribution, but does not technically have to be.
 
 	priors: tuple, numpy.ndarray, torch.Tensor, or None. shape=(2,), optional

@@ -6,7 +6,7 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import StudentT
+from pomegranate.distributions import StudentT
 
 from ._utils import _test_initialization_raises_two_parameters
 from ._utils import _test_initialization

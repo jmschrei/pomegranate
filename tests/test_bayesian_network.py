@@ -5,10 +5,10 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.bayesian_network import BayesianNetwork
-from torchegranate.distributions import Exponential
-from torchegranate.distributions import Categorical
-from torchegranate.distributions import ConditionalCategorical
+from pomegranate.bayesian_network import BayesianNetwork
+from pomegranate.distributions import Exponential
+from pomegranate.distributions import Categorical
+from pomegranate.distributions import ConditionalCategorical
 
 
 from nose.tools import assert_raises

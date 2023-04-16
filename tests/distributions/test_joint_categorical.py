@@ -1,11 +1,11 @@
-# test_JointCategorical.py
+# test_joint_categorical.py
 # Contact: Jacob Schreiber <jmschreiber91@gmail.com>
 
 import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import JointCategorical
+from pomegranate.distributions import JointCategorical
 
 from ._utils import _test_initialization_raises_one_parameter
 from ._utils import _test_initialization

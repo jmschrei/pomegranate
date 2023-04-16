@@ -6,7 +6,7 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import Normal
+from pomegranate.distributions import Normal
 
 from ._utils import _test_initialization_raises_two_parameters
 from ._utils import _test_initialization

@@ -6,9 +6,9 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.gmm import GeneralMixtureModel
-from torchegranate.hmm import DenseHMM
-from torchegranate.distributions import Exponential
+from pomegranate.gmm import GeneralMixtureModel
+from pomegranate.hmm import DenseHMM
+from pomegranate.distributions import Exponential
 
 from nose.tools import assert_raises
 from numpy.testing import assert_array_equal

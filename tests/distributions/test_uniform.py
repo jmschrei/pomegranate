@@ -6,7 +6,7 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import Uniform
+from pomegranate.distributions import Uniform
 
 from ._utils import _test_initialization_raises_two_parameters
 from ._utils import _test_initialization

@@ -6,10 +6,10 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import Exponential
-from torchegranate.distributions import Gamma
-from torchegranate.distributions import Categorical
-from torchegranate.distributions import IndependentComponents
+from pomegranate.distributions import Exponential
+from pomegranate.distributions import Gamma
+from pomegranate.distributions import Categorical
+from pomegranate.distributions import IndependentComponents
 
 from ._utils import _test_initialization_raises_one_parameter
 from ._utils import _test_initialization

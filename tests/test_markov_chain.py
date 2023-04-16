@@ -5,9 +5,9 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.markov_chain import MarkovChain
-from torchegranate.distributions import Categorical
-from torchegranate.distributions import ConditionalCategorical
+from pomegranate.markov_chain import MarkovChain
+from pomegranate.distributions import Categorical
+from pomegranate.distributions import ConditionalCategorical
 
 from .distributions._utils import _test_initialization_raises_one_parameter
 from .distributions._utils import _test_initialization

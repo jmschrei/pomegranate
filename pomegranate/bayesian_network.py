@@ -160,7 +160,7 @@ class BayesianNetwork(Distribution):
 		
 		Parameters
 		----------
-		distribution: torchegranate.distributions.Distribution
+		distribution: pomegranate.distributions.Distribution
 			A distribution object to include as a node. Currently must be a
 			Categorical or a ConditionalCategorical distribution.
 		"""
@@ -225,10 +225,10 @@ class BayesianNetwork(Distribution):
 
 		Parameters
 		----------
-		parent: torchegranate.distributions.Distribution
+		parent: pomegranate.distributions.Distribution
 			The distribution that the edge begins at.
 
-		child: torchegranate.distributions.Distribution
+		child: pomegranate.distributions.Distribution
 			The distribution that the edge points to.
 		"""
 
@@ -630,7 +630,7 @@ def _from_structure(X, sample_weight=None, structure=None, pseudocount=0.0):
 
 	Returns
 	-------
-	model: torchegranate.bayesian_network.BayesianNetwork
+	model: pomegranate.bayesian_network.BayesianNetwork
 		The fit Bayesian network.
 	"""
 

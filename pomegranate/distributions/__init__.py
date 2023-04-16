@@ -6,7 +6,6 @@ from .exponential import Exponential
 from .gamma import Gamma
 from .independent_components import IndependentComponents
 from .joint_categorical import JointCategorical
-from .lognormal import LogNormal
 from .normal import Normal
 from .poisson import Poisson
 from .student_t import StudentT

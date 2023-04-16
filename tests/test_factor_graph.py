@@ -5,11 +5,10 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.factor_graph import FactorGraph
-from torchegranate.distributions import Exponential
-from torchegranate.distributions import Categorical
-from torchegranate.distributions import JointCategorical
-
+from pomegranate.factor_graph import FactorGraph
+from pomegranate.distributions import Exponential
+from pomegranate.distributions import Categorical
+from pomegranate.distributions import JointCategorical
 
 from nose.tools import assert_raises
 from numpy.testing import assert_array_almost_equal

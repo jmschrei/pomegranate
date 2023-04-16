@@ -5,7 +5,7 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import ConditionalCategorical
+from pomegranate.distributions import ConditionalCategorical
 
 from ._utils import _test_initialization_raises_one_parameter
 from ._utils import _test_initialization

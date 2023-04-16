@@ -6,7 +6,7 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import DiracDelta
+from pomegranate.distributions import DiracDelta
 
 from ._utils import _test_initialization_raises_one_parameter
 from ._utils import _test_initialization

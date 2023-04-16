@@ -158,7 +158,7 @@ class FactorGraph(Distribution):
 		
 		Parameters
 		----------
-		distribution: torchegranate.distributions.Distribution
+		distribution: pomegranate.distributions.Distribution
 			A distribution object to include as a node.
 		"""
 
@@ -180,7 +180,7 @@ class FactorGraph(Distribution):
 
 		Parameters
 		----------
-		distribution: torchegranate.distributions.Distribution
+		distribution: pomegranate.distributions.Distribution
 			A distribution object to include as a node.
 		"""
 
@@ -202,10 +202,10 @@ class FactorGraph(Distribution):
 
 		Parameters
 		----------
-		marginal: torchegranate.distributions.Distribution
+		marginal: pomegranate.distributions.Distribution
 			The marginal distribution to include in the edge.
 
-		factor: torchegranate.distributions.Distribution
+		factor: pomegranate.distributions.Distribution
 			The factor distribution to include in the edge.
 		"""
 

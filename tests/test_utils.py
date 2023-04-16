@@ -5,10 +5,10 @@ import numpy
 import torch
 import pytest
 
-from torchegranate._utils import _cast_as_tensor
-from torchegranate._utils import _update_parameter
-from torchegranate._utils import _check_parameter
-from torchegranate._utils import partition_sequences
+from pomegranate._utils import _cast_as_tensor
+from pomegranate._utils import _update_parameter
+from pomegranate._utils import _check_parameter
+from pomegranate._utils import partition_sequences
 
 from nose.tools import assert_almost_equal
 from nose.tools import assert_equal

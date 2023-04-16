@@ -6,7 +6,7 @@ import numpy
 import torch
 import pytest
 
-from torchegranate.distributions import Exponential
+from pomegranate.distributions import Exponential
 
 from ._utils import _test_initialization_raises_one_parameter
 from ._utils import _test_initialization
