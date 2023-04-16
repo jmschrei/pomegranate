@@ -1,424 +1,472 @@
-from pomegranate import *
-from nose.tools import with_setup
-from nose.tools import assert_true
-from nose.tools import assert_equal
-from nose.tools import assert_greater_equal
-from nose.tools import assert_greater
+# test_kmeans.py
+# Contact: Jacob Schreiber <jmschreiber91@gmail.com>
+
+import os
+import numpy
+import torch
+import pytest
+
+from torchegranate.kmeans import KMeans
+
+from .distributions._utils import _test_initialization_raises_one_parameter
+from .distributions._utils import _test_initialization
+from .distributions._utils import _test_predictions
+from .distributions._utils import _test_efd_from_summaries
+from .distributions._utils import _test_raises
+
 from nose.tools import assert_raises
-from nose.tools import assert_not_equal
-from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_almost_equal
-from numpy.testing import assert_array_equal
-import random
-import pickle
-import numpy as np
-
-numpy.random.seed(0)
-
-def setup_three_dimensions():
-	global X
-	X = numpy.array([[-0.13174492,  0.51895916, -1.13141796],
-		 [ 7.92260379,  7.86325294,  7.9884075 ],
-         [-0.63378039, -0.96394236, -1.34125012],
-         [ 8.16216236,  8.04655182,  6.68825619],
-         [-0.69595565, -0.19004012,  0.40768949],
-         [ 7.76271281,  8.94969945,  7.03687617],
-         [-1.92481462, -1.03905815, -0.44048926],
-         [ 7.90926091,  7.21944418,  7.15989354],
-         [-0.97493454, -0.04714556, -0.38607725],
-         [ 9.65781658,  7.04832845,  6.47613347]])
-
-	idxs = numpy.array([29, 19, 26, 11,  8, 27, 21,  7, 14, 13])
-	i, j = idxs // 3, idxs % 3
-
-	global X_nan
-	X_nan = X.copy()
-	X_nan[i, j] = numpy.nan
 
 
-	global centroids
-	centroids = numpy.array([[0, 0, 0],
-							 [8, 8, 8]])
-
-	global model
-	model = Kmeans(2, centroids)
+MIN_VALUE = None
+MAX_VALUE = None
+VALID_VALUE = 1.2
+inf = float("inf")
 
 
-def setup_five_dimensions():
-	global X
-	X = numpy.array([[-0.04320239,  2.25402395, -0.3075753 ,  0.01710706,  2.88816037],
-	      [ 3.6483074 ,  5.03958367,  3.14457941,  4.94180558,  4.32880698],
-	      [ 7.48485345,  8.54100011,  7.90936486,  8.12260819,  6.6466098 ],
-	      [ 12.15394848,  10.52091121,  13.55495735,  10.48190106, 10.94417476],
-          [ 1.21068778,  0.77311369, -0.31479566, -0.51865649,  0.4408653 ],
-          [-0.62796182, -0.34947675, -1.09050772, -0.34591408,  0.78866514],
-          [ 0.5661847 ,  0.30785453,  0.38823634,  1.99717206, -0.99415221],
-          [ 0.10871016,  2.06244903, -0.19580087, -0.22100353, -0.43777027],
-	      [ 3.06987578,  4.8633418 ,  4.23645519,  4.20563589,  3.40046883],
-          [ 3.0471144 ,  3.43070459,  3.88690894,  3.61962816,  3.52399965],
-          [ 3.3020318 ,  5.16491752,  3.85249134,  2.7075964 ,  4.03831846],
-          [ 3.55266908,  2.69803949,  4.13340743,  5.72527752,  4.9840009 ],
-	      [ 7.27689336,  8.99614296,  7.10109146,  7.81354687,  7.27320546],
-          [ 9.55443921,  7.70358635,  8.9762396 ,  7.8054752 ,  7.95933534],
-          [ 7.55150108,  9.09523173,  8.38379803,  8.18932292,  7.70853   ],
-          [ 9.59329137,  8.26811547,  9.82226673,  8.35257773,  8.21768809],
-          [ 11.77294852,  12.33135372,  13.02160394,  12.05536766, 11.96375761],
-          [ 11.08768408,  13.15689157,  12.59002102,  11.16137415, 9.84335332],
-          [ 11.41978669,  11.45646564,  11.77622614,  11.96590564, 12.33083825],
-          [ 12.13323296,  11.89683824,  12.18373541,  13.21432431, 11.79987739]])
-
-	idxs = numpy.array([77, 26, 61, 46, 18, 30, 94, 96, 45, 67,  4, 20, 23, 73, 37, 21, 58,
-       99, 51,  7, 69, 53, 81, 85, 95,  9, 98, 24, 28, 38])
-	i, j = idxs // 5, idxs % 5
-
-	global X_nan
-	X_nan = X.copy()
-	X_nan[i, j] = numpy.nan
-
-	global centroids
-	centroids = numpy.array([[0, 0, 0, 0, 0],
-							 [4, 4, 4, 4, 4],
-							 [8, 8, 8, 8, 8],
-							 [12, 12, 12, 12, 12]])
-
-	global model
-	model = Kmeans(4, centroids)
+@pytest.fixture
+def X():
+	return [[1, 2, 0],
+	     [0, 0, 1],
+	     [1, 1, 2],
+	     [2, 2, 2],
+	     [3, 1, 0],
+	     [5, 1, 4],
+	     [2, 1, 0],
+	     [1, 0, 2],
+	     [1, 1, 0],
+	     [0, 2, 1],
+	     [0, 0, 0]]
 
 
-def test_kmeans_init():
-	centroids = [[2, 3], [5, 7]]
-	model = Kmeans(2, centroids)
-	assert_equal(model.d, 2)
-	assert_equal(model.k, 2)
-	assert_array_equal(model.centroids, centroids)
+@pytest.fixture
+def X_masked(X):
+	mask = torch.tensor(numpy.array([
+		[False, True,  True ],
+		[True,  True,  False],
+		[False, False, False],
+		[True,  True,  True ],
+		[False, True,  False],
+		[True,  True,  True ],
+		[False, False, False],
+		[True,  False, True ],
+		[True,  True,  True ],
+		[True,  True,  True ],
+		[True,  False, True ]]))
+
+	X = torch.tensor(numpy.array(X))
+	return torch.masked.MaskedTensor(X, mask=mask)
 
 
-@with_setup(setup_three_dimensions)
-def test_kmeans_from_samples():
-	model = Kmeans.from_samples(2, X, init='first-k')
-	centroids = [[-0.872246, -0.344245, -0.578309],
-      			 [ 8.282911,  7.825455,  7.069913]]
+@pytest.fixture
+def w():
+	return [[1], [2], [0], [0], [5], [1], [2], [1], [1], [2], [0]]
 
+
+@pytest.fixture
+def model():
+	centroids = [[1, 0, 1], [2, 1, -1]]
+	return KMeans(centroids=centroids)
+
+
+###
+
+
+def test_initialization():
+	model = KMeans(3)
+
+	assert_raises(AttributeError, getattr, model, "_w_sum")
+	assert_raises(AttributeError, getattr, model, "_xw_sum")
+
+
+def test_initialization_raises():
+	d = 2
+
+	assert_raises(ValueError, KMeans)
+	assert_raises(ValueError, KMeans, k=1)
+	assert_raises(ValueError, KMeans, k=0)
+	assert_raises(ValueError, KMeans, k=-1)
+	assert_raises(ValueError, KMeans, k=2.4)
+
+	assert_raises(ValueError, KMeans, d, inertia=-0.4)
+	assert_raises(ValueError, KMeans, d, inertia=1.2)
+	assert_raises(ValueError, KMeans, d, inertia=1.2, frozen="true")
+	assert_raises(ValueError, KMeans, d, inertia=1.2, frozen=3)
+	
+	assert_raises(ValueError, KMeans, d, tol=-2)
+
+	assert_raises(ValueError, KMeans, d, max_iter=0)
+	assert_raises(ValueError, KMeans, d, max_iter=1.3)
+	assert_raises(ValueError, KMeans, d, max_iter=-2)
+
+	assert_raises(ValueError, KMeans, d, init="aaa")
+	assert_raises(ValueError, KMeans, d, init=False)
+
+
+def test_reset_cache(model, X):
+	model.summarize(X)
+	
+	assert_array_almost_equal(model._w_sum, [[8., 8., 8.], [3., 3., 3.]])
+	assert_array_almost_equal(model._xw_sum, [[10., 7., 12.], [6., 4., 0.,]])
+
+	model._reset_cache()
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.,], [0., 0., 0.]])	
+
+
+def test_initialize(X):
+	d = 4
+	model = KMeans(d)
+
+	assert model.d is None
+	assert model._initialized == False
+	assert_raises(AttributeError, getattr, model, "_w_sum")
+	assert_raises(AttributeError, getattr, model, "_xw_sum")
+
+	model._initialize(X)
+	assert model._initialized == True
+	assert model.centroids.shape == (4, 3)
+	assert model.d == 3
+	assert_array_almost_equal(model._w_sum,
+		[[0., 0., 0.],
+		 [0., 0., 0.],
+		 [0., 0., 0.],
+		 [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum,
+		[[0., 0., 0.],
+		 [0., 0., 0.],
+		 [0., 0., 0.],
+		 [0., 0., 0.]])
+
+
+
+###
+
+
+def test_predict(model, X):
+	y_hat = model.predict(X)
+	assert_array_almost_equal(y_hat, [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0], 4)
+
+
+def test_predict_raises(model, X):
+	_test_raises(model, "predict", X)
+
+	model = KMeans(2)
+	_test_raises(model, "predict", X)
+
+
+def test_distances(model, X):
+	y_hat = model._distances(X)
+	assert_array_almost_equal(y_hat,
+		[[1.2910, 1.0000],
+         [0.5774, 1.7321],
+         [0.8165, 1.8257],
+         [1.4142, 1.8257],
+         [1.4142, 0.8165],
+         [2.9439, 3.3665],
+         [1.0000, 0.5774],
+         [0.5774, 1.9149],
+         [0.8165, 0.8165],
+         [1.2910, 1.7321],
+         [0.8165, 1.4142]], 4)
+
+
+def test_distances_raises(model, X):
+	_test_raises(model, "_distances", X)
+
+	model = KMeans(2)
+	_test_raises(model, "_distances", X)
+
+
+###
+
+
+def test_partial_summarize(model, X):
+	model.summarize(X[:4])
+	assert_array_almost_equal(model._w_sum, [[3., 3., 3.], [1., 1., 1.]])
+	assert_array_almost_equal(model._xw_sum, [[3., 3., 5.], [1., 2., 0.]])
+
+	model.summarize(X[4:])
+	assert_array_almost_equal(model._w_sum, [[8., 8., 8.], [3., 3., 3.]])
+	assert_array_almost_equal(model._xw_sum, [[10.,  7., 12.], [ 6.,  4.,  0.]])
+
+
+def test_full_summarize(model, X):
+	model.summarize(X)
+	assert_array_almost_equal(model._w_sum, [[8., 8., 8.], [3., 3., 3.]])
+	assert_array_almost_equal(model._xw_sum, [[10.,  7., 12.], [ 6.,  4.,  0.]])
+
+
+def test_summarize_weighted(model, X, w):
+	model.summarize(X, sample_weight=w)
+	assert_array_almost_equal(model._w_sum, [[7., 7., 7.], [8., 8., 8.]])
+	assert_array_almost_equal(model._xw_sum, [[ 7.,  6., 10.], [20.,  9.,  0.]])
+
+
+def test_summarize_weighted_flat(model, X, w):
+	w = numpy.array(w)[:,0] 
+
+	model.summarize(X, sample_weight=w)
+	assert_array_almost_equal(model._w_sum, [[7., 7., 7.], [8., 8., 8.]])
+	assert_array_almost_equal(model._xw_sum, [[ 7.,  6., 10.], [20.,  9.,  0.]])
+
+
+def test_summarize_weighted_2d(model, X):
+	model.summarize(X, sample_weight=X)
+	assert_array_almost_equal(model._w_sum, [[10.,  7., 12.], [6.,  4.,  0.]])
+	assert_array_almost_equal(model._xw_sum, [[32., 11., 30.], [14.,  6.,  0.]])
+
+
+def test_summarize_raises(model, X, w):
+	assert_raises(ValueError, model.summarize, [X])
+	assert_raises(ValueError, model.summarize, X[0])
+	assert_raises((ValueError, TypeError), model.summarize, X[0][0])
+	assert_raises(ValueError, model.summarize, [x[:-1] for x in X])
+
+	assert_raises(ValueError, model.summarize, [X], w)
+	assert_raises(ValueError, model.summarize, X, [w])
+	assert_raises(ValueError, model.summarize, [X], [w])
+	assert_raises(ValueError, model.summarize, X[:len(X)-1], w)
+	assert_raises(ValueError, model.summarize, X, w[:len(w)-1])
+
+
+def test_from_summaries(model, X):
+	model.summarize(X)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[1.25    , 0.875   , 1.5     ],
+         [2.      , 1.333333, 0.      ]])
+
+
+def test_from_summaries_weighted(model, X, w):
+	model.summarize(X, sample_weight=w)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[1.      , 0.857143, 1.428571],
+         [2.5     , 1.125   , 0.      ]])
+
+
+def test_from_summaries_null(model):
+	centroids = torch.clone(model.centroids)
+
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_raises(AssertionError, assert_array_almost_equal, model.centroids, centroids)
+
+
+def test_from_summaries_inertia(X):
+	model = KMeans(2, init='first-k', inertia=0.3)
+	model.summarize(X)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[1.7  , 1.6  , 0.7  ],
+         [0.35 , 0.175, 1.175]])
+
+
+	centroids = X[:2]
+	model = KMeans(centroids=centroids, inertia=1.0)
+	model.summarize(X)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
 	assert_array_almost_equal(model.centroids, centroids)
 
 
-@with_setup(setup_three_dimensions)
-def test_kmeans_from_samples_parallel():
-	model = Kmeans.from_samples(2, X, init='first-k', n_jobs=2)
-	centroids = [[-0.872246, -0.344245, -0.578309],
-      			 [ 8.282911,  7.825455,  7.069913]]
+def test_from_summaries_weighted_inertia(X, w):
+	model = KMeans(2, init='first-k', inertia=0.3)
+	model.summarize(X, sample_weight=w)
+	model.from_summaries()
 
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[1.816667, 1.475   , 0.35    ],
+         [0.233333, 0.      , 1.233333]])
+
+
+	centroids = X[:2]
+	model = KMeans(centroids=centroids, inertia=1.0)
+	model.summarize(X, sample_weight=w)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
 	assert_array_almost_equal(model.centroids, centroids)
 
 
-@with_setup(setup_three_dimensions)
-def test_kmeans_predict():
-	y = numpy.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
-	y_hat = model.predict(X)
-	assert_array_equal(y, y_hat)
+def test_from_summaries_frozen(X):
+	centroids = X[:2]
+	model = KMeans(centroids=centroids, frozen=True)
+	model.summarize(X, sample_weight=w)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, centroids)
 
 
-@with_setup(setup_three_dimensions)
-def test_kmeans_predict_parallel():
-	y = numpy.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
-	y_hat = model.predict(X, n_jobs=2)
-	assert_array_equal(y, y_hat)
-
-	y_hat = model.predict(X, n_jobs=4)
-	assert_array_equal(y, y_hat)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_predict_large():
-	y = [0, 1, 2, 3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
-	y_hat = model.predict(X)
-	assert_array_equal(y, y_hat)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_predict_large_parallel():
-	y = [0, 1, 2, 3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
-	y_hat = model.predict(X, n_jobs=2)
-	assert_array_equal(y, y_hat)
-
-	y_hat = model.predict(X, n_jobs=4)
-	assert_array_equal(y, y_hat)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_fit():
+def test_fit(model, X):
 	model.fit(X)
 
-	centroids = [[-0.872246, -0.344245, -0.578309],
-       			 [ 8.282911,  7.825455,  7.069913]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_fit_parallel():
-	model.fit(X, n_jobs=2)
-
-	centroids = [[-0.872246, -0.344245, -0.578309],
-       			 [ 8.282911,  7.825455,  7.069913]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-	model.fit(X, n_jobs=4)
-
-	centroids = [[-0.872246, -0.344245, -0.578309],
-       			 [ 8.282911,  7.825455,  7.069913]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_multiple_init():
-	model1 = Kmeans.from_samples(4, X, init='kmeans++', n_init=1)
-	model2 = Kmeans.from_samples(4, X, init='kmeans++', n_init=25)
-
-	dist1 = model1.distance(X).min(axis=1).sum()
-	dist2 = model2.distance(X).min(axis=1).sum()
-
-	assert_greater_equal(dist1, dist2)
-
-	model1 = Kmeans.from_samples(4, X, init='first-k', n_init=1)
-	model2 = Kmeans.from_samples(4, X, init='first-k', n_init=5)
-
-	dist1 = model1.distance(X).min(axis=1).sum()
-	dist2 = model2.distance(X).min(axis=1).sum()
-
-	assert_equal(dist1, dist2)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_ooc_from_samples():
-	numpy.random.seed(0)
-
-	model1 = Kmeans.from_samples(5, X, init='first-k', batch_size=20)
-	model2 = Kmeans.from_samples(5, X, init='first-k', batch_size=None)
-
-	assert_array_equal(model1.centroids, model2.centroids)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_ooc_fit():
-	centroids_copy = numpy.copy(centroids)
-	model1 = Kmeans(2, centroids_copy, n_init=1)
-	model1.fit(X)
-
-	centroids_copy = numpy.copy(centroids)
-	model2 = Kmeans(2, centroids_copy, n_init=1)
-	model2.fit(X, batch_size=10)
-
-	centroids_copy = numpy.copy(centroids)
-	model3 = Kmeans(2, centroids_copy, n_init=1)
-	model3.fit(X, batch_size=1)
-
-	assert_array_almost_equal(model1.centroids, model2.centroids)
-	assert_array_almost_equal(model1.centroids, model3.centroids)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_minibatch_from_samples():
-	model1 = Kmeans.from_samples(4, X, init='first-k', batch_size=10)
-	model2 = Kmeans.from_samples(4, X, init='first-k', batch_size=None)
-	model3 = Kmeans.from_samples(4, X, init='first-k', batch_size=10, batches_per_epoch=1)
-
-	assert_array_almost_equal(model1.centroids, model2.centroids)
-	assert_raises(AssertionError, assert_array_equal, model1.centroids, model3.centroids)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_minibatch_fit():
-	centroids_copy = numpy.copy(centroids)
-	model1 = Kmeans(4, centroids_copy)
-	model1.fit(X, batch_size=10)
-
-	centroids_copy = numpy.copy(centroids)
-	model2 = Kmeans(4, centroids_copy)
-	model2.fit(X, batch_size=None)
-
-	centroids_copy = numpy.copy(centroids)
-	model3 = Kmeans(4, centroids_copy)
-	model3.fit(X, batch_size=5, batches_per_epoch=1)
-
-	assert_array_almost_equal(model1.centroids, model2.centroids)
-	assert_raises(AssertionError, assert_array_equal, model1.centroids, model3.centroids)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_nan_from_samples():
-	model = Kmeans.from_samples(2, X_nan, init='first-k')
-	centroids = [[-0.872246,  0.235907, -0.785954],
-      			 [ 7.94916 ,  7.825455,  7.395059]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_nan_from_samples_parallel():
-	model = Kmeans.from_samples(2, X_nan, init='first-k', n_jobs=2)
-	centroids = [[-0.872246,  0.235907, -0.785954],
-      			 [ 7.94916 ,  7.825455,  7.395059]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_nan_fit():
-	model.fit(X_nan)
-
-	centroids = [[-0.872246,  0.235907, -0.785954],
-      			 [ 7.94916 ,  7.825455,  7.395059]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_nan_fit_parallel():
-	model.fit(X_nan, n_jobs=2)
-
-	centroids = [[-0.872246,  0.235907, -0.785954],
-      			 [ 7.94916 ,  7.825455,  7.395059]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_nan_fit_large():
-	model.fit(X_nan)
-
-	centroids = [[ -0.187485,   1.541443,  -0.331161,   1.00714 ,  -0.214419],
-		         [  3.393221,   4.200322,   4.027316,   4.25569 ,   3.986697],
-		         [  8.292196,   8.401983,   7.798085,   8.023552,   7.461508],
-		         [ 11.782228,  11.711423,  12.625309,  11.727549,  10.917095]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_nan_fit_large_parallel():
-	model.fit(X_nan, n_jobs=2)
-
-	centroids = [[ -0.187485,   1.541443,  -0.331161,   1.00714 ,  -0.214419],
-		         [  3.393221,   4.200322,   4.027316,   4.25569 ,   3.986697],
-		         [  8.292196,   8.401983,   7.798085,   8.023552,   7.461508],
-		         [ 11.782228,  11.711423,  12.625309,  11.727549,  10.917095]]
-
-	assert_array_almost_equal(model.centroids, centroids)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_nan_predict():
-	y = numpy.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
-	y_hat = model.predict(X_nan)
-
-	assert_array_almost_equal(y, y_hat)
-
-
-@with_setup(setup_three_dimensions)
-def test_kmeans_nan_predict_parallel():
-	y = numpy.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
-	y_hat = model.predict(X_nan, n_jobs=2)
-
-	assert_array_almost_equal(y, y_hat)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_nan_large_predict():
-	y = numpy.array([0, 1, 2, 3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
-	y_hat = model.predict(X_nan)
-
-	assert_array_almost_equal(y, y_hat)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_nan_large_predict_parallel():
-	y = numpy.array([0, 1, 2, 3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3])
-	y_hat = model.predict(X_nan, n_jobs=2)
-
-	assert_array_almost_equal(y, y_hat)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_nan_multiple_init():
-	numpy.random.seed(0)
-	model1 = Kmeans.from_samples(4, X_nan, init='kmeans++', n_init=1)
-	
-	numpy.random.seed(0)
-	model2 = Kmeans.from_samples(4, X_nan, init='kmeans++', n_init=25)
-
-	dist1 = model1.distance(X).min(axis=1).sum()
-	dist2 = model2.distance(X).min(axis=1).sum()
-
-	assert_greater_equal(dist1, dist2)
-
-	model1 = Kmeans.from_samples(4, X_nan, init='first-k', n_init=1)
-	model2 = Kmeans.from_samples(4, X_nan, init='first-k', n_init=5)
-
-	dist1 = model1.distance(X).min(axis=1).sum()
-	dist2 = model2.distance(X).min(axis=1).sum()
-
-	assert_equal(dist1, dist2)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_ooc_nan_from_samples():
-	model1 = Kmeans.from_samples(4, X_nan, init='first-k', batch_size=20)
-	model2 = Kmeans.from_samples(4, X_nan, init='first-k', batch_size=None)
-
-	assert_array_almost_equal(model1.centroids, model2.centroids)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_ooc_nan_fit():
-	centroids_copy = numpy.copy(centroids)
-	model1 = Kmeans(4, centroids_copy, n_init=1)
-	model1.fit(X_nan)
-
-	centroids_copy = numpy.copy(centroids)
-	model2 = Kmeans(4, centroids_copy, n_init=1)
-	model2.fit(X_nan, batch_size=10)
-
-	centroids_copy = numpy.copy(centroids)
-	model3 = Kmeans(4, centroids_copy, n_init=1)
-	model3.fit(X_nan, batch_size=1)
-
-	assert_array_almost_equal(model1.centroids, model2.centroids, 4)
-	assert_array_almost_equal(model1.centroids, model3.centroids, 4)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_minibatch_nan_from_samples():
-	model1 = Kmeans.from_samples(4, X_nan, init='first-k', batch_size=10)
-	model2 = Kmeans.from_samples(4, X_nan, init='first-k', batch_size=None)
-	model3 = Kmeans.from_samples(4, X_nan, init='first-k', batch_size=10, batches_per_epoch=1)
-	model4 = Kmeans.from_samples(4, X_nan, init='first-k', batch_size=10, batches_per_epoch=2)
-
-	assert_array_almost_equal(model1.centroids, model2.centroids)
-	assert_array_almost_equal(model1.centroids, model4.centroids)
-	assert_raises(AssertionError, assert_array_equal, model1.centroids, model3.centroids)
-
-
-@with_setup(setup_five_dimensions)
-def test_kmeans_minibatch_nan_fit():
-	centroids_copy = numpy.copy(centroids)
-	model1 = Kmeans(4, centroids_copy, n_init=1)
-	model1.fit(X, batch_size=10)
-
-	centroids_copy = numpy.copy(centroids)
-	model2 = Kmeans(4, centroids_copy, n_init=1)
-	model2.fit(X, batch_size=None)
-
-	centroids_copy = numpy.copy(centroids)
-	model3 = Kmeans(4, centroids_copy, n_init=1)
-	model3.fit(X, batch_size=10, batches_per_epoch=1)
-
-	centroids_copy = numpy.copy(centroids)
-	model4 = Kmeans(4, centroids_copy, n_init=1)
-	model4.fit(X, batch_size=10, batches_per_epoch=2)
-
-	assert_array_almost_equal(model1.centroids, model2.centroids)
-	assert_array_almost_equal(model1.centroids, model4.centroids)
-	assert_raises(AssertionError, assert_array_equal, model1.centroids, model3.centroids)
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[1.5, 1. , 2. ],
+         [1.4, 1. , 0. ]])
+
+
+def test_fit_weighted(model, X, w):
+	model.fit(X, sample_weight=w)
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[0.428571, 1.      , 0.857143],
+         [3.      , 1.      , 0.5     ]])
+
+
+def test_fit_chain(X):
+	model = KMeans(k=2, init='first-k').fit(X)
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[2.6     , 1.4     , 1.2     ],
+         [0.5     , 0.666667, 1.      ]])
+
+
+def test_fit_raises(model, X, w):
+	assert_raises(ValueError, model.fit, [X])
+	assert_raises(ValueError, model.fit, X[0])
+	assert_raises((ValueError, TypeError), model.fit, X[0][0])
+	assert_raises(ValueError, model.fit, [x[:-1] for x in X])
+
+	assert_raises(ValueError, model.fit, [X], w)
+	assert_raises(ValueError, model.fit, X, [w])
+	assert_raises(ValueError, model.fit, [X], [w])
+	assert_raises(ValueError, model.fit, X[:len(X)-1], w)
+	assert_raises(ValueError, model.fit, X, w[:len(w)-1])
+
+
+def test_serialization(X, model):
+	torch.save(model, ".pytest.torch")
+	model2 = torch.load(".pytest.torch")
+	os.system("rm .pytest.torch")
+
+	assert model is not model2
+
+	assert_array_almost_equal(model2.centroids, model.centroids)
+	assert_array_almost_equal(model2._w_sum, model._w_sum)
+	assert_array_almost_equal(model2._xw_sum, model._xw_sum)
+	assert_array_almost_equal(model2._centroid_sum, model._centroid_sum)
+
+	assert_array_almost_equal(model2._distances(X), model._distances(X))
+
+
+def test_masked_distances(model, X, X_masked):
+	X = torch.tensor(numpy.array(X))
+	mask = torch.ones_like(X).type(torch.bool)
+	X_ = torch.masked.MaskedTensor(X, mask=mask)
+
+	y_hat = model._distances(X_)
+	assert_array_almost_equal(y_hat,
+		[[1.2910, 1.0000],
+         [0.5774, 1.7321],
+         [0.8165, 1.8257],
+         [1.4142, 1.8257],
+         [1.4142, 0.8165],
+         [2.9439, 3.3665],
+         [1.0000, 0.5774],
+         [0.5774, 1.9149],
+         [0.8165, 0.8165],
+         [1.2910, 1.7321],
+         [0.8165, 1.4142]], 4)
+
+	y_hat = model._distances(X_masked)
+	assert_array_almost_equal(y_hat,
+		[[1.7321, 1.7321],
+         [1.0000, 1.7321],
+         [   inf,    inf],
+         [1.4142, 1.8257],
+         [1.7321, 2.2361],
+         [2.9439, 3.3665],
+         [   inf,    inf],
+         [0.7071, 2.3452],
+         [0.8165, 0.8165],
+         [1.2910, 1.7321],
+         [1.0000, 1.7321]], 4)
+
+
+def test_masked_summarize(model, X, X_masked, w):
+	X = torch.tensor(numpy.array(X))
+	mask = torch.ones_like(X).type(torch.bool)
+	X_ = torch.masked.MaskedTensor(X, mask=mask)
+
+	model.summarize(X_, sample_weight=w)
+	assert_array_almost_equal(model._w_sum, [[7., 7., 7.], [8., 8., 8.]])
+	assert_array_almost_equal(model._xw_sum, [[ 7.,  6., 10.], [20.,  9.,  0.]])
+
+	model = KMeans(2)
+	model.summarize(X_masked, sample_weight=w)
+	assert_array_almost_equal(model._w_sum, [[ 4., 10.,  5.], [ 3.,  2.,  1.]])
+	assert_array_almost_equal(model._xw_sum, [[ 6., 13.,  6.], [ 1.,  0.,  2.]])
+
+
+def test_masked_from_summaries(model, X, X_masked, w):
+	X = torch.tensor(numpy.array(X))
+	mask = torch.ones_like(X).type(torch.bool)
+	X_ = torch.masked.MaskedTensor(X, mask=mask)
+
+	model.summarize(X_, sample_weight=w)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[1.      , 0.857143, 1.428571],
+         [2.5     , 1.125   , 0.      ]])
+
+	model = KMeans(centroids=[[1, 0, 1], [2, 1, 0]])
+	model.summarize(X_masked, sample_weight=w)
+	model.from_summaries()
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[0.2     , 1.      , 1.333333],
+         [3.      , 1.333333, 1.333333]])
+
+
+def test_masked_fit(model, X, X_masked):
+	X = torch.tensor(numpy.array(X))
+	mask = torch.ones_like(X).type(torch.bool)
+	X_ = torch.masked.MaskedTensor(X, mask=mask)
+
+	model.fit(X_)
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[1.5, 1. , 2. ],
+         [1.4, 1. , 0. ]])
+
+	model = KMeans(centroids=[[1, 0, 1], [2, 1, 0]])
+	model.fit(X_masked)
+
+	assert_array_almost_equal(model._w_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model._xw_sum, [[0., 0., 0.], [0., 0., 0.]])
+	assert_array_almost_equal(model.centroids, 
+		[[0.4, 1.2, 0.6],
+         [3.5, 1.5, 3. ]])

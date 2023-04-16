@@ -2,66 +2,55 @@
 The API
 =======
 
-pomegranate has a minimal core API that is made possible because all models are treated as a probability distribution regardless of complexity. Regardless of whether it's a simple probability distribution, or a hidden Markov model that uses a different probability distribution on each feature, these methods can be used. Each model documentation page has an API reference showing the full set of methods and parameters for each method, but generally all models have the following methods and parameters for the methods. 
+pomegranate has a minimal core API that is made possible because all models are treated as probability distributions regardless of their complexity. This point is repeated throughout the documentation because it has important consequences for how the package is designed and also for how one should think about designing probabilistic models. Although each model documentation page has an API reference showing the full set of methods and parameters for each model, each models has the following methods:. 
 
 .. code-block:: python
 
 	>>> model.probability(X)
 
-This method will take in either a single sample and return its probability, or a set of samples and return the probability of each one, given the model.
+This method takes in a set of examples (either 2D or 3D depending on the model) and returns a vector of probabilities.
 
 .. code-block:: python
 
 	>>> model.log_probability(X)
 
-The same as above but returns the log of the probability. This is helpful for numeric stability.
+This method takes in a set of examples (either 2D or 3D depending on the model) and returns a vector of log probabilities. Log probabilities are more numerically stable and, in fact, calls to `model.probability` just exponentiate the value returned from this call.
 
 .. code-block:: python
 
-	>>> model.fit(X, weights=None, inertia=0.0)
+	>>> model.fit(X, sample_weight=None)
 
-This will fit the model to the given data with optional weights. If called on a mixture model or a hidden Markov model this runs expectation-maximization to perform iterative updates, otherwise it uses maximum likelihood estimates. The shape of data should be (n, d) where n is the number of samples and d is the dimensionality, with weights being a vector of non-negative numbers of size (n,) when passed in. The inertia shows the proportion of the prior weight to use, defaulting to ignoring the prior values.
-
-.. code-block:: python
-
-	>>> model.summarize(X, weights=None)
-
-This is the first step of the two step out-of-core learning API. It will take in a data set and optional weights and extract the sufficient statistics that allow for an exact update, adding to the cached values. If this is the first time that summarize is called then it will store the extracted values, if it's not the first time then the extracted values are added to those that have already been cached.
+This method will fit the model to the given data that is optionally weighted. If the model is a simple probability distribution, a Bayes classifier, or a Bayesian network with fully observed features, the method will use maximum likelihood estimates. For other models and settings, the method will use expectation-maximization to fit the model parameters. When a structure is not provided for hidden Markov models or Bayesian networks, this method will jointly learn the structure and the parameters of the model. The shape of data should be (n, d) or (n, l, d) depending on if there is a length dimension, where n is the number of samples, l is the length of the data, and d is the dimensionality. Sample weights should either be a vector of non-negative numbers of size (n,) or a matrix of size (n, d).
 
 .. code-block:: python
 
-	>>> model.from_summaries(inertia=0.0) 
+	>>> model.summarize(X, sample_weight=None)
 
-This is the second step in the out-of-core learning API. It will used the extracted and aggregated sufficient statistics to derive exact parameter updates for the model. Afterwards it will reset the stored values.
-
-.. code-block:: python
-
-	>>> model.clear_summaries()
-
-This method clears whatever summaries are left on the model without updating the parameters.
+This method is the first step of the two step out-of-core learning API. The method will take in a data and optional weights and extract the sufficient statistics that allow for an exact update and added to the cached values. Because these sufficient statistics are additive one can derive an exact update from multiple calls to this method without having to store an entire data set in memory.
 
 .. code-block:: python
 
-	>>> Model.from_samples(X, weights=None)
+	>>> model.from_summaries() 
 
-This method will initialize a model to a data set. In the case of a simple distribution it will simply extract the parameters from the case. In the more complicated case of a Bayesian network it will jointly find the best structure and the best parameters given that structure. In the case of a hidden Markov model it will first find clusters and then learn a dense transition matrix.
+This method is the second step in the out-of-core learning API. The method uses the extracted and aggregated sufficient statistics to derive exact parameter updates for the model. After the parameters are updated, the stored sufficient statistics will be zeroed out.
+
 
 Compositional Methods
 ---------------------
 
-These methods are available for the compositional models, i.e., mixture models, hidden Markov models, Bayesian networks, naive Bayes classifiers, and Bayes' classifiers. These methods perform inference on the data. In the case of Bayesian networks it will use the forward-backward algorithm to make predictions on all variables for which values are not provided. For all other models, this will return the model component that yields the highest posterior P(M|D) for some sample. This value is calculated using Bayes' rule, where the likelihood of each sample given each component multiplied by the prior of that component is normalized by the likelihood of that sample given all components multiplied by the prior of those components. 
+For models that are composed of other models/distributions, e.g. mixture models, hidden Markov models, and Bayesian networks, there are additional methods that relate to inferring how the data relates to each of these distributions. For example, instead of just calculating the log probability of an example under an entire mixture model, one might want to calculate the posterior probability that the data was generated by each of the distributions. These posterior probabilities are found by applying Bayes' rule, which connects prior probabilities and likelihoods to posterior probabilities.
 
 .. code-block:: python
 
 	>>> model.predict(X)
 
-This will return the most likely value for the data. In the case of Bayesian networks this is the most likely value that the variable takes given the structure of the network and the other observed values. In the other cases it is the model component that most likely explains this sample, such as the mixture component that a sample most likely falls under, or the class that is being predicted by a Bayes' classifier.
+This method will return the most likely inferred value for each example in the data. In the case of Bayesian networks operating on incomplete data, this inferred value is the most likely value that each variable takes given the structure of the model and the observed data. For all other methods, this is the most likely component that explains the data, P(M|D).
 
 .. code-block:: python
 
 	>>> model.predict_proba(X)
 
-This returns the matrix of posterior probabilities P(M|D) directly. The predict method is simply running argmax over this matrix.
+This returns the matrix of posterior probabilities P(M|D) directly. The predict method simply runs an argmax over this matrix.
 
 .. code-block:: python
 

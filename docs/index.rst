@@ -57,12 +57,8 @@ Contributions are eagerly accepted! If you would like to contribute a feature th
 
    api.rst
    ooc.rst
-   io.rst
    semisupervised.rst
-   parallelism.rst
-   gpu.rst
    nan.rst
-   callbacks.rst
 
 .. toctree::
    :maxdepth: 1
@@ -71,9 +67,8 @@ Contributions are eagerly accepted! If you would like to contribute a feature th
 
    Distributions.rst
    GeneralMixtureModel.rst
+   BayesClassifier.rst
    HiddenMarkovModel.rst
-   NaiveBayes.rst
    MarkovChain.rst
    BayesianNetwork.rst
-   MarkovNetwork.rst
    FactorGraph.rst

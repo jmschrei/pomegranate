@@ -1,6 +1,0 @@
-include *.txt
-include LICENSE
-
-graft tests
-
-recursive-include pomegranate *.py *.c *.pxd *.pyx
