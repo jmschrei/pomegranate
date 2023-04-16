@@ -1,14 +1,14 @@
 from setuptools import setup
 
 setup(
-	name='torchegranate',
-	version='0.5.0',
+	name='pomegranate',
+	version='1.0.0',
 	author='Jacob Schreiber',
 	author_email='jmschreiber91@gmail.com',
-	packages=['torchegranate', 'torchegranate.distributions', 'torchegranate.hmm'],
+	packages=['pomegranate', 'pomegranate.distributions', 'pomegranate.hmm'],
 	url='https://github.com/jmschrei/torchegranate',
 	license='LICENSE.txt',
-	description='A rewrite of pomegranate using PyTorch.',
+	description='A PyTorch implementation of probabilistic models.',
 	install_requires=[
 		'numpy >= 1.22.2', 
 		'scipy >= 1.6.2',
