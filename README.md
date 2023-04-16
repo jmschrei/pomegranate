@@ -1,6 +1,6 @@
 <img src="https://github.com/jmschrei/pomegranate/blob/master/docs/logo/pomegranate-logo.png" width=300>
 
-[![Downloads](https://pepy.tech/badge/pomegranate)](https://pepy.tech/project/pomegranate) ![](https://github.com/jmschrei/pomegranate/actions/workflows/python-package.yml/badge.svg)
+[![Downloads](https://pepy.tech/badge/pomegranate)](https://pepy.tech/project/pomegranate) ![](https://github.com/jmschrei/pomegranate/actions/workflows/python-package.yml/badge.svg) ![](https://readthedocs.org/projects/pomegranate/badge/?version=latest)
 
 > **Note**
 > IMPORTANT: pomegranate v1.0.0 is a ground-up rewrite of pomegranate using PyTorch as the computational backend instead of Cython. Although the same functionality is supported, the API is significantly different. Please see the tutorials and examples folders for help rewriting your code.
