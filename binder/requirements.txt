@@ -1,5 +1,0 @@
-pomegranate
-watermark
-matplotlib
-seaborn
-
