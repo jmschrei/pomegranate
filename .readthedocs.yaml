@@ -21,8 +21,3 @@ sphinx:
 python:
    install:
    - requirements: docs/requirements.txt
-
-   steps:
-   - name: install dependencies
-     run: |
-      conda install pandoc
