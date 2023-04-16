@@ -140,11 +140,11 @@ def test_reset_cache(X):
 	d = Normal(covariance_type='full')
 	d.summarize(X)
 	assert_array_almost_equal(d._w_sum, [7.0, 7.0, 7.0])
-	assert_array_almost_equal(d._xw_sum, [17.099998,  9.7     , 10.599999])
+	assert_array_almost_equal(d._xw_sum, [17.099998,  9.7, 10.599999], 4)
 	assert_array_almost_equal(d._xxw_sum,
 		[[58.59    , 26.98    , 33.940002],
 		 [26.98    , 16.369999, 16.38    ],
-		 [33.940002, 16.38    , 27.720001]],)
+		 [33.940002, 16.38    , 27.720001]], 4)
 
 	d._reset_cache()
 	assert_array_almost_equal(d._w_sum, [0.0, 0.0, 0.0])
@@ -423,7 +423,7 @@ def test_summarize(X, means, covs):
 		assert_array_almost_equal(d._xxw_sum,
 			[[13.03    , 10.459999, 11.1     ],
              [10.459999, 10.07    ,  8.35    ],
-             [11.1     ,  8.35    , 11.620001]])
+             [11.1     ,  8.35    , 11.620001]], 4)
 
 		d.summarize(X[4:])
 		assert_array_almost_equal(d._w_sum, [7.0, 7.0, 7.0])
@@ -431,7 +431,7 @@ def test_summarize(X, means, covs):
 		assert_array_almost_equal(d._xxw_sum, 
 			[[58.59    , 26.98    , 33.940002],
              [26.98    , 16.369999, 16.380001],
-             [33.940002, 16.380001, 27.720001]])
+             [33.940002, 16.380001, 27.720001]], 4)
 
 
 		d = Normal(m, c, covariance_type='full')
@@ -441,7 +441,7 @@ def test_summarize(X, means, covs):
 		assert_array_almost_equal(d._xxw_sum,
 			[[58.59    , 26.98    , 33.940002],
              [26.98    , 16.369999, 16.38    ],
-             [33.940002, 16.38    , 27.720001]])
+             [33.940002, 16.38    , 27.720001]], 4)
 
 
 def test_summarize_weighted(X, w, means, covs):
@@ -452,7 +452,7 @@ def test_summarize_weighted(X, w, means, covs):
 	assert_array_almost_equal(d._xxw_sum,
 		[[1.71    , 2.51    , 1.85    ],
          [2.51    , 4.489999, 1.57    ],
-         [1.85    , 1.57    , 3.63    ]])
+         [1.85    , 1.57    , 3.63    ]], 4)
 
 	d.summarize(X[4:], sample_weight=w[4:])
 	assert_array_almost_equal(d._w_sum, [11.0, 11.0, 11.0])
@@ -482,7 +482,7 @@ def test_summarize_weighted_flat(X, w, means, covs):
 	assert_array_almost_equal(d._xxw_sum,
 		[[1.71    , 2.51    , 1.85    ],
          [2.51    , 4.489999, 1.57    ],
-         [1.85    , 1.57    , 3.63    ]])
+         [1.85    , 1.57    , 3.63    ]], 4)
 
 	d.summarize(X[4:], sample_weight=w[4:])
 	assert_array_almost_equal(d._w_sum, [11.0, 11.0, 11.0])
