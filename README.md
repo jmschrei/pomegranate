@@ -203,18 +203,3 @@ Because not all operations are yet available for MaskedTensors, the following di
 A new feature in pomegranate v1.0.0 is being able to pass in prior probabilities for each observation for mixture models, Bayes classifiers, and hidden Markov models. These are the prior probability that an observation belongs to a component of the model before evaluating the likelihood and should range between 0 and 1. When these values include a 1.0 for an observation, it is treated as a label, because the likelihood no longer matters in terms of assigning that observation to a state. Hence, one can use these prior probabilities to do labeled training when each observation has a 1.0 for some state, semi-supervised learning when a subset of observations (including when sequences are only partially labeled for hidden Markov models), or more sophisticated forms of weighting when the values are between 0 and 1. 
 
 ![image](https://user-images.githubusercontent.com/3916816/232373036-39d591e2-e673-450e-ab1c-98e47f0fa6aa.png)
-
-
-### Frequently Asked Questions
-
-> Why can't we just use `torch.distributions`?
-
-`torch.distributions` is a great implementation of the statistical characteristics of many distributions, but does not implement fitting these distributions to data or using them as components of larger functions. If all you need to do is calculate log probabilities, or sample, given parameters (perhaps as output from neural network components), `torch.distributions` is a great, simple, alternative.
-
-> What models are implemented in pomegranatee?
-
-Currently, implementations of many distributions are included, as well as general mixture models, Bayes classifiers (including naive Bayes), hidden Markov models, and Markov chains. Bayesian networks will be added soon but are not yet included.
-
-> How much faster is v1.0.0 over previous versions?
-
-It depends on the method being used. Most individual distributions are approximately 2-3x faster. Some distributions, such as the categorical distributions, can be over 10x faster. These will be even faster if a GPU is used.
