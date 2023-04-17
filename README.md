@@ -5,6 +5,8 @@
 > **Note**
 > IMPORTANT: pomegranate v1.0.0 is a ground-up rewrite of pomegranate using PyTorch as the computational backend instead of Cython. Although the same functionality is supported, the API is significantly different. Please see the tutorials and examples folders for help rewriting your code.
 
+[ReadTheDocs](https://pomegranate.readthedocs.io/en/latest/) | [Tutorials](https://github.com/jmschrei/pomegranate/tree/master/docs/tutorials) | [Examples](https://github.com/jmschrei/pomegranate/tree/master/examples) 
+
 pomegranate is a library of probabilistic models defined by its modular implementation and treatment of all probabilistic models as the probability distributions they are. Together, these design choices allow one to easily drop two normal distributions into a mixture model to create a Gaussian mixture model or drop a Poisson distribution and an exponential distribution to just as easily create a heterogeneous mixture, or drop in two Bayesian networks, or drop in two hidden Markov models to create a mixture over sequence models.
 
 Recently, pomegranate (v1.0.0) was rewritten from the ground up using PyTorch to replace the outdated Cython backend. This rewrite gave me an opportunity to fix many bad design choices that I made while I was still a bb software engineer. Unfortunately, many of these changes are not back compatible and will disrupt everyone's workflows. However, the changes have significantly improved/simplified the code, fixed many issues raised by the community over the year, made it easier to contribute, and made the code significantly faster. I've written more below, but you're likely here now because your code is broken and this is the tl;dr.
