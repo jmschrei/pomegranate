@@ -7,9 +7,9 @@
 
 [ReadTheDocs](https://pomegranate.readthedocs.io/en/latest/) | [Tutorials](https://github.com/jmschrei/pomegranate/tree/master/docs/tutorials) | [Examples](https://github.com/jmschrei/pomegranate/tree/master/examples) 
 
-pomegranate is a library of probabilistic models defined by its modular implementation and treatment of all probabilistic models as the probability distributions they are. Together, these design choices allow one to easily drop two normal distributions into a mixture model to create a Gaussian mixture model or drop a Poisson distribution and an exponential distribution to just as easily create a heterogeneous mixture, or drop in two Bayesian networks, or drop in two hidden Markov models to create a mixture over sequence models.
+pomegranate is a library for probabilistic modeling defined by its modular implementation and treatment of all models as the probability distributions they are. The modular implementation allows one to easily drop normal distributions into a mixture model to create a Gaussian mixture model just as easily as dropping a gamma and a Poisson distribution into a mixture model to create a heterogeneous mixture. But that's not all! Because each model is treated as a probability distribution, Bayesian networks can be dropped into a mixture just as easily as a normal distribution, and hidden Markov models can be dropped into Bayes classifiers to make a classifier over sequences. Together, these two design choices enable a flexibility not seen in any other probabilistic modeling package.
 
-Recently, pomegranate (v1.0.0) was rewritten from the ground up using PyTorch to replace the outdated Cython backend. This rewrite gave me an opportunity to fix many bad design choices that I made while I was still a bb software engineer. Unfortunately, many of these changes are not back compatible and will disrupt everyone's workflows. However, the changes have significantly improved/simplified the code, fixed many issues raised by the community over the year, made it easier to contribute, and made the code significantly faster. I've written more below, but you're likely here now because your code is broken and this is the tl;dr.
+Recently, pomegranate (v1.0.0) was rewritten from the ground up using PyTorch to replace the outdated Cython backend. This rewrite gave me an opportunity to fix many bad design choices that I made as a bb software engineer. Unfortunately, many of these changes are not backwards compatible and will disrupt workflows. On the flip side, these changes have significantly sped up most methods, improved and simplified the code, fixed many issues raised by the community over the years, and made it significantly easier to contribute. I've written more below, but you're likely here now because your code is broken and this is the tl;dr.
 
 Special shout-out to [NumFOCUS](https://numfocus.org/) for supporting this work with a special development grant.
 
@@ -25,36 +25,35 @@ This rewrite was motivated by four main reasons:
 
 - <b>Speed</b>: Native PyTorch is usually significantly faster than the hand-tuned Cython code that I wrote.
 - <b>Features</b>: PyTorch has many features, such as serialization, mixed precision, and GPU support, that can now be directly used in pomegranate without additional work on my end. 
-- <b>Community Contribution</b>: A challenge that many people faced when using pomegranate was that they could not extend it because they did not know Cython, and even if they did know it, coding in Cython is a pain. I felt this pain every time I tried adding a new feature or fixing a bug. Using PyTorch as the backend significantly reduces the amount of effort needed to add in new features.
-- <b>Interoperability</b>: Libraries like PyTorch offer a unique ability to not just utilize their computational backends but to better integrate into existing deep learning resources. This rewrite should make it easier for people to merge probabilistic models with deep learning models.
+- <b>Community Contribution</b>: A challenge that many people faced when using pomegranate was that they could not modify or extend it because they did not know Cython. Even if they did know Cython, coding in it is a pain that I felt each time I tried adding a new feature or fixing a bug or releasing a new version. Using PyTorch as the backend significantly reduces the amount of effort needed to add in new features.
+- <b>Interoperability</b>: Libraries like PyTorch offer an invaluable opportunity to not just utilize their computational backends but to better integrate into existing resources and communities. This rewrite will make it easier for people to integrate probabilistic models with neural networks as losses, constraints, and structural regularizations, as well as with other projects built on PyTorch.
 
 ### High-level Changes 
 
 1. General
 - The entire codebase has been rewritten in PyTorch and all models are instances of `torch.nn.Module`
 - This codebase is checked by a comprehensive suite of >800 unit tests calling assert statements several thousand times, much more than previous versions.
+- Installation issues are now likely to come from PyTorch for which there are countless resources to help out.
 
 2. Features
-- All models and methods now have GPU support
-- All models and methods now have support for half/mixed precision
+- All models now have GPU support
+- All models now have support for half/mixed precision
 - Serialization is now handled by PyTorch, yielding more compact and efficient I/O
-- Missing values are now supported through torch.masked.MaskedTensor objects
+- Missing values are now supported through `torch.masked.MaskedTensor` objects
 - Prior probabilities can now be passed to all relevant models and methods and enable more comprehensive/flexible semi-supervised learning than before
 
 3. Models
-- All distributions are now multivariate by default, supporting speedups through batched operations
-- "Distribution" has been removed from distribution objects so that, for example, `NormalDistribution` is now `Normal`.
-- Factor graphs are now supported as first-class citizens
-- Hidden Markov models have been split into DenseHMM and SparseHMM models which differ in how the transition matrix is encoded, with DenseHMM objects being significantly faster
+- All distributions are now multivariate by default and treat each feature independently (except Normal)
+- "Distribution" has been removed from names so that, for example, `NormalDistribution` is now `Normal`
+- `FactorGraph` is now supported as first-class citizens, with all the prediction and training methods
+- Hidden Markov models have been split into `DenseHMM` and `SparseHMM` models which differ in how the transition matrix is encoded, with `DenseHMM` objects being significantly faster on truly dense graphs
 
-4. Feature Removals
+4. Differences
 - `NaiveBayes` has been permanently removed as it is redundant with `BayesClassifier`
-- `MarkovNetwork` have been temporarily removed
-- Constraint graphs and constrained structure learning for Bayesian networks has been temporarily removed
-- Silent states for hidden Markov models have been temporarily removed
-- Viterbi for hidden Markov models has been temporarily removed
-
-I hope to soon re-add the features that have been temporarily removed.
+- `MarkovNetwork` has not yet been implemented
+- Constraint graphs and constrained structure learning for Bayesian networks has not yet been implemented
+- Silent states for hidden Markov models have not yet been implemented
+- Viterbi for hidden Markov models has not yet been implemented
 
 ## Speed
 
@@ -77,6 +76,10 @@ Sparse transition matrix (CPU)
 
 ![image](https://user-images.githubusercontent.com/3916816/232371006-20a82e07-3553-4257-987b-d8e9b333933a.png)
 
+Training a 125 node model with a dense transition matrix
+
+![image](https://user-images.githubusercontent.com/3916816/232394045-e9a13fd6-19b3-4e78-80ce-734b383157a6.png)
+
 
 ### Bayesian Networks
 ![image](https://user-images.githubusercontent.com/3916816/232370594-e89e66a8-d9d9-4369-ba64-8902d8ec2fcc.png) 
@@ -86,7 +89,7 @@ Sparse transition matrix (CPU)
 ## Features
 
 > **Note**
-> Please see the [tutorials](https://github.com/jmschrei/pomegranate/tree/master/tutorials) folder for code examples.
+> Please see the [tutorials](https://github.com/jmschrei/pomegranate/tree/master/docs/tutorials) folder for code examples.
 
 Switching from a Cython backend to a PyTorch backend has enabled or expanded a large number of features. Because the rewrite is a thin wrapper over PyTorch, as new features get released for PyTorch they can be applied to pomegranate models without the need for a new release from me. 
 
@@ -141,7 +144,7 @@ pomegranate models can, in theory, operate in the same mixed or low-precision re
 
 ### Serialization
 
-pomegranate distributions are all instances of `torch.nn.Module` and so serialization is the same as any other model and can use any of the other built-in functionality.
+pomegranate distributions are all instances of `torch.nn.Module` and so serialization is the same as any other PyTorch model.
 
 Saving:
 ```python
