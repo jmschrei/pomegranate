@@ -401,7 +401,9 @@ def partition_sequences(X, sample_weight=None, priors=None):
 	# If a 3D tensor has been passed in, return it
 	try:
 		X = [_check_parameter(_cast_as_tensor(X), "X", ndim=3)]
-
+	except:
+		pass
+	else:
 		if sample_weight is not None:
 			sample_weight = [_check_parameter(_cast_as_tensor(sample_weight),
 				"sample_weight", min_value=0.0)]
@@ -411,8 +413,6 @@ def partition_sequences(X, sample_weight=None, priors=None):
 				ndim=3, shape=X[0].shape)]
 
 		return X, sample_weight, priors
-	except:
-		pass
 
 	# Otherwise, cast all elements in the list as a tensor
 	X = [_cast_as_tensor(x) for x in X]
@@ -420,7 +420,9 @@ def partition_sequences(X, sample_weight=None, priors=None):
 	# If a list of 3D tensors has been passed in, return it
 	try:
 		X = [_check_parameter(x, "X", ndim=3) for x in X]
-
+	except:
+		pass
+	else:
 		if sample_weight is not None:
 			sample_weight = [_check_parameter(_cast_as_tensor(w_),
 				"sample_weight", min_value=0.0) for w_ in sample_weight]
@@ -431,8 +433,6 @@ def partition_sequences(X, sample_weight=None, priors=None):
 
 		if all([x.ndim == 3 for x in X]):
 			return X, sample_weight, priors
-	except:
-		pass
 
 	# Otherwise, group together same-sized examples
 	X_dict = collections.defaultdict(list)

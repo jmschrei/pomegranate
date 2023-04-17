@@ -753,25 +753,6 @@ def test_partition_3ds_X(X2):
 			assert_array_almost_equal(y_, X2[i])
 
 
-def test_partition_3ds_X(X2):
-	funcs = (lambda x: x, tuple, numpy.array, 
-		lambda x: torch.from_numpy(numpy.array(x)))
-
-	for func in funcs:
-		X2_ = [func(x) for x in X2]
-
-		y, _, _ = partition_sequences(X2_)
-
-		assert isinstance(y, list)
-		assert len(y) == 2
-
-		for i, y_ in enumerate(y):
-			assert isinstance(y_, torch.Tensor)
-			assert y_.ndim == 3
-			assert y_.shape == (2, i+2, 2)
-			assert_array_almost_equal(y_, X2[i])
-
-
 def test_partition_3ds_Xw(X2, w2):
 	funcs = (lambda x: x, tuple, numpy.array, 
 		lambda x: torch.from_numpy(numpy.array(x)))
@@ -1081,3 +1062,14 @@ def test_partition_2ds_Xwp(X3, w3, p3):
 			assert isinstance(p_, torch.Tensor)
 			assert p_.ndim == 3
 			assert p_.shape == ([1, 3, 2][i], i+1, 2)
+
+
+@pytest.mark.parametrize("X", [torch.ones((1, 10, 2)), [torch.ones((1, 10, 2)), torch.ones((2, 10, 2))]])
+@pytest.mark.parametrize("invalid", ["sample_weight", "priors"])
+def test_dont_hide_errors_for_priors_and_sample_weight(X, invalid):
+	"""Test that we get the correct error message when we don't pass data in case 3."""
+
+	with pytest.raises(ValueError) as excinfo:
+		partition_sequences(X, **{invalid: numpy.zeros((1, 1)) - 1})
+
+	assert invalid in str(excinfo.value)
