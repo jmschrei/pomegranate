@@ -580,7 +580,7 @@ class _BaseHMM(Distribution):
 		"""
 
 		X, sample_weight, priors = partition_sequences(X, 
-			sample_weight=sample_weight, priors=priors)
+			sample_weight=sample_weight, priors=priors, priors_last_dim=self.k)
 
 		# Initialize by concatenating across sequences
 		if not self._initialized:
