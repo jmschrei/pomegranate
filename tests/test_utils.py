@@ -641,7 +641,7 @@ def test_partition_3d_Xp(X1, p1):
 		lambda x: torch.from_numpy(numpy.array(x)))
 
 	for func in funcs:
-		y, w, p = partition_sequences(func(X1), priors=func(p1), priors_last_dim=2)
+		y, w, p = partition_sequences(func(X1), priors=func(p1), n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 1
@@ -667,8 +667,8 @@ def test_partition_3d_Xwp(X1, w1, p1):
 		lambda x: torch.from_numpy(numpy.array(x)))
 
 	for func in funcs:
-		y, w, p = partition_sequences(func(X1), sample_weight=func(w1), 
-			priors=func(p1), priors_last_dim=2)
+		y, w, p = partition_sequences(func(X1), sample_weight=func(w1),
+									  priors=func(p1), n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 1
@@ -792,7 +792,7 @@ def test_partition_3ds_Xp(X2, p2):
 		X2_ = [func(x) for x in X2]
 		p2_ = [func(p) for p in p2]
 
-		y, w, p = partition_sequences(X2_, priors=p2_, priors_last_dim=2)
+		y, w, p = partition_sequences(X2_, priors=p2_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 2
@@ -824,7 +824,8 @@ def test_partition_3ds_Xwp(X2, w2, p2):
 		w2_ = [func(w) for w in w2]
 		p2_ = [func(p) for p in p2]
 
-		y, w, p = partition_sequences(X2_, sample_weight=w2_, priors=p2_, priors_last_dim=2)
+		y, w, p = partition_sequences(X2_,
+			sample_weight=w2_, priors=p2_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 2
@@ -1006,7 +1007,7 @@ def test_partition_2ds_Xp(X3, p3):
 		X3_ = [func(x) for x in X3]
 		p3_ = [func(p) for p in p3]
 
-		y, w, p = partition_sequences(X3_, priors=p3_, priors_last_dim=2)
+		y, w, p = partition_sequences(X3_, priors=p3_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 3
@@ -1037,7 +1038,7 @@ def test_partition_2ds_Xwp(X3, w3, p3):
 		w3_ = [func(w) for w in w3]
 		p3_ = [func(p) for p in p3]
 
-		y, w, p = partition_sequences(X3_, sample_weight=w3_, priors=p3_, priors_last_dim=2)
+		y, w, p = partition_sequences(X3_, sample_weight=w3_, priors=p3_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 3
@@ -1070,6 +1071,6 @@ def test_dont_hide_errors_for_priors_and_sample_weight(X, invalid):
 	"""Test that we get the correct error message when we don't pass data in case 3."""
 
 	with pytest.raises(ValueError) as excinfo:
-		partition_sequences(X, **{invalid: numpy.zeros((1, 1)) - 1}, priors_last_dim=10)
+		partition_sequences(X, **{invalid: numpy.zeros((1, 1)) - 1}, n_dists=10)
 
 	assert invalid in str(excinfo.value)
