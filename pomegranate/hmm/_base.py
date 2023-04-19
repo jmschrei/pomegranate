@@ -565,7 +565,7 @@ class _BaseHMM(Distribution):
 			Prior probabilities of assigning each symbol to each node. If not
 			provided, do not include in the calculations (conceptually
 			equivalent to a uniform probability, but without scaling the
-			probabilities). This can be used to assign labels to observatons
+			probabilities). This can be used to assign labels to observations
 			by setting one of the probabilities for an observation to 1.0.
 			Note that this can be used to assign hard labels, but does not
 			have the same semantics for soft labels, in that it only
@@ -580,7 +580,7 @@ class _BaseHMM(Distribution):
 		"""
 
 		X, sample_weight, priors = partition_sequences(X, 
-			sample_weight=sample_weight, priors=priors)
+			sample_weight=sample_weight, priors=priors, n_dists=self.k)
 
 		# Initialize by concatenating across sequences
 		if not self._initialized:

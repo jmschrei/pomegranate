@@ -355,7 +355,7 @@ def _initialize_centroids(X, k, algorithm='first-k', random_state=None):
 		return selector.fit_transform(X)
 
 
-def partition_sequences(X, sample_weight=None, priors=None):
+def partition_sequences(X, sample_weight=None, priors=None, n_dists=None):
 	"""Partition a set of sequences into blobs of equal length.
 
 	This function will take in a list of sequences, where each sequence is
@@ -391,13 +391,18 @@ def partition_sequences(X, sample_weight=None, priors=None):
 		The input sequence priors for the sequences or None. If None, return
 		None. Default is None.
 
+	n_dists: int or None
+		The expected last dimension of the priors tensor. Must be provided if
+		`priors` is provided. Default is None.
+
 
 	Returns
 	-------
 	X_: list or tensor
 		The partitioned and grouped sequences.
 	"""
-
+	if priors is not None and n_dists is None:
+		raise RuntimeError("If priors are provided, n_dists must be provided as well.")
 	# If a 3D tensor has been passed in, return it
 	try:
 		X = [_check_parameter(_cast_as_tensor(X), "X", ndim=3)]
@@ -410,7 +415,7 @@ def partition_sequences(X, sample_weight=None, priors=None):
 
 		if priors is not None:
 			priors = [_check_parameter(_cast_as_tensor(priors), "priors",
-				ndim=3, shape=X[0].shape)]
+									   ndim=3, shape=(*X[0].shape[:-1], n_dists))]
 
 		return X, sample_weight, priors
 
@@ -429,7 +434,7 @@ def partition_sequences(X, sample_weight=None, priors=None):
 
 		if priors is not None:
 			priors = [_check_parameter(_cast_as_tensor(p), "priors",
-				ndim=3, shape=X[i].shape) for i, p in enumerate(priors)]
+									   ndim=3, shape=(*X[i].shape[:-1], n_dists)) for i, p in enumerate(priors)]
 
 		if all([x.ndim == 3 for x in X]):
 			return X, sample_weight, priors
@@ -453,7 +458,7 @@ def partition_sequences(X, sample_weight=None, priors=None):
 
 		if priors is not None:
 			p = _check_parameter(_cast_as_tensor(priors[i]), "priors",
-				ndim=2, shape=x.shape)
+								 ndim=2, shape=(*x.shape[:-1], n_dists))
 
 			priors_dict[n].append(p)
 
