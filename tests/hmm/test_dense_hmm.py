@@ -1626,3 +1626,22 @@ def test_masked_fit(X, X_masked):
 	assert_array_almost_equal(d2.scales, [2.8777, 2.3498, 2.1939], 4)
 	assert_array_almost_equal(d2._w_sum, [0., 0., 0.])
 	assert_array_almost_equal(d2._xw_sum, [0., 0., 0.])
+
+
+@pytest.mark.parametrize("n_states", [2, 3, 4])
+def test_priors_in_fit_valid(n_states):
+	funcs = (lambda x: x, tuple, numpy.array,
+		lambda x: torch.from_numpy(numpy.array(x)))
+
+	# Data here is a 3D array of lists
+	_data = [[[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+		[[10, 11, 12], [13, 14, 15], [16, 17, 18]],
+		[[19, 20, 21], [22, 23, 24], [25, 26, 27]]]
+
+	for func in funcs:
+		model = DenseHMM(distributions=[Exponential() for _ in range(n_states)])
+		data = func(_data)
+
+		priors = torch.ones((*numpy.array(data).shape[:-1], n_states)) / n_states
+
+		model.fit(data, priors=priors)
