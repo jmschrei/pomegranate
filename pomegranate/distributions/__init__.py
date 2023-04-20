@@ -1,3 +1,4 @@
+from ._distribution import Distribution
 from .bernoulli import Bernoulli
 from .categorical import Categorical
 from .conditional_categorical import ConditionalCategorical
