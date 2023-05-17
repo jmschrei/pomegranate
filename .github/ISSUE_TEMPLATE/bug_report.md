@@ -12,3 +12,6 @@ A clear and concise description of what the bug is, including what you were expe
 
 **To Reproduce**
 Please provide a snippet of code that can reproduce this error. It is much easier for us to track down bugs and fix them if we have an example script that fails until we're successful.
+
+**Response time**
+Although I will likely respond during weekdays if I am not on vacation, I am not likely to be able to merge PRs or write code until the weekend. 

@@ -641,7 +641,7 @@ def test_partition_3d_Xp(X1, p1):
 		lambda x: torch.from_numpy(numpy.array(x)))
 
 	for func in funcs:
-		y, w, p = partition_sequences(func(X1), priors=func(p1))
+		y, w, p = partition_sequences(func(X1), priors=func(p1), n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 1
@@ -667,8 +667,8 @@ def test_partition_3d_Xwp(X1, w1, p1):
 		lambda x: torch.from_numpy(numpy.array(x)))
 
 	for func in funcs:
-		y, w, p = partition_sequences(func(X1), sample_weight=func(w1), 
-			priors=func(p1))
+		y, w, p = partition_sequences(func(X1), sample_weight=func(w1),
+									  priors=func(p1), n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 1
@@ -753,25 +753,6 @@ def test_partition_3ds_X(X2):
 			assert_array_almost_equal(y_, X2[i])
 
 
-def test_partition_3ds_X(X2):
-	funcs = (lambda x: x, tuple, numpy.array, 
-		lambda x: torch.from_numpy(numpy.array(x)))
-
-	for func in funcs:
-		X2_ = [func(x) for x in X2]
-
-		y, _, _ = partition_sequences(X2_)
-
-		assert isinstance(y, list)
-		assert len(y) == 2
-
-		for i, y_ in enumerate(y):
-			assert isinstance(y_, torch.Tensor)
-			assert y_.ndim == 3
-			assert y_.shape == (2, i+2, 2)
-			assert_array_almost_equal(y_, X2[i])
-
-
 def test_partition_3ds_Xw(X2, w2):
 	funcs = (lambda x: x, tuple, numpy.array, 
 		lambda x: torch.from_numpy(numpy.array(x)))
@@ -811,7 +792,7 @@ def test_partition_3ds_Xp(X2, p2):
 		X2_ = [func(x) for x in X2]
 		p2_ = [func(p) for p in p2]
 
-		y, w, p = partition_sequences(X2_, priors=p2_) 
+		y, w, p = partition_sequences(X2_, priors=p2_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 2
@@ -843,7 +824,8 @@ def test_partition_3ds_Xwp(X2, w2, p2):
 		w2_ = [func(w) for w in w2]
 		p2_ = [func(p) for p in p2]
 
-		y, w, p = partition_sequences(X2_, sample_weight=w2_, priors=p2_) 
+		y, w, p = partition_sequences(X2_,
+			sample_weight=w2_, priors=p2_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 2
@@ -1025,7 +1007,7 @@ def test_partition_2ds_Xp(X3, p3):
 		X3_ = [func(x) for x in X3]
 		p3_ = [func(p) for p in p3]
 
-		y, w, p = partition_sequences(X3_, priors=p3_) 
+		y, w, p = partition_sequences(X3_, priors=p3_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 3
@@ -1056,7 +1038,7 @@ def test_partition_2ds_Xwp(X3, w3, p3):
 		w3_ = [func(w) for w in w3]
 		p3_ = [func(p) for p in p3]
 
-		y, w, p = partition_sequences(X3_, sample_weight=w3_, priors=p3_) 
+		y, w, p = partition_sequences(X3_, sample_weight=w3_, priors=p3_, n_dists=2)
 
 		assert isinstance(y, list)
 		assert len(y) == 3
@@ -1081,3 +1063,14 @@ def test_partition_2ds_Xwp(X3, w3, p3):
 			assert isinstance(p_, torch.Tensor)
 			assert p_.ndim == 3
 			assert p_.shape == ([1, 3, 2][i], i+1, 2)
+
+
+@pytest.mark.parametrize("X", [torch.ones((1, 10, 2)), [torch.ones((1, 10, 2)), torch.ones((2, 10, 2))]])
+@pytest.mark.parametrize("invalid", ["sample_weight", "priors"])
+def test_dont_hide_errors_for_priors_and_sample_weight(X, invalid):
+	"""Test that we get the correct error message when we don't pass data in case 3."""
+
+	with pytest.raises(ValueError) as excinfo:
+		partition_sequences(X, **{invalid: numpy.zeros((1, 1)) - 1}, n_dists=10)
+
+	assert invalid in str(excinfo.value)
