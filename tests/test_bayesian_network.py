@@ -16,6 +16,17 @@ from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 
 
+def assert_tuple_equal(x, y):
+	assert len(x) == len(y)
+
+	for i in range(len(x)):
+		assert len(x[i]) == len(y[i])
+
+		if len(x[i]) > 0:
+			for j in range(len(x[i])):
+				assert x[i][j] == y[i][j]
+
+
 @pytest.fixture
 def X():
 	return [[1, 2, 0, 0],
@@ -991,7 +1002,7 @@ def test_learn_structure_chow_liu(X):
 	model = BayesianNetwork(algorithm='chow-liu')
 	model.fit(X)
 
-	assert_array_equal(model._parents, ((), (0,), (1,), (1,)))
+	assert_tuple_equal(model._parents, ((), (0,), (1,), (1,)))
 
 	assert_array_almost_equal(model.distributions[0].probs,
 		[[0.4545, 0.5455]], 4)
@@ -1019,7 +1030,7 @@ def test_learn_structure_exact(X):
 	model = BayesianNetwork(algorithm='exact')
 	model.fit(X)
 
-	assert_array_equal(model._parents, ((), (), (), (1, 2)))
+	assert_tuple_equal(model._parents, ((), (), (), (1, 2)))
 
 	assert_array_almost_equal(model.distributions[0].probs,
 		[[0.4545, 0.5455]], 4)

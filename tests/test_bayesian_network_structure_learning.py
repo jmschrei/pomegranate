@@ -17,7 +17,17 @@ from pomegranate.distributions import ConditionalCategorical
 
 from nose.tools import assert_raises
 from numpy.testing import assert_array_almost_equal
-from numpy.testing import assert_array_equal
+
+
+def assert_tuple_equal(x, y):
+	assert len(x) == len(y)
+
+	for i in range(len(x)):
+		assert len(x[i]) == len(y[i])
+
+		if len(x[i]) > 0:
+			for j in range(len(x[i])):
+				assert x[i][j] == y[i][j]
 
 
 @pytest.fixture
@@ -64,24 +74,24 @@ def w():
 
 def test_categorical_chow_liu(X):
 	structure = _categorical_chow_liu(X)
-	assert_array_equal(structure, ((), (0,), (0,), (0,)))
+	assert_tuple_equal(structure, ((), (0,), (0,), (0,)))
 
 	structure = _categorical_chow_liu(X, root=1)
-	assert_array_equal(structure, ((1,), (), (1,), (1,)))
+	assert_tuple_equal(structure, ((1,), (), (1,), (1,)))
 
 	structure = _categorical_chow_liu(X, root=2)
-	assert_array_equal(structure, ((2,), (2,), (), (2,)))
+	assert_tuple_equal(structure, ((2,), (2,), (), (2,)))
 
 
 def test_categorical_chow_liu_weighted(X, w):
 	structure = _categorical_chow_liu(X, w)
-	assert_array_equal(structure, ((), (0,), (0,), (0,)))
+	assert_tuple_equal(structure, ((), (0,), (0,), (0,)))
 
 	structure = _categorical_chow_liu(X, w, root=1)
-	assert_array_equal(structure, ((1,), (), (1,), (1,)))
+	assert_tuple_equal(structure, ((1,), (), (1,), (1,)))
 
 	structure = _categorical_chow_liu(X, w, root=2)
-	assert_array_equal(structure, ((2,), (2,), (), (2,)))
+	assert_tuple_equal(structure, ((2,), (2,), (), (2,)))
 
 
 def test_categorical_chow_liu_large():
@@ -89,15 +99,15 @@ def test_categorical_chow_liu_large():
 	X = numpy.random.randint(3, size=(50, 10))
 
 	structure = _categorical_chow_liu(X)
-	assert_array_equal(structure, ((), (0,), (1,), (7,), (0,), (0,), (7,), (2,),
+	assert_tuple_equal(structure, ((), (0,), (1,), (7,), (0,), (0,), (7,), (2,),
 		(7,), (0,)))
 
 	structure = _categorical_chow_liu(X, root=1)
-	assert_array_equal(structure, ((1,), (), (1,), (7,), (0,), (0,), (7,), (2,), 
+	assert_tuple_equal(structure, ((1,), (), (1,), (7,), (0,), (0,), (7,), (2,), 
 		(7,), (0,)))
 
 	structure = _categorical_chow_liu(X, root=2)
-	assert_array_equal(structure, ((1,), (2,), (), (7,), (0,), (0,), (7,), (2,), 
+	assert_tuple_equal(structure, ((1,), (2,), (), (7,), (0,), (0,), (7,), (2,), 
 		(7,), (0,)))
 
 
@@ -106,15 +116,15 @@ def test_categorical_chow_liu_large_pseudocount():
 	X = numpy.random.randint(3, size=(50, 10))
 
 	structure = _categorical_chow_liu(X, pseudocount=10)
-	assert_array_equal(structure, ((), (2,), (4,), (2,), (0,), (3,), (3,), (2,), 
+	assert_tuple_equal(structure, ((), (2,), (4,), (2,), (0,), (3,), (3,), (2,), 
 		(2,), (6,)))
 
 	structure = _categorical_chow_liu(X, root=1, pseudocount=10)
-	assert_array_equal(structure, ((4,), (), (1,), (2,), (2,), (3,), (3,), (2,), 
+	assert_tuple_equal(structure, ((4,), (), (1,), (2,), (2,), (3,), (3,), (2,), 
 		(2,), (6,)))
 
 	structure = _categorical_chow_liu(X, root=2, pseudocount=10)
-	assert_array_equal(structure, ((4,), (2,), (), (2,), (2,), (3,), (3,), (2,),
+	assert_tuple_equal(structure, ((4,), (2,), (), (2,), (2,), (3,), (3,), (2,),
 		(2,), (6,)))
 
 
@@ -142,32 +152,32 @@ def test_categorical_chow_liu_raises(X, w):
 
 def test_categorical_exact(X):
 	structure = _categorical_exact(X)
-	assert_array_equal(structure, ((), (2,), (), (1, 2)))
+	assert_tuple_equal(structure, ((), (2,), (), (1, 2)))
 
 	structure = _categorical_exact(X, max_parents=1)
-	assert_array_equal(structure, ((), (2,), (), ()))
+	assert_tuple_equal(structure, ((), (2,), (), ()))
 
 
 def test_categorical_exact_weighted(X, w):
 	structure = _categorical_exact(X, w)
-	assert_array_equal(structure, ((), (2,), (), (1, 2)))
+	assert_tuple_equal(structure, ((), (2,), (), (1, 2)))
 
 	structure = _categorical_exact(X, w, max_parents=1)
-	assert_array_equal(structure, ((), (2,), (), ()))
+	assert_tuple_equal(structure, ((), (2,), (), ()))
 
 
 def test_categorical_exact_exclude_parents(X):
 	exclude_parents = ((), (2,), (), (1,))
 	structure = _categorical_exact(X, exclude_parents=exclude_parents)
-	assert_array_equal(structure, ((), (), (0, 3), (0,)))
+	assert_tuple_equal(structure, ((), (), (0, 3), (0,)))
 
 	structure = _categorical_exact(X, exclude_parents=exclude_parents, 
 		max_parents=1)
-	assert_array_equal(structure, ((), (), (), (0,)))
+	assert_tuple_equal(structure, ((), (), (), (0,)))
 
 	exclude_parents = ((), (2,), (), (0, 1))
 	structure = _categorical_exact(X, exclude_parents=exclude_parents)
-	assert_array_equal(structure, ((2, 3), (), (), (2,)))
+	assert_tuple_equal(structure, ((2, 3), (), (), (2,)))
 
 
 def test_categorical_exact_large():
@@ -175,22 +185,22 @@ def test_categorical_exact_large():
 	X = numpy.random.randint(3, size=(50, 10))
 
 	structure = _categorical_exact(X)
-	assert_array_equal(structure, ((), (6, 7), (), (1, 6, 7), (), (1, 3, 6, 7), 
+	assert_tuple_equal(structure, ((), (6, 7), (), (1, 6, 7), (), (1, 3, 6, 7), 
 		(), (6,), (), ()))
 
 	structure = _categorical_exact(X, max_parents=1)
-	assert_array_equal(structure, ((), (), (), (), (), (), (), (3,), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), (3,), (), ()))
 
 	structure = _categorical_exact(X, max_parents=2)
-	assert_array_equal(structure, ((), (), (6, 7), (), (), (), (), (6,), (), 
+	assert_tuple_equal(structure, ((), (), (6, 7), (), (), (), (), (6,), (), 
 		()))
 
 	structure = _categorical_exact(X, max_parents=3)
-	assert_array_equal(structure, ((), (), (), (), (), (6, 7), (), (6,), 
+	assert_tuple_equal(structure, ((), (), (), (), (), (6, 7), (), (6,), 
 		(5, 6, 7), ()))
 
 	structure = _categorical_exact(X, max_parents=4)
-	assert_array_equal(structure, ((), (6, 7), (), (1, 6, 7), (), (1, 3, 6, 7), 
+	assert_tuple_equal(structure, ((), (6, 7), (), (1, 6, 7), (), (1, 3, 6, 7), 
 		(), (6,), (), ()))
 
 
@@ -199,22 +209,22 @@ def test_categorical_exact_large_pseudocount():
 	X = numpy.random.randint(3, size=(50, 8))
 
 	structure = _categorical_exact(X, pseudocount=10)
-	assert_array_equal(structure, ((), (), (), (), (), (), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), ()))
 
 	structure = _categorical_exact(X, pseudocount=5)
-	assert_array_equal(structure, ((), (), (), (), (), (), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), ()))
 
 	structure = _categorical_exact(X, pseudocount=2)
-	assert_array_equal(structure, ((), (), (), (), (), (), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), ()))
 
 	structure = _categorical_exact(X, pseudocount=1)
-	assert_array_equal(structure, ((), (), (), (), (), (), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), ()))
 
 	structure = _categorical_exact(X, pseudocount=0.1)
-	assert_array_equal(structure, ((), (), (), (), (), (), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), ()))
 
 	structure = _categorical_exact(X, pseudocount=1e-8)
-	assert_array_equal(structure, ((5,), (), (), (), (), (), (), ()))
+	assert_tuple_equal(structure, ((5,), (), (), (), (), (), (), ()))
 
 
 ###
@@ -227,19 +237,19 @@ def test_categorical_learn_structure_chow_liu():
 
 	structure1 = _categorical_chow_liu(X)
 	structure2 = _learn_structure(X, algorithm='chow-liu')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 	structure1 = _categorical_chow_liu(X, root=1)
 	structure2 = _learn_structure(X, root=1, algorithm='chow-liu')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 	structure1 = _categorical_chow_liu(X, pseudocount=50)
 	structure2 = _learn_structure(X, pseudocount=50, algorithm='chow-liu')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 	structure1 = _categorical_chow_liu(X, w)
 	structure2 = _learn_structure(X, w, algorithm='chow-liu')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 
 def test_categorical_learn_structure_exact():
@@ -249,19 +259,19 @@ def test_categorical_learn_structure_exact():
 
 	structure1 = _categorical_exact(X)
 	structure2 = _learn_structure(X, algorithm='exact')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 	structure1 = _categorical_exact(X, max_parents=1)
 	structure2 = _learn_structure(X, max_parents=1, algorithm='exact')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 	structure1 = _categorical_exact(X, pseudocount=50)
 	structure2 = _learn_structure(X, pseudocount=50, algorithm='exact')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 	structure1 = _categorical_exact(X, w)
 	structure2 = _learn_structure(X, w, algorithm='exact')
-	assert_array_equal(structure1, structure2)
+	assert_tuple_equal(structure1, structure2)
 
 
 ###
