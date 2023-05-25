@@ -156,11 +156,12 @@ class GeneralMixtureModel(BayesMixin, Distribution):
 		self.priors = _cast_as_parameter(torch.empty(self.k, 
 			dtype=self.dtype, device=self.device))
 
+		sample_weight_sum = sample_weight.sum()
 		for i in range(self.k):
 			idx = y_hat == i
 
 			self.distributions[i].fit(X[idx], sample_weight=sample_weight[idx])
-			self.priors[i] = idx.type(torch.float32).mean()
+			self.priors[i] = sample_weight[idx].sum() / sample_weight_sum
 
 		self._initialized = True
 		self._reset_cache()
