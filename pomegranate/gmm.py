@@ -160,8 +160,9 @@ class GeneralMixtureModel(BayesMixin, Distribution):
 		for i in range(self.k):
 			idx = y_hat == i
 
-			self.distributions[i].fit(X[idx], sample_weight=sample_weight[idx])
-			self.priors[i] = sample_weight[idx].sum() / sample_weight_sum
+			sample_weight_idx = sample_weight[idx]
+			self.distributions[i].fit(X[idx], sample_weight=sample_weight_idx)
+			self.priors[i] = sample_weight_idx.sum() / sample_weight_sum
 
 		self._initialized = True
 		self._reset_cache()
