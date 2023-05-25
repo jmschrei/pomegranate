@@ -74,7 +74,7 @@ def _update_parameter(value, new_value, inertia=0.0, frozen=None):
 		return
 
 	if inertia == 0.0:
-		value[:] = _cast_as_parameter(new_value)
+		value[...] = _cast_as_parameter(new_value)
 
 	elif inertia < 1.0:
 		value_ = inertia*value + (1-inertia)*new_value

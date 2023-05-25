@@ -165,8 +165,8 @@ class Normal(Distribution):
 
 				self.register_buffer("_log_sigma_sqrt_2pi", _log_sigma_sqrt_2pi)
 				self.register_buffer("_inv_two_sigma", _inv_two_sigma)
-			
-			if any(self.covs < 0):
+
+			if torch.any(self.covs < 0):
 				raise ValueError("Variances must be positive.")
 
 	def sample(self, n):
@@ -289,9 +289,11 @@ class Normal(Distribution):
 			v = self._xw_sum.unsqueeze(0) * self._xw_sum.unsqueeze(1)
 			covs = self._xxw_sum / self._w_sum -  v / self._w_sum ** 2.0
 
-		elif self.covariance_type == 'diag':
+		elif self.covariance_type in ['diag', 'sphere']:
 			covs = self._xxw_sum / self._w_sum - \
 				self._xw_sum ** 2.0 / self._w_sum ** 2.0
+			if self.covariance_type == 'sphere':
+				covs = covs.mean(dim=-1)
 
 		_update_parameter(self.means, means, self.inertia)
 		_update_parameter(self.covs, covs, self.inertia)
