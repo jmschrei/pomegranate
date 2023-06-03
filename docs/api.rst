@@ -62,33 +62,32 @@ This returns the matrix of log posterior probabilities for numerical stability.
 API Reference
 -------------
 
+Distributions
+=========================
+
 .. automodule:: pomegranate.distributions
    :members: Bernoulli, Categorical, ConditionalCategorical, JointCategorical, DiracDelta, Exponential, Gamma, Normal, Poisson, StudentT, Uniform, ZeroInflated
 
-.. automodule:: pomegranate.bayes_classifier.BayesClassifier
-	:members:
-	:inherited-members:
+Models
+=========================
 
-.. automodule:: pomegranate.gmm.GeneralMixtureModel
-	:members:
-	:inherited-members:
+.. automodule:: pomegranate.bayes_classifier
+	:members: BayesClassifier
 
-.. automodule:: pomegranate.hmm.DenseHMM
-	:members:
-	:inherited-members:
+.. automodule:: pomegranate.gmm
+	:members: BayesClassifier
 
-.. automodule:: pomegranate.hmm.SparseHMM
-	:members:
-	:inherited-members:
+.. automodule:: pomegranate.hmm
+	:members: DenseHMM
 
-.. automodule:: pomegranate.markov_chain.MarkovChain
-	:members:
-	:inherited-members:
+.. automodule:: pomegranate.hmm
+	:members: SparseHMM
 
-.. automodule:: pomegranate.bayesian_network.BayesianNetwork
-	:members:
-	:inherited-members:
+.. automodule:: pomegranate.markov_chain
+	:members: MarkovChain
 
-.. automodule:: pomegranate.factor_graph.FactorGraph
-	:members:
-	:inherited-members:
+.. automodule:: pomegranate.bayesian_network.
+	:members: BayesianNetwork
+
+.. automodule:: pomegranate.factor_graph
+	:members: FactorGraph
