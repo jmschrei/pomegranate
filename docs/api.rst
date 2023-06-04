@@ -63,31 +63,24 @@ API Reference
 -------------
 
 Distributions
-=========================
+=============
 
 .. automodule:: pomegranate.distributions
    :members: Bernoulli, Categorical, ConditionalCategorical, JointCategorical, DiracDelta, Exponential, Gamma, Normal, Poisson, StudentT, Uniform, ZeroInflated
 
 Models
-=========================
+======
 
-.. automodule:: pomegranate.bayes_classifier
-	:members: BayesClassifier
+.. autoclass:: pomegranate.bayes_classifier.BayesClassifier
 
-.. automodule:: pomegranate.gmm
-	:members: BayesClassifier
+.. autoclass:: pomegranate.gmm.GeneralMixtureModel
 
-.. automodule:: pomegranate.hmm
-	:members: DenseHMM
+.. autoclass:: pomegranate.hmm.DenseHMM
 
-.. automodule:: pomegranate.hmm
-	:members: SparseHMM
+.. autoclass:: pomegranate.hmm.SparseHMM
 
-.. automodule:: pomegranate.markov_chain
-	:members: MarkovChain
+.. autoclass:: pomegranate.markov_chain.MarkovChain
 
-.. automodule:: pomegranate.bayesian_network.
-	:members: BayesianNetwork
+.. autoclass:: pomegranate.bayesian_network.BayesianNetwork
 
-.. automodule:: pomegranate.factor_graph
-	:members: FactorGraph
+.. autoclass:: pomegranate.factor_graph.FactorGraph
