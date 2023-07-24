@@ -11,6 +11,7 @@ setup(
 	description='A PyTorch implementation of probabilistic models.',
 	install_requires=[
 		'numpy >= 1.22.2', 
+		'Cython >= 0.29.35, <3.0.0',
 		'scipy >= 1.6.2',
 		'scikit-learn >= 1.0.2',
 		'torch >= 1.9.0',
