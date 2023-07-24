@@ -17,7 +17,7 @@ Special shout-out to [NumFOCUS](https://numfocus.org/) for supporting this work 
 
 `pip install pomegranate`
 
-If you need the last Cython release before the rewrite, use `pip install pomegranate==0.14.8`.
+If you need the last Cython release before the rewrite, use `pip install pomegranate==0.14.8`. You may need to manually install a version of Cython before v3.
 
 ### Why a Rewrite?
 
