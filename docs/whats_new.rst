@@ -5,6 +5,57 @@
 Release History
 ===============
 
+Version 1.0.2
+==============
+
+Highlights
+----------
+
+	- A minor issue with Bayesian network structure learning has been patched by 
+	@savyajha (thank you!) where, when multiple shortest paths exist, the one
+	returned would be OS dependent. Now, all shortest paths are found and sorted
+	before return. 
+
+
+
+Version 1.0.0
+==============
+
+Highlights
+----------
+	- Minor bug fixed.
+
+
+Version 1.0.0
+==============
+
+Highlights
+----------
+
+	- This release marks a major milestone in the pomegranate saga. 
+	- The Cython backend has been replaced with a PyTorch backend. Goodbye weird installation issues and segfaults.
+	- The API has been changed in a way that is not back-compatible, hence an increment in the major version. These changes fix issues that have hampered development, made the user experience more difficult, or were just bad.
+	- This codebase is guarded by a comprehensive suite of >800 unit tests, calling assert statements several thousand times.
+
+
+Features
+--------
+	- GPU support has been added for all models and methods
+	- Mixed/half precision has been added for all models and methods (though the benefits seem mild to none...)
+	- Serialization is now handled by PyTorch, yielding more compact and efficient I/O
+	- Missing values are now supported through torch.masked.MaskedTensor objects
+	- Prior probabilities are now supported for all relevant models and methods and enable more comprehensive/flexible semi-supervised learning than before
+
+Models
+------
+	- All distributions are now multivariate by default, supporting speedups through batched operations
+	- Factor graphs are now supported as first-class citizens
+	- Hidden Markov models have been split into DenseHMM and SparseHMM models which differ in how the transition matrix is encoded, with DenseHMM objects being significantly faster
+	- NaiveBayes models have been removed
+	- MarkovNetworks models have been temporarily removed
+	- Constraint graphs have been temporarily removed
+
+
 Version 0.14.8
 ==============
 

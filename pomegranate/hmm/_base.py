@@ -592,7 +592,6 @@ class _BaseHMM(Distribution):
 				w_ = torch.cat(sample_weight, dim=1)
 				self._initialize(X_, sample_weight=w_)
 
-
 		logp, last_logp = None, None
 		for i in range(self.max_iter):
 			start_time = time.time()
