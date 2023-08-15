@@ -152,18 +152,18 @@ def test_categorical_chow_liu_raises(X, w):
 
 def test_categorical_exact(X):
 	structure = _categorical_exact(X)
-	assert_tuple_equal(structure, ((), (2,), (), (1, 2)))
+	assert_tuple_equal(structure, ((), (0,), (), (0, 1)))
 
 	structure = _categorical_exact(X, max_parents=1)
-	assert_tuple_equal(structure, ((), (2,), (), ()))
+	assert_tuple_equal(structure, ((), (0,), (), ()))
 
 
 def test_categorical_exact_weighted(X, w):
 	structure = _categorical_exact(X, w)
-	assert_tuple_equal(structure, ((), (2,), (), (1, 2)))
+	assert_tuple_equal(structure, ((), (0,), (), (0, 1)))
 
 	structure = _categorical_exact(X, w, max_parents=1)
-	assert_tuple_equal(structure, ((), (2,), (), ()))
+	assert_tuple_equal(structure, ((), (0,), (), ()))
 
 
 def test_categorical_exact_exclude_parents(X):
@@ -173,11 +173,11 @@ def test_categorical_exact_exclude_parents(X):
 
 	structure = _categorical_exact(X, exclude_parents=exclude_parents, 
 		max_parents=1)
-	assert_tuple_equal(structure, ((), (), (), (0,)))
+	assert_tuple_equal(structure, ((), (), (0,), ()))
 
 	exclude_parents = ((), (2,), (), (0, 1))
 	structure = _categorical_exact(X, exclude_parents=exclude_parents)
-	assert_tuple_equal(structure, ((2, 3), (), (), (2,)))
+	assert_tuple_equal(structure, ((3,), (), (0,3), ()))
 
 
 def test_categorical_exact_large():
@@ -185,23 +185,23 @@ def test_categorical_exact_large():
 	X = numpy.random.randint(3, size=(50, 10))
 
 	structure = _categorical_exact(X)
-	assert_tuple_equal(structure, ((), (6, 7), (), (1, 6, 7), (), (1, 3, 6, 7), 
-		(), (6,), (), ()))
+	assert_tuple_equal(structure, ((1, 2), (), (), (), (0, 1, 2), (), (), 
+		(), (0, 1, 2, 4), ()))
 
 	structure = _categorical_exact(X, max_parents=1)
-	assert_tuple_equal(structure, ((), (), (), (), (), (), (), (3,), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), (2,), (), ()))
 
 	structure = _categorical_exact(X, max_parents=2)
-	assert_tuple_equal(structure, ((), (), (6, 7), (), (), (), (), (6,), (), 
+	assert_tuple_equal(structure, ((), (), (), (), (), (), (), (0, 1), (), 
 		()))
 
 	structure = _categorical_exact(X, max_parents=3)
-	assert_tuple_equal(structure, ((), (), (), (), (), (6, 7), (), (6,), 
-		(5, 6, 7), ()))
+	assert_tuple_equal(structure, ((1, 2), (), (), (), (0, 1, 2), (), (), (), 
+		(), ()))
 
 	structure = _categorical_exact(X, max_parents=4)
-	assert_tuple_equal(structure, ((), (6, 7), (), (1, 6, 7), (), (1, 3, 6, 7), 
-		(), (6,), (), ()))
+	assert_tuple_equal(structure, ((1, 2), (), (), (), (0, 1, 2), (), (), (), 
+		(0, 1, 2, 4), ()))
 
 
 def test_categorical_exact_large_pseudocount():
@@ -224,7 +224,7 @@ def test_categorical_exact_large_pseudocount():
 	assert_tuple_equal(structure, ((), (), (), (), (), (), (), ()))
 
 	structure = _categorical_exact(X, pseudocount=1e-8)
-	assert_tuple_equal(structure, ((5,), (), (), (), (), (), (), ()))
+	assert_tuple_equal(structure, ((), (), (), (), (), (0,), (), ()))
 
 
 ###
