@@ -954,8 +954,8 @@ def _categorical_exact(X, sample_weight=None, include_parents=None,
 				order_graph.add_edge(parent, subset, weight=weight,
 					structure=structure)
 
-	path = nx.shortest_path(order_graph, source=(), target=tuple(range(d)),
-		weight='weight')
+	path = sorted(nx.all_shortest_paths(order_graph, source=(),
+		target=tuple(range(d)), weight="weight"))[1]
 
 	score, structure = 0, list( None for i in range(d) )
 	for u, v in zip(path[:-1], path[1:]):

@@ -1030,33 +1030,33 @@ def test_learn_structure_exact(X):
 	model = BayesianNetwork(algorithm='exact')
 	model.fit(X)
 
-	assert_tuple_equal(model._parents, ((), (), (), (1, 2)))
+	assert_tuple_equal(model._parents, ((), (0, 2), (), ()))
 
 	assert_array_almost_equal(model.distributions[0].probs,
 		[[0.4545, 0.5455]], 4)
-	assert_array_almost_equal(model.distributions[1].probs, 
+	assert_array_almost_equal(model.distributions[3].probs, 
 		[[0.4545, 0.5455]], 4)
 	assert_array_almost_equal(model.distributions[2].probs,
 		[[0.5455, 0.4545]], 4)
-	assert_array_almost_equal(model.distributions[3].probs[0], 
-		[[[1., 0.],
-          [1., 0.]],
+	assert_array_almost_equal(model.distributions[1].probs[0], 
+		[[[0.3333, 0.6667],
+          [1.0000, 0.0000]],
 
-         [[0., 1.],
-          [0., 1.]]], 4)
+         [[0.3333, 0.6667],
+          [0.3333, 0.6667]]], 4)
 
 	assert_array_almost_equal(model._factor_graph.factors[0].probs, 
 		[[0.4545, 0.5455]], 4)
-	assert_array_almost_equal(model._factor_graph.factors[1].probs, 
+	assert_array_almost_equal(model._factor_graph.factors[3].probs, 
 		[[0.4545, 0.5455]], 4)
 	assert_array_almost_equal(model._factor_graph.factors[2].probs, 
 		[[0.5455, 0.4545]], 4)
-	assert_array_almost_equal(model._factor_graph.factors[3].probs, 
-		[[[0.25, 0.],
-          [0.25, 0.]],
+	assert_array_almost_equal(model._factor_graph.factors[1].probs, 
+		[[[0.0833, 0.1667],
+          [0.2500, 0.0000]],
 
-         [[0., 0.25],
-          [0., 0.25]]], 4)
+         [[0.0833, 0.1667],
+          [0.0833, 0.1667]]], 4)
 
 
 def test_summarize(X, distributions):
