@@ -152,7 +152,7 @@ def test_categorical_chow_liu_raises(X, w):
 
 def test_categorical_exact(X):
 	structure = _categorical_exact(X)
-	assert_tuple_equal(structure, ((), (0,), (), (0, 1)))
+	assert_tuple_equal(structure, ((), (0,), (0, 1), ()))
 
 	structure = _categorical_exact(X, max_parents=1)
 	assert_tuple_equal(structure, ((), (0,), (), ()))
@@ -160,7 +160,7 @@ def test_categorical_exact(X):
 
 def test_categorical_exact_weighted(X, w):
 	structure = _categorical_exact(X, w)
-	assert_tuple_equal(structure, ((), (0,), (), (0, 1)))
+	assert_tuple_equal(structure, ((), (0,), (0, 1), ()))
 
 	structure = _categorical_exact(X, w, max_parents=1)
 	assert_tuple_equal(structure, ((), (0,), (), ()))
@@ -169,15 +169,15 @@ def test_categorical_exact_weighted(X, w):
 def test_categorical_exact_exclude_parents(X):
 	exclude_parents = ((), (2,), (), (1,))
 	structure = _categorical_exact(X, exclude_parents=exclude_parents)
-	assert_tuple_equal(structure, ((), (), (0, 3), (0,)))
+	assert_tuple_equal(structure, ((), (), (0,), (0, 2)))
 
 	structure = _categorical_exact(X, exclude_parents=exclude_parents, 
 		max_parents=1)
-	assert_tuple_equal(structure, ((), (), (0,), ()))
+	assert_tuple_equal(structure, ((), (0,), (), ()))
 
 	exclude_parents = ((), (2,), (), (0, 1))
 	structure = _categorical_exact(X, exclude_parents=exclude_parents)
-	assert_tuple_equal(structure, ((3,), (), (0,3), ()))
+	assert_tuple_equal(structure, ((2, 3), (), (), (2,)))
 
 
 def test_categorical_exact_large():
