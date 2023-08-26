@@ -291,7 +291,6 @@ class _BaseHMM(Distribution):
 			e[:, i] = logp.reshape(n, k).T
 
 		e = e.permute(2, 0, 1)
-
 		if priors is not None:
 			e += torch.log(priors)
 

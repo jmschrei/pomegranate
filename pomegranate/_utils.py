@@ -35,6 +35,14 @@ class BufferList(torch.nn.Module):
 		return self.buffers[0].dtype
 
 
+def _inplace_add(X, Y):
+	"""Do an in-place addition on X accounting for if Y is a masked tensor."""
+
+	if isinstance(Y, torch.masked.MaskedTensor):
+		X += Y._masked_data
+	else:
+		X += Y
+
 def _cast_as_tensor(value, dtype=None):
 	"""Set the parameter.""" 
 
@@ -401,8 +409,10 @@ def partition_sequences(X, sample_weight=None, priors=None, n_dists=None):
 	X_: list or tensor
 		The partitioned and grouped sequences.
 	"""
+
 	if priors is not None and n_dists is None:
 		raise RuntimeError("If priors are provided, n_dists must be provided as well.")
+	
 	# If a 3D tensor has been passed in, return it
 	try:
 		X = [_check_parameter(_cast_as_tensor(X), "X", ndim=3)]
@@ -434,7 +444,8 @@ def partition_sequences(X, sample_weight=None, priors=None, n_dists=None):
 
 		if priors is not None:
 			priors = [_check_parameter(_cast_as_tensor(p), "priors",
-									   ndim=3, shape=(*X[i].shape[:-1], n_dists)) for i, p in enumerate(priors)]
+				ndim=3, shape=(*X[i].shape[:-1], n_dists)) 
+					for i, p in enumerate(priors)]
 
 		if all([x.ndim == 3 for x in X]):
 			return X, sample_weight, priors

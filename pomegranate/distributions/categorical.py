@@ -3,6 +3,7 @@
 
 import torch
 
+from .._utils import _inplace_add
 from .._utils import _cast_as_tensor
 from .._utils import _cast_as_parameter
 from .._utils import _update_parameter
@@ -172,7 +173,12 @@ class Categorical(Distribution):
 
 		logps = torch.zeros(X.shape[0], dtype=self.probs.dtype)
 		for i in range(self.d):
-			logps += self._log_probs[i][X[:, i]]
+			if isinstance(X, torch.masked.MaskedTensor):
+				logp_ = self._log_probs[i][X[:, i]._masked_data]
+				logp_[logp_ == float("-inf")] = 0
+				_inplace_add(logps, logp_)
+			else:
+				logps += self._log_probs[i][X[:, i]]
 
 		return logps
 
@@ -201,16 +207,23 @@ class Categorical(Distribution):
 
 		X = _cast_as_tensor(X)
 		if not self._initialized:
-			n_keys = self.n_keys if self.n_keys is not None else int(X.max())+1
+			if self.n_keys is not None:
+				n_keys = self.n_keys
+			elif isinstance(X, torch.masked.MaskedTensor):
+				n_keys = int(torch.max(X._masked_data)) + 1
+			else:
+				n_keys = int(torch.max(X)) + 1
+
 			self._initialize(X.shape[1], n_keys)
 
 		X = _check_parameter(X, "X", min_value=0, max_value=self.n_keys-1, 
 			ndim=2, shape=(-1, self.d), check_parameter=self.check_data)
 		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight))
 
-		self._w_sum += torch.sum(sample_weight, dim=0)
+		_inplace_add(self._w_sum, torch.sum(sample_weight, dim=0))
 		for i in range(self.n_keys):
-			self._xw_sum[:, i] += torch.sum((X == i) * sample_weight, dim=0)
+			_inplace_add(self._xw_sum[:, i], torch.sum((X == i) * sample_weight, 
+				dim=0))
 
 	def from_summaries(self):
 		"""Update the model parameters given the extracted statistics.
