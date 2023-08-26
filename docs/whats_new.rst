@@ -5,6 +5,19 @@
 Release History
 ===============
 
+Version 1.0.3
+==============
+
+Highlights
+----------
+
+	- A fix to the 1.0.2 fix (thanks @savyajha)
+	- Docs API fix (thanks @FBruzzesi)
+	- GMM initialization sets prior based on weights (thanks @gerwang)
+	- Fixes normal distributions when covariance_type == 'sphere' (thanks @gerwang)
+	- Fixes an issue with MaskedTensor's being passed into categorical distributions
+
+
 Version 1.0.2
 ==============
 
