@@ -175,8 +175,8 @@ class Categorical(Distribution):
 		for i in range(self.d):
 			if isinstance(X, torch.masked.MaskedTensor):
 				logp_ = self._log_probs[i][X[:, i]._masked_data]
-				logp_[logp_ == float("-inf")] = 0
-				_inplace_add(logps, logp_)
+				logp_[~X[:, i]._masked_mask] = 0
+				logps += logp_
 			else:
 				logps += self._log_probs[i][X[:, i]]
 

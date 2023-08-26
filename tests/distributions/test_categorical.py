@@ -828,7 +828,8 @@ def test_masked_probability(probs, X, X_masked):
 
 	assert_array_almost_equal(y, d.probability(X_))
 
-	y = [0.042 , 0.0075, 0.001 , 0.003 , 0.007 , 0.001 , 0.014 ]
+	y = [2.1000e-01, 1.5000e-01, 1.0000e+00, 3.0000e-03, 1.0000e-01, 1.0000e-03,
+        1.4000e-01]
 	assert_array_almost_equal(y, d.probability(X_masked))
 
 
@@ -842,7 +843,8 @@ def test_masked_log_probability(probs, X, X_masked):
 
 	assert_array_almost_equal(y, d.log_probability(X_))
 
-	y = numpy.log([0.042 , 0.0075, 0.001 , 0.003 , 0.007 , 0.001 , 0.014 ])
+	y = numpy.log([2.1000e-01, 1.5000e-01, 1.0000e+00, 3.0000e-03, 1.0000e-01, 
+		1.0000e-03, 1.4000e-01])
 	assert_array_almost_equal(y, d.log_probability(X_masked))
 
 def test_masked_summarize(X, X_masked, w):
