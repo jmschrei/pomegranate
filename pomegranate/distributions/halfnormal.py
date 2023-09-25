@@ -10,6 +10,7 @@ from .._utils import _check_parameter
 from .._utils import _check_shapes
 
 from ._distribution import Distribution
+from .normal import Normal
 
 
 # Define some useful constants
@@ -17,9 +18,10 @@ NEGINF = float("-inf")
 INF = float("inf")
 SQRT_2_PI = 2.50662827463
 LOG_2_PI = 1.83787706641
+LOG_2 = 0.6931471805599453
 
 
-class HalfNormal(Distribution):
+class HalfNormal(Normal):
     """A half-normal distribution object.
 
     A half-normal distribution is a distribution over positive real numbers that
@@ -78,20 +80,12 @@ class HalfNormal(Distribution):
         frozen=False,
         check_data=True,
     ):
-        super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+
         self.name = "HalfNormal"
-
-        self.covs = _check_parameter(_cast_as_parameter(covs), "covs", ndim=(1, 2))
-
-        _check_shapes([self.means, self.covs], ["means", "covs"])
-
-        self.min_cov = _check_parameter(min_cov, "min_cov", min_value=0, ndim=0)
-        self.covariance_type = covariance_type
-
-        self._initialized = covs is not None
-        self.d = self.means.shape[-1] if self._initialized else None
-        self._reset_cache()
-
+        super().__init__(means=None, covs=covs, min_cov=min_cov,
+            covariance_type=covariance_type, inertia=inertia, frozen=frozen,
+            check_data=check_data)
+        
     def _initialize(self, d):
         """Initialize the probability distribution.
 
@@ -105,20 +99,6 @@ class HalfNormal(Distribution):
         d: int
                 The dimensionality the distribution is being initialized to.
         """
-        if self.covariance_type == "full":
-            self.covs = _cast_as_parameter(
-                torch.zeros(d, d, dtype=self.dtype, device=self.device)
-            )
-        elif self.covariance_type == "diag":
-            self.covs = _cast_as_parameter(
-                torch.zeros(d, dtype=self.dtype, device=self.device)
-            )
-        elif self.covariance_type == "sphere":
-            self.covs = _cast_as_parameter(
-                torch.tensor(0, dtype=self.dtype, device=self.device)
-            )
-
-        self._initialized = True
         super()._initialize(d)
 
     def _reset_cache(self):
@@ -129,51 +109,7 @@ class HalfNormal(Distribution):
         recalculates the cached values meant to speed up log probability
         calculations.
         """
-
-        if self._initialized == False:
-            return
-
-        self.register_buffer(
-            "_w_sum", torch.zeros(self.d, dtype=self.dtype, device=self.device)
-        )
-        self.register_buffer(
-            "_xw_sum", torch.zeros(self.d, dtype=self.dtype, device=self.device)
-        )
-
-        if self.covariance_type == "full":
-            self.register_buffer(
-                "_xxw_sum",
-                torch.zeros(self.d, self.d, dtype=self.dtype, device=self.device),
-            )
-
-            if self.covs.sum() > 0.0:
-                chol = torch.linalg.cholesky(self.covs)
-                _inv_cov = torch.linalg.solve_triangular(
-                    chol,
-                    torch.eye(len(self.covs), dtype=self.dtype, device=self.device),
-                    upper=False,
-                ).T
-                _log_det = -0.5 * torch.linalg.slogdet(self.covs)[1]
-                _theta = _log_det - 0.5 * (self.d * LOG_2_PI)
-
-                self.register_buffer("_inv_cov", _inv_cov)
-                self.register_buffer("_log_det", _log_det)
-                self.register_buffer("_theta", _theta)
-
-        elif self.covariance_type in ("diag", "sphere"):
-            self.register_buffer(
-                "_xxw_sum", torch.zeros(self.d, dtype=self.dtype, device=self.device)
-            )
-
-            if self.covs.sum() > 0.0:
-                _log_sigma_sqrt_2pi = -torch.log(torch.sqrt(self.covs) * SQRT_2_PI)
-                _inv_two_sigma = 1.0 / (2 * self.covs)
-
-                self.register_buffer("_log_sigma_sqrt_2pi", _log_sigma_sqrt_2pi)
-                self.register_buffer("_inv_two_sigma", _inv_two_sigma)
-
-            if torch.any(self.covs < 0):
-                raise ValueError("Variances must be positive.")
+        super()._reset_cache()
 
     def sample(self, n):
         """Sample from the probability distribution.
@@ -193,10 +129,7 @@ class HalfNormal(Distribution):
         X: torch.tensor, shape=(n, self.d)
                 Randomly generated samples.
         """
-
-        if self.covariance_type == "diag":
-            return torch.distributions.HalfNormal(self.covs).sample([n])
-        elif self.covariance_type == "full":
+        if self.covariance_type in ["diag", "full"]:
             return torch.distributions.HalfNormal(self.covs).sample([n])
 
     def log_probability(self, X):
@@ -225,23 +158,15 @@ class HalfNormal(Distribution):
         """
 
         X = _check_parameter(
-            _cast_as_tensor(X, dtype=self.means.dtype),
+            _cast_as_tensor(X, dtype=self.covs.dtype),
             "X",
             ndim=2,
             shape=(-1, self.d),
             check_parameter=self.check_data,
         )
+        return super().log_probability(X) + LOG_2
+        
 
-        # if self.covariance_type == 'full':
-        # 	# logp = torch.matmul(X, self._inv_cov) - self._inv_cov_dot_mu
-        # 	# logp = self.d * LOG_2_PI + torch.sum(logp ** 2, dim=-1)
-        # 	# logp = self._log_det - 0.5 * logp
-        # 	# return logp
-        return 0.5 * LOG_2_PI + (X**2 / 2).sum(dim=-1)
-
-        # elif self.covariance_type in ('diag', 'sphere'):
-        # 	return torch.sum(self._log_sigma_sqrt_2pi - ((X - self.means) ** 2)
-        # 		* self._inv_two_sigma, dim=-1)
 
     def summarize(self, X, sample_weight=None):
         """Extract the sufficient statistics from a batch of data.
@@ -263,21 +188,7 @@ class HalfNormal(Distribution):
                 (-1, self.d) or a vector of shape (-1,). Default is ones.
         """
 
-        if self.frozen == True:
-            return
-
-        X, sample_weight = super().summarize(X, sample_weight=sample_weight)
-        X = _cast_as_tensor(X, dtype=self.means.dtype)
-
-        if self.covariance_type == "full":
-            self._w_sum += torch.sum(sample_weight, dim=0)
-            self._xw_sum += torch.sum(X * sample_weight, axis=0)
-            self._xxw_sum += torch.matmul((X * sample_weight).T, X)
-
-        elif self.covariance_type in ("diag", "sphere"):
-            self._w_sum[:] = self._w_sum + torch.sum(sample_weight, dim=0)
-            self._xw_sum[:] = self._xw_sum + torch.sum(X * sample_weight, dim=0)
-            self._xxw_sum[:] = self._xxw_sum + torch.sum(X**2 * sample_weight, dim=0)
+        super().summarize(X, sample_weight=sample_weight)
 
     def from_summaries(self):
         """Update the model parameters given the extracted statistics.
@@ -293,6 +204,9 @@ class HalfNormal(Distribution):
         if self.frozen == True:
             return
 
+        #  the means are always zero for a half normal distribution
+        means = torch.zeros(self.d, dtype=self.covs.dtype)
+
         if self.covariance_type == "full":
             v = self._xw_sum.unsqueeze(0) * self._xw_sum.unsqueeze(1)
             covs = self._xxw_sum / self._w_sum - v / self._w_sum**2.0
@@ -305,4 +219,5 @@ class HalfNormal(Distribution):
                 covs = covs.mean(dim=-1)
 
         _update_parameter(self.covs, covs, self.inertia)
+        _update_parameter(self.means, means, self.inertia)
         self._reset_cache()
