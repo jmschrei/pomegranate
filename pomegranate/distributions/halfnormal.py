@@ -14,10 +14,6 @@ from .normal import Normal
 
 
 # Define some useful constants
-NEGINF = float("-inf")
-INF = float("inf")
-SQRT_2_PI = 2.50662827463
-LOG_2_PI = 1.83787706641
 LOG_2 = 0.6931471805599453
 
 
@@ -36,7 +32,7 @@ class HalfNormal(Normal):
     There are two ways to initialize this object. The first is to pass in
     the tensor of probablity parameters, at which point they can immediately be
     used. The second is to not pass in the rate parameters and then call
-    either `fit` or `summary` + `from_summaries`, at which point the probability
+    either `fit` or `summarize` + `from_summaries`, at which point the probability
     parameter will be learned from data.
 
 
@@ -80,12 +76,17 @@ class HalfNormal(Normal):
         frozen=False,
         check_data=True,
     ):
-
         self.name = "HalfNormal"
-        super().__init__(means=None, covs=covs, min_cov=min_cov,
-            covariance_type=covariance_type, inertia=inertia, frozen=frozen,
-            check_data=check_data)
-        
+        super().__init__(
+            means=None,
+            covs=covs,
+            min_cov=min_cov,
+            covariance_type=covariance_type,
+            inertia=inertia,
+            frozen=frozen,
+            check_data=check_data,
+        )
+
     def _initialize(self, d):
         """Initialize the probability distribution.
 
@@ -165,8 +166,6 @@ class HalfNormal(Normal):
             check_parameter=self.check_data,
         )
         return super().log_probability(X) + LOG_2
-        
-
 
     def summarize(self, X, sample_weight=None):
         """Extract the sufficient statistics from a batch of data.
@@ -212,9 +211,7 @@ class HalfNormal(Normal):
             covs = self._xxw_sum / self._w_sum - v / self._w_sum**2.0
 
         elif self.covariance_type in ["diag", "sphere"]:
-            covs = (
-                self._xxw_sum / self._w_sum - self._xw_sum**2.0 / self._w_sum**2.0
-            )
+            covs = self._xxw_sum / self._w_sum - self._xw_sum**2.0 / self._w_sum**2.0
             if self.covariance_type == "sphere":
                 covs = covs.mean(dim=-1)
 
