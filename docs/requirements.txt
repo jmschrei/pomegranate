@@ -8,4 +8,4 @@ pomegranate >= 1.0.0
 sphinx-rtd-theme
 pandoc
 nbsphinx
-jinja2==3.0.3
+jinja2==3.1.3
