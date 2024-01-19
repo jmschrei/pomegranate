@@ -31,7 +31,7 @@ class BayesianNetwork(Distribution):
 	to be cyclic as long as there is no assumption of convergence during
 	inference.
 
-	Inference is doing using loopy belief propogation along a factor graph
+	Inference is doing using loopy belief propagation along a factor graph
 	representation. This is sometimes called the `sum-product` algorithm.
 	It will yield exact results if the graph has a tree-like structure.
 	Otherwise, if the graph is acyclic, it is guaranteed to converge but not
@@ -56,7 +56,7 @@ class BayesianNetwork(Distribution):
 		the parent distribution object and the second element is the child
 		distribution object. If None, then no edges. Default is None.
 
-	struture: tuple or list or None, optional
+	structure: tuple or list or None, optional
 		A list or tuple of the parents for each distribution with a tuple
 		containing no elements indicating a root node. For instance, 
 		((), (0,), (), (0, 2)) would represent a graph with four nodes, 
@@ -358,7 +358,7 @@ class BayesianNetwork(Distribution):
 
 		This method infers a probability distribution for each of the missing
 		values in the data. It uses the factor graph representation of the
-		Bayesian network to run the sum-product/loopy belief propogation
+		Bayesian network to run the sum-product/loopy belief propagation
 		algorithm. After the probability distribution is inferred, the maximum
 		likeihood value for each variable is returned.
 
@@ -398,7 +398,7 @@ class BayesianNetwork(Distribution):
 
 		This method infers a probability distribution for each of the missing 
 		values in the data. It uses the factor graph representation of the
-		Bayesian network to run the sum-product/loopy belief propogation
+		Bayesian network to run the sum-product/loopy belief propagation
 		algorithm.
 
 		The input to this method must be a torch.masked.MaskedTensor where the
@@ -446,7 +446,7 @@ class BayesianNetwork(Distribution):
 
 		This method infers a log probability distribution for each of the 
 		missing  values in the data. It uses the factor graph representation of 
-		the Bayesian network to run the sum-product/loopy belief propogation
+		the Bayesian network to run the sum-product/loopy belief propagation
 		algorithm.
 
 		The input to this method must be a torch.masked.MaskedTensor where the

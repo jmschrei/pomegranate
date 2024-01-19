@@ -14,9 +14,9 @@ from ._distribution import Distribution
 class Poisson(Distribution):
 	"""An poisson distribution object.
 
-	A poisson distribution models the number of occurances of events that
-	happen in a fixed time span, assuming that the occurance of each event
-	is independent. This distibution also asumes that each feature is
+	A poisson distribution models the number of occurrences of events that
+	happen in a fixed time span, assuming that the occurrence of each event
+	is independent. This distribution also assumes that each feature is
 	independent of the others.
 
 	There are two ways to initialize this objecct. The first is to pass in

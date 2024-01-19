@@ -18,12 +18,12 @@ class JointCategorical(Distribution):
 	"""A joint categorical distribution.
 
 	A joint categorical distribution models the probability of a vector of
-	categorical values occuring without assuming that the dimensions are
+	categorical values occurring without assuming that the dimensions are
 	independent from each other. Essentially, it is a Categorical distribution
 	without the assumption that the dimensions are independent of each other. 
 
 	There are two ways to initialize this object. The first is to pass in
-	the tensor of probablity parameters, at which point they can immediately be
+	the tensor of probability parameters, at which point they can immediately be
 	used. The second is to not pass in the rate parameters and then call
 	either `fit` or `summary` + `from_summaries`, at which point the 
 	probability parameters will be learned from data.

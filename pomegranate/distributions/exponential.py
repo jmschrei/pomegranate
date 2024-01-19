@@ -16,7 +16,7 @@ class Exponential(Distribution):
 	"""An exponential distribution object.
 
 	An exponential distribution models scales of discrete events, and has a
-	rate parameter describing the average time between event occurances.
+	rate parameter describing the average time between event occurrences.
 	This distribution assumes that each feature is independent of the others.
 	Although the object is meant to operate on discrete counts, it can be used
 	on any non-negative continuous data.

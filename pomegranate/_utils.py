@@ -78,7 +78,7 @@ def _cast_as_parameter(value, dtype=None, requires_grad=False):
 
 
 def _update_parameter(value, new_value, inertia=0.0, frozen=None):
-	"""Update a parameters unles.
+	"""Update a parameter unles.
 	"""
 
 	if hasattr(value, "frozen") and getattr(value, "frozen") == True:
@@ -373,7 +373,7 @@ def partition_sequences(X, sample_weight=None, priors=None, n_dists=None):
 	a different length, and group together sequences of the same length so that
 	batched operations can be more efficiently done on them. 
 
-	Alternatively, it can take in sequnces in the correct format and simply 
+	Alternatively, it can take in sequences in the correct format and simply 
 	return them. The correct form is to be either a single tensor that has
 	three dimensions or a list of three dimensional tensors, where each
 	tensor contains all the sequences of the same length.
