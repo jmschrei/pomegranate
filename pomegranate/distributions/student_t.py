@@ -15,7 +15,7 @@ from .normal import Normal
 class StudentT(Normal):
 	"""A Student T distribution.
 
-	A Student T distribution models the probability of a variable occuring under
+	A Student T distribution models the probability of a variable occurring under
 	a bell-shaped curve with heavy tails. Basically, this is a version of the
 	normal distribution that is less resistant to outliers.  It is described by 
 	a vector of mean values and a vector of variance values. This
@@ -24,7 +24,7 @@ class StudentT(Normal):
 	the features are not independent.
 
 	There are two ways to initialize this object. The first is to pass in
-	the tensor of probablity parameters, at which point they can immediately be
+	the tensor of probability parameters, at which point they can immediately be
 	used. The second is to not pass in the rate parameters and then call
 	either `fit` or `summary` + `from_summaries`, at which point the probability
 	parameter will be learned from data.

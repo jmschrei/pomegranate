@@ -229,7 +229,7 @@ HiddenMarkovModel
 Misc
 ----
 
-	- Unneccessary calls to memset have been removed, courtesy of @alexhenrie
+	- Unnecessary calls to memset have been removed, courtesy of @alexhenrie
 	- Checking for missing values has been slightly refactored to be cleaner, courtesy of @mareksmid-lucid
 	- Include the LICENSE file in MANIFEST.in and simplify a bit, courtesy of @toddrme2178
 	- Added in a robust from_json method that can be used to deserialize a JSON for any pomegranate model.

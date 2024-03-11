@@ -18,7 +18,7 @@ class Categorical(Distribution):
 
 	A categorical distribution models the probability of a set of distinct
 	values happening. It is an extension of the Bernoulli distribution to
-	multiple values. Sometimes it is refered to as a discrete distribution,
+	multiple values. Sometimes it is referred to as a discrete distribution,
 	but this distribution does not enforce that the numeric values used for the
 	keys have any relationship based on their identity. Permuting the keys will
 	have no effect on the calculation. This distribution assumes that the
