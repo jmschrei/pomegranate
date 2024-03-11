@@ -21,7 +21,7 @@ class Bernoulli(Distribution):
 	independent of the others.
 
 	There are two ways to initialize this object. The first is to pass in
-	the tensor of probablity parameters, at which point they can immediately be
+	the tensor of probability parameters, at which point they can immediately be
 	used. The second is to not pass in the rate parameters and then call
 	either `fit` or `summary` + `from_summaries`, at which point the probability
 	parameter will be learned from data.

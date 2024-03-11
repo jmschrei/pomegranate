@@ -331,7 +331,7 @@ class _BaseHMM(Distribution):
 
 		Parameters
 		----------
-		distrbutions: list, tuple, iterable
+		distributions: list, tuple, iterable
 			A set of distributions to add to the model.
 		"""
 

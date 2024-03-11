@@ -165,7 +165,7 @@ Loading:
 > **Note**
 > `torch.compile` is under active development by the PyTorch team and may rapidly improve. For now, you may need to pass in `check_data=False` when initializing models to avoid one compatibility issue.
 
-In PyTorch v2.0.0, `torch.compile` was introduced as a flexible wrapper around tools that would fuse operations together, use CUDA graphs, and generally try to remove I/O bottlenecks in GPU execution. Because these bottlenecks can be extremely significant in the small-to-medium sized data settings many pomegranate users are faced with, `torch.compile` seems like it will be extremely valuable. Rather than targetting entire models, which mostly just compiles the `forward` method, you should compile individual methods from your objects.
+In PyTorch v2.0.0, `torch.compile` was introduced as a flexible wrapper around tools that would fuse operations together, use CUDA graphs, and generally try to remove I/O bottlenecks in GPU execution. Because these bottlenecks can be extremely significant in the small-to-medium sized data settings many pomegranate users are faced with, `torch.compile` seems like it will be extremely valuable. Rather than targeting entire models, which mostly just compiles the `forward` method, you should compile individual methods from your objects.
 
 ```python
 # Create your object as normal

@@ -17,14 +17,14 @@ inf = float("inf")
 class Uniform(Distribution):
 	"""A uniform distribution.
 
-	A uniform distribution models the probability of a variable occuring given
+	A uniform distribution models the probability of a variable occurring given
 	a range that has the same probability within it and no probability outside
 	it. It is described by a vector of minimum and maximum values for this
 	range.  This distribution assumes that the features are independent of
 	each other.
 
 	There are two ways to initialize this object. The first is to pass in
-	the tensor of probablity parameters, at which point they can immediately be
+	the tensor of probability parameters, at which point they can immediately be
 	used. The second is to not pass in the rate parameters and then call
 	either `fit` or `summary` + `from_summaries`, at which point the probability
 	parameter will be learned from data.

@@ -22,7 +22,7 @@ LOG_2_PI = 1.83787706641
 class Normal(Distribution):
 	"""A normal distribution object.
 
-	A normal distribution models the probability of a variable occuring under
+	A normal distribution models the probability of a variable occurring under
 	a bell-shaped curve. It is described by a vector of mean values and a
 	covariance value that can be zero, one, or two dimensional. This
 	distribution can assume that features are independent of the others if
@@ -30,7 +30,7 @@ class Normal(Distribution):
 	the features are not independent.
 
 	There are two ways to initialize this object. The first is to pass in
-	the tensor of probablity parameters, at which point they can immediately be
+	the tensor of probability parameters, at which point they can immediately be
 	used. The second is to not pass in the rate parameters and then call
 	either `fit` or `summary` + `from_summaries`, at which point the probability
 	parameter will be learned from data.

@@ -27,7 +27,7 @@ class FactorGraph(Distribution):
 	distributions on the marginal side encode probability estimates from the
 	data. 
 
-	Inference is done on the factor graph using the loopy belief propogation
+	Inference is done on the factor graph using the loopy belief propagation
 	algorithm. This is an iterative algorithm where "messages" are passed
 	along each edge between the marginals and the factors until the estimates
 	for the marginals converges. In brief: each message represents what the
@@ -461,7 +461,7 @@ class FactorGraph(Distribution):
 
 		This method infers a log probability distribution for each of the 
 		missing  values in the data. It uses the factor graph representation of 
-		the Bayesian network to run the sum-product/loopy belief propogation
+		the Bayesian network to run the sum-product/loopy belief propagation
 		algorithm.
 
 		The input to this method must be a torch.masked.MaskedTensor where the
