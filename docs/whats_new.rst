@@ -5,6 +5,16 @@
 Release History
 ===============
 
+Version 1.0.4
+==============
+
+Highlights
+----------
+
+	- Fixed an issue with Markov Chains and ConditionalCategorical distributions
+	- Added more documentation to ConditionalCategorical distributions
+
+
 Version 1.0.3
 ==============
 

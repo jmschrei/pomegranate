@@ -16,9 +16,69 @@ from .._utils import BufferList
 from ._distribution import ConditionalDistribution
 from .categorical import Categorical
 
+
 class ConditionalCategorical(ConditionalDistribution):
-	"""Still under development."""
-	
+	"""A conditional categorical distribution.
+
+	This is a categorical distribution that is conditioned on previous
+	emissions, meaning that the probability of each character depends on the
+	observed character earlier in the sequence. Each feature is conditioned
+	independently of the others like a `Categorical` distribution. 
+
+	This conditioning makes the shape of the distribution a bit more
+	complicated than the `JointCategorical` distribution. Specifically, a 
+	`JointCategorical` distribution is multivariate by definition but a
+	`ConditionalCategorical` does not have to be. Although both may appear 
+	similar in that they both take in a vector of characters and return 
+	probabilities, the vector fed into the JointCategorical are all observed 
+	together without some notion of time, whereas the ConditionalCategorical 
+	explicitly requires a notion of timing, where the probability of later 
+	characters depend on the composition of characters seen before.
+
+
+	Parameters
+	----------
+	probs: list of numpy.ndarray, torch.tensor or None, shape=(k, k), optional
+		A list of conditional probabilities with one tensor for each feature
+		in the data being modeled. Each tensor should have `k+1` dimensions 
+		where `k` is the number of timesteps to condition on. Each dimension
+		should span the number of keys in that dimension. For example, if
+		specifying a univariate conditional categorical distribution where
+		k=2, a valid tensor shape would be [(2, 3, 4)]. Default is None.
+
+	n_categories: list, numpy.ndarray, torch.tensor or None, optional
+		The number of categories for each feature in the data. Only needs to
+		be provided when the parameters will be learned directly from data and
+		you want to make sure that right number of keys are included in each
+		dimension. Unlike the `Categorical` distribution, this needs to be
+		a list of shapes with one shape for each feature and the shape matches
+		that specified in `probs`. Default is None.
+
+	pseudocount: float, optional
+		A value to add to the observed counts of each feature when training.
+		Setting this to a positive value ensures that no probabilities are
+		truly zero. Default is 0.
+
+	inertia: float, (0, 1), optional
+		Indicates the proportion of the update to apply to the parameters
+		during training. When the inertia is 0.0, the update is applied in
+		its entirety and the previous parameters are ignored. When the
+		inertia is 1.0, the update is entirely ignored and the previous
+		parameters are kept, equivalently to if the parameters were frozen.
+
+	frozen: bool, optional
+		Whether all the parameters associated with this distribution are frozen.
+		If you want to freeze individual pameters, or individual values in those
+		parameters, you must modify the `frozen` attribute of the tensor or
+		parameter directly. Default is False.
+
+	check_data: bool, optional
+		Whether to check properties of the data and potentially recast it to
+		torch.tensors. This does not prevent checking of parameters but can
+		slightly speed up computation when you know that your inputs are valid.
+		Setting this to False is also necessary for compiling.
+	"""
+
 	def __init__(self, probs=None, n_categories=None, pseudocount=0, 
 		inertia=0.0, frozen=False, check_data=True):
 		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
@@ -47,6 +107,22 @@ class ConditionalCategorical(ConditionalDistribution):
 		self._reset_cache()
 
 	def _initialize(self, d, n_categories):
+		"""Initialize the probability distribution.
+
+		This method is meant to only be called internally. It initializes the
+		parameters of the distribution and stores its dimensionality. For more
+		complex methods, this function will do more.
+
+
+		Parameters
+		----------
+		d: int
+			The dimensionality the distribution is being initialized to.
+
+		n_categories: list of tuples
+			The shape of each conditional distribution, one per feature.
+		"""
+
 		self.n_categories = []
 		for n_cat in n_categories:
 			if isinstance(n_cat, (list, tuple)):
@@ -63,6 +139,14 @@ class ConditionalCategorical(ConditionalDistribution):
 		super()._initialize(d)
 
 	def _reset_cache(self):
+		"""Reset the internally stored statistics.
+
+		This method is meant to only be called internally. It resets the
+		stored statistics used to update the model parameters as well as
+		recalculates the cached values meant to speed up log probability
+		calculations.
+		"""
+
 		if self._initialized == False:
 			return
 

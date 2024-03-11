@@ -40,10 +40,9 @@ class MarkovChain(Distribution):
 		the number of steps back to model in the sequence. This must be passed
 		in if the distributions are not passed in.
 
-	n_categories: list, numpy.ndarray, torch.tensor, or None, shape=(d,)
-		A vector with the maximum number of categories that each column
-		can have. If not given, this will be inferred from the data. Default
-		is None.
+	n_categories: list, tuple, or None
+		A list or tuple containing the number of categories that each feature
+		has. 
 
 	inertia: float, [0, 1], optional
 		Indicates the proportion of the update to apply to the parameters
@@ -82,15 +81,12 @@ class MarkovChain(Distribution):
 
 		if distributions is not None:
 			self.k = len(distributions) - 1
-		
-		if n_categories is None:
-			self.n_categories = [None for i in range(self.k+1)]
 
 		self.d = None
 		self._initialized = distributions is not None and distributions[0]._initialized
 		self._reset_cache()
 
-	def _initialize(self, d):
+	def _initialize(self, d, n_categories):
 		"""Initialize the probability distribution.
 
 		This method is meant to only be called internally. It initializes the
@@ -102,14 +98,24 @@ class MarkovChain(Distribution):
 		----------
 		d: int
 			The dimensionality the distribution is being initialized to.
+
+		n_categories: int
+			The maximum number of categories to model. This single number is
+			used as the maximum across all features and all timesteps.
 		"""
 
-		self.distributions = [Categorical(n_categories=self.n_categories[0])]
-		for i in range(self.k):
-			distribution = ConditionalCategorical(
-				n_categories=self.n_categories[i+1])
-			self.distributions.append(distribution)
+		if self.distributions is None:
+			self.distributions = [Categorical()]
+			self.distributions[0]._initialize(d, max(n_categories))
 
+			for i in range(self.k):
+				distribution = ConditionalCategorical()
+				distribution._initialize(d, [[n_categories[j]]*(i+2) 
+					for j in range(d)])
+
+				self.distributions.append(distribution)
+
+		self.n_categories = n_categories
 		self._initialized = True
 		super()._initialize(d)
 
@@ -246,14 +252,23 @@ class MarkovChain(Distribution):
 		if self.frozen:
 			return
 
-		if not self._initialized:
-			self._initialize(len(X[0]))
-
 		X = _check_parameter(_cast_as_tensor(X), "X", ndim=3, 
 			check_parameter=self.check_data)
 		sample_weight = _check_parameter(_cast_as_tensor(sample_weight), 
 			"sample_weight", min_value=0, ndim=(1, 2), 
 			check_parameter=self.check_data)
+
+		if not self._initialized:
+			if self.n_categories is not None:
+				n_keys = self.n_categories
+			elif isinstance(X, torch.masked.MaskedTensor):
+				n_keys = (torch.max(torch.max(X._masked_data, dim=0)[0], 
+					dim=0)[0] + 1).type(torch.int32)
+			else:
+				n_keys = (torch.max(torch.max(X, dim=0)[0], dim=0)[0] + 1).type(
+					torch.int32)
+
+			self._initialize(len(X[0][0]), n_keys)
 
 		if sample_weight is None:
 			sample_weight = torch.ones_like(X[:, 0])

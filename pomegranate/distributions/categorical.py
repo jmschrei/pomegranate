@@ -38,6 +38,17 @@ class Categorical(Distribution):
 		Probabilities for each key for each feature, where k is the largest
 		number of keys across all features. Default is None
 
+	n_categories: list, numpy.ndarray, torch.tensor or None, optional
+		The number of categories for each feature in the data. Only needs to
+		be provided when the parameters will be learned directly from data and
+		you want to make sure that right number of keys are included in each
+		dimension. Default is None.
+
+	pseudocount: float, optional
+		A value to add to the observed counts of each feature when training.
+		Setting this to a positive value ensures that no probabilities are
+		truly zero. Default is 0.
+
 	inertia: float, (0, 1), optional
 		Indicates the proportion of the update to apply to the parameters
 		during training. When the inertia is 0.0, the update is applied in

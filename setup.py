@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name='pomegranate',
-	version='1.0.3',
+	version='1.0.4',
 	author='Jacob Schreiber',
 	author_email='jmschreiber91@gmail.com',
 	packages=['pomegranate', 'pomegranate.distributions', 'pomegranate.hmm'],
