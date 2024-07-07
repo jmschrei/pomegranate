@@ -10,7 +10,7 @@ from pomegranate.distributions import Exponential
 from pomegranate.distributions import Categorical
 from pomegranate.distributions import JointCategorical
 
-from nose.tools import assert_raises
+from .tools import assert_raises
 from numpy.testing import assert_array_almost_equal
 
 

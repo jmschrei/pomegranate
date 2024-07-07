@@ -15,7 +15,7 @@ from pomegranate.bayesian_network import _categorical_chow_liu
 from pomegranate.distributions import Categorical
 from pomegranate.distributions import ConditionalCategorical
 
-from nose.tools import assert_raises
+from .tools import assert_raises
 from numpy.testing import assert_array_almost_equal
 
 

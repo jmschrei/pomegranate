@@ -12,7 +12,7 @@ from ._utils import _test_initialization_raises_one_parameter
 from ._utils import _test_predictions
 from ._utils import _test_raises
 
-from nose.tools import assert_raises
+from ..tools import assert_raises
 from numpy.testing import assert_array_almost_equal
 
 

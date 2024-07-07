@@ -10,9 +10,9 @@ from pomegranate._utils import _update_parameter
 from pomegranate._utils import _check_parameter
 from pomegranate._utils import partition_sequences
 
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_raises
+from .tools import assert_almost_equal
+from .tools import assert_equal
+from .tools import assert_raises
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 

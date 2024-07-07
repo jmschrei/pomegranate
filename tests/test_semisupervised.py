@@ -10,7 +10,7 @@ from pomegranate.gmm import GeneralMixtureModel
 from pomegranate.hmm import DenseHMM
 from pomegranate.distributions import Exponential
 
-from nose.tools import assert_raises
+from .tools import assert_raises
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 
