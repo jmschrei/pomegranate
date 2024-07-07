@@ -18,13 +18,13 @@ from pomegranate import (Distribution,
 						 BernoulliDistribution,
 						 from_json)
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_true
-from nose.tools import assert_raises
+from .tools import with_setup
+from .tools import assert_almost_equal
+from .tools import assert_equal
+from .tools import assert_not_equal
+from .tools import assert_less_equal
+from .tools import assert_true
+from .tools import assert_raises
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 import pickle

@@ -1,6 +1,6 @@
 from pomegranate import *
 
-from nose.tools import assert_equal
+from .tools import assert_equal
 
 def setup():
     '''

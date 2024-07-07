@@ -229,7 +229,7 @@ cdef class Kmeans(Model):
 
 	def __init__(self, k, init='kmeans++', n_init=10):
 		self.k = k
-		if init != 'first-k':
+		if isinstance(init, str) and init != 'first-k':
 			self.n_init = n_init
 		else:
 			self.n_init = 1

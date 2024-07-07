@@ -1,11 +1,11 @@
 from __future__ import  (division, print_function)
 
 from pomegranate import *
-from nose.tools import with_setup
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_raises
-from nose.tools import assert_almost_equal
+from .tools import with_setup
+from .tools import assert_equal
+from .tools import assert_not_equal
+from .tools import assert_raises
+from .tools import assert_almost_equal
 import random
 import numpy as np
 import json

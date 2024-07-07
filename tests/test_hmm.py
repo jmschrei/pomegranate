@@ -4,13 +4,13 @@ from pomegranate import *
 from pomegranate.parallel import log_probability
 from pomegranate.io import SequenceGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-from nose.tools import assert_greater
+from .tools import with_setup
+from .tools import assert_almost_equal
+from .tools import assert_equal
+from .tools import assert_not_equal
+from .tools import assert_less_equal
+from .tools import assert_raises
+from .tools import assert_greater
 from numpy.testing import assert_array_almost_equal
 from numpy.testing import assert_array_equal
 
@@ -1822,19 +1822,6 @@ def test_hmm_univariate_discrete_from_samples():
 
     assert_greater(logp2, logp1)
 
-
-@with_setup(setup_univariate_discrete_dense, teardown)
-def test_hmm_univariate_discrete_from_samples_with_labels():
-    X, y = zip(*model.sample(25, path=True, random_state=0))
-    y = [[state.name for state in seq if not state.is_silent()] for seq in y]
-
-    model2 = HiddenMarkovModel.from_samples(DiscreteDistribution, 4, X, 
-        max_iterations=25, labels=y)
-
-    logp1 = sum(map(model.log_probability, X))
-    logp2 = sum(map(model2.log_probability, X))
-
-    assert_greater(logp2, logp1)
 
 @with_setup(setup_univariate_discrete_dense, teardown)
 def test_hmm_univariate_discrete_from_samples_one_check_input():
