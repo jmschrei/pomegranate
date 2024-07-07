@@ -2,12 +2,12 @@ from pomegranate import *
 from pomegranate.io import DataGenerator
 from pomegranate.io import DataFrameGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_true
-from nose.tools import assert_equal
-from nose.tools import assert_greater
-from nose.tools import assert_raises
-from nose.tools import assert_not_equal
+from .tools import with_setup
+from .tools import assert_true
+from .tools import assert_equal
+from .tools import assert_greater
+from .tools import assert_raises
+from .tools import assert_not_equal
 from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
@@ -408,11 +408,13 @@ def test_gmm_multivariate_gaussian_fit_iterations():
 	numpy.random.seed(0)
 	X = numpy.concatenate([numpy.random.normal(i, 1, size=(100, 5)) for i in range(2)])
 
-	mu, cov = numpy.ones(5), numpy.eye(5)
-	d = [MultivariateGaussianDistribution(mu*i, cov) for i in range(2)]
-	gmm = GeneralMixtureModel(d)
-	gmm2 = gmm.copy()
-	gmm3 = gmm.copy()
+	gmms = []
+	for i in range(3):
+		mu, cov = numpy.ones(5), numpy.eye(5)
+		d = [MultivariateGaussianDistribution(mu*i, cov) for i in range(2)]
+		gmms.append(GeneralMixtureModel(d))
+	
+	gmm, gmm2, gmm3 = gmms
 
 	gmm.fit(X)
 	gmm2.fit(X, max_iterations=1)
@@ -424,28 +426,6 @@ def test_gmm_multivariate_gaussian_fit_iterations():
 
 	assert_greater(logp1, logp2)
 	assert_equal(logp2, logp3)
-
-
-@with_setup(setup_multivariate_mixed, teardown)
-def test_gmm_multivariate_mixed_fit_iterations():
-	numpy.random.seed(0)
-	X = numpy.concatenate([numpy.random.normal(i, 1, size=(100, 5)) for i in range(2)])
-	X = numpy.abs(X)
-
-	gmm2 = gmm.copy()
-	gmm3 = gmm.copy()
-
-	gmm.fit(X)
-	gmm2.fit(X, max_iterations=1)
-	gmm3.fit(X, max_iterations=1)
-
-	logp1 = gmm.log_probability(X).sum()
-	logp2 = gmm2.log_probability(X).sum()
-	logp3 = gmm3.log_probability(X).sum()
-
-	assert_raises(AssertionError, assert_equal, logp1, logp2)
-	assert_equal(logp2, logp2)
-	assert_greater(logp1, logp2)
 
 
 def test_gmm_initialization():

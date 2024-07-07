@@ -17,11 +17,11 @@ from pomegranate.BayesianNetwork import _check_input
 from pomegranate.io import DataGenerator
 from pomegranate.io import DataFrameGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_raises
-from nose.tools import assert_almost_equal
+from .tools import with_setup
+from .tools import assert_equal
+from .tools import assert_not_equal
+from .tools import assert_raises
+from .tools import assert_almost_equal
 
 from networkx import DiGraph
 

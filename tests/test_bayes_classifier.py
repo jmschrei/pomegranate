@@ -5,13 +5,12 @@ from pomegranate.bayes import BayesModel
 from pomegranate.io import DataGenerator
 from pomegranate.io import DataFrameGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-from nose.tools import assert_true
+from .tools import with_setup
+from .tools import assert_equal
+from .tools import assert_not_equal
+from .tools import assert_true
+
+from numpy.testing import assert_almost_equal
 from numpy.testing import assert_array_almost_equal
 
 import pandas
@@ -576,7 +575,12 @@ def test_model():
 
 @with_setup(setup_hmm, teardown)
 def test_hmm_log_proba():
-	logs = model.predict_log_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
+	logs = []
+	seqs = [list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), 
+		list('THTHHHHHTHTH')]
+
+	for seq in seqs:
+		logs.append(model.predict_log_proba(numpy.array([seq]))[0])
 
 	assert_almost_equal(logs[0][0], -0.89097292388986515)
 	assert_almost_equal(logs[0][1], -1.3609765531356006)
@@ -601,7 +605,12 @@ def test_hmm_log_proba():
 
 @with_setup(setup_hmm, teardown)
 def test_hmm_proba():
-	probs = model.predict_proba(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
+	probs = []
+	seqs = [list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), 
+		list('THTHHHHHTHTH')]
+
+	for seq in seqs:
+		probs.append(model.predict_proba(numpy.array([seq]))[0])
 
 	assert_almost_equal(probs[0][0], 0.41025641025641024)
 	assert_almost_equal(probs[0][1], 0.25641025641025639)
@@ -626,7 +635,12 @@ def test_hmm_proba():
 
 @with_setup(setup_hmm, teardown)
 def test_hmm_prediction():
-	predicts = model.predict(np.array([list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), list('THTHHHHHTHTH')]))
+	predicts = []
+	seqs = [list('H'), list('THHH'), list('TTTT'), list('THTHTHTHTHTH'), 
+		list('THTHHHHHTHTH')]
+
+	for seq in seqs:
+		predicts.append(model.predict(numpy.array([seq]))[0])
 
 	assert_equal(predicts[0], 0)
 	assert_equal(predicts[1], 0)

@@ -4,13 +4,13 @@ from pomegranate import *
 from pomegranate.io import DataGenerator
 from pomegranate.io import DataFrameGenerator
 
-from nose.tools import with_setup
-from nose.tools import assert_almost_equal
-from nose.tools import assert_equal
-from nose.tools import assert_not_equal
-from nose.tools import assert_less_equal
-from nose.tools import assert_raises
-from nose.tools import assert_true
+from .tools import with_setup
+from .tools import assert_almost_equal
+from .tools import assert_equal
+from .tools import assert_not_equal
+from .tools import assert_less_equal
+from .tools import assert_raises
+from .tools import assert_true
 from numpy.testing import assert_array_equal
 from numpy.testing import assert_array_almost_equal
 
