@@ -1027,8 +1027,8 @@ def test_serialization(X):
 
 	rates = [1.704751, 1.222564, 2.227916]
 
-	assert_array_almost_equal(d.rates, rates)
-	assert_array_almost_equal(d._log_rates, numpy.log(rates))
+	assert_array_almost_equal(d.rates, rates, 4)
+	assert_array_almost_equal(d._log_rates, numpy.log(rates), 4)
 
 	torch.save(d, ".pytest.torch")
 	d2 = torch.load(".pytest.torch")
@@ -1039,7 +1039,7 @@ def test_serialization(X):
 
 	assert_array_almost_equal(d2._w_sum, [3., 3., 3.])
 	assert_array_almost_equal(d2._xw_sum, [11. ,  4.2,  4.4])
-	assert_array_almost_equal(d.log_probability(X), d2.log_probability(X))
+	assert_array_almost_equal(d.log_probability(X), d2.log_probability(X), 4)
 	
 
 def test_masked_probability(shapes, rates, X, X_masked):

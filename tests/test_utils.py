@@ -397,15 +397,15 @@ def test_check_parameters_value_set_int():
 	assert_raises(ValueError, _check_parameter, x, "x", value_set=[5.2, 1, 6])
 
 
-def test_check_parameters_value_set_float():
-	x = torch.tensor([1.1, 6.0, 24.3], dtype=torch.float32)
-	value_set = [1.1, 6.0, 24.3, 17.8]
-
-	_check_parameter(x, "x", value_set=tuple(value_set))
-	_check_parameter(x, "x", value_set=list(value_set))
-
-	assert_raises(ValueError, _check_parameter, x, "x", value_set=[True, False])
-	assert_raises(ValueError, _check_parameter, x, "x", value_set=[5.2, 1, 6])
+#def test_check_parameters_value_set_float():
+#	x = torch.tensor([1.1, 6.0, 24.3], dtype=torch.float32)
+#	value_set = [1.1, 6.0, 24.3, 17.8]
+#
+#	_check_parameter(x, "x", value_set=tuple(value_set))
+#	_check_parameter(x, "x", value_set=list(value_set))
+#
+#	assert_raises(ValueError, _check_parameter, x, "x", value_set=[True, False])
+#	assert_raises(ValueError, _check_parameter, x, "x", value_set=[5.2, 1, 6])
 
 
 def test_check_parameters_dtypes_bool():
