@@ -154,13 +154,16 @@ class _BaseHMM(Distribution):
 		self.ends = None
 
 		if starts is not None:
-			self.starts = torch.log(_check_parameter(_cast_as_parameter(
-				starts), "starts", ndim=1, shape=(n,), min_value=0., 
-				max_value=1., value_sum=1.0))
+			starts = _check_parameter(_cast_as_tensor(starts), "starts", ndim=1, 
+				shape=(n,), min_value=0., max_value=1., value_sum=1.0)
+			self.starts = _cast_as_parameter(torch.log(starts))
+
+
 
 		if ends is not None:
-			self.ends = torch.log(_check_parameter(_cast_as_parameter(ends), 
-				"ends", ndim=1, shape=(n,), min_value=0., max_value=1.))
+			ends = _check_parameter(_cast_as_tensor(ends), "ends", ndim=1, 
+				shape=(n,), min_value=0., max_value=1.)
+			self.ends = _cast_as_parameter(torch.log(ends))
 
 		if not isinstance(random_state, numpy.random.RandomState):
 			self.random_state = numpy.random.RandomState(random_state)

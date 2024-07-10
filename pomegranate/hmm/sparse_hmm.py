@@ -55,15 +55,16 @@ def unpack_edges(self, edges, starts, ends):
 
 	self.starts = None
 	if starts is not None:
-		self.starts = torch.log(_check_parameter(_cast_as_parameter(
-			starts), "starts", ndim=1, shape=(n,), min_value=0., max_value=1., 
-			value_sum=1.0))
+		starts = _check_parameter(_cast_as_tensor(starts), "starts", ndim=1, 
+			shape=(n,), min_value=0., max_value=1., value_sum=1.0)
+		self.starts = _cast_as_parameter(torch.log(starts))
 
 	if ends is None:
 		self.ends = torch.empty(n, dtype=self.dtype, device=self.device) - inf
 	else:
-		self.ends = torch.log(_check_parameter(_cast_as_parameter(ends), 
-			"ends", ndim=1, shape=(n,), min_value=0., max_value=1.))		
+		ends = _check_parameter(_cast_as_tensor(ends), "ends", ndim=1, 
+			shape=(n,), min_value=0., max_value=1.)
+		self.ends = _cast_as_parameter(torch.log(ends))	
 
 	_edge_idx_starts = torch.empty(self.n_edges, dtype=torch.int64, 
 		device=self.device)
@@ -336,6 +337,94 @@ class SparseHMM(_BaseHMM):
 		if self.return_sample_paths == True:
 			return emissions, distributions
 		return emissions
+
+
+	def viterbi(self, X=None, emissions=None, priors=None):
+		"""Run the Viterbi algorithm on some data.
+
+		Runs the Viterbi algortihm on a batch of sequences. The Viterbi 
+		algorithm is a dynamic programming algorithm that begins at the start
+		state and calculates the single best path through the model involving
+		alignments of symbol i to node j. This is in contrast to the forward
+		function, which involves calculating the sum of all paths, not just
+		the single best path. Because we have to keep track of the best path,
+		the Viterbi algorithm is slightly more conceptually challenging and
+		involves keeping track of a traceback matrix.
+
+		Note that, as an internal method, this does not take as input the
+		actual sequence of observations but, rather, the emission probabilities
+		calculated from the sequence given the model.
+
+
+		Parameters
+		----------
+		X: list, numpy.ndarray, torch.Tensor, shape=(-1, -1, d)
+			A set of examples to evaluate. Does not need to be passed in if
+			emissions are. 
+
+		emissions: list, numpy.ndarray, torch.Tensor, shape=(-1, -1, n_dists)
+			Precalculated emission log probabilities. These are the
+			probabilities of each observation under each probability 
+			distribution. When running some algorithms it is more efficient
+			to precalculate these and pass them into each call.
+
+		priors: list, numpy.ndarray, torch.Tensor, shape=(-1, -1, self.k)
+			Prior probabilities of assigning each symbol to each node. If not
+			provided, do not include in the calculations (conceptually
+			equivalent to a uniform probability, but without scaling the
+			probabilities). This can be used to assign labels to observatons
+			by setting one of the probabilities for an observation to 1.0.
+			Note that this can be used to assign hard labels, but does not
+			have the same semantics for soft labels, in that it only
+			influences the initial estimate of an observation being generated
+			by a component, not gives a target. Default is None.
+
+
+		Returns
+		-------
+		path: torch.Tensor, shape=(-1, -1)
+			The state assignment for each observation in each sequence.
+		""" 
+
+		emissions = _check_inputs(self, X, emissions, priors)
+		n, l = emissions.shape[:2]
+
+		v = torch.full((l, n, self.n_distributions), -inf, 
+			dtype=emissions.dtype, device=self.device)
+		v[0] = self.starts + emissions[:, 0]
+		
+		traceback = torch.zeros_like(v, dtype=torch.int32)
+		traceback[0] = torch.arange(v.shape[-1])
+
+		idxs = [torch.where(self._edge_idx_ends == i)[0] for i in 
+			range(self.n_distributions)]
+
+		for i in range(1, l):
+			p = v[i-1, :, self._edge_idx_starts]
+			p += self._edge_log_probs.expand(n, -1)
+			p += emissions[:, i, self._edge_idx_ends]
+
+			# This should be something like
+			# maxs, argmaxs = torch.scatter_max(...)
+			# but that isn't implemented yet. Hopefully will come soon because
+			# pytorch-scatter is too difficult to install.
+
+			for j, idx in enumerate(idxs):
+				v[i, :, j], _idx = torch.max(p[:, idx], dim=-1)
+				traceback[i, :, j] = self._edge_idx_starts[idx][_idx]
+
+		ends = self.ends + v[-1]
+		best_end_logps, best_end_idxs = torch.max(ends, dim=-1)
+
+		paths = [best_end_idxs]
+		for i in range(1, l):
+			paths.append(traceback[l-i, torch.arange(n), paths[-1]])
+
+		paths = torch.flip(torch.stack(paths).T, dims=(-1,))
+		return paths
+
+
+
 
 	def forward(self, X=None, emissions=None, priors=None):
 		"""Run the forward algorithm on some data.

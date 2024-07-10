@@ -440,6 +440,30 @@ def test_probability_raises(model, X):
 			[[[MAX_VALUE+0.1 for i in range(model.d)] for j in range(4)]])
 
 
+def test_viterbi(model, X):
+	y_hat = model.viterbi(X)
+
+	assert_array_almost_equal(y_hat, [
+		[1, 1, 1, 1, 0],
+        [1, 0, 1, 0, 1]], 4)
+
+
+def test_viterbi_raises(model, X):
+	v = getattr(model, "viterbi")
+
+	assert_raises(ValueError, v, [X])
+	assert_raises(ValueError, v, X[0])
+	assert_raises((ValueError, TypeError, RuntimeError), v, X[0][0])
+
+	if MIN_VALUE is not None:
+		assert_raises(ValueError, v, 
+			[[[MIN_VALUE-0.1 for i in range(model.d)] for j in range(4)]])
+	
+	if MAX_VALUE is not None:
+		assert_raises(ValueError, v, 
+			[[[MAX_VALUE+0.1 for i in range(model.d)] for j in range(4)]])
+
+
 def test_forward(model, X):
 	y_hat = model.forward(X)
 
@@ -1258,6 +1282,22 @@ def test_masked_probability(model, X, X_masked):
 	p = model.probability(X_masked)
 	assert_array_almost_equal(p, [1.9253e-07, 7.6242e-08], 4)
 
+
+def test_masked_viterbi(model, X, X_masked):
+	X = torch.tensor(numpy.array(X))
+	mask = torch.ones_like(X).type(torch.bool)
+	X_ = torch.masked.MaskedTensor(X, mask=mask)
+
+	v = model.viterbi(X_)
+	assert_array_almost_equal(v, [
+		[1, 1, 1, 1, 0],
+        [1, 0, 1, 0, 1]], 4)
+
+	v = model.viterbi(X_masked)
+	assert_array_almost_equal(v, [
+		[1, 1, 1, 1, 0],
+        [1, 0, 1, 0, 1]], 4)
+	
 
 def test_masked_forward(model, X, X_masked):
 	X = torch.tensor(numpy.array(X))

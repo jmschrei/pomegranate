@@ -280,6 +280,78 @@ class DenseHMM(_BaseHMM):
 			return emissions, distributions
 		return emissions
 
+
+	def viterbi(self, X=None, emissions=None, priors=None):
+		"""Run the Viterbi algorithm on some data.
+
+		Runs the Viterbi algortihm on a batch of sequences. The Viterbi 
+		algorithm is a dynamic programming algorithm that begins at the start
+		state and calculates the single best path through the model involving
+		alignments of symbol i to node j. This is in contrast to the forward
+		function, which involves calculating the sum of all paths, not just
+		the single best path. Because we have to keep track of the best path,
+		the Viterbi algorithm is slightly more conceptually challenging and
+		involves keeping track of a traceback matrix.
+
+		Note that, as an internal method, this does not take as input the
+		actual sequence of observations but, rather, the emission probabilities
+		calculated from the sequence given the model.
+
+
+		Parameters
+		----------
+		X: list, numpy.ndarray, torch.Tensor, shape=(-1, -1, d)
+			A set of examples to evaluate. Does not need to be passed in if
+			emissions are. 
+
+		emissions: list, numpy.ndarray, torch.Tensor, shape=(-1, -1, n_dists)
+			Precalculated emission log probabilities. These are the
+			probabilities of each observation under each probability 
+			distribution. When running some algorithms it is more efficient
+			to precalculate these and pass them into each call.
+
+		priors: list, numpy.ndarray, torch.Tensor, shape=(-1, -1, self.k)
+			Prior probabilities of assigning each symbol to each node. If not
+			provided, do not include in the calculations (conceptually
+			equivalent to a uniform probability, but without scaling the
+			probabilities). This can be used to assign labels to observatons
+			by setting one of the probabilities for an observation to 1.0.
+			Note that this can be used to assign hard labels, but does not
+			have the same semantics for soft labels, in that it only
+			influences the initial estimate of an observation being generated
+			by a component, not gives a target. Default is None.
+
+
+		Returns
+		-------
+		path: torch.Tensor, shape=(-1, -1)
+			The state assignment for each observation in each sequence.
+		""" 
+
+		emissions = _check_inputs(self, X, emissions, priors)
+		n, l = emissions.shape[:2]
+
+		v = torch.clone(emissions.permute(1, 0, 2)).contiguous()
+		v[0] += self.starts
+		
+		traceback = torch.zeros_like(v, dtype=torch.int32)
+		traceback[0] = torch.arange(v.shape[-1])
+
+		for i in range(1, l):
+			z = v[i-1].unsqueeze(-1) + self.edges.unsqueeze(0) + v[i][:, None]
+			v[i], traceback[i] = torch.max(z, dim=-2)
+
+		ends = self.ends + v[-1]
+		best_end_logps, best_end_idxs = torch.max(ends, dim=-1)
+
+		paths = [best_end_idxs]
+		for i in range(1, l):
+			paths.append(traceback[l-i, torch.arange(n), paths[-1]])
+
+		paths = torch.flip(torch.stack(paths).T, dims=(-1,))
+		return paths
+
+
 	def forward(self, X=None, emissions=None, priors=None):
 		"""Run the forward algorithm on some data.
 
