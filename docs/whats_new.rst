@@ -8,6 +8,26 @@ Release History
 Version 1.0.4
 ==============
 
+
+Highlights
+----------
+
+	- Added a feature-complete implementation of `.viterbi` to `DenseHMM` and 
+	`SparseHMM`. Unfortunately, due to the lack of an efficient `scatter_argmax`
+	implementation in torch, the `SparseHMM` function is quite a bit slower than
+	it could be. Hopefully this will be fixed in the future.
+	- Fixed a bug where `max_iter` and `tol` were not being passed into the
+	underlying `FactorGraph` when creating a `BayesianNetwork`.
+	- Changed `BayesianNetwork.sample` to run `self.d+1` times to cover an edge
+	case that might arise.
+	- Fixed `.name` attribute of `StudentT` distribution
+	- Sampling with HMMs without fixed end probabilities should be fixed
+	- Incorporated link fix from @reachusama for Bayesian networks
+
+
+Version 1.0.4
+==============
+
 Highlights
 ----------
 

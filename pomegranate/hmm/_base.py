@@ -158,8 +158,6 @@ class _BaseHMM(Distribution):
 				shape=(n,), min_value=0., max_value=1., value_sum=1.0)
 			self.starts = _cast_as_parameter(torch.log(starts))
 
-
-
 		if ends is not None:
 			ends = _check_parameter(_cast_as_tensor(ends), "ends", ndim=1, 
 				shape=(n,), min_value=0., max_value=1.)
@@ -211,14 +209,23 @@ class _BaseHMM(Distribution):
 
 		_init = all(d._initialized for d in self.distributions)
 		if X is not None and not _init:
+			if isinstance(X, list):
+				d = _cast_as_tensor(X[0]).shape[-1]
+				X = torch.cat([_cast_as_tensor(x).reshape(-1, d) for x in X],
+					dim=0).unsqueeze(0)
+
 			X = _check_parameter(_cast_as_tensor(X), "X", ndim=3, 
 				check_parameter=self.check_data)
 			X = X.reshape(-1, X.shape[-1])
 
 			if sample_weight is None:
 				sample_weight = torch.ones(1, dtype=self.dtype, 
-					device=self.device).expand(X.shape[0], 1)
+					device=self.device).to(X.device).expand(X.shape[0], 1)
 			else:
+				if isinstance(sample_weight, list):
+					sample_weight = torch.cat([_cast_as_tensor(w).reshape(-1, 1) 
+						for w in sample_weight], dim=0).to(X.device)
+
 				sample_weight = _check_parameter(_cast_as_tensor(
 					sample_weight).reshape(-1, 1), "sample_weight", 
 					min_value=0., ndim=1, shape=(len(X),), 
@@ -230,8 +237,9 @@ class _BaseHMM(Distribution):
 			y_hat = model.fit_predict(X, sample_weight=sample_weight)
 
 			for i in range(self.n_distributions):
-				self.distributions[i].fit(X[y_hat == i], 
-					sample_weight=sample_weight[y_hat == i])
+				self.distributions[i].fit(X[y_hat == i].cpu(), 
+					sample_weight=sample_weight[y_hat == i].cpu())
+				self.distributions[i].to(X.device)
 
 			self.d = X.shape[-1]
 			super()._initialize(X.shape[-1])
@@ -306,6 +314,24 @@ class _BaseHMM(Distribution):
 	@property
 	def n_distributions(self):
 		return len(self.distributions) if self.distributions is not None else 0
+
+	def freeze(self):
+		"""Freeze this model and all child distributions."""
+
+		self.register_buffer("frozen", _cast_as_tensor(True))
+		for d in self.distributions:
+			d.freeze()
+
+		return self
+
+	def unfreeze(self):
+		"""Unfreeze this model and all child distributions."""
+
+		self.register_buffer("frozen", _cast_as_tensor(False))
+		for d in self.distributions:
+			d.unfreeze()
+
+		return self
 
 	def add_distribution(self, distribution):
 		"""Add a distribution to the model.
@@ -586,13 +612,10 @@ class _BaseHMM(Distribution):
 
 		# Initialize by concatenating across sequences
 		if not self._initialized:
-			X_ = torch.cat(X, dim=1)
-
 			if sample_weight is None:
-				self._initialize(X_)
+				self._initialize(X)
 			else:
-				w_ = torch.cat(sample_weight, dim=1)
-				self._initialize(X_, sample_weight=w_)
+				self._initialize(X, sample_weight=sample_weight)
 
 		logp, last_logp = None, None
 		for i in range(self.max_iter):
@@ -682,7 +705,7 @@ class _BaseHMM(Distribution):
 		X = _check_parameter(_cast_as_tensor(X), "X", ndim=3, 
 			shape=(-1, -1, self.d), check_parameter=self.check_data)
 		emissions = _check_inputs(self, X, emissions, priors)
-		
+
 		if sample_weight is None:
 			sample_weight = torch.ones(1, device=self.device).expand(
 				emissions.shape[0], 1)

@@ -424,11 +424,11 @@ def partition_sequences(X, sample_weight=None, priors=None, n_dists=None):
 	else:
 		if sample_weight is not None:
 			sample_weight = [_check_parameter(_cast_as_tensor(sample_weight),
-				"sample_weight", min_value=0.0)]
+				"sample_weight", min_value=0.0).to(X[0].device)]
 
 		if priors is not None:
 			priors = [_check_parameter(_cast_as_tensor(priors), "priors",
-									   ndim=3, shape=(*X[0].shape[:-1], n_dists))]
+				ndim=3, shape=(*X[0].shape[:-1], n_dists)).to(X[0].device)]
 
 		return X, sample_weight, priors
 
@@ -443,11 +443,12 @@ def partition_sequences(X, sample_weight=None, priors=None, n_dists=None):
 	else:
 		if sample_weight is not None:
 			sample_weight = [_check_parameter(_cast_as_tensor(w_),
-				"sample_weight", min_value=0.0) for w_ in sample_weight]
+				"sample_weight", min_value=0.0).to(X[0].device) 
+					for w_ in sample_weight]
 
 		if priors is not None:
 			priors = [_check_parameter(_cast_as_tensor(p), "priors",
-				ndim=3, shape=(*X[i].shape[:-1], n_dists)) 
+				ndim=3, shape=(*X[i].shape[:-1], n_dists)).to(X[0].device) 
 					for i, p in enumerate(priors)]
 
 		if all([x.ndim == 3 for x in X]):
@@ -466,13 +467,13 @@ def partition_sequences(X, sample_weight=None, priors=None, n_dists=None):
 
 		if sample_weight is not None:
 			w = _check_parameter(_cast_as_tensor(sample_weight[i]), 
-				"sample_weight", min_value=0.0)
+				"sample_weight", min_value=0.0).to(X[0].device)
 
 			sample_weight_dict[n].append(w)
 
 		if priors is not None:
 			p = _check_parameter(_cast_as_tensor(priors[i]), "priors",
-								 ndim=2, shape=(*x.shape[:-1], n_dists))
+				ndim=2, shape=(*x.shape[:-1], n_dists)).to(X[0].device)
 
 			priors_dict[n].append(p)
 

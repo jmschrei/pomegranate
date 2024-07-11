@@ -301,6 +301,13 @@ class SparseHMM(_BaseHMM):
 			raise ValueError("Must specify a length or have explicit "
 				+ "end probabilities.")
 
+		if self.ends is None:
+			ends = torch.zeros(self.n_distributions, 
+				dtype=self._edge_log_probs.dtype, 
+				device=self._edge_log_probs.device) + float("-inf")
+		else:
+			ends = self.ends
+
 		distributions, emissions = [], []
 		edge_ends, edge_probs = [], []
 		for idx in range(self.n_distributions):
@@ -309,7 +316,7 @@ class SparseHMM(_BaseHMM):
 			_ends = numpy.concatenate([self._edge_idx_ends[idxs].numpy(), 
 				[self.n_distributions]])
 			_probs = numpy.concatenate([torch.exp(self._edge_log_probs[idxs]
-				).numpy(), [numpy.exp(self.ends[idx])]])
+				).numpy(), [numpy.exp(ends[idx])]])
 
 			edge_ends.append(_ends)
 			edge_probs.append(_probs)
@@ -350,10 +357,6 @@ class SparseHMM(_BaseHMM):
 		the single best path. Because we have to keep track of the best path,
 		the Viterbi algorithm is slightly more conceptually challenging and
 		involves keeping track of a traceback matrix.
-
-		Note that, as an internal method, this does not take as input the
-		actual sequence of observations but, rather, the emission probabilities
-		calculated from the sequence given the model.
 
 
 		Parameters
@@ -422,8 +425,6 @@ class SparseHMM(_BaseHMM):
 
 		paths = torch.flip(torch.stack(paths).T, dims=(-1,))
 		return paths
-
-
 
 
 	def forward(self, X=None, emissions=None, priors=None):
@@ -682,15 +683,16 @@ class SparseHMM(_BaseHMM):
 
 		t, r, starts, ends, logps = self.forward_backward(emissions=emissions)
 
-		self._xw_starts_sum += torch.sum(starts * sample_weight, dim=0)
-		self._xw_ends_sum += torch.sum(ends * sample_weight, dim=0)
-		self._xw_sum += torch.sum(t * sample_weight, dim=0) 
-
 		X = X.reshape(-1, X.shape[-1])
 		r = torch.exp(r) * sample_weight.unsqueeze(1)
 		for i, node in enumerate(self.distributions):
 			w = r[:, :, i].reshape(-1, 1)
 			node.summarize(X, sample_weight=w)
+
+		if self.frozen == False:
+			self._xw_starts_sum += torch.sum(starts * sample_weight, dim=0)
+			self._xw_ends_sum += torch.sum(ends * sample_weight, dim=0)
+			self._xw_sum += torch.sum(t * sample_weight, dim=0) 
 
 		return logps
 

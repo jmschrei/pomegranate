@@ -42,6 +42,14 @@ class Distribution(torch.nn.Module):
 	def dtype(self):
 		return next(self.parameters()).dtype
 
+	def freeze(self):
+		self.register_buffer("frozen", _cast_as_tensor(True))
+		return self
+
+	def unfreeze(self):
+		self.register_buffer("frozen", _cast_as_tensor(False))
+		return self
+
 	def forward(self, X):
 		self.summarize(X)
 		return self.log_probability(X)

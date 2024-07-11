@@ -249,9 +249,15 @@ class DenseHMM(_BaseHMM):
 			raise ValueError("Must specify a length or have explicit "
 				+ "end probabilities.")
 
+		if self.ends is None:
+			ends = torch.zeros(self.n_distributions, dtype=self.edges.dtype, 
+				device=self.edges.device) + float("-inf")
+		else:
+			ends = self.ends
+
 		distributions, emissions = [], []
 
-		edge_probs = torch.hstack([self.edges, self.ends.unsqueeze(1)])
+		edge_probs = torch.hstack([self.edges, ends.unsqueeze(1)])
 		edge_probs = torch.exp(edge_probs).numpy()
 
 		starts = torch.exp(self.starts).numpy()
@@ -292,10 +298,6 @@ class DenseHMM(_BaseHMM):
 		the single best path. Because we have to keep track of the best path,
 		the Viterbi algorithm is slightly more conceptually challenging and
 		involves keeping track of a traceback matrix.
-
-		Note that, as an internal method, this does not take as input the
-		actual sequence of observations but, rather, the emission probabilities
-		calculated from the sequence given the model.
 
 
 		Parameters
@@ -361,10 +363,6 @@ class DenseHMM(_BaseHMM):
 		start state and returns the probability, over all paths through the
 		model, that result in the alignment of symbol i to node j.
 
-		Note that, as an internal method, this does not take as input the
-		actual sequence of observations but, rather, the emission probabilities
-		calculated from the sequence given the model.
-
 		
 		Parameters
 		----------
@@ -422,10 +420,6 @@ class DenseHMM(_BaseHMM):
 		of the sequence and returns the probability, over all paths through the
 		model, that result in the alignment of symbol i to node j, working
 		backwards.
-
-		Note that, as an internal method, this does not take as input the
-		actual sequence of observations but, rather, the emission probabilities
-		calculated from the sequence given the model.
 
 		
 		Parameters
@@ -617,15 +611,16 @@ class DenseHMM(_BaseHMM):
 
 		t, r, starts, ends, logps = self.forward_backward(emissions=emissions)
 
-		self._xw_starts_sum += torch.sum(starts * sample_weight, dim=0)
-		self._xw_ends_sum += torch.sum(ends * sample_weight, dim=0)
-		self._xw_sum += torch.sum(t * sample_weight.unsqueeze(-1), dim=0) 
-
 		X = X.reshape(-1, X.shape[-1])
 		r = torch.exp(r) * sample_weight.unsqueeze(-1)
 		for i, node in enumerate(self.distributions):
 			w = r[:, :, i].reshape(-1, 1)
 			node.summarize(X, sample_weight=w)
+
+		if self.frozen == False:
+			self._xw_starts_sum += torch.sum(starts * sample_weight, dim=0)
+			self._xw_ends_sum += torch.sum(ends * sample_weight, dim=0)
+			self._xw_sum += torch.sum(t * sample_weight.unsqueeze(-1), dim=0) 
 
 		return logps
 

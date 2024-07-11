@@ -47,9 +47,10 @@ class BayesianNetwork(Distribution):
 	distributions: tuple or list or None
 		A set of distribution objects. These do not need to be initialized,
 		i.e. can be "Categorical()". Currently, they must be either Categorical
-		or JointCategorical distributions. If provided, they must be consistent
-		with the provided edges in that every conditional distribution must
-		have at least one parent in the provided structure. Default is None.
+		or ConditionalCategorical distributions. If provided, they must be 
+		consistent with the provided edges in that every conditional 
+		distribution must have at least one parent in the provided structure. 
+		Default is None.
 
 	edges: tuple or list or None, optional
 		A list or tuple of 2-tuples where the first element in the 2-tuple is 
@@ -110,7 +111,8 @@ class BayesianNetwork(Distribution):
 		self._factor_mapping = {}
 		self._distribution_mapping = {}
 		self._parents = []
-		self._factor_graph = FactorGraph()
+		self._factor_graph = FactorGraph(max_iter=max_iter, tol=tol, 
+			frozen=frozen)
 
 		self.algorithm = algorithm
 		self.include_parents = include_parents
@@ -303,7 +305,7 @@ class BayesianNetwork(Distribution):
 
 		X = torch.zeros(n, self.d, dtype=torch.int32) - 1
 
-		for i in range(self.d):
+		for i in range(self.d+1):
 			for j, parents in enumerate(self._parents):
 				if (X[0, j] != -1).item():
 					continue

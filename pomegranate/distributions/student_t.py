@@ -72,8 +72,6 @@ class StudentT(Normal):
 
 	def __init__(self, dofs, means=None, covs=None, covariance_type='diag', 
 		min_cov=None, inertia=0.0, frozen=False, check_data=True):
-		self.name = "StudentT"
-
 		dofs = _check_parameter(_cast_as_tensor(dofs), "dofs", min_value=1,
 			ndim=0, dtypes=(torch.int32, torch.int64))
 		self.dofs = dofs
@@ -81,6 +79,8 @@ class StudentT(Normal):
 		super().__init__(means=means, covs=covs, min_cov=min_cov,
 			covariance_type=covariance_type, inertia=inertia, frozen=frozen,
 			check_data=check_data)
+
+		self.name = "StudentT"
 
 		del self.dofs
 
