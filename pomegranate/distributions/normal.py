@@ -257,7 +257,7 @@ class Normal(Distribution):
 
 		X, sample_weight = super().summarize(X, sample_weight=sample_weight)
 		X = _cast_as_tensor(X, dtype=self.means.dtype)
-
+		sample_weight = _cast_as_tensor(sample_weight, dtype=self.means.dtype)
 		if self.covariance_type == 'full':
 			self._w_sum += torch.sum(sample_weight, dim=0)
 			self._xw_sum += torch.sum(X * sample_weight, axis=0)
