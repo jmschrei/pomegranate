@@ -286,7 +286,6 @@ class DenseHMM(_BaseHMM):
 			return emissions, distributions
 		return emissions
 
-
 	def viterbi(self, X=None, emissions=None, priors=None):
 		"""Run the Viterbi algorithm on some data.
 
