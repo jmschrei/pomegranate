@@ -182,7 +182,9 @@ class Categorical(Distribution):
 			max_value=self.n_keys-1, ndim=2, shape=(-1, self.d),
 			check_parameter=self.check_data)
 
-		logps = torch.zeros(X.shape[0], dtype=self.probs.dtype)
+		logps = torch.zeros(X.shape[0], dtype=self.probs.dtype, 
+			device=self.device)
+		
 		for i in range(self.d):
 			if isinstance(X, torch.masked.MaskedTensor):
 				logp_ = self._log_probs[i][X[:, i]._masked_data]

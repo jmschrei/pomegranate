@@ -5,6 +5,16 @@
 Release History
 ===============
 
+Version 1.1.1
+==============
+
+
+Highlights
+----------
+
+	- Fixed an issue with categorical distributions being used on the GPU
+
+
 Version 1.0.4
 ==============
 
