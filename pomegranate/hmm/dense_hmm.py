@@ -199,24 +199,24 @@ class DenseHMM(_BaseHMM):
 
 		if start == self.start:
 			if self.starts is None:
-				self.starts = torch.empty(n, dtype=self.dtype, 
-					device=self.device) - inf
+				self.starts = torch.full((n,), NEGINF, dtype=self.dtype,
+					device=self.device)
 
 			idx = self.distributions.index(end)
 			self.starts[idx] = math.log(prob)
 
 		elif end == self.end:
 			if self.ends is None:
-				self.ends = torch.empty(n, dtype=self.dtype, 
-					device=self.device) - inf
+				self.ends = torch.full((n,), NEGINF, dtype=self.dtype,
+					device=self.device)
 
 			idx = self.distributions.index(start)
 			self.ends[idx] = math.log(prob)
 
 		else:
 			if self.edges is None:
-				self.edges = torch.empty((n, n), dtype=self.dtype, 
-					device=self.device) - inf
+				self.edges = torch.full((n, n), NEGINF, dtype=self.dtype,
+					device=self.device)
 
 			idx1 = self.distributions.index(start)
 			idx2 = self.distributions.index(end)
@@ -250,8 +250,8 @@ class DenseHMM(_BaseHMM):
 				+ "end probabilities.")
 
 		if self.ends is None:
-			ends = torch.zeros(self.n_distributions, dtype=self.edges.dtype, 
-				device=self.edges.device) + float("-inf")
+			ends = torch.full((self.n_distributions,), NEGINF, dtype=self.edges.dtype,
+				device=self.edges.device)
 		else:
 			ends = self.ends
 
@@ -454,8 +454,8 @@ class DenseHMM(_BaseHMM):
 		emissions = _check_inputs(self, X, emissions, priors)
 		n, l, _ = emissions.shape
 
-		b = torch.zeros(l, n, self.n_distributions, dtype=self.dtype, 
-			device=self.device) + float("-inf")
+		b = torch.full((l, n, self.n_distributions), NEGINF, dtype=self.dtype,
+			device=self.device)
 		b[-1] = self.ends
 
 		t_max = self.edges.max()
