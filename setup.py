@@ -2,12 +2,12 @@ from setuptools import setup
 
 setup(
 	name='pomegranate',
-	version='1.1.1',
+	version='1.1.2',
 	author='Jacob Schreiber',
 	author_email='jmschreiber91@gmail.com',
 	packages=['pomegranate', 'pomegranate.distributions', 'pomegranate.hmm'],
 	url='https://github.com/jmschrei/torchegranate',
-	license='LICENSE.txt',
+	license='MIT',
 	description='A PyTorch implementation of probabilistic models.',
 	install_requires=[
 		'numpy >= 1.22.2', 
