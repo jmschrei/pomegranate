@@ -413,8 +413,10 @@ class FactorGraph(Distribution):
 
 
 				dims = tuple(range(1, len(current_marginals[i].shape)))
-				current_marginals[i] /= current_marginals[i].sum(dim=dims, 
-					keepdims=True)
+				sum = current_marginals[i].sum(dim=dims, keepdims=True)
+				if sum == 0:
+					raise ImpossibleObservationsError
+				current_marginals[i] /= sum
 
 				loss += torch.nn.KLDivLoss(reduction="batchmean")(torch.log(
 					current_marginals[i] + 1e-8), prior_marginals[i])
@@ -574,3 +576,10 @@ class FactorGraph(Distribution):
 
 		for distribution in self.factors:
 			distribution.from_summaries()
+
+
+class ImpossibleObservationsError(Exception):
+	"""Exception raised when predicting probabilities given an impossible set of
+ 	observations.
+  	"""
+	pass
