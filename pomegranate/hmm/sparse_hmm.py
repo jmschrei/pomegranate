@@ -60,7 +60,7 @@ def unpack_edges(self, edges, starts, ends):
 		self.starts = _cast_as_parameter(torch.log(starts))
 
 	if ends is None:
-		self.ends = torch.empty(n, dtype=self.dtype, device=self.device) - inf
+		self.ends = torch.full((n,), NEGINF, dtype=self.dtype, device=self.device)
 	else:
 		ends = _check_parameter(_cast_as_tensor(ends), "ends", ndim=1, 
 			shape=(n,), min_value=0., max_value=1.)
@@ -93,8 +93,8 @@ def unpack_edges(self, edges, starts, ends):
 
 		if ni is self.start:
 			if self.starts is None:
-				self.starts = torch.zeros(n, dtype=self.dtype, 
-					device=self.device) - inf
+				self.starts = torch.full((n,), NEGINF, dtype=self.dtype,
+					device=self.device)
 
 			j = self.distributions.index(nj)
 			self.starts[j] = math.log(probability)
@@ -302,9 +302,9 @@ class SparseHMM(_BaseHMM):
 				+ "end probabilities.")
 
 		if self.ends is None:
-			ends = torch.zeros(self.n_distributions, 
+			ends = torch.full((self.n_distributions,), NEGINF,
 				dtype=self._edge_log_probs.dtype, 
-				device=self._edge_log_probs.device) + float("-inf")
+				device=self._edge_log_probs.device)
 		else:
 			ends = self.ends
 
