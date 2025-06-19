@@ -722,7 +722,7 @@ def test_serialization(X):
 	assert_array_almost_equal(d._log_probs, numpy.log(probs))
 
 	torch.save(d, ".pytest.torch")
-	d2 = torch.load(".pytest.torch")
+	d2 = torch.load(".pytest.torch",weights_only=False)
 	os.system("rm .pytest.torch")
 
 	assert_array_almost_equal(d2.probs, probs)

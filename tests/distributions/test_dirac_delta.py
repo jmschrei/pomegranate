@@ -563,7 +563,7 @@ def test_serialization():
 	assert_array_almost_equal(d._log_alphas, numpy.log([1., 1., 2.]))
 
 	torch.save(d, ".pytest.torch")
-	d2 = torch.load(".pytest.torch")
+	d2 = torch.load(".pytest.torch",weights_only=False)
 	os.system("rm .pytest.torch")
 
 	assert_array_almost_equal(d2.alphas, [1., 1., 2.])

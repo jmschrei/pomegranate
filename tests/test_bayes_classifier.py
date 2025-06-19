@@ -615,7 +615,7 @@ def test_fit_raises(model, X, w, y):
 
 def test_serialization(X, model):
 	torch.save(model, ".pytest.torch")
-	model2 = torch.load(".pytest.torch")
+	model2 = torch.load(".pytest.torch",weights_only=False)
 	os.system("rm .pytest.torch")
 
 	assert_array_almost_equal(model2.priors, model.priors)
