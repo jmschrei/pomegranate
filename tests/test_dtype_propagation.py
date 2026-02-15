@@ -1,10 +1,9 @@
 # test_dtype_propagation.py
-# Verifies that dtype=torch.float64 propagates correctly through the codebase
-# after the fix/float64-default-dtype-and-pseudocount changes.
+# Contact: Michael Enudi <okmich2002@yahoo.com>
 
 import sys
 import os
-# Ensure the local fork is imported, not the installed wheel
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
@@ -19,7 +18,6 @@ from pomegranate.hmm import DenseHMM, SparseHMM
 # ---------------------------------------------------------------------------
 # 1. Default dtype is float32 (backward compatibility)
 # ---------------------------------------------------------------------------
-
 def test_distribution_default_dtype_is_float32():
     d = Normal()
     assert d.dtype == torch.float32, f"Expected float32, got {d.dtype}"
@@ -45,7 +43,6 @@ def test_sparse_hmm_default_dtype_is_float32():
 # ---------------------------------------------------------------------------
 # 2. dtype=torch.float64 propagates correctly
 # ---------------------------------------------------------------------------
-
 def test_distribution_float64():
     d = Normal(dtype=torch.float64)
     assert d.dtype == torch.float64, f"Expected float64, got {d.dtype}"
@@ -73,7 +70,6 @@ def test_sparse_hmm_float64_dtype():
 # ---------------------------------------------------------------------------
 # 3. After fit, buffers and parameters are float64 when dtype=float64
 # ---------------------------------------------------------------------------
-
 def _make_synthetic_data(n=5000, n_states=3, seed=42):
     rng = np.random.RandomState(seed)
     means = [-5.0, 0.0, 5.0]
@@ -101,7 +97,6 @@ def test_dense_hmm_float64_buffers_after_fit():
 
 
 def _make_sparse_hmm(n_states=3, dtype=torch.float64):
-    """Build a SparseHMM with a fully-connected transition matrix."""
     dists = [Normal(dtype=dtype) for _ in range(n_states)]
     # SparseHMM edges format: [dist_from, dist_to, probability]
     prob = 1.0 / n_states
@@ -114,7 +109,6 @@ def _make_sparse_hmm(n_states=3, dtype=torch.float64):
 
 
 def test_sparse_hmm_float64_forward_backward_tensors():
-    """Forward tensor f and backward tensor b must be float64, not float32."""
     X = _make_synthetic_data(n=2000)
     X_t = torch.tensor(X, dtype=torch.float64)
 

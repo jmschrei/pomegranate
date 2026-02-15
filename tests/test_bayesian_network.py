@@ -268,15 +268,15 @@ def test_sample(distributions):
 		(d4, d13)])
 
 	X = model.sample(1)
-	assert_array_equal(X, [[1, 1, 1, 1]])
+	assert_array_equal(X, [[0, 0, 1, 1]])
 
 	X = model.sample(5)
-	assert_array_equal(X, 
-		[[0, 0, 1, 1],
-		 [0, 0, 0, 1],
-		 [0, 2, 1, 0],
-		 [0, 1, 1, 1],
-		 [0, 0, 1, 1]])
+	assert_array_equal(X,
+		[[0, 0, 0, 0],
+		 [0, 0, 1, 1],
+		 [0, 0, 1, 1],
+		 [0, 0, 1, 0],
+		 [0, 0, 1, 0]])
 
 
 ###

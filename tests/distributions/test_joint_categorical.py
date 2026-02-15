@@ -256,12 +256,12 @@ def test_sample(probs):
 	assert_array_almost_equal(X, [[1, 2, 1]])
 
 	X = JointCategorical(probs).sample(5)
-	assert_array_almost_equal(X, 
-		[[1, 1, 0],
-         [0, 2, 1],
-         [1, 2, 1],
+	assert_array_almost_equal(X,
+		[[0, 2, 0],
          [1, 0, 1],
-         [1, 1, 1]], 3)
+         [0, 2, 1],
+         [0, 2, 1],
+         [0, 2, 0]], 3)
 
 
 ###

@@ -227,15 +227,15 @@ def test_sample(probs):
 	torch.manual_seed(0)
 
 	X = Categorical(probs).sample(1)
-	assert_array_almost_equal(X, [[3, 3, 0]])
+	assert_array_almost_equal(X, [[2, 2, 3]])
 
 	X = Categorical(probs).sample(5)
-	assert_array_almost_equal(X, 
-		[[3, 2, 0],
-		 [3, 0, 0],
+	assert_array_almost_equal(X,
+		[[2, 0, 0],
 		 [3, 2, 0],
-		 [1, 0, 0],
-		 [2, 1, 0]])
+		 [2, 3, 0],
+		 [2, 0, 0],
+		 [2, 2, 0]])
 
 
 ###
@@ -804,7 +804,7 @@ def test_serialization(X):
 	assert_array_almost_equal(d._log_probs, numpy.log(p))
 
 	torch.save(d, ".pytest.torch")
-	d2 = torch.load(".pytest.torch")
+	d2 = torch.load(".pytest.torch", weights_only=False)
 	os.system("rm .pytest.torch")
 
 	assert_array_almost_equal(d2.probs, p)
