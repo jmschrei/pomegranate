@@ -343,7 +343,7 @@ class BayesianNetwork(Distribution):
 		X = _check_parameter(_cast_as_tensor(X), "X", ndim=2, 
 			check_parameter=self.check_data)
 		
-		logps = torch.zeros(X.shape[0], device=X.device, dtype=torch.float32)
+		logps = torch.zeros(X.shape[0], device=X.device, dtype=self.dtype)
 		for i, distribution in enumerate(self.distributions):
 			parents = self._parents[i] + (i,)
 

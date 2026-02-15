@@ -71,8 +71,9 @@ class Normal(Distribution):
 	"""
 
 	def __init__(self, means=None, covs=None, covariance_type='full', 
-		min_cov=None, inertia=0.0, frozen=False, check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		min_cov=None, inertia=0.0, frozen=False, check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "Normal"
 
 		self.means = _check_parameter(_cast_as_parameter(means), "means", 

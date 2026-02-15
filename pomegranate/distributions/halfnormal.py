@@ -75,6 +75,7 @@ class HalfNormal(Normal):
         inertia=0.0,
         frozen=False,
         check_data=True,
+        dtype=torch.float32,
     ):
         self.name = "HalfNormal"
         super().__init__(
@@ -85,6 +86,7 @@ class HalfNormal(Normal):
             inertia=inertia,
             frozen=frozen,
             check_data=check_data,
+        dtype=dtype,
         )
 
     def _initialize(self, d):

@@ -63,8 +63,9 @@ class Gamma(Distribution):
 	"""
 
 	def __init__(self, shapes=None, rates=None, inertia=0.0, tol=1e-4, 
-		max_iter=20, frozen=False, check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		max_iter=20, frozen=False, check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "Gamma"
 
 		self.shapes = _check_parameter(_cast_as_parameter(shapes), "shapes", 

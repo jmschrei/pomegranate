@@ -80,8 +80,9 @@ class ConditionalCategorical(ConditionalDistribution):
 	"""
 
 	def __init__(self, probs=None, n_categories=None, pseudocount=0, 
-		inertia=0.0, frozen=False, check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		inertia=0.0, frozen=False, check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "ConditionalCategorical"
 
 		if probs is not None:
@@ -231,8 +232,8 @@ class ConditionalCategorical(ConditionalDistribution):
 
 		X = _check_parameter(X, "X", shape=(-1, self.n_parents, self.d),
 			check_parameter=self.check_data)
-		sample_weight = _check_parameter(_cast_as_tensor(sample_weight, 
-			dtype=torch.float32), "sample_weight", min_value=0, ndim=(1, 2))
+		sample_weight = _check_parameter(_cast_as_tensor(sample_weight,
+			dtype=self.dtype), "sample_weight", min_value=0, ndim=(1, 2))
 
 		if sample_weight is None:
 			sample_weight = torch.ones(X[:, 0].shape[0], X[:, 0].shape[-1], 

@@ -243,7 +243,7 @@ class FactorGraph(Distribution):
 		X = _check_parameter(_cast_as_tensor(X), "X", ndim=2, 
 			check_parameter=self.check_data)
 		
-		logps = torch.zeros(X.shape[0], device=X.device, dtype=torch.float32)
+		logps = torch.zeros(X.shape[0], device=X.device, dtype=self.dtype)
 		for idxs, factor in zip(self._factor_edges, self.factors):
 			logps += factor.log_probability(X[:, idxs])
 

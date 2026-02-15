@@ -309,8 +309,8 @@ class GeneralMixtureModel(BayesMixin, Distribution):
 		if not self._initialized:
 			self._initialize(X, sample_weight=sample_weight)
 
-		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight, 
-			dtype=torch.float32), device=self.device)
+		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight,
+			dtype=self.dtype), device=self.device)
 
 		e = self._emission_matrix(X, priors=priors)
 		logp = torch.logsumexp(e, dim=1, keepdims=True)

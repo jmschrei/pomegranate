@@ -70,8 +70,9 @@ class Categorical(Distribution):
 	"""
 
 	def __init__(self, probs=None, n_categories=None, pseudocount=0.0, 
-		inertia=0.0, frozen=False, check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		inertia=0.0, frozen=False, check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "Categorical"
 
 		self.probs = _check_parameter(_cast_as_parameter(probs), "probs", 

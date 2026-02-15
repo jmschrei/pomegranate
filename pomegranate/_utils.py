@@ -318,7 +318,7 @@ def _reshape_weights(X, sample_weight, device='cpu'):
 			sample_weight = torch.ones(1, device=device, 
 				dtype=X.dtype).expand(*X.shape)
 		else:
-			sample_weight = torch.ones(1, device=device, 
+			sample_weight = torch.ones(1, device=device,
 				dtype=torch.float32).expand(*X.shape)
 	else:
 		if not torch.is_floating_point(sample_weight):
@@ -351,15 +351,15 @@ def _initialize_centroids(X, k, algorithm='first-k', random_state=None):
 		random_state = numpy.random.RandomState(random_state)
 
 	if algorithm == 'first-k':
-		return _cast_as_tensor(torch.clone(X[:k]), dtype=torch.float32)
+		return _cast_as_tensor(torch.clone(X[:k]), dtype=X.dtype)
 
 	elif algorithm == 'random':
 		idxs = random_state.choice(len(X), size=k, replace=False)
-		return _cast_as_tensor(torch.clone(X[idxs]), dtype=torch.float32)
+		return _cast_as_tensor(torch.clone(X[idxs]), dtype=X.dtype)
 
 	elif algorithm == 'submodular-facility-location':
 		selector = FacilityLocationSelection(k, random_state=random_state)
-		return _cast_as_tensor(selector.fit_transform(X), dtype=torch.float32)
+		return _cast_as_tensor(selector.fit_transform(X), dtype=X.dtype)
 
 	elif algorithm == 'submodular-feature-based':
 		selector = FeatureBasedSelection(k, random_state=random_state)

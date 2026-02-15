@@ -65,9 +65,11 @@ class ZeroInflated(Distribution):
 		Whether to print the improvement and timings during training.
 	"""
 
-	def __init__(self, distribution, priors=None, max_iter=10, 
-		tol=0.1, inertia=0.0, frozen=False, check_data=False, verbose=False):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+	def __init__(self, distribution, priors=None, max_iter=10,
+		tol=0.1, inertia=0.0, frozen=False, check_data=False, verbose=False,
+		dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "ZeroInflated"
 
 		self.distribution = distribution
@@ -231,8 +233,8 @@ class ZeroInflated(Distribution):
 			self._initialize(X)
 
 		_check_parameter(X, "X", ndim=2, shape=(-1, self.d))
-		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight, 
-			dtype=torch.float32), device=self.device)
+		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight,
+			dtype=self.dtype), device=self.device)
 
 		e = self._emission_matrix(X)
 		logp = torch.logsumexp(e, dim=2, keepdims=True)

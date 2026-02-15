@@ -71,6 +71,7 @@ class LogNormal(Normal):
         inertia=0.0,
         frozen=False,
         check_data=True,
+        dtype=torch.float32,
     ):
         self.name = "LogNormal"
         super().__init__(
@@ -81,6 +82,7 @@ class LogNormal(Normal):
             inertia=inertia,
             frozen=frozen,
             check_data=check_data,
+        dtype=dtype,
         )
 
     def sample(self, n):
