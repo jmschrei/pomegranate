@@ -59,8 +59,9 @@ class Uniform(Distribution):
 	"""
 
 	def __init__(self, mins=None, maxs=None, inertia=0.0, frozen=False, 
-		check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "Uniform"
 
 		self.mins = _check_parameter(_cast_as_parameter(mins), "mins", ndim=1)

@@ -137,11 +137,12 @@ class _BaseHMM(Distribution):
 		Whether to print the improvement and timings during training.
 	"""
 
-	def __init__(self, distributions=None, starts=None, ends=None, 
-		init='random', max_iter=1000, tol=0.1, sample_length=None, 
+	def __init__(self, distributions=None, starts=None, ends=None,
+		init='random', max_iter=1000, tol=0.1, sample_length=None,
 		return_sample_paths=False, inertia=0.0, frozen=False, check_data=True,
-		random_state=None, verbose=False):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		random_state=None, verbose=False, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 
 		self.distributions = distributions
 		n = len(distributions) if distributions is not None else None
@@ -231,8 +232,8 @@ class _BaseHMM(Distribution):
 					min_value=0., ndim=1, shape=(len(X),), 
 					check_parameter=self.check_data).reshape(-1, 1)
 
-			model = KMeans(self.n_distributions, init=self.init, max_iter=1, 
-				random_state=self.random_state).to(self.device)
+			model = KMeans(self.n_distributions, init=self.init, max_iter=1,
+				random_state=self.random_state, dtype=self.dtype).to(self.device)
 
 			y_hat = model.fit_predict(X, sample_weight=sample_weight)
 

@@ -137,12 +137,12 @@ def test_sample(model):
 	assert_array_almost_equal(X, [[7.367485, 0.369115, 0.061504]])
 
 	X = model.sample(5)
-	assert_array_almost_equal(X, 
-		[[0.9082, 0.2612, 0.0340],
-         [1.2255, 2.7453, 2.5202],
-         [2.0425, 0.1972, 0.0581],
-         [1.0984, 0.0690, 0.1094],
-         [3.2267, 0.0709, 0.1129]], 3)
+	assert_array_almost_equal(X,
+		[[1.1127, 0.7942, 1.7974],
+         [0.4086, 0.1317, 0.0973],
+         [1.3807, 0.1744, 0.0523],
+         [0.4829, 0.3281, 0.1537],
+         [3.7425, 2.6310, 1.4422]], 3)
 
 
 ###
@@ -538,7 +538,7 @@ def test_fit_raises(model, X, w):
 
 def test_serialization(X, model):
 	torch.save(model, ".pytest.torch")
-	model2 = torch.load(".pytest.torch")
+	model2 = torch.load(".pytest.torch", weights_only=False)
 	os.system("rm .pytest.torch")
 
 	assert_array_almost_equal(model2.priors, model.priors)

@@ -53,8 +53,9 @@ class Poisson(Distribution):
 
 
 	def __init__(self, lambdas=None, inertia=0.0, frozen=False, 
-		check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "Poisson"
 
 		self.lambdas = _check_parameter(_cast_as_parameter(lambdas), "lambdas", 

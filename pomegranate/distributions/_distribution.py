@@ -16,9 +16,10 @@ class Distribution(torch.nn.Module):
 	This distribution is inherited by all the other distributions.
 	"""
 
-	def __init__(self, inertia, frozen, check_data):
+	def __init__(self, inertia, frozen, check_data, dtype=torch.float32):
 		super(Distribution, self).__init__()
-		self._device = _cast_as_parameter([0.0])
+		self._dtype = dtype
+		self._device = _cast_as_parameter([0.0], dtype=dtype)
 
 		_check_parameter(inertia, "inertia", min_value=0, max_value=1, ndim=0)
 		_check_parameter(frozen, "frozen", value_set=[True, False], ndim=0)
@@ -40,7 +41,7 @@ class Distribution(torch.nn.Module):
 
 	@property
 	def dtype(self):
-		return next(self.parameters()).dtype
+		return self._dtype
 
 	def freeze(self):
 		self.register_buffer("frozen", _cast_as_tensor(True))
@@ -94,8 +95,9 @@ class Distribution(torch.nn.Module):
 
 
 class ConditionalDistribution(Distribution):
-	def __init__(self, inertia, frozen, check_data):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+	def __init__(self, inertia, frozen, check_data, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 
 	def marginal(self, dim):
 		raise NotImplementedError

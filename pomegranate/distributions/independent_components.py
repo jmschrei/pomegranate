@@ -43,8 +43,9 @@ class IndependentComponents(Distribution):
 		Setting this to False is also necessary for compiling.
 	"""
 
-	def __init__(self, distributions, check_data=False):
-		super().__init__(inertia=0.0, frozen=False, check_data=check_data)
+	def __init__(self, distributions, check_data=False, dtype=torch.float32):
+		super().__init__(inertia=0.0, frozen=False, check_data=check_data,
+			dtype=dtype)
 		self.name = "IndependentComponents"
 
 		if len(distributions) <= 1:
@@ -182,8 +183,8 @@ class IndependentComponents(Distribution):
 		X = _check_parameter(_cast_as_tensor(X), "X", ndim=2, 
 			shape=(-1, self.d))
 
-		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight, 
-			dtype=torch.float32), device=self.device)
+		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight,
+			dtype=self.dtype), device=self.device)
 
 		for i, d in enumerate(self.distributions):
 			d.summarize(X[:, i:i+1], sample_weight=sample_weight[:, i:i+1])

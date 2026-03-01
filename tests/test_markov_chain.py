@@ -108,15 +108,15 @@ def test_sample(model):
 	torch.manual_seed(0)
 
 	X = model.sample(1)
-	assert_array_almost_equal(X, [[[2], [1], [2]]])
+	assert_array_almost_equal(X, [[[2], [1], [0]]])
 
 	X = model.sample(5)
-	assert_array_almost_equal(X, 
-		[[[1], [2], [0]],
-         [[2], [2], [2]],
-         [[0], [2], [0]],
-         [[2], [1], [0]],
-         [[0], [0], [2]]], 3)
+	assert_array_almost_equal(X,
+		[[[0], [2], [0]],
+         [[2], [0], [0]],
+         [[0], [2], [2]],
+         [[1], [2], [0]],
+         [[2], [1], [0]]], 3)
 
 
 ###

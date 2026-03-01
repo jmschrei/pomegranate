@@ -76,8 +76,9 @@ class JointCategorical(Distribution):
 	"""
 	
 	def __init__(self, probs=None, n_categories=None, pseudocount=0, 
-		inertia=0.0, frozen=False, check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+		inertia=0.0, frozen=False, check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "JointCategorical"
 
 		self.probs = _check_parameter(_cast_as_parameter(probs), "probs", 
@@ -244,8 +245,8 @@ class JointCategorical(Distribution):
 			value_set=tuple(range(max(self.n_categories)+1)), 
 			check_parameter=self.check_data)
 
-		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight, 
-			dtype=torch.float32))[:,0]
+		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight,
+			dtype=self.dtype))[:,0]
 
 		self._w_sum += torch.sum(sample_weight, dim=0)
 		for i in range(len(X)):

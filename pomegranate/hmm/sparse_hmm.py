@@ -198,15 +198,15 @@ class SparseHMM(_BaseHMM):
 		Setting this to False is also necessary for compiling.
 	"""
 
-	def __init__(self, distributions=None, edges=None, starts=None, ends=None, 
-		init='random', max_iter=1000, tol=0.1, sample_length=None, 
+	def __init__(self, distributions=None, edges=None, starts=None, ends=None,
+		init='random', max_iter=1000, tol=0.1, sample_length=None,
 		return_sample_paths=False, inertia=0.0, frozen=False, check_data=True,
-		random_state=None, verbose=False):
+		random_state=None, verbose=False, dtype=torch.float32):
 		super().__init__(distributions=distributions, starts=starts, ends=ends,
-			init=init, max_iter=max_iter, tol=tol, sample_length=sample_length, 
+			init=init, max_iter=max_iter, tol=tol, sample_length=sample_length,
 			return_sample_paths=return_sample_paths, inertia=inertia,
-			frozen=frozen, check_data=check_data, random_state=random_state, 
-			verbose=verbose)
+			frozen=frozen, check_data=check_data, random_state=random_state,
+			verbose=verbose, dtype=dtype)
 		self.name = "SparseHMM"
 
 		if edges is not None:
@@ -470,7 +470,7 @@ class SparseHMM(_BaseHMM):
 		emissions = _check_inputs(self, X, emissions, priors)
 		n, l, _ = emissions.shape
 
-		f = torch.full((l, n, self.n_distributions), -inf, dtype=torch.float32, 
+		f = torch.full((l, n, self.n_distributions), -inf, dtype=self.dtype,
 			device=self.device)
 		f[0] = self.starts + emissions[:, 0]
 
@@ -533,7 +533,7 @@ class SparseHMM(_BaseHMM):
 		emissions = _check_inputs(self, X, emissions, priors)
 		n, l, _ = emissions.shape
 
-		b = torch.full((l, n, self.n_distributions), -inf, dtype=torch.float32,
+		b = torch.full((l, n, self.n_distributions), -inf, dtype=self.dtype,
 			device=self.device)
 		b[-1] = self.ends
 
@@ -717,14 +717,17 @@ class SparseHMM(_BaseHMM):
 		for start, count in zip(self._edge_idx_starts, self._xw_sum):
 			node_out_count[start] += count
 
-		ends = torch.log(self._xw_ends_sum / node_out_count)
+		_tiny = torch.finfo(self.dtype).tiny
+		ends = torch.log(torch.clamp(
+			self._xw_ends_sum / node_out_count, min=_tiny))
 		starts = torch.log(self._xw_starts_sum / self._xw_starts_sum.sum())
 		_edge_log_probs = torch.empty_like(self._edge_log_probs)
 
 		for i in range(self.n_edges):
 			t = self._xw_sum[i]
 			t_sum = node_out_count[self._edge_idx_starts[i]]
-			_edge_log_probs[i] = torch.log(t / t_sum)
+			_edge_log_probs[i] = torch.log(
+				torch.clamp(t / t_sum, min=_tiny))
 
 		_update_parameter(self.ends, ends, inertia=self.inertia)
 		_update_parameter(self.starts, starts, inertia=self.inertia)

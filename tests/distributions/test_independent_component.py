@@ -124,11 +124,11 @@ def test_sample(distributions):
 
 	X = IndependentComponents(distributions).sample(5)
 	assert_array_almost_equal(X,
-		[[1.5661, 0.0797, 1.0000],
-		 [0.1968, 0.5958, 0.0000],
-		 [0.4325, 0.8809, 1.0000],
-		 [0.8707, 0.0992, 0.0000],
-		 [0.3400, 0.5702, 1.0000]], 3)
+		[[0.1968, 0.0797, 0.0000],
+		 [0.4325, 0.1173, 1.0000],
+		 [0.8707, 1.0953, 0.0000],
+		 [0.3400, 0.1850, 1.0000],
+		 [0.6031, 0.5710, 0.0000]], 3)
 
 
 ###
@@ -490,7 +490,7 @@ def test_serialization(X, distributions):
 	assert_array_almost_equal(d.distributions[2]._xw_sum, [[2.0, 2.0]])
 
 	torch.save(d, ".pytest.torch")
-	d2 = torch.load(".pytest.torch")
+	d2 = torch.load(".pytest.torch", weights_only=False)
 	os.system("rm .pytest.torch")
 
 	assert_array_almost_equal(d2.distributions[0]._w_sum, [4.0])

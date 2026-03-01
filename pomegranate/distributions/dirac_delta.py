@@ -52,8 +52,9 @@ class DiracDelta(Distribution):
 		Setting this to False is also necessary for compiling.
 	"""
 
-	def __init__(self, alphas=None, inertia=0.0, frozen=False, check_data=True):
-		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data)
+	def __init__(self, alphas=None, inertia=0.0, frozen=False, check_data=True, dtype=torch.float32):
+		super().__init__(inertia=inertia, frozen=frozen, check_data=check_data,
+			dtype=dtype)
 		self.name = "DiracDelta"
 
 		self.alphas = _check_parameter(_cast_as_parameter(alphas), "alphas", 

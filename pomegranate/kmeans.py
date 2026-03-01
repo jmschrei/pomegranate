@@ -71,14 +71,16 @@ class KMeans(torch.nn.Module):
 		Whether to print the improvement and timings during training.
 	"""
 
-	def __init__(self, k=None, centroids=None, init='first-k', max_iter=10, 
-		tol=0.1, inertia=0.0, frozen=False, random_state=None, verbose=False):
+	def __init__(self, k=None, centroids=None, init='first-k', max_iter=10,
+		tol=0.1, inertia=0.0, frozen=False, random_state=None, verbose=False,
+		dtype=torch.float32):
 		super().__init__()
 		self.name = "KMeans"
-		self._device = _cast_as_parameter([0.0])
+		self._dtype = dtype
+		self._device = _cast_as_parameter([0.0], dtype=dtype)
 
-		self.centroids = _check_parameter(_cast_as_parameter(centroids, 
-			dtype=torch.float32), "centroids", ndim=2)
+		self.centroids = _check_parameter(_cast_as_parameter(centroids,
+			dtype=dtype), "centroids", ndim=2)
 
 		self.k = _check_parameter(_cast_as_parameter(k), "k", ndim=0, 
 			min_value=2, dtypes=(int, torch.int32, torch.int64))
@@ -113,6 +115,10 @@ class KMeans(torch.nn.Module):
 		except:
 			return 'cpu'
 
+	@property
+	def dtype(self):
+		return self._dtype
+
 	def _initialize(self, X):
 		"""Initialize the probability distribution.
 
@@ -137,7 +143,7 @@ class KMeans(torch.nn.Module):
 		if centroids.device != self.device:
 			centroids = centroids.to(self.device)
 
-		self.centroids = _cast_as_parameter(centroids)
+		self.centroids = _cast_as_parameter(centroids, dtype=self.dtype)
 
 		self.d = X.shape[1]
 		self._initialized = True
@@ -155,10 +161,10 @@ class KMeans(torch.nn.Module):
 		if self._initialized == False:
 			return
 
-		self.register_buffer("_w_sum", torch.zeros(self.k, self.d, 
-			device=self.device))
+		self.register_buffer("_w_sum", torch.zeros(self.k, self.d,
+			dtype=self.dtype, device=self.device))
 		self.register_buffer("_xw_sum", torch.zeros(self.k, self.d,
-			device=self.device))
+			dtype=self.dtype, device=self.device))
 		self.register_buffer("_centroid_sum", torch.sum(self.centroids**2, 
 			dim=1).unsqueeze(0))
 
@@ -182,7 +188,7 @@ class KMeans(torch.nn.Module):
 			The Euclidean distance between each example and each cluster.
 		"""
 
-		X = _check_parameter(_cast_as_tensor(X, dtype=torch.float32), "X", 
+		X = _check_parameter(_cast_as_tensor(X, dtype=self.dtype), "X",
 			ndim=2, shape=(-1, self.d))
 
 		XX = torch.sum(X**2, dim=1).unsqueeze(1)
@@ -250,10 +256,10 @@ class KMeans(torch.nn.Module):
 		if not self._initialized:
 			self._initialize(X)
 
-		X = _check_parameter(_cast_as_tensor(X, dtype=torch.float32), "X", 
+		X = _check_parameter(_cast_as_tensor(X, dtype=self.dtype), "X",
 			ndim=2, shape=(-1, self.d))
-		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight, 
-			dtype=torch.float32), device=self.device)
+		sample_weight = _reshape_weights(X, _cast_as_tensor(sample_weight,
+			dtype=self.dtype), device=self.device)
 
 		distances = self._distances(X)
 		y_hat = distances.argmin(dim=1)

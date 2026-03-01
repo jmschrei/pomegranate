@@ -87,15 +87,15 @@ class DenseHMM(_BaseHMM):
 		Setting this to False is also necessary for compiling. Default is True.
 	"""
 
-	def __init__(self, distributions=None, edges=None, starts=None, ends=None, 
-		init='random', max_iter=1000, tol=0.1, sample_length=None, 
+	def __init__(self, distributions=None, edges=None, starts=None, ends=None,
+		init='random', max_iter=1000, tol=0.1, sample_length=None,
 		return_sample_paths=False, inertia=0.0, frozen=False, check_data=True,
-		random_state=None, verbose=False):
-		super().__init__(distributions=distributions, starts=starts, ends=ends, 
-			init=init, max_iter=max_iter, tol=tol, sample_length=sample_length, 
+		random_state=None, verbose=False, dtype=torch.float32):
+		super().__init__(distributions=distributions, starts=starts, ends=ends,
+			init=init, max_iter=max_iter, tol=tol, sample_length=sample_length,
 			return_sample_paths=return_sample_paths, inertia=inertia,
-			frozen=frozen, check_data=check_data, random_state=random_state, 
-			verbose=verbose)
+			frozen=frozen, check_data=check_data, random_state=random_state,
+			verbose=verbose, dtype=dtype)
 		
 		self.name = "DenseHMM"
 		n = len(distributions) if distributions is not None else 0
@@ -643,9 +643,12 @@ class DenseHMM(_BaseHMM):
 		node_out_count = torch.sum(self._xw_sum, dim=1, keepdims=True)
 		node_out_count += self._xw_ends_sum.unsqueeze(1)
 
-		ends = torch.log(self._xw_ends_sum / node_out_count[:,0])
+		_tiny = torch.finfo(self.dtype).tiny
+		ends = torch.log(torch.clamp(
+			self._xw_ends_sum / node_out_count[:,0], min=_tiny))
 		starts = torch.log(self._xw_starts_sum / self._xw_starts_sum.sum())
-		edges = torch.log(self._xw_sum / node_out_count)
+		edges = torch.log(torch.clamp(
+			self._xw_sum / node_out_count, min=_tiny))
 
 		_update_parameter(self.ends, ends, inertia=self.inertia)
 		_update_parameter(self.starts, starts, inertia=self.inertia)
