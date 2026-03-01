@@ -289,12 +289,17 @@ class Normal(Distribution):
 		if self.covariance_type == 'full':
 			v = self._xw_sum.unsqueeze(0) * self._xw_sum.unsqueeze(1)
 			covs = self._xxw_sum / self._w_sum -  v / self._w_sum ** 2.0
+			if self.min_cov is not None:
+				covs = covs + float(self.min_cov) * torch.eye(
+					covs.shape[0], dtype=covs.dtype, device=covs.device)
 
 		elif self.covariance_type in ['diag', 'sphere']:
 			covs = self._xxw_sum / self._w_sum - \
 				self._xw_sum ** 2.0 / self._w_sum ** 2.0
 			if self.covariance_type == 'sphere':
 				covs = covs.mean(dim=-1)
+			if self.min_cov is not None:
+				covs = torch.clamp(covs, min=float(self.min_cov))
 
 		_update_parameter(self.means, means, self.inertia)
 		_update_parameter(self.covs, covs, self.inertia)
