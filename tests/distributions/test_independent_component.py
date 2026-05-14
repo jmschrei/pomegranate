@@ -490,7 +490,7 @@ def test_serialization(X, distributions):
 	assert_array_almost_equal(d.distributions[2]._xw_sum, [[2.0, 2.0]])
 
 	torch.save(d, ".pytest.torch")
-	d2 = torch.load(".pytest.torch")
+	d2 = torch.load(".pytest.torch", weights_only=False)
 	os.system("rm .pytest.torch")
 
 	assert_array_almost_equal(d2.distributions[0]._w_sum, [4.0])
