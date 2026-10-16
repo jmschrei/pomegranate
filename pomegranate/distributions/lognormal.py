@@ -171,5 +171,7 @@ class LogNormal(Normal):
 
         if self.frozen is True:
             return
-        X = _cast_as_tensor(X, dtype=self.means.dtype)
+        X = _cast_as_tensor(
+            X, dtype=self.dtype if self.means is None else self.means.dtype
+        )
         super().summarize(X.log(), sample_weight=sample_weight)
